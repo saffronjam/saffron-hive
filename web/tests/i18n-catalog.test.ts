@@ -46,6 +46,18 @@ describe("translated catalog plurals", () => {
     expect(m.lights_on_count({ on: 2, total: 5 }, { locale: "ru" })).toBe("2 из 5 ламп");
   });
 
+  it("uses grammatical Swedish contact states", () => {
+    expect(m.contact_summary_single({ role: "window", state: "open" }, { locale: "sv" })).toBe(
+      "Fönster öppet",
+    );
+    expect(m.contact_summary_single({ role: "window", state: "closed" }, { locale: "sv" })).toBe(
+      "Fönster stängt",
+    );
+    expect(
+      m.contact_summary_multiple({ role: "window", open: "2", unknown: "0" }, { locale: "sv" }),
+    ).toBe("2 fönster öppna");
+  });
+
   it("keeps reviewed Russian interface terminology", () => {
     expect(m.nav_logs({}, { locale: "ru" })).toBe("Журнал");
     expect(m.nav_alarms({}, { locale: "ru" })).toBe("Оповещения");
@@ -125,7 +137,6 @@ describe("translated catalog plurals", () => {
     expect(m.field_breakdown({}, { locale: "sv" })).toBe("Sammansättning");
     expect(m.shared_actions({}, { locale: "sv" })).toBe("Funktioner");
     expect(m.scene_action_apply({}, { locale: "sv" })).toBe("Starta");
-    expect(m.scene_apply_named({ name: "Kväll" }, { locale: "sv" })).toBe("Starta Kväll");
     expect(m.device_apply({}, { locale: "sv" })).toBe("Tillämpa");
     expect(m.data_viewer_add({}, { locale: "sv" })).toBe("Lägg till");
     expect(m.scene_editor_add({}, { locale: "sv" })).toBe("Lägg till");
@@ -134,9 +145,7 @@ describe("translated catalog plurals", () => {
     expect(m.logs_live({}, { locale: "sv" })).toBe("Live");
     expect(m.vibe_use({}, { locale: "sv" })).toBe("Använd atmosfär");
     expect(m.devices_search({}, { locale: "sv" })).toBe("Sök bland enheter...");
-    expect(m.automations_search({}, { locale: "sv" })).toBe(
-      "Sök bland automatiseringar...",
-    );
+    expect(m.automations_search({}, { locale: "sv" })).toBe("Sök bland automatiseringar...");
     expect(m.automations_create_description({}, { locale: "sv" })).toBe(
       "Du kan sedan ange när den ska köras och vad den ska göra i grafredigeraren.",
     );
@@ -145,16 +154,12 @@ describe("translated catalog plurals", () => {
   });
 
   it("uses Russian infinitives for actions rather than English-style imperatives", () => {
-    expect(m.dashboard_setup_integration({}, { locale: "ru" })).toBe(
-      "Настроить первую интеграцию",
-    );
+    expect(m.dashboard_setup_integration({}, { locale: "ru" })).toBe("Настроить первую интеграцию");
     expect(m.room_create_first({}, { locale: "ru" })).toBe("Создать первую комнату");
     expect(m.group_create_first({}, { locale: "ru" })).toBe("Создать первую группу");
     expect(m.scenes_create_first({}, { locale: "ru" })).toBe("Создать первую сцену");
     expect(m.effects_create_first({}, { locale: "ru" })).toBe("Создать первый эффект");
-    expect(m.automations_create_first({}, { locale: "ru" })).toBe(
-      "Создать первую автоматизацию",
-    );
+    expect(m.automations_create_first({}, { locale: "ru" })).toBe("Создать первую автоматизацию");
     expect(m.webhooks_create_first({}, { locale: "ru" })).toBe("Создать первый вебхук");
     expect(m.device_select_mode({}, { locale: "ru" })).toBe("Выбрать режим");
     expect(m.scene_choose_icon({}, { locale: "ru" })).toBe("Выбрать значок сцены");

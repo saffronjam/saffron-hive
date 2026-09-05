@@ -321,6 +321,7 @@ type Querier interface {
 	UpdateGroupIcon(ctx context.Context, arg UpdateGroupIconParams) error
 	UpdateGroupName(ctx context.Context, arg UpdateGroupNameParams) error
 	UpdateGuestExpiresAt(ctx context.Context, arg UpdateGuestExpiresAtParams) (int64, error)
+	UpdateGuestLanguage(ctx context.Context, arg UpdateGuestLanguageParams) (int64, error)
 	UpdateRoomIcon(ctx context.Context, arg UpdateRoomIconParams) error
 	UpdateRoomName(ctx context.Context, arg UpdateRoomNameParams) error
 	UpdateSceneIcon(ctx context.Context, arg UpdateSceneIconParams) error

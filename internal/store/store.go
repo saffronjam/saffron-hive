@@ -566,6 +566,7 @@ type CreateGuestParams struct {
 	ID             string
 	Name           string
 	NormalizedName string
+	Language       string
 	ExpiresAt      time.Time
 	CreatedAt      time.Time
 }
@@ -575,6 +576,7 @@ type Guest struct {
 	ID             string
 	Name           string
 	NormalizedName string
+	Language       string
 	ExpiresAt      time.Time
 	CreatedAt      time.Time
 }

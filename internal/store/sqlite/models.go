@@ -277,6 +277,7 @@ type Guest struct {
 	NormalizedName string
 	ExpiresAt      time.Time
 	CreatedAt      time.Time
+	Language       string
 }
 
 type LocalizedName struct {

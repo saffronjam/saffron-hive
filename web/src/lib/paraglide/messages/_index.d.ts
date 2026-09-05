@@ -11051,6 +11051,20 @@ export const guests_add_short: ((inputs?: Guests_Add_ShortInputs, options?: {
 /**
 * | output |
 * | --- |
+* | "Copy sign-in link" |
+*
+* @param {Guests_Copy_Sign_In_LinkInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_copy_sign_in_link: ((inputs?: Guests_Copy_Sign_In_LinkInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Guests_Copy_Sign_In_LinkInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Guests sign in with their name and can use only the dashboard." |
 *
 * @param {Guests_Create_DescriptionInputs} inputs
@@ -11074,20 +11088,6 @@ export const guests_create_description: ((inputs?: Guests_Create_DescriptionInpu
 export const guests_create_failed: ((inputs?: Guests_Create_FailedInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Guests_Create_FailedInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Guest {name} added" |
-*
-* @param {Guests_CreatedInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const guests_created: ((inputs: Guests_CreatedInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Guests_CreatedInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -11340,6 +11340,20 @@ export const guests_one_day: ((inputs?: Guests_One_DayInputs, options?: {
 export const guests_one_hour: ((inputs?: Guests_One_HourInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Guests_One_HourInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Could not copy the sign-in link." |
+*
+* @param {Guests_Sign_In_Link_Copy_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_sign_in_link_copy_failed: ((inputs?: Guests_Sign_In_Link_Copy_FailedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Guests_Sign_In_Link_Copy_FailedInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -16031,20 +16045,6 @@ export const scene_add_source: ((inputs?: Scene_Add_SourceInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "Apply {name}" |
-*
-* @param {Scene_Apply_NamedInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scene_apply_named: ((inputs: Scene_Apply_NamedInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Scene_Apply_NamedInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
 * | "Back to scenes" |
 *
 * @param {Scene_BackInputs} inputs
@@ -17191,20 +17191,6 @@ export const scene_name_aria: ((inputs?: Scene_Name_AriaInputs, options?: {
 export const scene_not_found: ((inputs?: Scene_Not_FoundInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Scene_Not_FoundInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Stop {name}" |
-*
-* @param {Scene_Stop_NamedInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scene_stop_named: ((inputs: Scene_Stop_NamedInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Scene_Stop_NamedInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -21096,20 +21082,6 @@ export const users_create_failed: ((inputs?: Users_Create_FailedInputs, options?
 export const users_create_short: ((inputs?: Users_Create_ShortInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Users_Create_ShortInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "User created" |
-*
-* @param {Users_CreatedInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const users_created: ((inputs?: Users_CreatedInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Users_CreatedInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -26135,11 +26107,9 @@ export type Guest_Sign_In_TitleInputs = {};
 export type Guest_UnavailableInputs = {};
 export type Guests_AddInputs = {};
 export type Guests_Add_ShortInputs = {};
+export type Guests_Copy_Sign_In_LinkInputs = {};
 export type Guests_Create_DescriptionInputs = {};
 export type Guests_Create_FailedInputs = {};
-export type Guests_CreatedInputs = {
-    name: NonNullable<unknown>;
-};
 export type Guests_CustomInputs = {};
 export type Guests_Custom_DurationInputs = {};
 export type Guests_DaysInputs = {};
@@ -26168,6 +26138,7 @@ export type Guests_Four_HoursInputs = {};
 export type Guests_HoursInputs = {};
 export type Guests_One_DayInputs = {};
 export type Guests_One_HourInputs = {};
+export type Guests_Sign_In_Link_Copy_FailedInputs = {};
 export type Guests_TypeInputs = {};
 export type History_All_HiddenInputs = {};
 export type History_Dismiss_ReadingInputs = {};
@@ -26574,9 +26545,6 @@ export type Room_SearchInputs = {};
 export type Scene_Action_ApplyInputs = {};
 export type Scene_Action_StopInputs = {};
 export type Scene_Add_SourceInputs = {};
-export type Scene_Apply_NamedInputs = {
-    name: NonNullable<unknown>;
-};
 export type Scene_BackInputs = {};
 export type Scene_Choose_IconInputs = {};
 export type Scene_Create_Add_SelectorInputs = {};
@@ -26679,9 +26647,6 @@ export type Scene_GenericInputs = {};
 export type Scene_LoadingInputs = {};
 export type Scene_Name_AriaInputs = {};
 export type Scene_Not_FoundInputs = {};
-export type Scene_Stop_NamedInputs = {
-    name: NonNullable<unknown>;
-};
 export type Scenes_Add_TargetInputs = {};
 export type Scenes_Add_TargetsInputs = {};
 export type Scenes_Add_Targets_DescriptionInputs = {};
@@ -27010,7 +26975,6 @@ export type Users_CreateInputs = {};
 export type Users_Create_DescriptionInputs = {};
 export type Users_Create_FailedInputs = {};
 export type Users_Create_ShortInputs = {};
-export type Users_CreatedInputs = {};
 export type Users_CreatingInputs = {};
 export type Users_Delete_DescriptionInputs = {
     name: NonNullable<unknown>;

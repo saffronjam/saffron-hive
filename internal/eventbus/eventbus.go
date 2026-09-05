@@ -104,6 +104,7 @@ const (
 type GuestChangedEvent struct {
 	GuestID   string
 	Name      string
+	Language  string
 	Kind      GuestChangeKind
 	ExpiresAt time.Time
 	CreatedAt time.Time

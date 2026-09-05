@@ -11,13 +11,12 @@
 	import DashboardApplianceCard from "$lib/components/dashboard-appliance-card.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
-	import { Button } from "$lib/components/ui/button/index.js";
 	import {
 		Popover,
 		PopoverContent,
 		PopoverTrigger,
 	} from "$lib/components/ui/popover/index.js";
-	import { Clapperboard, DoorOpen, Lightbulb, Group as GroupIcon, Square } from "@lucide/svelte";
+	import { Clapperboard, DoorOpen, Lightbulb, Group as GroupIcon } from "@lucide/svelte";
 	import {
 		aggregateLightAppearance,
 		lightTintTransitionSeconds,
@@ -89,6 +88,7 @@
 		onclose: () => void;
 		onapplyscene: (scene: { id: string; name: string }) => void;
 		onstopscene: (scene: { id: string; name: string }) => void;
+		sensorHistoryEnabled?: boolean;
 	}
 
 	let {
@@ -102,6 +102,7 @@
 		onclose,
 		onapplyscene,
 		onstopscene,
+		sensorHistoryEnabled = true,
 	}: Props = $props();
 
 	const roomDevices = $derived.by((): Device[] => {
@@ -446,6 +447,7 @@
 							title={entityDisplayName("room", room)}
 							align="end"
 							triggerClass="group rounded focus-visible:outline-none"
+							interactive={sensorHistoryEnabled}
 						>
 							<div class="grid grid-cols-[auto_auto_auto] items-center gap-x-1 gap-y-0.5 text-sm tabular-nums text-muted-foreground transition-colors group-hover:text-foreground group-focus-visible:text-foreground">
 								{#each sensorReadings as r (r.label)}
@@ -460,32 +462,35 @@
 			</EntityCard>
 
 			{#if filteredScenes.length > 0}
-				<div class="mt-1 flex flex-wrap justify-center gap-2">
+				<div
+					class="scene-strip no-scrollbar mt-1 flex gap-2 overflow-x-auto p-1"
+					class:scene-strip-single={filteredScenes.length === 1}
+					class:scene-strip-pair={filteredScenes.length === 2}
+					class:scene-strip-mobile-overflow={filteredScenes.length > 2}
+					class:scene-strip-desktop-overflow={filteredScenes.length > 3}
+				>
 					{#each filteredScenes as scene (scene.id)}
-						{@const glow = scenePreviewColors(scene.preview)[0] ?? "transparent"}
 						{@const active = scene.activatedAt != null}
-						<Button
-							variant="outline"
-							size="sm"
-							haptic="execute"
-							class="h-8 shrink-0 gap-1.5 rounded-4xl px-3 text-sm transition-colors duration-300 {active
-								? 'scene-active'
-								: ''}"
-							style="--scene-glow: {glow}"
-							onclick={() => active ? onstopscene(scene) : onapplyscene(scene)}
-							aria-label={active
-								? m.scene_stop_named({ name: entityDisplayName("scene", scene) }, locale.messageOptions())
-								: m.scene_apply_named({ name: entityDisplayName("scene", scene) }, locale.messageOptions())}
-						>
-							{#if active}
-								<Square class="size-4 shrink-0" />
-							{:else}
-								<AnimatedIcon icon={scene.icon} class="size-4 shrink-0">
-									{#snippet fallback()}<Clapperboard class="size-4 shrink-0" />{/snippet}
-								</AnimatedIcon>
-							{/if}
-							<span>{entityDisplayName("scene", scene)}</span>
-						</Button>
+						{@const tintColors = scenePreviewColors(scene.preview)}
+						<div class="scene-card min-w-0 shrink-0">
+							<EntityCard
+								entity={scene}
+								entityType="scene"
+								fallbackIcon={Clapperboard}
+								tintColors={tintColors.length > 0 ? tintColors : null}
+								tintInactive={tintColors.length > 0 ? !active : null}
+								readOnly
+								size="sm"
+								iconAreaSize="sm"
+								pressFeedback
+								class="h-full"
+								onclick={(_scene, event) => {
+									haptics.play("execute", event);
+									if (active) onstopscene(scene);
+									else onapplyscene(scene);
+								}}
+							/>
+						</div>
 					{/each}
 				</div>
 			{/if}
@@ -538,3 +543,36 @@
 		{/if}
 	</SheetContent>
 </Sheet>
+
+<style>
+	.scene-card {
+		flex-basis: calc((100% - 0.5rem) / 2);
+	}
+
+	.scene-strip-mobile-overflow .scene-card {
+		flex-basis: calc((100% - 1rem) / 2.3);
+	}
+
+	.scene-strip-single .scene-card {
+		flex-basis: 100%;
+	}
+
+	@media (min-width: 640px) {
+		.scene-card,
+		.scene-strip-mobile-overflow .scene-card {
+			flex-basis: calc((100% - 1rem) / 3);
+		}
+
+		.scene-strip-desktop-overflow .scene-card {
+			flex-basis: calc((100% - 1.5rem) / 3.25);
+		}
+
+		.scene-strip-single .scene-card {
+			flex-basis: 100%;
+		}
+
+		.scene-strip-pair .scene-card {
+			flex-basis: calc((100% - 0.5rem) / 2);
+		}
+	}
+</style>

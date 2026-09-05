@@ -11,6 +11,9 @@
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
+	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
+	import { prepareGuestDashboard } from "$lib/guest-dashboard";
+	import { languageFromGraphQL } from "$lib/i18n/graphql-language";
 	import { page } from "$app/state";
 
 	const LOGIN = graphql(`
@@ -41,6 +44,7 @@
 				guest {
 					id
 					name
+					language
 					expiresAt
 				}
 			}
@@ -52,7 +56,7 @@
 	let mode = $state<LoginMode>(page.url.searchParams.get("mode") === "guest" ? "guest" : "user");
 	let username = $state("");
 	let password = $state("");
-	let guestName = $state("");
+	let guestName = $state(page.url.searchParams.get("name")?.trim() ?? "");
 	let submitting = $state(false);
 	let error = $state<string | null>(null);
 	const unavailable = page.url.searchParams.get("reason") === "unavailable";
@@ -67,20 +71,26 @@
 		error = null;
 	}
 
+	async function loginGuest() {
+		const result = await client.mutation(GUEST_LOGIN, { name: guestName.trim() }).toPromise();
+		if (result.error || !result.data?.guestLogin) {
+			if (result.error) console.error(result.error);
+			error = m.guest_login_failed({}, locale.messageOptions());
+			return;
+		}
+		auth.setToken(result.data.guestLogin.token);
+		locale.setLanguage(languageFromGraphQL(result.data.guestLogin.guest.language));
+		await prepareGuestDashboard(client);
+		await goto("/", { replaceState: true });
+	}
+
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
 		error = null;
 		submitting = true;
 		try {
 			if (mode === "guest") {
-				const result = await client.mutation(GUEST_LOGIN, { name: guestName.trim() }).toPromise();
-				if (result.error || !result.data?.guestLogin) {
-					if (result.error) console.error(result.error);
-					error = m.guest_login_failed({}, locale.messageOptions());
-					return;
-				}
-				auth.setToken(result.data.guestLogin.token);
-				await goto("/", { replaceState: true });
+				await loginGuest();
 				return;
 			}
 			const result = await client
@@ -93,6 +103,7 @@
 			}
 			auth.setToken(result.data.login.token);
 			me.apply(result.data.login.user);
+			await localizedNamesStore.refresh(client);
 			const dest = result.data.login.user.mustChangePassword
 				? "/change-password-required"
 				: "/";

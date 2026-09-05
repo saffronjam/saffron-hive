@@ -11,6 +11,7 @@ import (
 type guestSummary struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
+	Language  string `json:"language"`
 	ExpiresAt string `json:"expiresAt"`
 	CreatedAt string `json:"createdAt"`
 }
@@ -18,9 +19,9 @@ type guestSummary struct {
 func TestGuestDashboardAccessLifecycle(t *testing.T) {
 	data, err := graphqlMutation(
 		`mutation($input: CreateGuestInput!) {
-			createGuest(input: $input) { id name expiresAt createdAt }
+			createGuest(input: $input) { id name language expiresAt createdAt }
 		}`,
-		map[string]any{"input": map[string]any{"name": "E2E Guest", "durationMinutes": 60}},
+		map[string]any{"input": map[string]any{"name": "E2E Guest", "durationMinutes": 60, "language": "SV"}},
 	)
 	if err != nil {
 		t.Fatalf("createGuest: %v", err)
@@ -36,7 +37,7 @@ func TestGuestDashboardAccessLifecycle(t *testing.T) {
 	})
 
 	login, status := rawPost(t, "",
-		`mutation($name: String!) { guestLogin(name: $name) { token guest { id name } } }`,
+		`mutation($name: String!) { guestLogin(name: $name) { token guest { id name language } } }`,
 		map[string]any{"name": " e2e GUEST "},
 	)
 	if status != http.StatusOK || len(login.Errors) > 0 {
@@ -51,12 +52,19 @@ func TestGuestDashboardAccessLifecycle(t *testing.T) {
 	if err := json.Unmarshal(login.Data, &loggedIn); err != nil {
 		t.Fatal(err)
 	}
-	if loggedIn.GuestLogin.Token == "" || loggedIn.GuestLogin.Guest.ID != created.Guest.ID {
+	if loggedIn.GuestLogin.Token == "" || loggedIn.GuestLogin.Guest.ID != created.Guest.ID || loggedIn.GuestLogin.Guest.Language != "SV" {
 		t.Fatalf("guest login = %+v", loggedIn.GuestLogin)
 	}
 
+	updated, _ := rawPost(t, loggedIn.GuestLogin.Token,
+		`mutation { updateCurrentGuestLanguage(language: RU) { id language } }`, nil,
+	)
+	if len(updated.Errors) > 0 {
+		t.Fatalf("update guest language: %v", updated.Errors)
+	}
+
 	dashboard, _ := rawPost(t, loggedIn.GuestLogin.Token,
-		`query { currentGuest { id name } devices { id } rooms { id } groups { id } scenes { id } dashboardLocalization { defaultContentLanguage } }`,
+		`query { currentGuest { id name language } devices { id } rooms { id } groups { id } scenes { id } dashboardLocalization { defaultContentLanguage } }`,
 		nil,
 	)
 	if len(dashboard.Errors) > 0 {
@@ -86,7 +94,7 @@ func TestGuestDashboardAccessLifecycle(t *testing.T) {
 func TestGuestDurationLimit(t *testing.T) {
 	if err := graphqlMutationExpectError(
 		`mutation($input: CreateGuestInput!) { createGuest(input: $input) { id } }`,
-		map[string]any{"input": map[string]any{"name": "Too Long", "durationMinutes": 10081}},
+		map[string]any{"input": map[string]any{"name": "Too Long", "durationMinutes": 10081, "language": "EN"}},
 	); err != nil {
 		t.Fatalf("guest duration beyond seven days was accepted: %v", err)
 	}

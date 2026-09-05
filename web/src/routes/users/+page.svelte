@@ -49,7 +49,7 @@
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { validateNewPassword } from "$lib/password";
-	import { EllipsisVertical, KeyRound, Plus, Trash2 } from "@lucide/svelte";
+	import { Check, EllipsisVertical, KeyRound, Link2, Plus, Trash2 } from "@lucide/svelte";
 	import { onMount } from "svelte";
 	import { toast } from "svelte-sonner";
 	import { m } from "$lib/i18n/messages";
@@ -57,8 +57,11 @@
 	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import NumberInput from "$lib/components/number-input.svelte";
 	import SegmentedControl from "$lib/components/segmented-control.svelte";
+	import LanguageSelect from "$lib/components/language-select.svelte";
 	import { nowStore } from "$lib/stores/now.svelte";
-	import { formatFull } from "$lib/time-format";
+	import { formatFull, formatFutureRelative } from "$lib/time-format";
+	import type { Language } from "$lib/i18n/messages";
+	import { languageFromGraphQL, languageToGraphQL } from "$lib/i18n/graphql-language";
 
 	const client = getContextClient();
 	const messageOptions = $derived(locale.messageOptions());
@@ -74,6 +77,7 @@
 			guests {
 				id
 				name
+				language
 				expiresAt
 				createdAt
 			}
@@ -114,6 +118,7 @@
 			createGuest(input: $input) {
 				id
 				name
+				language
 				expiresAt
 				createdAt
 			}
@@ -125,6 +130,7 @@
 			extendGuest(id: $id, durationMinutes: $durationMinutes) {
 				id
 				name
+				language
 				expiresAt
 				createdAt
 			}
@@ -155,6 +161,7 @@
 		kind: "guest";
 		id: string;
 		name: string;
+		language: Language;
 		expiresAt: string;
 		createdAt: string;
 	}
@@ -165,7 +172,7 @@
 		guests: GuestRow[];
 	}
 
-	const USERS_CACHE_VERSION = 2;
+	const USERS_CACHE_VERSION = 3;
 	const restored = loadSessionSnapshot<AccountsSnapshot>(
 		typeof window === "undefined" ? null : window.sessionStorage,
 		"users",
@@ -188,6 +195,8 @@
 		loading = true;
 		try {
 			const result = await client.query(USERS_QUERY, {}, { requestPolicy: "network-only" }).toPromise();
+			if (result.error) console.error(result.error);
+			let changed = false;
 			if (result.data?.users) {
 				userList = result.data.users.map((user) => ({
 					kind: "user",
@@ -196,15 +205,13 @@
 					name: user.name,
 					avatarPath: user.avatarPath ?? null,
 				}));
-				guestList = result.data.guests.map((guest) => ({
-					kind: "guest",
-					id: guest.id,
-					name: guest.name,
-					expiresAt: guest.expiresAt,
-					createdAt: guest.createdAt,
-				}));
-				persistUsers();
+				changed = true;
 			}
+			if (result.data?.guests) {
+				guestList = result.data.guests.map(mapGuest);
+				changed = true;
+			}
+			if (changed) persistUsers();
 		} finally {
 			loading = false;
 		}
@@ -255,6 +262,7 @@
 	type DurationUnit = "hours" | "days";
 	let createGuestOpen = $state(false);
 	let createGuestName = $state("");
+	let createGuestLanguage = $state<Language>(locale.currentLanguage);
 	let createGuestPreset = $state<DurationPreset>("240");
 	let createGuestDuration = $state<number | null>(4);
 	let createGuestUnit = $state<DurationUnit>("hours");
@@ -266,6 +274,8 @@
 	let extendSaving = $state(false);
 	let deleteGuestTarget = $state<GuestRow | null>(null);
 	let deleteGuestSaving = $state(false);
+	let copiedGuestId = $state<string | null>(null);
+	let copiedGuestTimer: ReturnType<typeof setTimeout> | null = null;
 	const createGuestMinutes = $derived(
 		durationMinutes(createGuestPreset, createGuestDuration, createGuestUnit),
 	);
@@ -330,7 +340,7 @@
 		pageHeader.viewToggle = { value: view, onchange: setView };
 		pageHeader.breadcrumbs = [{ label: m.nav_users({}, messageOptions) }];
 		pageHeader.actions = [
-			{ label: m.guests_add({}, messageOptions), mobileLabel: m.guests_add_short({}, messageOptions), icon: Plus, onclick: () => (createGuestOpen = true) },
+			{ label: m.guests_add({}, messageOptions), mobileLabel: m.guests_add_short({}, messageOptions), icon: Plus, onclick: openCreateGuest },
 			{ label: m.users_create({}, messageOptions), mobileLabel: m.users_create_short({}, messageOptions), icon: Plus, onclick: () => (createOpen = true) },
 		];
 	});
@@ -376,7 +386,6 @@
 				},
 			];
 			persistUsers();
-			toast.success(m.users_created({}, messageOptions));
 		} catch (e) {
 			console.error(e);
 			toast.error(graphqlErrorMessage(e, m.users_create_failed({}, messageOptions)));
@@ -458,13 +467,19 @@
 		return Math.round((custom ?? 0) * (unit === "days" ? 1440 : 60));
 	}
 
+	function openCreateGuest() {
+		createGuestLanguage = locale.currentLanguage;
+		createGuestOpen = true;
+	}
+
 	function mapGuest(guest: {
 		id: string;
 		name: string;
+		language: import("$lib/gql/graphql").Language;
 		expiresAt: string;
 		createdAt: string;
 	}): GuestRow {
-		return { kind: "guest", ...guest };
+		return { kind: "guest", ...guest, language: languageFromGraphQL(guest.language) };
 	}
 
 	function upsertGuest(guest: GuestRow) {
@@ -479,7 +494,11 @@
 		try {
 			const result = await client
 				.mutation(CREATE_GUEST, {
-					input: { name: createGuestName.trim(), durationMinutes: createGuestMinutes },
+					input: {
+						name: createGuestName.trim(),
+						durationMinutes: createGuestMinutes,
+						language: languageToGraphQL(createGuestLanguage),
+					},
 				})
 				.toPromise();
 			if (result.error || !result.data?.createGuest) {
@@ -488,10 +507,10 @@
 			upsertGuest(mapGuest(result.data.createGuest));
 			createGuestOpen = false;
 			createGuestName = "";
+			createGuestLanguage = locale.currentLanguage;
 			createGuestPreset = "240";
 			createGuestDuration = 4;
 			createGuestUnit = "hours";
-			toast.success(m.guests_created({ name: result.data.createGuest.name }, messageOptions));
 		} catch (e) {
 			console.error(e);
 			toast.error(graphqlErrorMessage(e, m.guests_create_failed({}, messageOptions)));
@@ -552,14 +571,26 @@
 	}
 
 	function expiryLabel(expiresAt: string): string {
-		const diff = new Date(expiresAt).getTime() - nowStore.current.getTime();
-		const formatter = new Intl.RelativeTimeFormat(locale.intlLocale, {
-			numeric: "always",
-			style: "long",
-		});
-		if (diff < 60 * 60 * 1000) return formatter.format(Math.max(1, Math.ceil(diff / 60000)), "minute");
-		if (diff < 24 * 60 * 60 * 1000) return formatter.format(Math.ceil(diff / 3600000), "hour");
-		return formatter.format(Math.ceil(diff / 86400000), "day");
+		return formatFutureRelative(new Date(expiresAt), nowStore.current);
+	}
+
+	async function copyGuestLink(guest: GuestRow) {
+		const url = new URL("/login", window.location.origin);
+		url.searchParams.set("mode", "guest");
+		url.searchParams.set("name", guest.name);
+		url.searchParams.set("auto", "1");
+		try {
+			await navigator.clipboard.writeText(url.toString());
+			copiedGuestId = guest.id;
+			if (copiedGuestTimer) clearTimeout(copiedGuestTimer);
+			copiedGuestTimer = setTimeout(() => {
+				copiedGuestId = null;
+				copiedGuestTimer = null;
+			}, 1500);
+		} catch (error) {
+			console.error(error);
+			toast.error(m.guests_sign_in_link_copy_failed({}, messageOptions));
+		}
 	}
 </script>
 
@@ -618,6 +649,17 @@
 										</p>
 									{/if}
 								</div>
+								{#if account.kind === "guest"}
+									<Button variant="ghost" size="sm" onclick={() => void copyGuestLink(account)}>
+										{#if copiedGuestId === account.id}
+											<Check class="size-4" />
+											{m.common_copied({}, messageOptions)}
+										{:else}
+											<Link2 class="size-4" />
+											{m.guests_copy_sign_in_link({}, messageOptions)}
+										{/if}
+									</Button>
+								{/if}
 								<DropdownMenu>
 									<DropdownMenuTrigger>
 										{#snippet child({ props })}
@@ -658,7 +700,7 @@
 				</AnimatedGrid>
 			{/snippet}
 			{#snippet table()}
-				<Card>
+				<Card class="gap-0 rounded-lg py-0">
 					<CardContent class="p-0">
 						<Table>
 							<TableHeader>
@@ -671,7 +713,7 @@
 									<TableHead>{m.users_column_type({}, messageOptions)}</TableHead>
 									<TableHead>{m.users_column_username({}, messageOptions)}</TableHead>
 									<TableHead>{m.users_column_expires({}, messageOptions)}</TableHead>
-									<TableHead class="w-10"></TableHead>
+									<TableHead class="w-48"></TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
@@ -679,11 +721,16 @@
 									<TableRow data-state={selection.isSelected(account.id) ? "selected" : undefined}>
 										<TableCell>
 											<TableRowCheckbox
-												id={account.id}
-												{selection}
-												orderedIds={filteredIds}
-												tooltip={account.kind === "user" ? deleteDisabledReason(account) : ""}
-											ariaLabel={m.shared_select_item({ name: account.name }, messageOptions)}
+											id={account.id}
+											{selection}
+											orderedIds={filteredIds}
+											tooltip={account.kind === "user"
+												? deleteDisabledReason(account)
+												: ""}
+											ariaLabel={m.shared_select_item(
+												{ name: account.name },
+												messageOptions,
+											)}
 											/>
 										</TableCell>
 										<TableCell>
@@ -697,11 +744,22 @@
 										<TableCell class="text-muted-foreground" title={account.kind === "guest" ? formatFull(new Date(account.expiresAt)) : undefined}>
 											{account.kind === "guest" ? expiryLabel(account.expiresAt) : "—"}
 										</TableCell>
-										<TableCell>
+										<TableCell class="text-right">
+											{#if account.kind === "guest"}
+												<Button variant="ghost" size="xs" onclick={() => void copyGuestLink(account)}>
+													{#if copiedGuestId === account.id}
+														<Check class="size-4" />
+														{m.common_copied({}, messageOptions)}
+													{:else}
+														<Link2 class="size-4" />
+														{m.guests_copy_sign_in_link({}, messageOptions)}
+													{/if}
+												</Button>
+											{/if}
 											<DropdownMenu>
 												<DropdownMenuTrigger>
 													{#snippet child({ props })}
-														<Button variant="ghost" size="icon" {...props}>
+														<Button variant="ghost" size="icon-sm" {...props}>
 															<EllipsisVertical class="size-4" />
 														</Button>
 													{/snippet}
@@ -750,6 +808,13 @@
 			<div class="space-y-2">
 				<label for="guest-create-name" class="text-sm font-medium">{m.guest_name({}, messageOptions)}</label>
 				<Input id="guest-create-name" bind:value={createGuestName} required minlength={1} />
+			</div>
+			<div class="space-y-2">
+				<span class="text-sm font-medium">{m.profile_language({}, messageOptions)}</span>
+				<LanguageSelect
+					value={createGuestLanguage}
+					onchange={(language) => (createGuestLanguage = language)}
+				/>
 			</div>
 			<div class="space-y-2">
 				<span class="text-sm font-medium">{m.guests_duration({}, messageOptions)}</span>

@@ -1064,6 +1064,7 @@ type AuthPayload {
 type Guest {
   id: ID!
   name: String!
+  language: Language!
   expiresAt: DateTime!
   createdAt: DateTime!
 }
@@ -1117,6 +1118,7 @@ input CreateUserInput {
 input CreateGuestInput {
   name: String!
   durationMinutes: Int!
+  language: Language!
 }
 
 input UpdateCurrentUserInput {
@@ -1821,6 +1823,7 @@ type Mutation {
   createUser(input: CreateUserInput!): User! @auth
   guestLogin(name: String!): GuestAuthPayload!
   createGuest(input: CreateGuestInput!): Guest! @auth
+  updateCurrentGuestLanguage(language: Language!): Guest! @auth(allowGuest: true)
   extendGuest(id: ID!, durationMinutes: Int!): Guest! @auth
   deleteGuest(id: ID!): Boolean! @auth
   batchDeleteGuests(ids: [ID!]!): Int! @auth

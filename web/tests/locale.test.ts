@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { languageName } from "$lib/i18n/messages";
+import { languageName, nativeLanguageName } from "$lib/i18n/messages";
 import {
   locale,
   normalizeLanguage,
@@ -52,5 +52,11 @@ describe("locale", () => {
     expect(languageName("sv", "en")).toBe("Swedish");
     expect(languageName("sv", "sv")).toBe("Svenska");
     expect(languageName("ru", "ru")).toBe("Русский");
+  });
+
+  it("renders each language in its native form", () => {
+    expect(nativeLanguageName("en")).toBe("English");
+    expect(nativeLanguageName("sv")).toBe("Svenska");
+    expect(nativeLanguageName("ru")).toBe("Русский");
   });
 });

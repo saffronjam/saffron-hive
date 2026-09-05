@@ -401,6 +401,7 @@ type ComplexityRoot struct {
 		CreatedAt func(childComplexity int) int
 		ExpiresAt func(childComplexity int) int
 		ID        func(childComplexity int) int
+		Language  func(childComplexity int) int
 		Name      func(childComplexity int) int
 	}
 
@@ -533,6 +534,7 @@ type ComplexityRoot struct {
 		TestZigbee2MqttConnection   func(childComplexity int, input model.Zigbee2MqttConfigInput) int
 		ToggleAutomation            func(childComplexity int, id string, enabled bool) int
 		UpdateAutomation            func(childComplexity int, id string, input model.UpdateAutomationInput) int
+		UpdateCurrentGuestLanguage  func(childComplexity int, language model.Language) int
 		UpdateCurrentUser           func(childComplexity int, input model.UpdateCurrentUserInput) int
 		UpdateDevice                func(childComplexity int, id string, input model.UpdateDeviceInput) int
 		UpdateEffect                func(childComplexity int, input model.UpdateEffectInput) int
@@ -1034,6 +1036,7 @@ type MutationResolver interface {
 	CreateUser(ctx context.Context, input model.CreateUserInput) (*model.User, error)
 	GuestLogin(ctx context.Context, name string) (*model.GuestAuthPayload, error)
 	CreateGuest(ctx context.Context, input model.CreateGuestInput) (*model.Guest, error)
+	UpdateCurrentGuestLanguage(ctx context.Context, language model.Language) (*model.Guest, error)
 	ExtendGuest(ctx context.Context, id string, durationMinutes int) (*model.Guest, error)
 	DeleteGuest(ctx context.Context, id string) (bool, error)
 	BatchDeleteGuests(ctx context.Context, ids []string) (int, error)
@@ -2642,6 +2645,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Guest.ID(childComplexity), true
+	case "Guest.language":
+		if e.ComplexityRoot.Guest.Language == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Guest.Language(childComplexity), true
 	case "Guest.name":
 		if e.ComplexityRoot.Guest.Name == nil {
 			break
@@ -3574,6 +3583,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateAutomation(childComplexity, args["id"].(string), args["input"].(model.UpdateAutomationInput)), true
+	case "Mutation.updateCurrentGuestLanguage":
+		if e.ComplexityRoot.Mutation.UpdateCurrentGuestLanguage == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateCurrentGuestLanguage_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateCurrentGuestLanguage(childComplexity, args["language"].(model.Language)), true
 	case "Mutation.updateCurrentUser":
 		if e.ComplexityRoot.Mutation.UpdateCurrentUser == nil {
 			break
@@ -6896,6 +6916,7 @@ type AuthPayload {
 type Guest {
   id: ID!
   name: String!
+  language: Language!
   expiresAt: DateTime!
   createdAt: DateTime!
 }
@@ -6949,6 +6970,7 @@ input CreateUserInput {
 input CreateGuestInput {
   name: String!
   durationMinutes: Int!
+  language: Language!
 }
 
 input UpdateCurrentUserInput {
@@ -7653,6 +7675,7 @@ type Mutation {
   createUser(input: CreateUserInput!): User! @auth
   guestLogin(name: String!): GuestAuthPayload!
   createGuest(input: CreateGuestInput!): Guest! @auth
+  updateCurrentGuestLanguage(language: Language!): Guest! @auth(allowGuest: true)
   extendGuest(id: ID!, durationMinutes: Int!): Guest! @auth
   deleteGuest(id: ID!): Boolean! @auth
   batchDeleteGuests(ids: [ID!]!): Int! @auth
@@ -8530,6 +8553,17 @@ func (ec *executionContext) field_Mutation_updateAutomation_args(ctx context.Con
 		return nil, err
 	}
 	args["input"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateCurrentGuestLanguage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "language", ec.unmarshalNLanguage2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLanguage)
+	if err != nil {
+		return nil, err
+	}
+	args["language"] = arg0
 	return args, nil
 }
 
@@ -16717,6 +16751,35 @@ func (ec *executionContext) fieldContext_Guest_name(_ context.Context, field gra
 	return fc, nil
 }
 
+func (ec *executionContext) _Guest_language(ctx context.Context, field graphql.CollectedField, obj *model.Guest) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Guest_language,
+		func(ctx context.Context) (any, error) {
+			return obj.Language, nil
+		},
+		nil,
+		ec.marshalNLanguage2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLanguage,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Guest_language(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Guest",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Language does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Guest_expiresAt(ctx context.Context, field graphql.CollectedField, obj *model.Guest) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -16832,6 +16895,8 @@ func (ec *executionContext) fieldContext_GuestAuthPayload_guest(_ context.Contex
 				return ec.fieldContext_Guest_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Guest_name(ctx, field)
+			case "language":
+				return ec.fieldContext_Guest_language(ctx, field)
 			case "expiresAt":
 				return ec.fieldContext_Guest_expiresAt(ctx, field)
 			case "createdAt":
@@ -16929,6 +16994,8 @@ func (ec *executionContext) fieldContext_GuestChangeEvent_guest(_ context.Contex
 				return ec.fieldContext_Guest_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Guest_name(ctx, field)
+			case "language":
+				return ec.fieldContext_Guest_language(ctx, field)
 			case "expiresAt":
 				return ec.fieldContext_Guest_expiresAt(ctx, field)
 			case "createdAt":
@@ -21280,6 +21347,8 @@ func (ec *executionContext) fieldContext_Mutation_createGuest(ctx context.Contex
 				return ec.fieldContext_Guest_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Guest_name(ctx, field)
+			case "language":
+				return ec.fieldContext_Guest_language(ctx, field)
 			case "expiresAt":
 				return ec.fieldContext_Guest_expiresAt(ctx, field)
 			case "createdAt":
@@ -21296,6 +21365,77 @@ func (ec *executionContext) fieldContext_Mutation_createGuest(ctx context.Contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_createGuest_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateCurrentGuestLanguage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateCurrentGuestLanguage,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateCurrentGuestLanguage(ctx, fc.Args["language"].(model.Language))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal *model.Guest
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.Guest
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNGuest2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGuest,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateCurrentGuestLanguage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Guest_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Guest_name(ctx, field)
+			case "language":
+				return ec.fieldContext_Guest_language(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_Guest_expiresAt(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Guest_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Guest", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateCurrentGuestLanguage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -21349,6 +21489,8 @@ func (ec *executionContext) fieldContext_Mutation_extendGuest(ctx context.Contex
 				return ec.fieldContext_Guest_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Guest_name(ctx, field)
+			case "language":
+				return ec.fieldContext_Guest_language(ctx, field)
 			case "expiresAt":
 				return ec.fieldContext_Guest_expiresAt(ctx, field)
 			case "createdAt":
@@ -26283,6 +26425,8 @@ func (ec *executionContext) fieldContext_Query_guests(_ context.Context, field g
 				return ec.fieldContext_Guest_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Guest_name(ctx, field)
+			case "language":
+				return ec.fieldContext_Guest_language(ctx, field)
 			case "expiresAt":
 				return ec.fieldContext_Guest_expiresAt(ctx, field)
 			case "createdAt":
@@ -26340,6 +26484,8 @@ func (ec *executionContext) fieldContext_Query_currentGuest(_ context.Context, f
 				return ec.fieldContext_Guest_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Guest_name(ctx, field)
+			case "language":
+				return ec.fieldContext_Guest_language(ctx, field)
 			case "expiresAt":
 				return ec.fieldContext_Guest_expiresAt(ctx, field)
 			case "createdAt":
@@ -36833,7 +36979,7 @@ func (ec *executionContext) unmarshalInputCreateGuestInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "durationMinutes"}
+	fieldsInOrder := [...]string{"name", "durationMinutes", "language"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -36854,6 +37000,13 @@ func (ec *executionContext) unmarshalInputCreateGuestInput(ctx context.Context, 
 				return it, err
 			}
 			it.DurationMinutes = data
+		case "language":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("language"))
+			data, err := ec.unmarshalNLanguage2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLanguage(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Language = data
 		}
 	}
 	return it, nil
@@ -41811,6 +41964,11 @@ func (ec *executionContext) _Guest(ctx context.Context, sel ast.SelectionSet, ob
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "language":
+			out.Values[i] = ec._Guest_language(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "expiresAt":
 			out.Values[i] = ec._Guest_expiresAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -42662,6 +42820,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "createGuest":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createGuest(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateCurrentGuestLanguage":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateCurrentGuestLanguage(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

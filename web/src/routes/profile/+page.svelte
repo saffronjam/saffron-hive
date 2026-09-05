@@ -25,6 +25,7 @@
 		DialogTitle,
 	} from "$lib/components/ui/dialog/index.js";
 	import Avatar from "$lib/components/avatar.svelte";
+	import LanguageSelect from "$lib/components/language-select.svelte";
 	import SaveButton from "$lib/components/save-button.svelte";
 	import SegmentedControl from "$lib/components/segmented-control.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
@@ -38,13 +39,13 @@
 		Theme as ThemeEnum,
 		TimeFormat as TimeFormatEnum,
 		TemperatureUnit as TempUnitEnum,
-		Language as LanguageEnum,
 	} from "$lib/gql/graphql";
 	import { Info, Sun, Moon, Upload, X } from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
 	import { goto } from "$app/navigation";
-	import { languageName, m, type Language } from "$lib/i18n/messages";
-	import { locale, selectableLanguages } from "$lib/i18n/locale.svelte";
+	import { m, type Language } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { languageToGraphQL } from "$lib/i18n/graphql-language";
 
 	const client = getContextClient();
 
@@ -234,7 +235,7 @@
 		if (next === previous) return;
 		locale.setLanguage(next);
 		try {
-			const language = next === "sv" ? LanguageEnum.Sv : next === "ru" ? LanguageEnum.Ru : LanguageEnum.En;
+			const language = languageToGraphQL(next);
 			const result = await client
 				.mutation(UPDATE_CURRENT_USER, { input: { language } })
 				.toPromise();
@@ -429,16 +430,18 @@
 					<label for="profile-name" class="text-sm font-medium">
 						{m.profile_display_name({}, locale.messageOptions())}
 					</label>
-					<div class="flex gap-2">
-						<Input
-							id="profile-name"
-							bind:value={nameDraft}
-							disabled={nameSaving}
-							aria-invalid={!!nameError}
-							aria-describedby={nameError ? "profile-name-error" : undefined}
-							oninput={() => (nameError = null)}
-						/>
-						<FieldError id="profile-name-error" message={nameError} />
+					<div class="flex items-start gap-2">
+						<div class="min-w-0 flex-1">
+							<Input
+								id="profile-name"
+								bind:value={nameDraft}
+								disabled={nameSaving}
+								aria-invalid={!!nameError}
+								aria-describedby={nameError ? "profile-name-error" : undefined}
+								oninput={() => (nameError = null)}
+							/>
+							<FieldError id="profile-name-error" message={nameError} />
+						</div>
 						<SaveButton
 							saving={nameSaving}
 							disabled={!nameDirty || nameSaving}
@@ -502,13 +505,9 @@
 						<TooltipContent>{m.profile_language_help({}, locale.messageOptions())}</TooltipContent>
 					</Tooltip>
 				</div>
-				<SegmentedControl
+				<LanguageSelect
 					value={locale.currentLanguage}
-					onchange={(value) => void setUILanguage(value as Language)}
-					options={selectableLanguages.map((language) => ({
-						value: language,
-						label: languageName(language, locale.currentLanguage),
-					}))}
+					onchange={(value) => void setUILanguage(value)}
 				/>
 			</div>
 

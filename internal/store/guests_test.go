@@ -15,13 +15,14 @@ func TestGuestLifecycle(t *testing.T) {
 		ID:             "guest-1",
 		Name:           "Linnea",
 		NormalizedName: "linnea",
+		Language:       "sv",
 		ExpiresAt:      now.Add(4 * time.Hour),
 		CreatedAt:      now,
 	})
 	if err != nil {
 		t.Fatalf("create guest: %v", err)
 	}
-	if created.Name != "Linnea" || !created.ExpiresAt.Equal(now.Add(4*time.Hour)) {
+	if created.Name != "Linnea" || created.Language != "sv" || !created.ExpiresAt.Equal(now.Add(4*time.Hour)) {
 		t.Fatalf("created guest = %+v", created)
 	}
 
@@ -37,6 +38,10 @@ func TestGuestLifecycle(t *testing.T) {
 	extended, err := db.UpdateGuestExpiresAt(ctx, created.ID, now.Add(5*time.Hour))
 	if err != nil || !extended.ExpiresAt.Equal(now.Add(5*time.Hour)) {
 		t.Fatalf("extended guest = %+v, %v", extended, err)
+	}
+	updated, err := db.UpdateGuestLanguage(ctx, created.ID, "ru")
+	if err != nil || updated.Language != "ru" {
+		t.Fatalf("updated guest language = %+v, %v", updated, err)
 	}
 	deleted, err := db.DeleteGuest(ctx, created.ID)
 	if err != nil || !deleted {
@@ -54,14 +59,14 @@ func TestCreateGuestReusesExpiredNormalizedName(t *testing.T) {
 
 	_, err := db.CreateGuest(ctx, CreateGuestParams{
 		ID: "expired", Name: "Sam", NormalizedName: "sam",
-		CreatedAt: now.Add(-2 * time.Hour), ExpiresAt: now.Add(-time.Hour),
+		Language: "en", CreatedAt: now.Add(-2 * time.Hour), ExpiresAt: now.Add(-time.Hour),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	active, err := db.CreateGuest(ctx, CreateGuestParams{
 		ID: "active", Name: "SAM", NormalizedName: "sam",
-		CreatedAt: now, ExpiresAt: now.Add(time.Hour),
+		Language: "en", CreatedAt: now, ExpiresAt: now.Add(time.Hour),
 	})
 	if err != nil {
 		t.Fatalf("reuse expired name: %v", err)
@@ -74,7 +79,7 @@ func TestCreateGuestReusesExpiredNormalizedName(t *testing.T) {
 	}
 	if _, err := db.CreateGuest(ctx, CreateGuestParams{
 		ID: "duplicate", Name: "Sam", NormalizedName: "sam",
-		CreatedAt: now, ExpiresAt: now.Add(time.Hour),
+		Language: "en", CreatedAt: now, ExpiresAt: now.Add(time.Hour),
 	}); err == nil {
 		t.Fatal("active duplicate name was accepted")
 	}
@@ -85,9 +90,9 @@ func TestDeleteExpiredAndBatchDeleteGuests(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UTC().Truncate(time.Second)
 	for _, guest := range []CreateGuestParams{
-		{ID: "expired", Name: "Expired", NormalizedName: "expired", CreatedAt: now.Add(-time.Hour), ExpiresAt: now},
-		{ID: "one", Name: "One", NormalizedName: "one", CreatedAt: now, ExpiresAt: now.Add(time.Hour)},
-		{ID: "two", Name: "Two", NormalizedName: "two", CreatedAt: now, ExpiresAt: now.Add(time.Hour)},
+		{ID: "expired", Name: "Expired", NormalizedName: "expired", Language: "en", CreatedAt: now.Add(-time.Hour), ExpiresAt: now},
+		{ID: "one", Name: "One", NormalizedName: "one", Language: "en", CreatedAt: now, ExpiresAt: now.Add(time.Hour)},
+		{ID: "two", Name: "Two", NormalizedName: "two", Language: "en", CreatedAt: now, ExpiresAt: now.Add(time.Hour)},
 	} {
 		if _, err := db.CreateGuest(ctx, guest); err != nil {
 			t.Fatal(err)
@@ -116,6 +121,7 @@ func TestActiveGuestComparisonNormalizesTimeZone(t *testing.T) {
 		ID:             "time-zone",
 		Name:           "Time Zone",
 		NormalizedName: "time zone",
+		Language:       "en",
 		CreatedAt:      now,
 		ExpiresAt:      now.Add(time.Hour),
 	})

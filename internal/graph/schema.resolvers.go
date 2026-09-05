@@ -1345,6 +1345,7 @@ func (r *mutationResolver) CreateGuest(ctx context.Context, input model.CreateGu
 		ID:             uuid.New().String(),
 		Name:           name,
 		NormalizedName: normalizeGuestName(name),
+		Language:       languageToStore(input.Language),
 		ExpiresAt:      now.Add(duration),
 		CreatedAt:      now,
 	})
@@ -1355,6 +1356,19 @@ func (r *mutationResolver) CreateGuest(ctx context.Context, input model.CreateGu
 		return nil, err
 	}
 	r.publishGuestChange(eventbus.GuestCreated, guest)
+	return mapGuest(guest), nil
+}
+
+// UpdateCurrentGuestLanguage is the resolver for the updateCurrentGuestLanguage field.
+func (r *mutationResolver) UpdateCurrentGuestLanguage(ctx context.Context, language model.Language) (*model.Guest, error) {
+	principal, ok := auth.PrincipalFromContext(ctx)
+	if !ok || !principal.Guest {
+		return nil, fmt.Errorf("guest authentication required")
+	}
+	guest, err := r.Store.UpdateGuestLanguage(ctx, principal.ID, languageToStore(language))
+	if err != nil {
+		return nil, err
+	}
 	return mapGuest(guest), nil
 }
 
@@ -3475,6 +3489,7 @@ func (r *subscriptionResolver) GuestChanged(ctx context.Context) (<-chan *model.
 					mapped.Guest = mapGuest(store.Guest{
 						ID:        change.GuestID,
 						Name:      change.Name,
+						Language:  change.Language,
 						ExpiresAt: change.ExpiresAt,
 						CreatedAt: change.CreatedAt,
 					})

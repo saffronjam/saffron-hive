@@ -46,9 +46,14 @@ type Documents = {
     "\n  query E2EGroupsDevices {\n    devices {\n      id\n      name\n    }\n  }\n": typeof types.E2EGroupsDevicesDocument,
     "\n  mutation BrowserGuestCreate($input: CreateGuestInput!) {\n    createGuest(input: $input) {\n      id\n    }\n  }\n": typeof types.BrowserGuestCreateDocument,
     "\n  mutation BrowserGuestDelete($id: ID!) {\n    deleteGuest(id: $id)\n  }\n": typeof types.BrowserGuestDeleteDocument,
-    "\n  mutation E2ECreateGuest($input: CreateGuestInput!) {\n    createGuest(input: $input) {\n      id\n      name\n      expiresAt\n      createdAt\n    }\n  }\n": typeof types.E2ECreateGuestDocument,
+    "\n  mutation E2ECreateGuest($input: CreateGuestInput!) {\n    createGuest(input: $input) {\n      id\n      name\n      language\n      expiresAt\n      createdAt\n    }\n  }\n": typeof types.E2ECreateGuestDocument,
     "\n  mutation E2EExtendGuest($id: ID!) {\n    extendGuest(id: $id, durationMinutes: 60) {\n      id\n      expiresAt\n    }\n  }\n": typeof types.E2EExtendGuestDocument,
     "\n  mutation E2EDeleteGuest($id: ID!) {\n    deleteGuest(id: $id)\n  }\n": typeof types.E2EDeleteGuestDocument,
+    "\n  query LocaleBootstrapState {\n    me {\n      language\n    }\n    settings {\n      key\n      value\n    }\n  }\n": typeof types.LocaleBootstrapStateDocument,
+    "\n  mutation LocaleBootstrapUpdateLanguage($language: Language!) {\n    updateCurrentUser(input: { language: $language }) {\n      language\n    }\n  }\n": typeof types.LocaleBootstrapUpdateLanguageDocument,
+    "\n  mutation LocaleBootstrapUpdateSetting($key: String!, $value: String!) {\n    updateSetting(key: $key, value: $value) {\n      key\n      value\n    }\n  }\n": typeof types.LocaleBootstrapUpdateSettingDocument,
+    "\n  mutation LocaleBootstrapCreateRoom($name: String!) {\n    createRoom(input: { name: $name }) {\n      id\n    }\n  }\n": typeof types.LocaleBootstrapCreateRoomDocument,
+    "\n  mutation LocaleBootstrapDeleteRoom($id: ID!) {\n    deleteRoom(id: $id)\n  }\n": typeof types.LocaleBootstrapDeleteRoomDocument,
     "\n  query BrowserSceneFixtures {\n    devices {\n      id\n      friendlyName\n      type\n    }\n    vibePresets {\n      id\n    }\n  }\n": typeof types.BrowserSceneFixturesDocument,
     "\n  mutation BrowserSceneCreateStructure($room: CreateRoomInput!, $group: CreateGroupInput!) {\n    room: createRoom(input: $room) {\n      id\n    }\n    group: createGroup(input: $group) {\n      id\n    }\n  }\n": typeof types.BrowserSceneCreateStructureDocument,
     "\n  mutation BrowserSceneAddRoomMember($input: AddRoomMemberInput!) {\n    addRoomMember(input: $input) {\n      id\n    }\n  }\n": typeof types.BrowserSceneAddRoomMemberDocument,
@@ -200,7 +205,9 @@ type Documents = {
     "\n  mutation WebhookEndpointsStoreDelete($id: ID!) {\n    deleteWebhookEndpoint(id: $id)\n  }\n": typeof types.WebhookEndpointsStoreDeleteDocument,
     "\n  mutation WebhookEndpointsStoreBatchDelete($ids: [ID!]!) {\n    batchDeleteWebhookEndpoints(ids: $ids)\n  }\n": typeof types.WebhookEndpointsStoreBatchDeleteDocument,
     "\n  subscription WebhookEndpointsStoreDeliveryRecorded {\n    webhookDeliveryRecorded {\n      id\n      endpointId\n      receivedAt\n    }\n  }\n": typeof types.WebhookEndpointsStoreDeliveryRecordedDocument,
-    "\n\t\tquery LayoutCurrentGuest {\n\t\t\tcurrentGuest {\n\t\t\t\tid\n\t\t\t}\n\t\t}\n\t": typeof types.LayoutCurrentGuestDocument,
+    "\n\t\tquery LayoutCurrentGuest {\n\t\t\tcurrentGuest {\n\t\t\t\tid\n\t\t\t\tlanguage\n\t\t\t}\n\t\t}\n\t": typeof types.LayoutCurrentGuestDocument,
+    "\n\t\tmutation LayoutGuestAutoLogin($name: String!) {\n\t\t\tguestLogin(name: $name) {\n\t\t\t\ttoken\n\t\t\t\tguest {\n\t\t\t\t\tid\n\t\t\t\t\tlanguage\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.LayoutGuestAutoLoginDocument,
+    "\n\t\tmutation LayoutUpdateCurrentGuestLanguage($language: Language!) {\n\t\t\tupdateCurrentGuestLanguage(language: $language) {\n\t\t\t\tid\n\t\t\t\tlanguage\n\t\t\t}\n\t\t}\n\t": typeof types.LayoutUpdateCurrentGuestLanguageDocument,
     "\n\t\tquery Activity($filter: ActivityFilter) {\n\t\t\tactivity(filter: $filter) {\n\t\t\t\tid\n\t\t\t\ttype\n\t\t\t\ttimestamp\n\t\t\t\tpayload\n\t\t\t\tsource {\n\t\t\t\t\tkind\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\troomId\n\t\t\t\t\troomName\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.ActivityDocument,
     "\n\t\tsubscription ActivityStream($advanced: Boolean) {\n\t\t\tactivityStream(advanced: $advanced) {\n\t\t\t\tid\n\t\t\t\ttype\n\t\t\t\ttimestamp\n\t\t\t\tpayload\n\t\t\t\tsource {\n\t\t\t\t\tkind\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\troomId\n\t\t\t\t\troomName\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.ActivityStreamDocument,
     "\n\t\tmutation AutomationEditUpdate($id: ID!, $input: UpdateAutomationInput!) {\n\t\t\tupdateAutomation(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tenabled\n\t\t\t\tcompilable\n\t\t\t\tnodes {\n\t\t\t\t\tid\n\t\t\t\t\ttype\n\t\t\t\t\tconfig\n\t\t\t\t\tpositionX\n\t\t\t\t\tpositionY\n\t\t\t\t\truntimeState\n\t\t\t\t}\n\t\t\t\tedges {\n\t\t\t\t\tfromNodeId\n\t\t\t\t\ttoNodeId\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.AutomationEditUpdateDocument,
@@ -230,7 +237,7 @@ type Documents = {
     "\n\t\tquery Zigbee2MqttScanState {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tscanStartedAt\n\t\t\t}\n\t\t\tnetworkTopologies {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t}\n\t\t}\n\t": typeof types.Zigbee2MqttScanStateDocument,
     "\n\t\tsubscription Zigbee2MqttScanUpdates($provider: String) {\n\t\t\tnetworkTopologyUpdated(provider: $provider) {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t\tnodeCount\n\t\t\t\tlinkCount\n\t\t\t}\n\t\t}\n\t": typeof types.Zigbee2MqttScanUpdatesDocument,
     "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t\tavatarPath\n\t\t\t\t\ttheme\n\t\t\t\t\ttimeFormat\n\t\t\t\t\ttemperatureUnit\n\t\t\t\t\thapticsEnabled\n\t\t\t\t\tlanguage\n\t\t\t\t\tcreatedAt\n\t\t\t\t\tmustChangePassword\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.LoginDocument,
-    "\n\t\tmutation GuestLogin($name: String!) {\n\t\t\tguestLogin(name: $name) {\n\t\t\t\ttoken\n\t\t\t\tguest {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\texpiresAt\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.GuestLoginDocument,
+    "\n\t\tmutation GuestLogin($name: String!) {\n\t\t\tguestLogin(name: $name) {\n\t\t\t\ttoken\n\t\t\t\tguest {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\tlanguage\n\t\t\t\t\texpiresAt\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.GuestLoginDocument,
     "\n\t\tquery Logs($limit: Int) {\n\t\t\tlogs(limit: $limit) {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": typeof types.LogsDocument,
     "\n\t\tsubscription LogStream {\n\t\t\tlogStream {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": typeof types.LogStreamDocument,
     "\n\t\tmutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {\n\t\t\tupdateCurrentUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t\ttimeFormat\n\t\t\t\ttemperatureUnit\n\t\t\t\thapticsEnabled\n\t\t\t\tlanguage\n\t\t\t\tcreatedAt\n\t\t\t\tmustChangePassword\n\t\t\t}\n\t\t}\n\t": typeof types.ProfileUpdateCurrentUserDocument,
@@ -240,13 +247,13 @@ type Documents = {
     "\n\t\tquery Settings {\n\t\t\tsettings {\n\t\t\t\tkey\n\t\t\t\tvalue\n\t\t\t}\n\t\t}\n\t": typeof types.SettingsDocument,
     "\n\t\tmutation UpdateSetting($key: String!, $value: String!) {\n\t\t\tupdateSetting(key: $key, value: $value) {\n\t\t\t\tkey\n\t\t\t\tvalue\n\t\t\t}\n\t\t}\n\t": typeof types.UpdateSettingDocument,
     "\n\t\tmutation createInitialUser($input: CreateInitialUserInput!) {\n\t\t\tcreateInitialUser(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.CreateInitialUserDocument,
-    "\n\t\tquery AccountsList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t\tguests {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": typeof types.AccountsListDocument,
+    "\n\t\tquery AccountsList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t\tguests {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tlanguage\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": typeof types.AccountsListDocument,
     "\n\t\tmutation UsersCreate($input: CreateUserInput!) {\n\t\t\tcreateUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t}\n\t": typeof types.UsersCreateDocument,
     "\n\t\tmutation UsersDelete($id: ID!) {\n\t\t\tdeleteUser(id: $id)\n\t\t}\n\t": typeof types.UsersDeleteDocument,
     "\n\t\tmutation UsersBatchDelete($ids: [ID!]!) {\n\t\t\tbatchDeleteUsers(ids: $ids)\n\t\t}\n\t": typeof types.UsersBatchDeleteDocument,
     "\n\t\tmutation UsersResetPassword($id: ID!, $newPassword: String!) {\n\t\t\tresetUserPassword(id: $id, newPassword: $newPassword)\n\t\t}\n\t": typeof types.UsersResetPasswordDocument,
-    "\n\t\tmutation GuestsCreate($input: CreateGuestInput!) {\n\t\t\tcreateGuest(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": typeof types.GuestsCreateDocument,
-    "\n\t\tmutation GuestsExtend($id: ID!, $durationMinutes: Int!) {\n\t\t\textendGuest(id: $id, durationMinutes: $durationMinutes) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": typeof types.GuestsExtendDocument,
+    "\n\t\tmutation GuestsCreate($input: CreateGuestInput!) {\n\t\t\tcreateGuest(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tlanguage\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": typeof types.GuestsCreateDocument,
+    "\n\t\tmutation GuestsExtend($id: ID!, $durationMinutes: Int!) {\n\t\t\textendGuest(id: $id, durationMinutes: $durationMinutes) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tlanguage\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": typeof types.GuestsExtendDocument,
     "\n\t\tmutation GuestsDelete($id: ID!) {\n\t\t\tdeleteGuest(id: $id)\n\t\t}\n\t": typeof types.GuestsDeleteDocument,
     "\n\t\tmutation GuestsBatchDelete($ids: [ID!]!) {\n\t\t\tbatchDeleteGuests(ids: $ids)\n\t\t}\n\t": typeof types.GuestsBatchDeleteDocument,
     "\n\t\tquery WebhookDetailDeliveries($endpointId: ID!, $limit: Int) {\n\t\t\twebhookDeliveries(endpointId: $endpointId, limit: $limit) {\n\t\t\t\tid\n\t\t\t\tendpointId\n\t\t\t\treceivedAt\n\t\t\t\toutcome\n\t\t\t\thttpStatus\n\t\t\t\tclientIp\n\t\t\t\tuserAgent\n\t\t\t\tcontentType\n\t\t\t\tbodySize\n\t\t\t\tbody\n\t\t\t\tdurationMs\n\t\t\t\trequestId\n\t\t\t\tqueryKeys\n\t\t\t\theaderNames\n\t\t\t}\n\t\t}\n\t": typeof types.WebhookDetailDeliveriesDocument,
@@ -285,9 +292,14 @@ const documents: Documents = {
     "\n  query E2EGroupsDevices {\n    devices {\n      id\n      name\n    }\n  }\n": types.E2EGroupsDevicesDocument,
     "\n  mutation BrowserGuestCreate($input: CreateGuestInput!) {\n    createGuest(input: $input) {\n      id\n    }\n  }\n": types.BrowserGuestCreateDocument,
     "\n  mutation BrowserGuestDelete($id: ID!) {\n    deleteGuest(id: $id)\n  }\n": types.BrowserGuestDeleteDocument,
-    "\n  mutation E2ECreateGuest($input: CreateGuestInput!) {\n    createGuest(input: $input) {\n      id\n      name\n      expiresAt\n      createdAt\n    }\n  }\n": types.E2ECreateGuestDocument,
+    "\n  mutation E2ECreateGuest($input: CreateGuestInput!) {\n    createGuest(input: $input) {\n      id\n      name\n      language\n      expiresAt\n      createdAt\n    }\n  }\n": types.E2ECreateGuestDocument,
     "\n  mutation E2EExtendGuest($id: ID!) {\n    extendGuest(id: $id, durationMinutes: 60) {\n      id\n      expiresAt\n    }\n  }\n": types.E2EExtendGuestDocument,
     "\n  mutation E2EDeleteGuest($id: ID!) {\n    deleteGuest(id: $id)\n  }\n": types.E2EDeleteGuestDocument,
+    "\n  query LocaleBootstrapState {\n    me {\n      language\n    }\n    settings {\n      key\n      value\n    }\n  }\n": types.LocaleBootstrapStateDocument,
+    "\n  mutation LocaleBootstrapUpdateLanguage($language: Language!) {\n    updateCurrentUser(input: { language: $language }) {\n      language\n    }\n  }\n": types.LocaleBootstrapUpdateLanguageDocument,
+    "\n  mutation LocaleBootstrapUpdateSetting($key: String!, $value: String!) {\n    updateSetting(key: $key, value: $value) {\n      key\n      value\n    }\n  }\n": types.LocaleBootstrapUpdateSettingDocument,
+    "\n  mutation LocaleBootstrapCreateRoom($name: String!) {\n    createRoom(input: { name: $name }) {\n      id\n    }\n  }\n": types.LocaleBootstrapCreateRoomDocument,
+    "\n  mutation LocaleBootstrapDeleteRoom($id: ID!) {\n    deleteRoom(id: $id)\n  }\n": types.LocaleBootstrapDeleteRoomDocument,
     "\n  query BrowserSceneFixtures {\n    devices {\n      id\n      friendlyName\n      type\n    }\n    vibePresets {\n      id\n    }\n  }\n": types.BrowserSceneFixturesDocument,
     "\n  mutation BrowserSceneCreateStructure($room: CreateRoomInput!, $group: CreateGroupInput!) {\n    room: createRoom(input: $room) {\n      id\n    }\n    group: createGroup(input: $group) {\n      id\n    }\n  }\n": types.BrowserSceneCreateStructureDocument,
     "\n  mutation BrowserSceneAddRoomMember($input: AddRoomMemberInput!) {\n    addRoomMember(input: $input) {\n      id\n    }\n  }\n": types.BrowserSceneAddRoomMemberDocument,
@@ -439,7 +451,9 @@ const documents: Documents = {
     "\n  mutation WebhookEndpointsStoreDelete($id: ID!) {\n    deleteWebhookEndpoint(id: $id)\n  }\n": types.WebhookEndpointsStoreDeleteDocument,
     "\n  mutation WebhookEndpointsStoreBatchDelete($ids: [ID!]!) {\n    batchDeleteWebhookEndpoints(ids: $ids)\n  }\n": types.WebhookEndpointsStoreBatchDeleteDocument,
     "\n  subscription WebhookEndpointsStoreDeliveryRecorded {\n    webhookDeliveryRecorded {\n      id\n      endpointId\n      receivedAt\n    }\n  }\n": types.WebhookEndpointsStoreDeliveryRecordedDocument,
-    "\n\t\tquery LayoutCurrentGuest {\n\t\t\tcurrentGuest {\n\t\t\t\tid\n\t\t\t}\n\t\t}\n\t": types.LayoutCurrentGuestDocument,
+    "\n\t\tquery LayoutCurrentGuest {\n\t\t\tcurrentGuest {\n\t\t\t\tid\n\t\t\t\tlanguage\n\t\t\t}\n\t\t}\n\t": types.LayoutCurrentGuestDocument,
+    "\n\t\tmutation LayoutGuestAutoLogin($name: String!) {\n\t\t\tguestLogin(name: $name) {\n\t\t\t\ttoken\n\t\t\t\tguest {\n\t\t\t\t\tid\n\t\t\t\t\tlanguage\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.LayoutGuestAutoLoginDocument,
+    "\n\t\tmutation LayoutUpdateCurrentGuestLanguage($language: Language!) {\n\t\t\tupdateCurrentGuestLanguage(language: $language) {\n\t\t\t\tid\n\t\t\t\tlanguage\n\t\t\t}\n\t\t}\n\t": types.LayoutUpdateCurrentGuestLanguageDocument,
     "\n\t\tquery Activity($filter: ActivityFilter) {\n\t\t\tactivity(filter: $filter) {\n\t\t\t\tid\n\t\t\t\ttype\n\t\t\t\ttimestamp\n\t\t\t\tpayload\n\t\t\t\tsource {\n\t\t\t\t\tkind\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\troomId\n\t\t\t\t\troomName\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.ActivityDocument,
     "\n\t\tsubscription ActivityStream($advanced: Boolean) {\n\t\t\tactivityStream(advanced: $advanced) {\n\t\t\t\tid\n\t\t\t\ttype\n\t\t\t\ttimestamp\n\t\t\t\tpayload\n\t\t\t\tsource {\n\t\t\t\t\tkind\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\ttype\n\t\t\t\t\troomId\n\t\t\t\t\troomName\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.ActivityStreamDocument,
     "\n\t\tmutation AutomationEditUpdate($id: ID!, $input: UpdateAutomationInput!) {\n\t\t\tupdateAutomation(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\tenabled\n\t\t\t\tcompilable\n\t\t\t\tnodes {\n\t\t\t\t\tid\n\t\t\t\t\ttype\n\t\t\t\t\tconfig\n\t\t\t\t\tpositionX\n\t\t\t\t\tpositionY\n\t\t\t\t\truntimeState\n\t\t\t\t}\n\t\t\t\tedges {\n\t\t\t\t\tfromNodeId\n\t\t\t\t\ttoNodeId\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.AutomationEditUpdateDocument,
@@ -469,7 +483,7 @@ const documents: Documents = {
     "\n\t\tquery Zigbee2MqttScanState {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tscanStartedAt\n\t\t\t}\n\t\t\tnetworkTopologies {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t}\n\t\t}\n\t": types.Zigbee2MqttScanStateDocument,
     "\n\t\tsubscription Zigbee2MqttScanUpdates($provider: String) {\n\t\t\tnetworkTopologyUpdated(provider: $provider) {\n\t\t\t\tprovider\n\t\t\t\tscannedAt\n\t\t\t\tnodeCount\n\t\t\t\tlinkCount\n\t\t\t}\n\t\t}\n\t": types.Zigbee2MqttScanUpdatesDocument,
     "\n\t\tmutation login($input: LoginInput!) {\n\t\t\tlogin(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t\tavatarPath\n\t\t\t\t\ttheme\n\t\t\t\t\ttimeFormat\n\t\t\t\t\ttemperatureUnit\n\t\t\t\t\thapticsEnabled\n\t\t\t\t\tlanguage\n\t\t\t\t\tcreatedAt\n\t\t\t\t\tmustChangePassword\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.LoginDocument,
-    "\n\t\tmutation GuestLogin($name: String!) {\n\t\t\tguestLogin(name: $name) {\n\t\t\t\ttoken\n\t\t\t\tguest {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\texpiresAt\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.GuestLoginDocument,
+    "\n\t\tmutation GuestLogin($name: String!) {\n\t\t\tguestLogin(name: $name) {\n\t\t\t\ttoken\n\t\t\t\tguest {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\tlanguage\n\t\t\t\t\texpiresAt\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.GuestLoginDocument,
     "\n\t\tquery Logs($limit: Int) {\n\t\t\tlogs(limit: $limit) {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": types.LogsDocument,
     "\n\t\tsubscription LogStream {\n\t\t\tlogStream {\n\t\t\t\ttimestamp\n\t\t\t\tlevel\n\t\t\t\tmessage\n\t\t\t\tattrs\n\t\t\t}\n\t\t}\n\t": types.LogStreamDocument,
     "\n\t\tmutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {\n\t\t\tupdateCurrentUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t\ttheme\n\t\t\t\ttimeFormat\n\t\t\t\ttemperatureUnit\n\t\t\t\thapticsEnabled\n\t\t\t\tlanguage\n\t\t\t\tcreatedAt\n\t\t\t\tmustChangePassword\n\t\t\t}\n\t\t}\n\t": types.ProfileUpdateCurrentUserDocument,
@@ -479,13 +493,13 @@ const documents: Documents = {
     "\n\t\tquery Settings {\n\t\t\tsettings {\n\t\t\t\tkey\n\t\t\t\tvalue\n\t\t\t}\n\t\t}\n\t": types.SettingsDocument,
     "\n\t\tmutation UpdateSetting($key: String!, $value: String!) {\n\t\t\tupdateSetting(key: $key, value: $value) {\n\t\t\t\tkey\n\t\t\t\tvalue\n\t\t\t}\n\t\t}\n\t": types.UpdateSettingDocument,
     "\n\t\tmutation createInitialUser($input: CreateInitialUserInput!) {\n\t\t\tcreateInitialUser(input: $input) {\n\t\t\t\ttoken\n\t\t\t\tuser {\n\t\t\t\t\tid\n\t\t\t\t\tusername\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.CreateInitialUserDocument,
-    "\n\t\tquery AccountsList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t\tguests {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": types.AccountsListDocument,
+    "\n\t\tquery AccountsList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t\tguests {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tlanguage\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": types.AccountsListDocument,
     "\n\t\tmutation UsersCreate($input: CreateUserInput!) {\n\t\t\tcreateUser(input: $input) {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t}\n\t": types.UsersCreateDocument,
     "\n\t\tmutation UsersDelete($id: ID!) {\n\t\t\tdeleteUser(id: $id)\n\t\t}\n\t": types.UsersDeleteDocument,
     "\n\t\tmutation UsersBatchDelete($ids: [ID!]!) {\n\t\t\tbatchDeleteUsers(ids: $ids)\n\t\t}\n\t": types.UsersBatchDeleteDocument,
     "\n\t\tmutation UsersResetPassword($id: ID!, $newPassword: String!) {\n\t\t\tresetUserPassword(id: $id, newPassword: $newPassword)\n\t\t}\n\t": types.UsersResetPasswordDocument,
-    "\n\t\tmutation GuestsCreate($input: CreateGuestInput!) {\n\t\t\tcreateGuest(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": types.GuestsCreateDocument,
-    "\n\t\tmutation GuestsExtend($id: ID!, $durationMinutes: Int!) {\n\t\t\textendGuest(id: $id, durationMinutes: $durationMinutes) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": types.GuestsExtendDocument,
+    "\n\t\tmutation GuestsCreate($input: CreateGuestInput!) {\n\t\t\tcreateGuest(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tlanguage\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": types.GuestsCreateDocument,
+    "\n\t\tmutation GuestsExtend($id: ID!, $durationMinutes: Int!) {\n\t\t\textendGuest(id: $id, durationMinutes: $durationMinutes) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tlanguage\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t": types.GuestsExtendDocument,
     "\n\t\tmutation GuestsDelete($id: ID!) {\n\t\t\tdeleteGuest(id: $id)\n\t\t}\n\t": types.GuestsDeleteDocument,
     "\n\t\tmutation GuestsBatchDelete($ids: [ID!]!) {\n\t\t\tbatchDeleteGuests(ids: $ids)\n\t\t}\n\t": types.GuestsBatchDeleteDocument,
     "\n\t\tquery WebhookDetailDeliveries($endpointId: ID!, $limit: Int) {\n\t\t\twebhookDeliveries(endpointId: $endpointId, limit: $limit) {\n\t\t\t\tid\n\t\t\t\tendpointId\n\t\t\t\treceivedAt\n\t\t\t\toutcome\n\t\t\t\thttpStatus\n\t\t\t\tclientIp\n\t\t\t\tuserAgent\n\t\t\t\tcontentType\n\t\t\t\tbodySize\n\t\t\t\tbody\n\t\t\t\tdurationMs\n\t\t\t\trequestId\n\t\t\t\tqueryKeys\n\t\t\t\theaderNames\n\t\t\t}\n\t\t}\n\t": types.WebhookDetailDeliveriesDocument,
@@ -637,7 +651,7 @@ export function graphql(source: "\n  mutation BrowserGuestDelete($id: ID!) {\n  
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation E2ECreateGuest($input: CreateGuestInput!) {\n    createGuest(input: $input) {\n      id\n      name\n      expiresAt\n      createdAt\n    }\n  }\n"): (typeof documents)["\n  mutation E2ECreateGuest($input: CreateGuestInput!) {\n    createGuest(input: $input) {\n      id\n      name\n      expiresAt\n      createdAt\n    }\n  }\n"];
+export function graphql(source: "\n  mutation E2ECreateGuest($input: CreateGuestInput!) {\n    createGuest(input: $input) {\n      id\n      name\n      language\n      expiresAt\n      createdAt\n    }\n  }\n"): (typeof documents)["\n  mutation E2ECreateGuest($input: CreateGuestInput!) {\n    createGuest(input: $input) {\n      id\n      name\n      language\n      expiresAt\n      createdAt\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -646,6 +660,26 @@ export function graphql(source: "\n  mutation E2EExtendGuest($id: ID!) {\n    ex
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation E2EDeleteGuest($id: ID!) {\n    deleteGuest(id: $id)\n  }\n"): (typeof documents)["\n  mutation E2EDeleteGuest($id: ID!) {\n    deleteGuest(id: $id)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query LocaleBootstrapState {\n    me {\n      language\n    }\n    settings {\n      key\n      value\n    }\n  }\n"): (typeof documents)["\n  query LocaleBootstrapState {\n    me {\n      language\n    }\n    settings {\n      key\n      value\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation LocaleBootstrapUpdateLanguage($language: Language!) {\n    updateCurrentUser(input: { language: $language }) {\n      language\n    }\n  }\n"): (typeof documents)["\n  mutation LocaleBootstrapUpdateLanguage($language: Language!) {\n    updateCurrentUser(input: { language: $language }) {\n      language\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation LocaleBootstrapUpdateSetting($key: String!, $value: String!) {\n    updateSetting(key: $key, value: $value) {\n      key\n      value\n    }\n  }\n"): (typeof documents)["\n  mutation LocaleBootstrapUpdateSetting($key: String!, $value: String!) {\n    updateSetting(key: $key, value: $value) {\n      key\n      value\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation LocaleBootstrapCreateRoom($name: String!) {\n    createRoom(input: { name: $name }) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation LocaleBootstrapCreateRoom($name: String!) {\n    createRoom(input: { name: $name }) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation LocaleBootstrapDeleteRoom($id: ID!) {\n    deleteRoom(id: $id)\n  }\n"): (typeof documents)["\n  mutation LocaleBootstrapDeleteRoom($id: ID!) {\n    deleteRoom(id: $id)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1253,7 +1287,15 @@ export function graphql(source: "\n  subscription WebhookEndpointsStoreDeliveryR
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tquery LayoutCurrentGuest {\n\t\t\tcurrentGuest {\n\t\t\t\tid\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery LayoutCurrentGuest {\n\t\t\tcurrentGuest {\n\t\t\t\tid\n\t\t\t}\n\t\t}\n\t"];
+export function graphql(source: "\n\t\tquery LayoutCurrentGuest {\n\t\t\tcurrentGuest {\n\t\t\t\tid\n\t\t\t\tlanguage\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery LayoutCurrentGuest {\n\t\t\tcurrentGuest {\n\t\t\t\tid\n\t\t\t\tlanguage\n\t\t\t}\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tmutation LayoutGuestAutoLogin($name: String!) {\n\t\t\tguestLogin(name: $name) {\n\t\t\t\ttoken\n\t\t\t\tguest {\n\t\t\t\t\tid\n\t\t\t\t\tlanguage\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation LayoutGuestAutoLogin($name: String!) {\n\t\t\tguestLogin(name: $name) {\n\t\t\t\ttoken\n\t\t\t\tguest {\n\t\t\t\t\tid\n\t\t\t\t\tlanguage\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\t\tmutation LayoutUpdateCurrentGuestLanguage($language: Language!) {\n\t\t\tupdateCurrentGuestLanguage(language: $language) {\n\t\t\t\tid\n\t\t\t\tlanguage\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation LayoutUpdateCurrentGuestLanguage($language: Language!) {\n\t\t\tupdateCurrentGuestLanguage(language: $language) {\n\t\t\t\tid\n\t\t\t\tlanguage\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1373,7 +1415,7 @@ export function graphql(source: "\n\t\tmutation login($input: LoginInput!) {\n\t
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tmutation GuestLogin($name: String!) {\n\t\t\tguestLogin(name: $name) {\n\t\t\t\ttoken\n\t\t\t\tguest {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\texpiresAt\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation GuestLogin($name: String!) {\n\t\t\tguestLogin(name: $name) {\n\t\t\t\ttoken\n\t\t\t\tguest {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\texpiresAt\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
+export function graphql(source: "\n\t\tmutation GuestLogin($name: String!) {\n\t\t\tguestLogin(name: $name) {\n\t\t\t\ttoken\n\t\t\t\tguest {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\tlanguage\n\t\t\t\t\texpiresAt\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation GuestLogin($name: String!) {\n\t\t\tguestLogin(name: $name) {\n\t\t\t\ttoken\n\t\t\t\tguest {\n\t\t\t\t\tid\n\t\t\t\t\tname\n\t\t\t\t\tlanguage\n\t\t\t\t\texpiresAt\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1413,7 +1455,7 @@ export function graphql(source: "\n\t\tmutation createInitialUser($input: Create
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tquery AccountsList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t\tguests {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery AccountsList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t\tguests {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t"];
+export function graphql(source: "\n\t\tquery AccountsList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t\tguests {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tlanguage\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery AccountsList {\n\t\t\tusers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t\tname\n\t\t\t\tavatarPath\n\t\t\t}\n\t\t\tguests {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tlanguage\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1433,11 +1475,11 @@ export function graphql(source: "\n\t\tmutation UsersResetPassword($id: ID!, $ne
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tmutation GuestsCreate($input: CreateGuestInput!) {\n\t\t\tcreateGuest(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation GuestsCreate($input: CreateGuestInput!) {\n\t\t\tcreateGuest(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t"];
+export function graphql(source: "\n\t\tmutation GuestsCreate($input: CreateGuestInput!) {\n\t\t\tcreateGuest(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tlanguage\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation GuestsCreate($input: CreateGuestInput!) {\n\t\t\tcreateGuest(input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tlanguage\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tmutation GuestsExtend($id: ID!, $durationMinutes: Int!) {\n\t\t\textendGuest(id: $id, durationMinutes: $durationMinutes) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation GuestsExtend($id: ID!, $durationMinutes: Int!) {\n\t\t\textendGuest(id: $id, durationMinutes: $durationMinutes) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t"];
+export function graphql(source: "\n\t\tmutation GuestsExtend($id: ID!, $durationMinutes: Int!) {\n\t\t\textendGuest(id: $id, durationMinutes: $durationMinutes) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tlanguage\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation GuestsExtend($id: ID!, $durationMinutes: Int!) {\n\t\t\textendGuest(id: $id, durationMinutes: $durationMinutes) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tlanguage\n\t\t\t\texpiresAt\n\t\t\t\tcreatedAt\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

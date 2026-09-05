@@ -15,6 +15,11 @@ export function languageName(language: Language, displayLanguage: Language): str
   return languageNames[language]({}, { locale: displayLanguage });
 }
 
+/** Returns a supported language's name in that language. */
+export function nativeLanguageName(language: Language): string {
+  return languageNames[language]({}, { locale: language });
+}
+
 /**
  * Saffron Hive owns messages imported from this module. Provider metadata,
  * protocol values, user-authored text, and raw diagnostics remain verbatim.

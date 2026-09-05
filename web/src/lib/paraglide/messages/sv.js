@@ -786,9 +786,9 @@
 /** @typedef {{}} Guest_UnavailableInputs */
 /** @typedef {{}} Guests_AddInputs */
 /** @typedef {{}} Guests_Add_ShortInputs */
+/** @typedef {{}} Guests_Copy_Sign_In_LinkInputs */
 /** @typedef {{}} Guests_Create_DescriptionInputs */
 /** @typedef {{}} Guests_Create_FailedInputs */
-/** @typedef {{ name: NonNullable<unknown> }} Guests_CreatedInputs */
 /** @typedef {{}} Guests_CustomInputs */
 /** @typedef {{}} Guests_Custom_DurationInputs */
 /** @typedef {{}} Guests_DaysInputs */
@@ -807,6 +807,7 @@
 /** @typedef {{}} Guests_HoursInputs */
 /** @typedef {{}} Guests_One_DayInputs */
 /** @typedef {{}} Guests_One_HourInputs */
+/** @typedef {{}} Guests_Sign_In_Link_Copy_FailedInputs */
 /** @typedef {{}} Guests_TypeInputs */
 /** @typedef {{}} History_All_HiddenInputs */
 /** @typedef {{}} History_Dismiss_ReadingInputs */
@@ -1141,7 +1142,6 @@
 /** @typedef {{}} Scene_Action_ApplyInputs */
 /** @typedef {{}} Scene_Action_StopInputs */
 /** @typedef {{}} Scene_Add_SourceInputs */
-/** @typedef {{ name: NonNullable<unknown> }} Scene_Apply_NamedInputs */
 /** @typedef {{}} Scene_BackInputs */
 /** @typedef {{}} Scene_Choose_IconInputs */
 /** @typedef {{}} Scene_Create_Add_SelectorInputs */
@@ -1224,7 +1224,6 @@
 /** @typedef {{}} Scene_LoadingInputs */
 /** @typedef {{}} Scene_Name_AriaInputs */
 /** @typedef {{}} Scene_Not_FoundInputs */
-/** @typedef {{ name: NonNullable<unknown> }} Scene_Stop_NamedInputs */
 /** @typedef {{}} Scenes_Add_TargetInputs */
 /** @typedef {{}} Scenes_Add_TargetsInputs */
 /** @typedef {{}} Scenes_Add_Targets_DescriptionInputs */
@@ -1502,7 +1501,6 @@
 /** @typedef {{}} Users_Create_DescriptionInputs */
 /** @typedef {{}} Users_Create_FailedInputs */
 /** @typedef {{}} Users_Create_ShortInputs */
-/** @typedef {{}} Users_CreatedInputs */
 /** @typedef {{}} Users_CreatingInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Users_Delete_DescriptionInputs */
 /** @typedef {{}} Users_Delete_FailedInputs */
@@ -3427,7 +3425,7 @@ export const common_confirm = /** @type {(inputs: Common_ConfirmInputs) => Local
 };
 
 export const common_continue = /** @type {(inputs: Common_ContinueInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Fortsätta`)
+	return /** @type {LocalizedString} */ (`Fortsätt`)
 };
 
 export const common_copied = /** @type {(inputs: Common_CopiedInputs) => LocalizedString} */ () => {
@@ -3593,7 +3591,7 @@ export const connection_unreachable = /** @type {(inputs: Connection_Unreachable
 export const contact_name = /** @type {(inputs: Contact_NameInputs) => LocalizedString} */ (i) => {
 	if (i?.role === "door") return /** @type {LocalizedString} */ (`Dörr`);
 	if (i?.role === "window") return /** @type {LocalizedString} */ (`Fönster`);
-	return /** @type {LocalizedString} */ (`Kontakta`)
+	return /** @type {LocalizedString} */ (`Kontakt`)
 	
 };
 
@@ -3603,35 +3601,35 @@ export const contact_summary_multiple = /** @type {(inputs: Contact_Summary_Mult
 	const unknownPluralExact = i?.unknown;
 	if (i?.role === "door" && openPluralExact === "0" && unknownPluralExact === "0") return /** @type {LocalizedString} */ (`Inga öppna dörrar`);
 	if (i?.role === "door" && openPlural === "one" && unknownPluralExact === "0") return /** @type {LocalizedString} */ (`${i?.open} dörr öppen`);
-	if (i?.role === "door" && unknownPluralExact === "0") return /** @type {LocalizedString} */ (`${i?.open} dörrar öppnas`);
+	if (i?.role === "door" && unknownPluralExact === "0") return /** @type {LocalizedString} */ (`${i?.open} dörrar öppna`);
 	if (i?.role === "window" && openPluralExact === "0" && unknownPluralExact === "0") return /** @type {LocalizedString} */ (`Inga öppna fönster`);
-	if (i?.role === "window" && openPlural === "one" && unknownPluralExact === "0") return /** @type {LocalizedString} */ (`${i?.open}-fönstret öppet`);
-	if (i?.role === "window" && unknownPluralExact === "0") return /** @type {LocalizedString} */ (`${i?.open} fönster öppnas`);
+	if (i?.role === "window" && openPlural === "one" && unknownPluralExact === "0") return /** @type {LocalizedString} */ (`${i?.open} fönster öppet`);
+	if (i?.role === "window" && unknownPluralExact === "0") return /** @type {LocalizedString} */ (`${i?.open} fönster öppna`);
 	if (openPluralExact === "0" && unknownPluralExact === "0") return /** @type {LocalizedString} */ (`Inga öppna kontakter`);
 	if (openPlural === "one" && unknownPluralExact === "0") return /** @type {LocalizedString} */ (`${i?.open} kontakt öppen`);
 	if (unknownPluralExact === "0") return /** @type {LocalizedString} */ (`${i?.open} kontakter öppna`);
-	if (i?.role === "door" && openPluralExact === "0") return /** @type {LocalizedString} */ (`Inga öppna dörrar, ${i?.unknown} okänd`);
-	if (i?.role === "door" && openPlural === "one") return /** @type {LocalizedString} */ (`${i?.open} dörr öppen, ${i?.unknown} okänd`);
-	if (i?.role === "door") return /** @type {LocalizedString} */ (`${i?.open} dörrar öppnas, ${i?.unknown} okänd`);
-	if (i?.role === "window" && openPluralExact === "0") return /** @type {LocalizedString} */ (`Inga öppna fönster, ${i?.unknown} okänd`);
-	if (i?.role === "window" && openPlural === "one") return /** @type {LocalizedString} */ (`${i?.open}-fönstret öppet, ${i?.unknown} okänd`);
-	if (i?.role === "window") return /** @type {LocalizedString} */ (`${i?.open} fönster öppnas, ${i?.unknown} okänd`);
-	if (openPluralExact === "0") return /** @type {LocalizedString} */ (`Inga öppna kontakter, ${i?.unknown} okänd`);
-	if (openPlural === "one") return /** @type {LocalizedString} */ (`${i?.open} kontakt öppen, ${i?.unknown} okänd`);
-	return /** @type {LocalizedString} */ (`${i?.open} kontakter öppna, ${i?.unknown} okänd`)
+	if (i?.role === "door" && openPluralExact === "0") return /** @type {LocalizedString} */ (`Inga öppna dörrar, okänd status: ${i?.unknown}`);
+	if (i?.role === "door" && openPlural === "one") return /** @type {LocalizedString} */ (`${i?.open} dörr öppen, okänd status: ${i?.unknown}`);
+	if (i?.role === "door") return /** @type {LocalizedString} */ (`${i?.open} dörrar öppna, okänd status: ${i?.unknown}`);
+	if (i?.role === "window" && openPluralExact === "0") return /** @type {LocalizedString} */ (`Inga öppna fönster, okänd status: ${i?.unknown}`);
+	if (i?.role === "window" && openPlural === "one") return /** @type {LocalizedString} */ (`${i?.open} fönster öppet, okänd status: ${i?.unknown}`);
+	if (i?.role === "window") return /** @type {LocalizedString} */ (`${i?.open} fönster öppna, okänd status: ${i?.unknown}`);
+	if (openPluralExact === "0") return /** @type {LocalizedString} */ (`Inga öppna kontakter, okänd status: ${i?.unknown}`);
+	if (openPlural === "one") return /** @type {LocalizedString} */ (`${i?.open} kontakt öppen, okänd status: ${i?.unknown}`);
+	return /** @type {LocalizedString} */ (`${i?.open} kontakter öppna, okänd status: ${i?.unknown}`)
 	
 };
 
 export const contact_summary_single = /** @type {(inputs: Contact_Summary_SingleInputs) => LocalizedString} */ (i) => {
-	if (i?.role === "door" && i?.state === "open") return /** @type {LocalizedString} */ (`Dörr öppna`);
-	if (i?.role === "window" && i?.state === "open") return /** @type {LocalizedString} */ (`Fönster öppna`);
-	if (i?.state === "open") return /** @type {LocalizedString} */ (`Kontakta öppna`);
+	if (i?.role === "door" && i?.state === "open") return /** @type {LocalizedString} */ (`Dörr öppen`);
 	if (i?.role === "door" && i?.state === "closed") return /** @type {LocalizedString} */ (`Dörr stängd`);
-	if (i?.role === "window" && i?.state === "closed") return /** @type {LocalizedString} */ (`Fönster stängd`);
-	if (i?.state === "closed") return /** @type {LocalizedString} */ (`Kontakta stängd`);
-	if (i?.role === "door") return /** @type {LocalizedString} */ (`Dörr okänd`);
-	if (i?.role === "window") return /** @type {LocalizedString} */ (`Fönster okänd`);
-	return /** @type {LocalizedString} */ (`Kontakta okänd`)
+	if (i?.role === "door") return /** @type {LocalizedString} */ (`Dörrstatus okänd`);
+	if (i?.role === "window" && i?.state === "open") return /** @type {LocalizedString} */ (`Fönster öppet`);
+	if (i?.role === "window" && i?.state === "closed") return /** @type {LocalizedString} */ (`Fönster stängt`);
+	if (i?.role === "window") return /** @type {LocalizedString} */ (`Fönsterstatus okänd`);
+	if (i?.state === "open") return /** @type {LocalizedString} */ (`Kontakt öppen`);
+	if (i?.state === "closed") return /** @type {LocalizedString} */ (`Kontakt stängd`);
+	return /** @type {LocalizedString} */ (`Kontaktstatus okänd`)
 	
 };
 
@@ -4807,7 +4805,7 @@ export const field_source = /** @type {(inputs: Field_SourceInputs) => Localized
 };
 
 export const field_state = /** @type {(inputs: Field_StateInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Ange`)
+	return /** @type {LocalizedString} */ (`Status`)
 };
 
 export const field_swing = /** @type {(inputs: Field_SwingInputs) => LocalizedString} */ () => {
@@ -5008,16 +5006,16 @@ export const guests_add_short = /** @type {(inputs: Guests_Add_ShortInputs) => L
 	return /** @type {LocalizedString} */ (`Gäst`)
 };
 
+export const guests_copy_sign_in_link = /** @type {(inputs: Guests_Copy_Sign_In_LinkInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Kopiera inloggningslänk`)
+};
+
 export const guests_create_description = /** @type {(inputs: Guests_Create_DescriptionInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Gäster loggar in med sitt namn och kan bara använda översikten.`)
 };
 
 export const guests_create_failed = /** @type {(inputs: Guests_Create_FailedInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Kunde inte lägga till gästen.`)
-};
-
-export const guests_created = /** @type {(inputs: Guests_CreatedInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Gästen ${i?.name} har lagts till`)
 };
 
 export const guests_custom = /** @type {(inputs: Guests_CustomInputs) => LocalizedString} */ () => {
@@ -5090,6 +5088,10 @@ export const guests_one_day = /** @type {(inputs: Guests_One_DayInputs) => Local
 
 export const guests_one_hour = /** @type {(inputs: Guests_One_HourInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`1 timme`)
+};
+
+export const guests_sign_in_link_copy_failed = /** @type {(inputs: Guests_Sign_In_Link_Copy_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Det gick inte att kopiera inloggningslänken.`)
 };
 
 export const guests_type = /** @type {(inputs: Guests_TypeInputs) => LocalizedString} */ () => {
@@ -6119,7 +6121,7 @@ export const profile_avatar_upload_failed = /** @type {(inputs: Profile_Avatar_U
 };
 
 export const profile_change_avatar = /** @type {(inputs: Profile_Change_AvatarInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Byt avatar`)
+	return /** @type {LocalizedString} */ (`Byt profilbild`)
 };
 
 export const profile_change_password = /** @type {(inputs: Profile_Change_PasswordInputs) => LocalizedString} */ () => {
@@ -6275,7 +6277,7 @@ export const profile_time_12_hour = /** @type {(inputs: Profile_Time_12_HourInpu
 };
 
 export const profile_time_24_hour = /** @type {(inputs: Profile_Time_24_HourInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`24 timmar om dygnet`)
+	return /** @type {LocalizedString} */ (`24 timmar`)
 };
 
 export const profile_time_format = /** @type {(inputs: Profile_Time_FormatInputs) => LocalizedString} */ () => {
@@ -6287,7 +6289,7 @@ export const profile_time_format_about = /** @type {(inputs: Profile_Time_Format
 };
 
 export const profile_time_format_help = /** @type {(inputs: Profile_Time_Format_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Gäller varhelst tiden visas. Datum använder den valda lokalen.`)
+	return /** @type {LocalizedString} */ (`Tidsformatet används överallt. Datum visas enligt din språkinställning.`)
 };
 
 export const profile_time_update_failed = /** @type {(inputs: Profile_Time_Update_FailedInputs) => LocalizedString} */ () => {
@@ -6397,7 +6399,7 @@ export const room_generic = /** @type {(inputs: Room_GenericInputs) => Localized
 };
 
 export const room_lights = /** @type {(inputs: Room_LightsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Ljus`)
+	return /** @type {LocalizedString} */ (`Lampor`)
 };
 
 export const room_members_empty = /** @type {(inputs: Room_Members_EmptyInputs) => LocalizedString} */ () => {
@@ -6446,10 +6448,6 @@ export const scene_action_stop = /** @type {(inputs: Scene_Action_StopInputs) =>
 
 export const scene_add_source = /** @type {(inputs: Scene_Add_SourceInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Lägg till källa`)
-};
-
-export const scene_apply_named = /** @type {(inputs: Scene_Apply_NamedInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Starta ${i?.name}`)
 };
 
 export const scene_back = /** @type {(inputs: Scene_BackInputs) => LocalizedString} */ () => {
@@ -6783,10 +6781,6 @@ export const scene_name_aria = /** @type {(inputs: Scene_Name_AriaInputs) => Loc
 
 export const scene_not_found = /** @type {(inputs: Scene_Not_FoundInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Denna scen kunde inte hittas.`)
-};
-
-export const scene_stop_named = /** @type {(inputs: Scene_Stop_NamedInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Stopp ${i?.name}`)
 };
 
 export const scenes_add_target = /** @type {(inputs: Scenes_Add_TargetInputs) => LocalizedString} */ () => {
@@ -7921,10 +7915,6 @@ export const users_create_failed = /** @type {(inputs: Users_Create_FailedInputs
 
 export const users_create_short = /** @type {(inputs: Users_Create_ShortInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Skapa`)
-};
-
-export const users_created = /** @type {(inputs: Users_CreatedInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Användare skapad`)
 };
 
 export const users_creating = /** @type {(inputs: Users_CreatingInputs) => LocalizedString} */ () => {

@@ -27,6 +27,7 @@
 		title?: string;
 		align?: "start" | "center" | "end";
 		triggerClass?: string;
+		interactive?: boolean;
 		children: Snippet;
 	}
 
@@ -36,6 +37,7 @@
 		title,
 		align = "start",
 		triggerClass = "",
+		interactive = true,
 		children,
 	}: Props = $props();
 	const resolvedTitle = $derived(
@@ -114,7 +116,11 @@
 	});
 </script>
 
-{#if !mounted}
+{#if !interactive}
+	<div role="presentation" data-card-click-ignore onpointerdown={(event) => event.stopPropagation()}>
+		{@render children()}
+	</div>
+{:else if !mounted}
 	<button type="button" class={triggerClass} onclick={activate}>
 		{@render children()}
 	</button>

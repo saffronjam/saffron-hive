@@ -32,9 +32,18 @@
 		rooms: RoomLite[];
 		client: Client;
 		onopen: (room: RoomEntity) => void;
+		sensorHistoryEnabled?: boolean;
 	}
 
-	let { room, devices, groups, rooms, client, onopen }: Props = $props();
+	let {
+		room,
+		devices,
+		groups,
+		rooms,
+		client,
+		onopen,
+		sensorHistoryEnabled = true,
+	}: Props = $props();
 
 	const roomDevices = $derived(
 		resolveTargetDevices({ type: "room", id: room.id }, devices, groups, rooms),
@@ -146,6 +155,7 @@
 				title={entityDisplayName("room", room)}
 				align="end"
 				triggerClass="group rounded focus-visible:outline-none"
+				interactive={sensorHistoryEnabled}
 			>
 				<div class="grid grid-cols-[auto_auto_auto] items-center gap-x-1 gap-y-0.5 text-sm tabular-nums text-muted-foreground transition-colors group-hover:text-foreground group-focus-visible:text-foreground">
 					{#each sensorReadings as r (r.label)}

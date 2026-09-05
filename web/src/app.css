@@ -450,10 +450,6 @@
     var(--dashboard-drag-transition);
 }
 
-.scene-active {
-  background-color: color-mix(in oklch, var(--scene-glow) 28%, transparent);
-}
-
 @keyframes activity-row-flash {
   0% {
     background-color: color-mix(in oklch, var(--primary) 22%, transparent);

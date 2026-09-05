@@ -255,6 +255,12 @@
 	}
 
 	function handleClick(e: MouseEvent) {
+		if (
+			e.target instanceof Element &&
+			e.target.closest("[data-card-click-ignore]")
+		) {
+			return;
+		}
 		startPressFlash(e.target);
 		onclick?.(entity, e);
 	}

@@ -239,8 +239,9 @@ type CreateGroupInput struct {
 }
 
 type CreateGuestInput struct {
-	Name            string `json:"name"`
-	DurationMinutes int    `json:"durationMinutes"`
+	Name            string   `json:"name"`
+	DurationMinutes int      `json:"durationMinutes"`
+	Language        Language `json:"language"`
 }
 
 type CreateInitialUserInput struct {
@@ -711,6 +712,7 @@ type GroupMember struct {
 type Guest struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
+	Language  Language  `json:"language"`
 	ExpiresAt time.Time `json:"expiresAt"`
 	CreatedAt time.Time `json:"createdAt"`
 }

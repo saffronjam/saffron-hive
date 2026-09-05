@@ -32,6 +32,22 @@ export function formatRelative(date: Date, now: Date, mode: TimeMode): string {
   return formatTime(date, mode);
 }
 
+/** Format a future Date in the nearest useful relative unit. */
+export function formatFutureRelative(date: Date, now: Date): string {
+  const diff = Math.max(0, date.getTime() - now.getTime());
+  const formatter = new Intl.RelativeTimeFormat(intlLocale(), {
+    numeric: "always",
+    style: "long",
+  });
+  if (diff < 60 * 60 * 1000) {
+    return formatter.format(Math.max(1, Math.round(diff / 60_000)), "minute");
+  }
+  if (diff < 24 * 60 * 60 * 1000) {
+    return formatter.format(Math.max(1, Math.round(diff / 3_600_000)), "hour");
+  }
+  return formatter.format(Math.max(1, Math.round(diff / 86_400_000)), "day");
+}
+
 /** Clock time in the user's chosen 12h/24h format, seconds included. */
 export function formatTime(date: Date, mode: TimeMode): string {
   return clockFormatter(mode).format(date);

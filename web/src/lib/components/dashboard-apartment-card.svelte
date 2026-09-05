@@ -22,9 +22,10 @@
 	interface Props {
 		devices: Device[];
 		client: Client;
+		sensorHistoryEnabled?: boolean;
 	}
 
-	let { devices, client }: Props = $props();
+	let { devices, client, sensorHistoryEnabled = true }: Props = $props();
 
 	const apartmentEntity = $derived({
 		id: "apartment",
@@ -133,6 +134,7 @@
 				title={apartmentEntity.name}
 				align="end"
 				triggerClass="group rounded focus-visible:outline-none"
+				interactive={sensorHistoryEnabled}
 			>
 				<div class="grid grid-cols-[auto_auto_auto] items-center gap-x-1 gap-y-0.5 text-sm tabular-nums text-muted-foreground transition-colors group-hover:text-foreground group-focus-visible:text-foreground">
 					{#each sensorReadings as r (r.label)}

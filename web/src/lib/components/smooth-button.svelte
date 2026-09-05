@@ -40,24 +40,42 @@
 	let pendingLabel = $state<string | null>(null);
 	let showTime = $state(Date.now());
 	let timer: ReturnType<typeof setTimeout> | null = null;
+	let resizeFrame: number | null = null;
 	let measurer: HTMLSpanElement | null = null;
 	let contentWidth = $state<number | null>(null);
+	let resizingWithoutTransition = $state(false);
 
-	function applyLabel(newLabel: string) {
+	function commitLabel(newLabel: string, measuredWidth: number | null) {
 		displayedLabel = newLabel;
 		showTime = Date.now();
 		pendingLabel = null;
-		measureWidth(newLabel);
+		if (measuredWidth !== null) contentWidth = measuredWidth;
 	}
 
-	function measureWidth(text: string) {
-		if (!measurer) return;
+	function labelWidth(text: string): number | null {
+		if (!measurer) return null;
 		measurer.textContent = text;
-		requestAnimationFrame(() => {
-			if (measurer) {
-				contentWidth = measurer.offsetWidth;
-			}
-		});
+		return Math.ceil(measurer.getBoundingClientRect().width) + 2;
+	}
+
+	function applyLabel(newLabel: string) {
+		const measuredWidth = labelWidth(newLabel);
+		if (
+			measuredWidth !== null &&
+			contentWidth !== null &&
+			measuredWidth > contentWidth
+		) {
+			resizingWithoutTransition = true;
+			contentWidth = measuredWidth;
+			if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+			resizeFrame = requestAnimationFrame(() => {
+				resizeFrame = null;
+				if (effectiveLabel === newLabel) commitLabel(newLabel, measuredWidth);
+				resizingWithoutTransition = false;
+			});
+			return;
+		}
+		commitLabel(newLabel, measuredWidth);
 	}
 
 	$effect(() => {
@@ -86,13 +104,14 @@
 
 	$effect(() => {
 		if (measurer && contentWidth === null) {
-			measureWidth(displayedLabel);
+			contentWidth = labelWidth(displayedLabel);
 		}
 	});
 
 	$effect(() => {
 		return () => {
 			if (timer) clearTimeout(timer);
+			if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
 		};
 	});
 </script>
@@ -117,7 +136,9 @@
 			aria-hidden="true"
 		>{displayedLabel}</span>
 		<span
-			class="inline-block whitespace-nowrap transition-[width] duration-200 ease-in-out overflow-hidden"
+			class="inline-block overflow-hidden whitespace-nowrap {resizingWithoutTransition
+				? 'transition-none'
+				: 'transition-[width] duration-200 ease-in-out'}"
 			style={contentWidth !== null ? `width: ${contentWidth}px` : undefined}
 		>
 			{#key displayedLabel}

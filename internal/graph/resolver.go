@@ -225,6 +225,7 @@ type GraphStore interface {
 	GetActiveGuestByNormalizedName(ctx context.Context, name string, now time.Time) (store.Guest, error)
 	ListActiveGuests(ctx context.Context, now time.Time) ([]store.Guest, error)
 	UpdateGuestExpiresAt(ctx context.Context, id string, expiresAt time.Time) (store.Guest, error)
+	UpdateGuestLanguage(ctx context.Context, id, language string) (store.Guest, error)
 	DeleteGuest(ctx context.Context, id string) (bool, error)
 	BatchDeleteGuests(ctx context.Context, ids []string) ([]string, error)
 }

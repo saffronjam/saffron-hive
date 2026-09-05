@@ -786,9 +786,9 @@
 /** @typedef {{}} Guest_UnavailableInputs */
 /** @typedef {{}} Guests_AddInputs */
 /** @typedef {{}} Guests_Add_ShortInputs */
+/** @typedef {{}} Guests_Copy_Sign_In_LinkInputs */
 /** @typedef {{}} Guests_Create_DescriptionInputs */
 /** @typedef {{}} Guests_Create_FailedInputs */
-/** @typedef {{ name: NonNullable<unknown> }} Guests_CreatedInputs */
 /** @typedef {{}} Guests_CustomInputs */
 /** @typedef {{}} Guests_Custom_DurationInputs */
 /** @typedef {{}} Guests_DaysInputs */
@@ -807,6 +807,7 @@
 /** @typedef {{}} Guests_HoursInputs */
 /** @typedef {{}} Guests_One_DayInputs */
 /** @typedef {{}} Guests_One_HourInputs */
+/** @typedef {{}} Guests_Sign_In_Link_Copy_FailedInputs */
 /** @typedef {{}} Guests_TypeInputs */
 /** @typedef {{}} History_All_HiddenInputs */
 /** @typedef {{}} History_Dismiss_ReadingInputs */
@@ -1141,7 +1142,6 @@
 /** @typedef {{}} Scene_Action_ApplyInputs */
 /** @typedef {{}} Scene_Action_StopInputs */
 /** @typedef {{}} Scene_Add_SourceInputs */
-/** @typedef {{ name: NonNullable<unknown> }} Scene_Apply_NamedInputs */
 /** @typedef {{}} Scene_BackInputs */
 /** @typedef {{}} Scene_Choose_IconInputs */
 /** @typedef {{}} Scene_Create_Add_SelectorInputs */
@@ -1224,7 +1224,6 @@
 /** @typedef {{}} Scene_LoadingInputs */
 /** @typedef {{}} Scene_Name_AriaInputs */
 /** @typedef {{}} Scene_Not_FoundInputs */
-/** @typedef {{ name: NonNullable<unknown> }} Scene_Stop_NamedInputs */
 /** @typedef {{}} Scenes_Add_TargetInputs */
 /** @typedef {{}} Scenes_Add_TargetsInputs */
 /** @typedef {{}} Scenes_Add_Targets_DescriptionInputs */
@@ -1502,7 +1501,6 @@
 /** @typedef {{}} Users_Create_DescriptionInputs */
 /** @typedef {{}} Users_Create_FailedInputs */
 /** @typedef {{}} Users_Create_ShortInputs */
-/** @typedef {{}} Users_CreatedInputs */
 /** @typedef {{}} Users_CreatingInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Users_Delete_DescriptionInputs */
 /** @typedef {{}} Users_Delete_FailedInputs */
@@ -5129,16 +5127,16 @@ export const guests_add_short = /** @type {(inputs: Guests_Add_ShortInputs) => L
 	return /** @type {LocalizedString} */ (`Гость`)
 };
 
+export const guests_copy_sign_in_link = /** @type {(inputs: Guests_Copy_Sign_In_LinkInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Скопировать ссылку для входа`)
+};
+
 export const guests_create_description = /** @type {(inputs: Guests_Create_DescriptionInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Гости входят по имени и могут пользоваться только панелью управления.`)
 };
 
 export const guests_create_failed = /** @type {(inputs: Guests_Create_FailedInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Не удалось добавить гостя.`)
-};
-
-export const guests_created = /** @type {(inputs: Guests_CreatedInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Гость ${i?.name} добавлен`)
 };
 
 export const guests_custom = /** @type {(inputs: Guests_CustomInputs) => LocalizedString} */ () => {
@@ -5211,6 +5209,10 @@ export const guests_one_day = /** @type {(inputs: Guests_One_DayInputs) => Local
 
 export const guests_one_hour = /** @type {(inputs: Guests_One_HourInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`1 час`)
+};
+
+export const guests_sign_in_link_copy_failed = /** @type {(inputs: Guests_Sign_In_Link_Copy_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Не удалось скопировать ссылку для входа.`)
 };
 
 export const guests_type = /** @type {(inputs: Guests_TypeInputs) => LocalizedString} */ () => {
@@ -6593,10 +6595,6 @@ export const scene_add_source = /** @type {(inputs: Scene_Add_SourceInputs) => L
 	return /** @type {LocalizedString} */ (`Добавить источник`)
 };
 
-export const scene_apply_named = /** @type {(inputs: Scene_Apply_NamedInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Применить ${i?.name}`)
-};
-
 export const scene_back = /** @type {(inputs: Scene_BackInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Назад к сценам`)
 };
@@ -6940,10 +6938,6 @@ export const scene_name_aria = /** @type {(inputs: Scene_Name_AriaInputs) => Loc
 
 export const scene_not_found = /** @type {(inputs: Scene_Not_FoundInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Эту сцену не удалось найти.`)
-};
-
-export const scene_stop_named = /** @type {(inputs: Scene_Stop_NamedInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Остановить ${i?.name}`)
 };
 
 export const scenes_add_target = /** @type {(inputs: Scenes_Add_TargetInputs) => LocalizedString} */ () => {
@@ -8112,10 +8106,6 @@ export const users_create_failed = /** @type {(inputs: Users_Create_FailedInputs
 
 export const users_create_short = /** @type {(inputs: Users_Create_ShortInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Создать`)
-};
-
-export const users_created = /** @type {(inputs: Users_CreatedInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Пользователь создан`)
 };
 
 export const users_creating = /** @type {(inputs: Users_CreatingInputs) => LocalizedString} */ () => {

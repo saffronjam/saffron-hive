@@ -126,7 +126,7 @@
 
 <div class="mx-auto flex max-w-3xl flex-col gap-3">
 	{#if !needsIntegration}
-		<DashboardApartmentCard {devices} {client} />
+		<DashboardApartmentCard {devices} {client} sensorHistoryEnabled={!guest} />
 	{/if}
 
 	{#if needsIntegration}
@@ -162,6 +162,7 @@
 				{groups}
 				{rooms}
 				{client}
+				sensorHistoryEnabled={!guest}
 				onopen={(r) => openDrawer(r.id)}
 			/>
 		{/each}
@@ -176,6 +177,7 @@
 	{rooms}
 	{scenes}
 	{client}
+	sensorHistoryEnabled={!guest}
 	onclose={closeDrawer}
 	onapplyscene={handleApplyScene}
 	onstopscene={handleStopScene}

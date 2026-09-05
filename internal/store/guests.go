@@ -25,6 +25,7 @@ func (s *DB) CreateGuest(ctx context.Context, params CreateGuestParams) (Guest, 
 			ID:             params.ID,
 			Name:           params.Name,
 			NormalizedName: params.NormalizedName,
+			Language:       params.Language,
 			ExpiresAt:      params.ExpiresAt,
 			CreatedAt:      params.CreatedAt,
 		}); err != nil {
@@ -41,6 +42,18 @@ func (s *DB) CreateGuest(ctx context.Context, params CreateGuestParams) (Guest, 
 		return Guest{}, err
 	}
 	return guest, nil
+}
+
+// UpdateGuestLanguage sets the guest's UI language.
+func (s *DB) UpdateGuestLanguage(ctx context.Context, id, language string) (Guest, error) {
+	n, err := s.q.UpdateGuestLanguage(ctx, sqlite.UpdateGuestLanguageParams{Language: language, ID: id})
+	if err != nil {
+		return Guest{}, fmt.Errorf("update guest language: %w", err)
+	}
+	if n == 0 {
+		return Guest{}, fmt.Errorf("guest not found")
+	}
+	return s.GetGuestByID(ctx, id)
 }
 
 // GetGuestByID retrieves a guest without applying its expiry.
@@ -137,6 +150,7 @@ func guestFromRow(row sqlite.Guest) Guest {
 		ID:             row.ID,
 		Name:           row.Name,
 		NormalizedName: row.NormalizedName,
+		Language:       row.Language,
 		ExpiresAt:      row.ExpiresAt,
 		CreatedAt:      row.CreatedAt,
 	}

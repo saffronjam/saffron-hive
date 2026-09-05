@@ -4,6 +4,8 @@ import { theme, type Theme } from "$lib/stores/theme";
 import { haptics } from "$lib/stores/haptics.svelte";
 import { locale } from "$lib/i18n/locale.svelte";
 import type { Language } from "$lib/i18n/messages";
+import { languageFromGraphQL } from "$lib/i18n/graphql-language";
+import type { Language as GraphQLLanguage } from "$lib/gql/graphql";
 
 export type { Language } from "$lib/i18n/messages";
 
@@ -73,14 +75,14 @@ function createMe() {
     timeFormat?: "TWELVE_HOUR" | "TWENTY_FOUR_HOUR" | null;
     temperatureUnit?: "CELSIUS" | "FAHRENHEIT" | null;
     hapticsEnabled?: boolean | null;
-    language?: "EN" | "SV" | "RU" | null;
+    language?: GraphQLLanguage | null;
     createdAt?: string | null;
     mustChangePassword?: boolean | null;
   }) {
     const t: Theme = data.theme === "LIGHT" ? "light" : "dark";
     const tf: TimeMode = data.timeFormat === "TWELVE_HOUR" ? "12h" : "24h";
     const tu: TempUnit = data.temperatureUnit === "FAHRENHEIT" ? "fahrenheit" : "celsius";
-    const language: Language = data.language === "SV" ? "sv" : data.language === "RU" ? "ru" : "en";
+    const language: Language = languageFromGraphQL(data.language);
     user = {
       id: data.id,
       username: data.username,
@@ -121,7 +123,7 @@ function createMe() {
       timeFormat?: "TWELVE_HOUR" | "TWENTY_FOUR_HOUR" | null;
       temperatureUnit?: "CELSIUS" | "FAHRENHEIT" | null;
       hapticsEnabled?: boolean | null;
-      language?: "EN" | "SV" | "RU" | null;
+      language?: GraphQLLanguage | null;
       createdAt?: string | null;
       mustChangePassword?: boolean | null;
     }) {

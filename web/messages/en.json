@@ -459,8 +459,6 @@
   "room_appliances": "Appliances",
   "room_drawer_description": "Scenes and lights for this room.",
   "room_adjust_color": "Adjust {name} color",
-  "scene_apply_named": "Apply {name}",
-  "scene_stop_named": "Stop {name}",
   "device_toggle_named": "Toggle {name}",
   "device_adjust_named": "Adjust {name}",
   "device_adjust_climate_named": "Adjust {name} climate",
@@ -1452,7 +1450,6 @@
   ,"users_delete_failed": "Could not delete the user."
   ,"users_delete_many_failed": "Could not delete the accounts."
   ,"users_create_failed": "Could not create the user."
-  ,"users_created": "User created"
   ,"users_reset_failed": "Could not reset the password."
   ,"users_password_reset": "Password reset for {name}"
   ,"users_deleted": "{name} deleted"
@@ -1490,8 +1487,9 @@
   ,"guests_hours": "Hours"
   ,"guests_days": "Days"
   ,"guests_create_failed": "Could not add the guest."
-  ,"guests_created": "Guest {name} added"
   ,"guests_expires": "Expires {time}"
+  ,"guests_copy_sign_in_link": "Copy sign-in link"
+  ,"guests_sign_in_link_copy_failed": "Could not copy the sign-in link."
   ,"guests_extend": "Extend access"
   ,"guests_extend_description": "Add time to {name}'s current expiry."
   ,"guests_extend_maximum": "The expiry cannot be later than 7 days after the guest was created."

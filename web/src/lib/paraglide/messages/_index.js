@@ -788,9 +788,9 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Guest_UnavailableInputs */
 /** @typedef {{}} Guests_AddInputs */
 /** @typedef {{}} Guests_Add_ShortInputs */
+/** @typedef {{}} Guests_Copy_Sign_In_LinkInputs */
 /** @typedef {{}} Guests_Create_DescriptionInputs */
 /** @typedef {{}} Guests_Create_FailedInputs */
-/** @typedef {{ name: NonNullable<unknown> }} Guests_CreatedInputs */
 /** @typedef {{}} Guests_CustomInputs */
 /** @typedef {{}} Guests_Custom_DurationInputs */
 /** @typedef {{}} Guests_DaysInputs */
@@ -809,6 +809,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Guests_HoursInputs */
 /** @typedef {{}} Guests_One_DayInputs */
 /** @typedef {{}} Guests_One_HourInputs */
+/** @typedef {{}} Guests_Sign_In_Link_Copy_FailedInputs */
 /** @typedef {{}} Guests_TypeInputs */
 /** @typedef {{}} History_All_HiddenInputs */
 /** @typedef {{}} History_Dismiss_ReadingInputs */
@@ -1143,7 +1144,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Scene_Action_ApplyInputs */
 /** @typedef {{}} Scene_Action_StopInputs */
 /** @typedef {{}} Scene_Add_SourceInputs */
-/** @typedef {{ name: NonNullable<unknown> }} Scene_Apply_NamedInputs */
 /** @typedef {{}} Scene_BackInputs */
 /** @typedef {{}} Scene_Choose_IconInputs */
 /** @typedef {{}} Scene_Create_Add_SelectorInputs */
@@ -1226,7 +1226,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Scene_LoadingInputs */
 /** @typedef {{}} Scene_Name_AriaInputs */
 /** @typedef {{}} Scene_Not_FoundInputs */
-/** @typedef {{ name: NonNullable<unknown> }} Scene_Stop_NamedInputs */
 /** @typedef {{}} Scenes_Add_TargetInputs */
 /** @typedef {{}} Scenes_Add_TargetsInputs */
 /** @typedef {{}} Scenes_Add_Targets_DescriptionInputs */
@@ -1504,7 +1503,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Users_Create_DescriptionInputs */
 /** @typedef {{}} Users_Create_FailedInputs */
 /** @typedef {{}} Users_Create_ShortInputs */
-/** @typedef {{}} Users_CreatedInputs */
 /** @typedef {{}} Users_CreatingInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Users_Delete_DescriptionInputs */
 /** @typedef {{}} Users_Delete_FailedInputs */
@@ -13635,6 +13633,21 @@ export const guests_add_short = /** @type {((inputs?: Guests_Add_ShortInputs, op
 /**
 * | output |
 * | --- |
+* | "Copy sign-in link" |
+*
+* @param {Guests_Copy_Sign_In_LinkInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_copy_sign_in_link = /** @type {((inputs?: Guests_Copy_Sign_In_LinkInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_Copy_Sign_In_LinkInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_copy_sign_in_link(inputs)
+	if (locale === "ru") return __ru.guests_copy_sign_in_link(inputs)
+	return __en.guests_copy_sign_in_link(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Guests sign in with their name and can use only the dashboard." |
 *
 * @param {Guests_Create_DescriptionInputs} inputs
@@ -13661,21 +13674,6 @@ export const guests_create_failed = /** @type {((inputs?: Guests_Create_FailedIn
 	if (locale === "sv") return __sv.guests_create_failed(inputs)
 	if (locale === "ru") return __ru.guests_create_failed(inputs)
 	return __en.guests_create_failed(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Guest {name} added" |
-*
-* @param {Guests_CreatedInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const guests_created = /** @type {((inputs: Guests_CreatedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_CreatedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.guests_created(inputs)
-	if (locale === "ru") return __ru.guests_created(inputs)
-	return __en.guests_created(inputs)
 });
 /**
 * | output |
@@ -13946,6 +13944,21 @@ export const guests_one_hour = /** @type {((inputs?: Guests_One_HourInputs, opti
 	if (locale === "sv") return __sv.guests_one_hour(inputs)
 	if (locale === "ru") return __ru.guests_one_hour(inputs)
 	return __en.guests_one_hour(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Could not copy the sign-in link." |
+*
+* @param {Guests_Sign_In_Link_Copy_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const guests_sign_in_link_copy_failed = /** @type {((inputs?: Guests_Sign_In_Link_Copy_FailedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Guests_Sign_In_Link_Copy_FailedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.guests_sign_in_link_copy_failed(inputs)
+	if (locale === "ru") return __ru.guests_sign_in_link_copy_failed(inputs)
+	return __en.guests_sign_in_link_copy_failed(inputs)
 });
 /**
 * | output |
@@ -18970,21 +18983,6 @@ export const scene_add_source = /** @type {((inputs?: Scene_Add_SourceInputs, op
 /**
 * | output |
 * | --- |
-* | "Apply {name}" |
-*
-* @param {Scene_Apply_NamedInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scene_apply_named = /** @type {((inputs: Scene_Apply_NamedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Scene_Apply_NamedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.scene_apply_named(inputs)
-	if (locale === "ru") return __ru.scene_apply_named(inputs)
-	return __en.scene_apply_named(inputs)
-});
-/**
-* | output |
-* | --- |
 * | "Back to scenes" |
 *
 * @param {Scene_BackInputs} inputs
@@ -20214,21 +20212,6 @@ export const scene_not_found = /** @type {((inputs?: Scene_Not_FoundInputs, opti
 	if (locale === "sv") return __sv.scene_not_found(inputs)
 	if (locale === "ru") return __ru.scene_not_found(inputs)
 	return __en.scene_not_found(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Stop {name}" |
-*
-* @param {Scene_Stop_NamedInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scene_stop_named = /** @type {((inputs: Scene_Stop_NamedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Scene_Stop_NamedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.scene_stop_named(inputs)
-	if (locale === "ru") return __ru.scene_stop_named(inputs)
-	return __en.scene_stop_named(inputs)
 });
 /**
 * | output |
@@ -24397,21 +24380,6 @@ export const users_create_short = /** @type {((inputs?: Users_Create_ShortInputs
 	if (locale === "sv") return __sv.users_create_short(inputs)
 	if (locale === "ru") return __ru.users_create_short(inputs)
 	return __en.users_create_short(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "User created" |
-*
-* @param {Users_CreatedInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const users_created = /** @type {((inputs?: Users_CreatedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Users_CreatedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.users_created(inputs)
-	if (locale === "ru") return __ru.users_created(inputs)
-	return __en.users_created(inputs)
 });
 /**
 * | output |

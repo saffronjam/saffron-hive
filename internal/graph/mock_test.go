@@ -1358,10 +1358,23 @@ func (m *mockStore) CreateGuest(_ context.Context, params store.CreateGuestParam
 		ID:             params.ID,
 		Name:           params.Name,
 		NormalizedName: params.NormalizedName,
+		Language:       params.Language,
 		ExpiresAt:      params.ExpiresAt,
 		CreatedAt:      params.CreatedAt,
 	}
 	m.guests[guest.ID] = guest
+	return guest, nil
+}
+
+func (m *mockStore) UpdateGuestLanguage(_ context.Context, id, language string) (store.Guest, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	guest, ok := m.guests[id]
+	if !ok {
+		return store.Guest{}, sql.ErrNoRows
+	}
+	guest.Language = language
+	m.guests[id] = guest
 	return guest, nil
 }
 

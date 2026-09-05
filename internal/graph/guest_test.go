@@ -27,12 +27,12 @@ func TestGuestCreateLoginExtendAndDelete(t *testing.T) {
 	mutations := &mutationResolver{r}
 
 	created, err := mutations.CreateGuest(context.Background(), model.CreateGuestInput{
-		Name: "  Linnea  ", DurationMinutes: 240,
+		Name: "  Linnea  ", DurationMinutes: 240, Language: model.LanguageSv,
 	})
 	if err != nil {
 		t.Fatalf("CreateGuest: %v", err)
 	}
-	if created.Name != "Linnea" || time.Until(created.ExpiresAt) < 239*time.Minute {
+	if created.Name != "Linnea" || created.Language != model.LanguageSv || time.Until(created.ExpiresAt) < 239*time.Minute {
 		t.Fatalf("created guest = %+v", created)
 	}
 	assertGuestEvent(t, changes, eventbus.GuestCreated, created.ID)
@@ -44,6 +44,15 @@ func TestGuestCreateLoginExtendAndDelete(t *testing.T) {
 	claims, err := svc.Parse(login.Token)
 	if err != nil || !claims.Guest || claims.PrincipalID != created.ID {
 		t.Fatalf("guest claims = %+v, %v", claims, err)
+	}
+	if login.Guest.Language != model.LanguageSv {
+		t.Fatalf("logged-in guest language = %s", login.Guest.Language)
+	}
+
+	guestCtx := auth.WithPrincipal(context.Background(), auth.Principal{ID: created.ID, Guest: true})
+	updated, err := mutations.UpdateCurrentGuestLanguage(guestCtx, model.LanguageRu)
+	if err != nil || updated.Language != model.LanguageRu {
+		t.Fatalf("UpdateCurrentGuestLanguage = %+v, %v", updated, err)
 	}
 
 	extended, err := mutations.ExtendGuest(context.Background(), created.ID, 60)
@@ -68,17 +77,17 @@ func TestGuestCreateLoginExtendAndDelete(t *testing.T) {
 func TestGuestLimitsAndDuplicateName(t *testing.T) {
 	st := newMockStore()
 	r := &mutationResolver{&Resolver{Store: st, Auth: auth.NewService([]byte("secret"), time.Hour)}}
-	if _, err := r.CreateGuest(context.Background(), model.CreateGuestInput{Name: "", DurationMinutes: 60}); err == nil {
+	if _, err := r.CreateGuest(context.Background(), model.CreateGuestInput{Name: "", DurationMinutes: 60, Language: model.LanguageEn}); err == nil {
 		t.Fatal("empty guest name accepted")
 	}
-	if _, err := r.CreateGuest(context.Background(), model.CreateGuestInput{Name: "Sam", DurationMinutes: 10081}); err == nil {
+	if _, err := r.CreateGuest(context.Background(), model.CreateGuestInput{Name: "Sam", DurationMinutes: 10081, Language: model.LanguageEn}); err == nil {
 		t.Fatal("duration beyond seven days accepted")
 	}
-	guest, err := r.CreateGuest(context.Background(), model.CreateGuestInput{Name: "Sam", DurationMinutes: 60})
+	guest, err := r.CreateGuest(context.Background(), model.CreateGuestInput{Name: "Sam", DurationMinutes: 60, Language: model.LanguageEn})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.CreateGuest(context.Background(), model.CreateGuestInput{Name: " SAM ", DurationMinutes: 60}); err == nil {
+	if _, err := r.CreateGuest(context.Background(), model.CreateGuestInput{Name: " SAM ", DurationMinutes: 60, Language: model.LanguageEn}); err == nil {
 		t.Fatal("duplicate normalized name accepted")
 	}
 	st.guests[guest.ID] = store.Guest{
@@ -135,7 +144,7 @@ func TestGuestSchemaAllowlist(t *testing.T) {
 		}
 	}
 	want := []string{
-		"Mutation.applyScene", "Mutation.deactivateScene", "Mutation.setTargetState",
+		"Mutation.applyScene", "Mutation.deactivateScene", "Mutation.setTargetState", "Mutation.updateCurrentGuestLanguage",
 		"Query.currentGuest", "Query.dashboardLocalization", "Query.devices", "Query.groups", "Query.rooms", "Query.scenes",
 		"Subscription.deviceAdded", "Subscription.deviceAvailabilityChanged", "Subscription.deviceConfigurationChanged",
 		"Subscription.deviceRemoved", "Subscription.deviceStateChanged", "Subscription.deviceUpdated",
@@ -153,12 +162,12 @@ func TestCurrentGuestOnlyReturnsCallingGuest(t *testing.T) {
 	now := time.Now()
 	st.guests["guest-1"] = store.Guest{
 		ID: "guest-1", Name: "Linnea", NormalizedName: "linnea",
-		CreatedAt: now, ExpiresAt: now.Add(time.Hour),
+		Language: "sv", CreatedAt: now, ExpiresAt: now.Add(time.Hour),
 	}
 	r := &queryResolver{&Resolver{Store: st}}
 	ctx := auth.WithPrincipal(context.Background(), auth.Principal{ID: "guest-1", Guest: true})
 	guest, err := r.CurrentGuest(ctx)
-	if err != nil || guest == nil || guest.ID != "guest-1" {
+	if err != nil || guest == nil || guest.ID != "guest-1" || guest.Language != model.LanguageSv {
 		t.Fatalf("CurrentGuest = %+v, %v", guest, err)
 	}
 	userCtx := auth.WithPrincipal(context.Background(), auth.Principal{ID: "user-1"})

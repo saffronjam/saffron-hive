@@ -912,6 +912,7 @@ func mapGuest(guest store.Guest) *model.Guest {
 	return &model.Guest{
 		ID:        guest.ID,
 		Name:      guest.Name,
+		Language:  languageFromStore(guest.Language),
 		ExpiresAt: guest.ExpiresAt,
 		CreatedAt: guest.CreatedAt,
 	}
@@ -955,6 +956,7 @@ func (r *Resolver) publishGuestChange(kind eventbus.GuestChangeKind, guest store
 		Payload: eventbus.GuestChangedEvent{
 			GuestID:   guest.ID,
 			Name:      guest.Name,
+			Language:  guest.Language,
 			Kind:      kind,
 			ExpiresAt: guest.ExpiresAt,
 			CreatedAt: guest.CreatedAt,

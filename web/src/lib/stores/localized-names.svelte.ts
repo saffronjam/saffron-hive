@@ -8,7 +8,7 @@ import {
   type LocalizedNameSet,
 } from "$lib/i18n/names";
 import type { Language } from "$lib/i18n/messages";
-import { Language as GraphQLLanguage } from "$lib/gql/graphql";
+import { languageToGraphQL } from "$lib/i18n/graphql-language";
 import { standardRoomName, standardRoomSearchNames } from "$lib/i18n/standard-room-names";
 
 const QUERY = graphql(`
@@ -82,17 +82,6 @@ function fromWire(value: WireNameSet): LocalizedNameSet {
 
 function key(entityType: string, entityId: string): string {
   return `${entityType}\u0000${entityId}`;
-}
-
-function graphQLLanguage(language: Language): GraphQLLanguage {
-  switch (language) {
-    case "sv":
-      return GraphQLLanguage.Sv;
-    case "ru":
-      return GraphQLLanguage.Ru;
-    default:
-      return GraphQLLanguage.En;
-  }
 }
 
 let sets = $state(new Map<string, LocalizedNameSet>());
@@ -233,11 +222,11 @@ export const localizedNamesStore = {
         input: {
           entityType: names.entityType,
           entityId: names.entityId,
-          sourceLanguage: graphQLLanguage(names.sourceLanguage),
+          sourceLanguage: languageToGraphQL(names.sourceLanguage),
           translations: Object.entries(names.translations)
             .filter(([, value]) => Boolean(value?.trim()))
             .map(([language, value]) => ({
-              language: graphQLLanguage(language as Language),
+              language: languageToGraphQL(language as Language),
               value: value!.trim(),
             })),
         },

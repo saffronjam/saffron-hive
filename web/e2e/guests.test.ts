@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { graphql } from "$lib/gql";
+import { Language } from "$lib/gql/graphql";
 import { getContext } from "./setup.js";
 
 const CREATE_GUEST = graphql(`
@@ -7,6 +8,7 @@ const CREATE_GUEST = graphql(`
     createGuest(input: $input) {
       id
       name
+      language
       expiresAt
       createdAt
     }
@@ -54,7 +56,9 @@ describe("guests", () => {
   it("limits a temporary guest to dashboard operations and revokes immediately", async () => {
     const { graphqlClient } = getContext();
     const created = await graphqlClient
-      .mutation(CREATE_GUEST, { input: { name: "TS E2E Guest", durationMinutes: 60 } })
+      .mutation(CREATE_GUEST, {
+        input: { name: "TS E2E Guest", durationMinutes: 60, language: Language.Sv },
+      })
       .toPromise();
     expect(created.error).toBeUndefined();
     const guestId = created.data!.createGuest.id;
@@ -62,19 +66,26 @@ describe("guests", () => {
     try {
       const login = await rawGraphQL(
         "",
-        `mutation($name: String!) { guestLogin(name: $name) { token guest { id name } } }`,
+        `mutation($name: String!) { guestLogin(name: $name) { token guest { id name language } } }`,
         { name: " ts e2e GUEST " },
       );
       expect(login.errors).toBeUndefined();
       const payload = login.data!.guestLogin as {
         token: string;
-        guest: { id: string; name: string };
+        guest: { id: string; name: string; language: string };
       };
       expect(payload.guest.id).toBe(guestId);
+      expect(payload.guest.language).toBe("SV");
+
+      const updated = await rawGraphQL(
+        payload.token,
+        `mutation { updateCurrentGuestLanguage(language: RU) { id language } }`,
+      );
+      expect(updated.errors).toBeUndefined();
 
       const dashboard = await rawGraphQL(
         payload.token,
-        `query { currentGuest { id } devices { id } rooms { id } groups { id } scenes { id } dashboardLocalization { defaultContentLanguage } }`,
+        `query { currentGuest { id language } devices { id } rooms { id } groups { id } scenes { id } dashboardLocalization { defaultContentLanguage } }`,
       );
       expect(dashboard.errors).toBeUndefined();
 

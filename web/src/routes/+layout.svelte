@@ -25,6 +25,7 @@
 	import { webhooksStore } from "$lib/stores/webhooks.svelte";
 	import { floorplanStore } from "$lib/stores/floorplan.svelte";
 	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
+	import { prepareGuestDashboard } from "$lib/guest-dashboard";
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { prefetchIconPacks } from "$lib/components/icons/icon-utils.js";
 	import { onMount, onDestroy } from "svelte";
@@ -32,6 +33,7 @@
 	import DevicesPage from "$lib/components/devices-page.svelte";
 	import DashboardPage from "$lib/components/dashboard-page.svelte";
 	import GuestSessionGuard from "$lib/components/guest-session-guard.svelte";
+	import LanguageSelect from "$lib/components/language-select.svelte";
 	import RoomsPage from "$lib/components/rooms-page.svelte";
 	import GroupsPage from "$lib/components/groups-page.svelte";
 	import ScenesPage from "$lib/components/scenes-page.svelte";
@@ -44,14 +46,39 @@
 	import { page } from "$app/stores";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
+	import { languageFromGraphQL, languageToGraphQL } from "$lib/i18n/graphql-language";
+	import type { Language } from "$lib/i18n/messages";
 	import { graphql } from "$lib/gql";
 	import { sessionTeardown } from "$lib/session";
-	import { LogOut } from "@lucide/svelte";
+	import { Loader2, LogOut } from "@lucide/svelte";
+	import { toast } from "svelte-sonner";
 
 	const CURRENT_GUEST = graphql(`
 		query LayoutCurrentGuest {
 			currentGuest {
 				id
+				language
+			}
+		}
+	`);
+
+	const GUEST_AUTO_LOGIN = graphql(`
+		mutation LayoutGuestAutoLogin($name: String!) {
+			guestLogin(name: $name) {
+				token
+				guest {
+					id
+					language
+				}
+			}
+		}
+	`);
+
+	const UPDATE_CURRENT_GUEST_LANGUAGE = graphql(`
+		mutation LayoutUpdateCurrentGuestLanguage($language: Language!) {
+			updateCurrentGuestLanguage(language: $language) {
+				id
+				language
 			}
 		}
 	`);
@@ -117,7 +144,7 @@
 	let ready = $state(false);
 	let gateError = $state(false);
 	let gateRunning = $state(false);
-	const loader = delayedLoading(() => !ready);
+	const loader = delayedLoading(() => !ready, 1000);
 	const gateAbortController = new AbortController();
 
 	// The main pages stay mounted (hidden) after their first visit, so a
@@ -159,22 +186,58 @@
 			const { hasInitialUser } = await waitForSetupStatus(client, {
 				signal: gateAbortController.signal,
 			});
+			const autoGuestName = $page.url.searchParams.get("name")?.trim() ?? "";
+			const wantsGuestAutoLogin =
+				hasInitialUser &&
+				$page.url.pathname === "/login" &&
+				$page.url.searchParams.get("mode") === "guest" &&
+				$page.url.searchParams.get("auto") === "1" &&
+				autoGuestName.length > 0;
+			let guestBootstrapped = false;
+			if (wantsGuestAutoLogin) {
+				if (auth.isAuthenticated()) sessionTeardown();
+				const result = await client
+					.mutation(GUEST_AUTO_LOGIN, { name: autoGuestName })
+					.toPromise();
+				if (result.data?.guestLogin) {
+					auth.setToken(result.data.guestLogin.token);
+					locale.setLanguage(languageFromGraphQL(result.data.guestLogin.guest.language));
+					await prepareGuestDashboard(client);
+					guestBootstrapped = true;
+					await goto("/", { replaceState: true });
+				} else {
+					if (result.error) console.error(result.error);
+					const params = new URLSearchParams({
+						mode: "guest",
+						name: autoGuestName,
+						reason: "unavailable",
+					});
+					await goto(`/login?${params.toString()}`, { replaceState: true });
+				}
+			}
 			const isAuthenticated = hasInitialUser && auth.isAuthenticated();
 
 			// Load `me` before deciding so a forced password change redirects before
 			// children render — the post-ready $effect only catches up later.
 			if (isAuthenticated && auth.isGuest()) {
-				const result = await client
-					.query(CURRENT_GUEST, {}, { requestPolicy: "network-only" })
-					.toPromise();
-				if (!result.data?.currentGuest) {
-					sessionTeardown();
-					await goto("/login?mode=guest&reason=unavailable", { replaceState: true });
-					ready = true;
-					return;
+				if (!guestBootstrapped) {
+					const result = await client
+						.query(CURRENT_GUEST, {}, { requestPolicy: "network-only" })
+						.toPromise();
+					if (!result.data?.currentGuest) {
+						sessionTeardown();
+						await goto("/login?mode=guest&reason=unavailable", { replaceState: true });
+						ready = true;
+						return;
+					}
+					locale.setLanguage(languageFromGraphQL(result.data.currentGuest.language));
+					await prepareGuestDashboard(client);
 				}
 			} else if (isAuthenticated && !me.user) {
 				await me.refresh(client);
+				await localizedNamesStore.refresh(client);
+			} else if (isAuthenticated) {
+				await localizedNamesStore.refresh(client);
 			}
 
 			const target = nextRoute({
@@ -213,16 +276,13 @@
 			void roomsStore.start(client);
 			void groupsStore.start(client);
 			void scenesStore.start(client);
-			if (auth.isGuest()) {
-				void localizedNamesStore.refreshDashboard(client);
-			} else {
+			if (!auth.isGuest()) {
 				alarmsStore.start(client);
 				maintenanceStore.start(client);
 				void automationsStore.start(client);
 				void webhooksStore.start(client);
 				void effectsStore.start(client);
 				void floorplanStore.start(client);
-				void localizedNamesStore.refresh(client);
 				if (!me.user) void me.refresh(client);
 			}
 		}
@@ -245,6 +305,20 @@
 	async function guestLogout() {
 		sessionTeardown();
 		await goto("/login?mode=guest", { replaceState: true });
+	}
+
+	async function setGuestLanguage(language: Language) {
+		const previous = locale.currentLanguage;
+		if (language === previous) return;
+		locale.setLanguage(language);
+		const result = await client
+			.mutation(UPDATE_CURRENT_GUEST_LANGUAGE, { language: languageToGraphQL(language) })
+			.toPromise();
+		if (result.error || !result.data?.updateCurrentGuestLanguage) {
+			if (result.error) console.error(result.error);
+			locale.setLanguage(previous);
+			toast.error(m.profile_language_update_failed({}, locale.messageOptions()));
+		}
 	}
 
 	onDestroy(() => {
@@ -281,8 +355,11 @@
 			/>
 		</div>
 	{:else if loader.visible}
-		<div class="flex h-screen items-center justify-center text-muted-foreground">
-			{m.common_loading({}, locale.messageOptions())}
+		<div class="flex h-screen items-center justify-center">
+			<Loader2
+				class="size-5 animate-spin text-muted-foreground"
+				aria-label={m.common_loading({}, locale.messageOptions())}
+			/>
 		</div>
 	{/if}
 {:else if PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r))}
@@ -294,7 +371,15 @@
 	<div class="flex min-h-screen flex-col bg-background">
 		<main class="min-w-0 flex-1 p-6">
 			<DashboardPage visible={true} guest={true} />
-			<div class="mx-auto mt-6 flex max-w-3xl justify-center">
+			<div class="mx-auto mt-6 flex max-w-3xl justify-center gap-2">
+				<LanguageSelect
+					value={locale.currentLanguage}
+					onchange={(language) => void setGuestLanguage(language)}
+					variant="ghost"
+					size="sm"
+					class="bg-transparent dark:bg-transparent"
+				/>
+				<span aria-hidden="true" class="self-center text-muted-foreground">·</span>
 				<SmoothButton
 					label={m.guest_logout({}, locale.messageOptions())}
 					icon={LogOut}

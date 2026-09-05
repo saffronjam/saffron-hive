@@ -40,14 +40,15 @@ func (q *Queries) BatchDeleteGuests(ctx context.Context, idsJson string) ([]stri
 }
 
 const createGuest = `-- name: CreateGuest :exec
-INSERT INTO guests (id, name, normalized_name, expires_at, created_at)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO guests (id, name, normalized_name, language, expires_at, created_at)
+VALUES (?, ?, ?, ?, ?, ?)
 `
 
 type CreateGuestParams struct {
 	ID             string
 	Name           string
 	NormalizedName string
+	Language       string
 	ExpiresAt      time.Time
 	CreatedAt      time.Time
 }
@@ -57,6 +58,7 @@ func (q *Queries) CreateGuest(ctx context.Context, arg CreateGuestParams) error 
 		arg.ID,
 		arg.Name,
 		arg.NormalizedName,
+		arg.Language,
 		arg.ExpiresAt,
 		arg.CreatedAt,
 	)
@@ -121,7 +123,7 @@ func (q *Queries) DeleteGuest(ctx context.Context, id string) (int64, error) {
 }
 
 const getActiveGuestByID = `-- name: GetActiveGuestByID :one
-SELECT id, name, normalized_name, expires_at, created_at
+SELECT id, name, normalized_name, expires_at, created_at, language
 FROM guests
 WHERE id = ?1
   AND expires_at > ?2
@@ -141,12 +143,13 @@ func (q *Queries) GetActiveGuestByID(ctx context.Context, arg GetActiveGuestByID
 		&i.NormalizedName,
 		&i.ExpiresAt,
 		&i.CreatedAt,
+		&i.Language,
 	)
 	return i, err
 }
 
 const getActiveGuestByNormalizedName = `-- name: GetActiveGuestByNormalizedName :one
-SELECT id, name, normalized_name, expires_at, created_at
+SELECT id, name, normalized_name, expires_at, created_at, language
 FROM guests
 WHERE normalized_name = ?1
   AND expires_at > ?2
@@ -166,12 +169,13 @@ func (q *Queries) GetActiveGuestByNormalizedName(ctx context.Context, arg GetAct
 		&i.NormalizedName,
 		&i.ExpiresAt,
 		&i.CreatedAt,
+		&i.Language,
 	)
 	return i, err
 }
 
 const getGuestByID = `-- name: GetGuestByID :one
-SELECT id, name, normalized_name, expires_at, created_at
+SELECT id, name, normalized_name, expires_at, created_at, language
 FROM guests
 WHERE id = ?
 `
@@ -185,12 +189,13 @@ func (q *Queries) GetGuestByID(ctx context.Context, id string) (Guest, error) {
 		&i.NormalizedName,
 		&i.ExpiresAt,
 		&i.CreatedAt,
+		&i.Language,
 	)
 	return i, err
 }
 
 const listActiveGuests = `-- name: ListActiveGuests :many
-SELECT id, name, normalized_name, expires_at, created_at
+SELECT id, name, normalized_name, expires_at, created_at, language
 FROM guests
 WHERE expires_at > ?
 ORDER BY created_at ASC
@@ -211,6 +216,7 @@ func (q *Queries) ListActiveGuests(ctx context.Context, expiresAt time.Time) ([]
 			&i.NormalizedName,
 			&i.ExpiresAt,
 			&i.CreatedAt,
+			&i.Language,
 		); err != nil {
 			return nil, err
 		}
@@ -238,6 +244,25 @@ type UpdateGuestExpiresAtParams struct {
 
 func (q *Queries) UpdateGuestExpiresAt(ctx context.Context, arg UpdateGuestExpiresAtParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, updateGuestExpiresAt, arg.ExpiresAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const updateGuestLanguage = `-- name: UpdateGuestLanguage :execrows
+UPDATE guests
+SET language = ?1
+WHERE id = ?2
+`
+
+type UpdateGuestLanguageParams struct {
+	Language string
+	ID       string
+}
+
+func (q *Queries) UpdateGuestLanguage(ctx context.Context, arg UpdateGuestLanguageParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateGuestLanguage, arg.Language, arg.ID)
 	if err != nil {
 		return 0, err
 	}
