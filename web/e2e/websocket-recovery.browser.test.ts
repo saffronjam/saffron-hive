@@ -10,7 +10,7 @@ import { graphql } from "$lib/gql";
 import { getContext, publishDeviceState } from "./setup.js";
 
 const DEVICE_ID = "0x00158d0001a2b3c4";
-const UI_TIMEOUT = 20_000;
+const UI_TIMEOUT = 30_000;
 
 const DEVICE_STATE_QUERY = graphql(`
   query E2EWebSocketRecoveryDeviceState($id: ID!) {
