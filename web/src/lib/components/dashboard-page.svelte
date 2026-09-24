@@ -19,6 +19,8 @@
 	import DashboardApartmentCard from "$lib/components/dashboard-apartment-card.svelte";
 	import DashboardRoomCard from "$lib/components/dashboard-room-card.svelte";
 	import RoomDrawer from "$lib/components/room-drawer.svelte";
+	import DashboardTargetPanel, { type DashboardTarget } from "$lib/components/dashboard-target-panel.svelte";
+	import { DashboardNavigation } from "$lib/dashboard-navigation.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { PlugZap } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
@@ -35,9 +37,11 @@
 		 */
 		visible: boolean;
 		guest?: boolean;
+		onworkstationchange?: (workstation: boolean) => void;
 	}
 
-	let { visible, guest = false }: Props = $props();
+	let { visible, guest = false, onworkstationchange }: Props = $props();
+	let contentWidth = $state(0);
 
 	$effect(() => {
 		if (!visible) return;
@@ -89,6 +93,11 @@
 	);
 
 	const scenes = $derived(scenesStore.items);
+	const workstation = $derived(contentWidth >= 960 && !needsIntegration);
+	const navigation = new DashboardNavigation({
+		open: (roomId) => pushState("", { ...page.state, dashboardRoomId: roomId }),
+		back: () => history.back(),
+	});
 
 	const openRoomId = $derived<string | null>(
 		(page.state as { dashboardRoomId?: string }).dashboardRoomId ?? null,
@@ -96,13 +105,21 @@
 
 	const openRoom = $derived(openRoomId ? rooms.find((r) => r.id === openRoomId) ?? null : null);
 
-	function openDrawer(roomId: string) {
-		pushState("", { ...page.state, dashboardRoomId: roomId });
-	}
+	const selectedRoom = $derived(rooms.find((r) => r.id === navigation.selectedRoomId) ?? null);
+	const selectedTarget = $derived<DashboardTarget>(selectedRoom ? { kind: "room", room: selectedRoom } : { kind: "apartment" });
 
-	function closeDrawer() {
-		if (openRoomId !== null) history.back();
-	}
+	$effect(() => {
+		if (!visible || contentWidth === 0) return;
+		const roomIds = new Set(rooms.map((room) => room.id));
+		const wide = workstation;
+		const drawerId = openRoomId;
+		const hydrated = roomsStore.hydrated;
+		untrack(() => navigation.synchronize(wide, drawerId, roomIds, hydrated));
+	});
+
+	$effect(() => {
+		if (visible) onworkstationchange?.(workstation);
+	});
 
 	async function handleApplyScene(scene: { id: string; name: string }) {
 		try {
@@ -124,6 +141,31 @@
 	$effect(() => mountTimer.tick());
 </script>
 
+<div bind:clientWidth={contentWidth} class="w-full {workstation ? 'h-full min-h-0 flex-1' : ''}">
+{#if visible}
+{#if workstation}
+	<div class="mx-auto grid h-full min-h-0 max-w-7xl grid-cols-[320px_minmax(0,1fr)] gap-6" data-dashboard-workstation>
+		<nav class="-m-2 flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain p-3 [&>*]:shrink-0" aria-label={m.dashboard_rooms({}, locale.messageOptions())}>
+			<div class="transition-opacity duration-200 {selectedRoom ? 'opacity-75' : ''}">
+				<DashboardApartmentCard {devices} {client} onselect={() => navigation.select(null)} selected={!selectedRoom} sensorHistoryEnabled={false} />
+			</div>
+			<SectionDivider label={m.dashboard_rooms({}, locale.messageOptions())} class="mt-3" />
+			{#each orderedRooms as room (room.id)}
+				<div class="transition-opacity duration-200 {selectedRoom?.id === room.id ? '' : 'opacity-75'}">
+					<DashboardRoomCard {room} {devices} {groups} {rooms} {client} navigationOnly selected={selectedRoom?.id === room.id} sensorHistoryEnabled={false} onopen={(room) => navigation.select(room.id)} />
+				</div>
+			{/each}
+			{#if roomsStore.hydrated && rooms.length === 0}
+				<p class="text-sm text-muted-foreground">{m.dashboard_no_rooms_help({}, locale.messageOptions())}</p>
+			{/if}
+		</nav>
+		{#key navigation.selectedRoomId}
+			<section class="min-h-0 overflow-y-auto overscroll-contain p-1" aria-label={selectedRoom ? selectedRoom.name : m.dashboard_apartment({}, locale.messageOptions())} data-dashboard-panel>
+				<DashboardTargetPanel target={selectedTarget} presentation="desktop" {devices} {groups} {rooms} {scenes} {client} sensorHistoryEnabled={!guest} onapplyscene={handleApplyScene} onstopscene={handleStopScene} />
+			</section>
+		{/key}
+	</div>
+{:else}
 <div class="mx-auto flex max-w-3xl flex-col gap-3">
 	{#if !needsIntegration}
 		<DashboardApartmentCard {devices} {client} sensorHistoryEnabled={!guest} />
@@ -163,7 +205,7 @@
 				{rooms}
 				{client}
 				sensorHistoryEnabled={!guest}
-				onopen={(r) => openDrawer(r.id)}
+				onopen={(r) => navigation.select(r.id)}
 			/>
 		{/each}
 	{/if}
@@ -178,7 +220,10 @@
 	{scenes}
 	{client}
 	sensorHistoryEnabled={!guest}
-	onclose={closeDrawer}
+	onclose={() => navigation.close()}
 	onapplyscene={handleApplyScene}
 	onstopscene={handleStopScene}
 />
+{/if}
+{/if}
+</div>

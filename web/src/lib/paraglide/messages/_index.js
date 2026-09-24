@@ -855,7 +855,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Language_EnglishInputs */
 /** @typedef {{}} Language_RussianInputs */
 /** @typedef {{}} Language_SwedishInputs */
-/** @typedef {{ on: NonNullable<unknown>, total: NonNullable<unknown> }} Lights_On_CountInputs */
 /** @typedef {{}} Logs_LiveInputs */
 /** @typedef {{}} Logs_PausedInputs */
 /** @typedef {{}} Logs_SearchInputs */
@@ -1134,7 +1133,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Room_LightsInputs */
 /** @typedef {{}} Room_Members_EmptyInputs */
 /** @typedef {{}} Room_NameInputs */
-/** @typedef {{}} Room_No_LightsInputs */
 /** @typedef {{}} Room_No_MatchInputs */
 /** @typedef {{}} Room_NoneInputs */
 /** @typedef {{}} Room_None_HelpInputs */
@@ -14641,22 +14639,6 @@ export const language_swedish = /** @type {((inputs?: Language_SwedishInputs, op
 	return __en.language_swedish(inputs)
 });
 /**
-* | totalPlural | output |
-* | --- | --- |
-* | "one" | "{on} of {total} light" |
-* | * | "{on} of {total} lights" |
-*
-* @param {Lights_On_CountInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const lights_on_count = /** @type {((inputs: Lights_On_CountInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Lights_On_CountInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.lights_on_count(inputs)
-	if (locale === "ru") return __ru.lights_on_count(inputs)
-	return __en.lights_on_count(inputs)
-});
-/**
 * | output |
 * | --- |
 * | "Live" |
@@ -18829,21 +18811,6 @@ export const room_name = /** @type {((inputs?: Room_NameInputs, options?: { loca
 	if (locale === "sv") return __sv.room_name(inputs)
 	if (locale === "ru") return __ru.room_name(inputs)
 	return __en.room_name(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "No lights in this room." |
-*
-* @param {Room_No_LightsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const room_no_lights = /** @type {((inputs?: Room_No_LightsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Room_No_LightsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.room_no_lights(inputs)
-	if (locale === "ru") return __ru.room_no_lights(inputs)
-	return __en.room_no_lights(inputs)
 });
 /**
 * | output |

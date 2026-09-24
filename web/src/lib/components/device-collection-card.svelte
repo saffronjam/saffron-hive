@@ -21,7 +21,7 @@
 	} from "$lib/device-tint";
 	import { throttle, type Throttle } from "$lib/throttle";
 	import { me } from "$lib/stores/me.svelte";
-	import { deviceCollectionSummary } from "$lib/device-collection-summary";
+	import { contactCollectionSummary } from "$lib/device-collection-summary";
 	import { Palette } from "@lucide/svelte";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { entityDisplayName, groupDisplayName } from "$lib/utils";
@@ -146,7 +146,7 @@
 	});
 
 	const resolvedSubtitle = $derived(
-		stateSummary ? deviceCollectionSummary(effectiveDevices) : subtitle,
+		stateSummary ? contactCollectionSummary(effectiveDevices) : subtitle,
 	);
 
 	$effect(() => {

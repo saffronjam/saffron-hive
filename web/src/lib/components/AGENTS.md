@@ -6,10 +6,11 @@ Shared UI components. Before adding a new file, scan this index — most needs a
 
 - `entity-card.svelte` — base card layout (icon + name + actions + optional footer). Props: `tintColors` + `tintStrength` for radial tint, `brightnessFill` for horizontal fill, `iconArea` snippet to replace the icon block, `dragOpts` for press-and-drag, `onclick` for whole-card click, `readOnly` to suppress the IconPicker / inline-rename / dropdown menu. Used by every dashboard / scene / group / room card.
 - `device-collection-card.svelte` — wraps `EntityCard` with brightness, colour, temp and sensor controls for a list of devices (rooms and groups pages).
-- `dashboard-room-card.svelte` — dashboard top-level: room icon + name + sensor readout + click-to-open-drawer + drag-for-brightness.
-- `dashboard-light-card.svelte` — drawer Section A: single light or `LIGHT`-tagged group, tap-to-toggle, drag-for-brightness, icon-popover colour picker, expand-popover member rows.
-- `dashboard-apartment-card.svelte` — dashboard top-level apartment summary: House icon + aggregated sensor readings + drag-for-brightness across all dimmable lights.
-- `room-drawer.svelte` — bottom Sheet for a room: header card + scenes + Section A light grid.
+- `dashboard-room-card.svelte` — room summary. Compact mode shows readings and brightness fill with drag control; desktop navigation uses full-surface tint, with unselected cards slightly faded by the dashboard.
+- `dashboard-light-card.svelte` — single light or group, with compact tap/drag controls or explicit desktop switches and brightness sliders. Colour and group members use popovers.
+- `dashboard-apartment-card.svelte` — whole-home summary. Compact mode shows aggregate readings and controls lighting; desktop mode selects Apartment with full-surface tint.
+- `dashboard-target-panel.svelte` — shared Apartment/Room content: aggregate controls, sensor/contact boxes, room scenes, lights and appliances. Apartment shows aggregate controls and stats. Key each instance by target and presentation so drag and picker callbacks remain scoped to their target.
+- `room-drawer.svelte` — bottom Sheet shell for compact room controls, rendered by `DashboardTargetPanel`.
 - `device-card.svelte` — the card the `/devices` list renders. Icon + inline rename + quick controls + membership chips, with a brightness throttle and interacting cooldown. Shows disabled devices greyed and without controls.
 - `device-quick-controls.svelte` — toggle + brightness slider + colour picker for a single device, designed for the device detail view.
 

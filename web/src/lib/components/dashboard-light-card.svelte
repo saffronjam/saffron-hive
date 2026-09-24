@@ -2,6 +2,8 @@
 	import type { Component } from "svelte";
 	import { deviceDisplayName } from "$lib/utils";
 	import EntityCard from "$lib/components/entity-card.svelte";
+	import BulkBrightnessSlider from "$lib/components/bulk-brightness-slider.svelte";
+	import { Switch } from "$lib/components/ui/switch/index.js";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import DashboardLightCard from "$lib/components/dashboard-light-card.svelte";
@@ -18,7 +20,6 @@
 	import { aggregateLightAppearance, lightTintTransitionSeconds, rememberedLightPalette } from "$lib/device-tint";
 	import { isLightControlDevice, type Device } from "$lib/stores/devices";
 	import { type Client } from "@urql/svelte";
-	import { graphql } from "$lib/gql";
 	import { commitGroupBrightness, commitGroupColor, commitGroupTemp, commitGroupToggle } from "$lib/group-commands";
 	import { haptics } from "$lib/stores/haptics.svelte";
 	import { CommandTargetType } from "$lib/gql/graphql";
@@ -38,17 +39,14 @@
 		fallbackIcon?: Component;
 		client: Client;
 		class?: string;
+		explicitControls?: boolean;
 	}
 
-	let { entity, devices, isGroup, fallbackIcon, client, class: extraClass = "" }: Props = $props();
+	let { entity, devices: members, isGroup, fallbackIcon, client, class: extraClass = "", explicitControls = false }: Props = $props();
+	const devices = $derived(members.filter(isLightControlDevice));
+	const commandTarget = $derived(isGroup && devices.length === members.length ? { targetType: CommandTargetType.Group, targetId: entity.id } : undefined);
 
 	const FallbackIcon = $derived(fallbackIcon ?? Lightbulb);
-
-	const SET_DEVICE_STATE = graphql(`
-		mutation DashboardLightCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
-			setTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)
-		}
-	`);
 
 	const sortedDevices = $derived(
 		[...devices].sort((a, b) => compareLocalized(deviceDisplayName(a), deviceDisplayName(b))),
@@ -104,12 +102,12 @@
 		onpreview: (v: number) => {
 			previewBrightness = v;
 			throttle(brightnessThrottle, () =>
-				commitGroupBrightness(client, devices, v, isGroup ? { targetType: CommandTargetType.Group, targetId: entity.id } : undefined),
+				commitGroupBrightness(client, devices, v, commandTarget),
 			);
 		},
 		oncommit: (v: number) => {
 			flushThrottle(brightnessThrottle);
-			commitGroupBrightness(client, devices, v, isGroup ? { targetType: CommandTargetType.Group, targetId: entity.id } : undefined);
+			commitGroupBrightness(client, devices, v, commandTarget);
 			previewBrightness = v;
 			noteInteract();
 		},
@@ -140,25 +138,20 @@
 	const tempThrottle: Throttle = { lastSent: 0, trailing: null };
 
 	function handleColorChange(c: { r: number; g: number; b: number }) {
-		throttle(colorThrottle, () => commitGroupColor(client, devices, c, isGroup ? { targetType: CommandTargetType.Group, targetId: entity.id } : undefined));
+		throttle(colorThrottle, () => commitGroupColor(client, devices, c, commandTarget));
 	}
 	function handleTempChange(mired: number) {
-		throttle(tempThrottle, () => commitGroupTemp(client, devices, mired, isGroup ? { targetType: CommandTargetType.Group, targetId: entity.id } : undefined));
+		throttle(tempThrottle, () => commitGroupTemp(client, devices, mired, commandTarget));
 	}
 
 	async function handleToggle(_entity: typeof entity, event: MouseEvent | KeyboardEvent) {
 		if (popoverDismissedRecently()) return;
 		haptics.play("selection", event);
-		const next = !isOn;
-		if (isGroup) {
-			await commitGroupToggle(client, devices, next, { targetType: CommandTargetType.Group, targetId: entity.id });
-		} else {
-			await Promise.all(
-				onOffDevices.map((d) =>
-					client.mutation(SET_DEVICE_STATE, { deviceId: d.id, state: { on: next } }).toPromise(),
-				),
-			);
-		}
+		await setOn(!isOn);
+	}
+
+	async function setOn(next: boolean) {
+		await commitGroupToggle(client, devices, next, commandTarget);
 	}
 
 	let popoverOpen = $state(false);
@@ -176,12 +169,12 @@
 	{tintStrength}
 	{tintTransitionSeconds}
 	tintInactive={!brightnessActive}
-	{brightnessFill}
-	{dragOpts}
+	brightnessFill={explicitControls ? null : brightnessFill}
+	dragOpts={explicitControls ? undefined : dragOpts}
 	readOnly
 	size="sm"
-	pressFeedback
-	onclick={handleToggle}
+	pressFeedback={!explicitControls}
+	onclick={explicitControls ? undefined : handleToggle}
 	class={extraClass}
 >
 	{#snippet iconArea({ iconGradient, iconTextClass, hasTint, tintInactive: ti })}
@@ -244,6 +237,9 @@
 		{/if}
 	{/snippet}
 	{#snippet leadingActions()}
+		{#if explicitControls && onOffDevices.length > 0}
+			<Switch checked={isOn} onCheckedChange={setOn} aria-label={m.device_toggle_named({ name: entity.name })} />
+		{/if}
 		{#if isGroup && devices.length > 1}
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -268,12 +264,27 @@
 							devices={[d]}
 							isGroup={false}
 							{client}
+							{explicitControls}
 							class="p-2"
 						/>
 					{/each}
 				</PopoverContent>
 				</Popover>
 			</span>
+		{/if}
+	{/snippet}
+	{#snippet footer()}
+		{#if explicitControls && dimmableLights.length > 0}
+			<div class="pt-3">
+				<BulkBrightnessSlider
+					{devices}
+					onbrightness={(value) => {
+						previewBrightness = value;
+						noteInteract();
+						void commitGroupBrightness(client, devices, value, commandTarget);
+					}}
+				/>
+			</div>
 		{/if}
 	{/snippet}
 </EntityCard>

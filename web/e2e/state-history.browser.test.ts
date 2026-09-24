@@ -83,10 +83,14 @@ afterAll(async () => {
 
 describe("sensor history popover", () => {
   it("fetches once per open, ignores live updates and renders cached data before a delayed refresh", async () => {
-    const card = page
-      .locator('[role="button"]')
-      .filter({ has: page.getByText("History cache room", { exact: true }) });
-    const trigger = card.locator("button").filter({ hasText: "°C" });
+    await page
+      .locator("[data-dashboard-workstation] nav")
+      .getByRole("button", { name: "History cache room" })
+      .click();
+    const trigger = page
+      .locator("[data-dashboard-sensors]")
+      .getByRole("button")
+      .filter({ hasText: "°C" });
     await trigger.waitFor({ state: "visible" });
     await trigger.click();
     const popover = page.locator('[data-slot="popover-content"]');

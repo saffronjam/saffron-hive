@@ -853,7 +853,6 @@
 /** @typedef {{}} Language_EnglishInputs */
 /** @typedef {{}} Language_RussianInputs */
 /** @typedef {{}} Language_SwedishInputs */
-/** @typedef {{ on: NonNullable<unknown>, total: NonNullable<unknown> }} Lights_On_CountInputs */
 /** @typedef {{}} Logs_LiveInputs */
 /** @typedef {{}} Logs_PausedInputs */
 /** @typedef {{}} Logs_SearchInputs */
@@ -1132,7 +1131,6 @@
 /** @typedef {{}} Room_LightsInputs */
 /** @typedef {{}} Room_Members_EmptyInputs */
 /** @typedef {{}} Room_NameInputs */
-/** @typedef {{}} Room_No_LightsInputs */
 /** @typedef {{}} Room_No_MatchInputs */
 /** @typedef {{}} Room_NoneInputs */
 /** @typedef {{}} Room_None_HelpInputs */
@@ -5284,12 +5282,6 @@ export const language_swedish = /** @type {(inputs: Language_SwedishInputs) => L
 	return /** @type {LocalizedString} */ (`Swedish`)
 };
 
-export const lights_on_count = /** @type {(inputs: Lights_On_CountInputs) => LocalizedString} */ (i) => {const totalPlural = registry.plural("en", i?.total, {});
-	if (totalPlural === "one") return /** @type {LocalizedString} */ (`${i?.on} of ${i?.total} light`);
-	return /** @type {LocalizedString} */ (`${i?.on} of ${i?.total} lights`)
-	
-};
-
 export const logs_live = /** @type {(inputs: Logs_LiveInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Live`)
 };
@@ -6408,10 +6400,6 @@ export const room_members_empty = /** @type {(inputs: Room_Members_EmptyInputs) 
 
 export const room_name = /** @type {(inputs: Room_NameInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Room name`)
-};
-
-export const room_no_lights = /** @type {(inputs: Room_No_LightsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No lights in this room.`)
 };
 
 export const room_no_match = /** @type {(inputs: Room_No_MatchInputs) => LocalizedString} */ () => {

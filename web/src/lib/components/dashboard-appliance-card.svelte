@@ -11,9 +11,10 @@
 	interface Props {
 		device: Device;
 		class?: string;
+		explicitControls?: boolean;
 	}
 
-	let { device, class: extraClass = "" }: Props = $props();
+	let { device, class: extraClass = "", explicitControls = false }: Props = $props();
 
 	const SET_DEVICE_STATE = graphql(`
 		mutation DashboardApplianceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
@@ -43,15 +44,15 @@
 	tintInactive={!isOn}
 	readOnly
 	size="sm"
-	pressFeedback
-	onclick={handleToggle}
+	pressFeedback={!explicitControls}
+	onclick={explicitControls ? undefined : handleToggle}
 	class={extraClass}
 >
 	{#snippet leadingActions()}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<span onclick={(e: MouseEvent) => e.stopPropagation()}>
-			<DeviceQuickControls {device} showOnOff={false} />
+			<DeviceQuickControls {device} showOnOff={explicitControls} />
 		</span>
 	{/snippet}
 </EntityCard>

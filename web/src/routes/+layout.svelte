@@ -167,6 +167,8 @@
 		{ path: "/maintenance", component: MaintenancePage },
 	];
 	const activePath = $derived($page.url.pathname);
+	let dashboardWorkstation = $state(false);
+	const workstationActive = $derived(activePath === "/" && dashboardWorkstation);
 	let visitedPaths = $state<Record<string, boolean>>({});
 	$effect(() => {
 		if (KEPT_PAGES.some((k) => k.path === activePath)) {
@@ -368,10 +370,10 @@
 	<div class="min-h-screen bg-background"></div>
 {:else if auth.isGuest()}
 	<GuestSessionGuard />
-	<div class="flex min-h-screen flex-col bg-background">
-		<main class="min-w-0 flex-1 p-6">
-			<DashboardPage visible={true} guest={true} />
-			<div class="mx-auto mt-6 flex max-w-3xl justify-center gap-2">
+	<div class="flex min-h-screen flex-col bg-background {dashboardWorkstation ? 'h-dvh overflow-hidden' : ''}">
+		<main class="min-w-0 flex-1 p-6 {dashboardWorkstation ? 'flex min-h-0 flex-col overflow-hidden' : ''}">
+			<DashboardPage visible={true} guest={true} onworkstationchange={(value) => dashboardWorkstation = value} />
+			<div class="mx-auto mt-6 flex max-w-3xl shrink-0 justify-center gap-2">
 				<LanguageSelect
 					value={locale.currentLanguage}
 					onchange={(language) => void setGuestLanguage(language)}
@@ -393,7 +395,7 @@
 {:else}
 	<SidebarProvider>
 		<AppSidebar />
-		<SidebarInset class="min-w-0">
+		<SidebarInset class="min-w-0 {workstationActive ? 'h-dvh overflow-hidden' : ''}">
 			<header class="flex h-12 shrink-0 items-center gap-2 px-4">
 				<SidebarTrigger class="-ml-1 shrink-0" />
 				<div class="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
@@ -444,11 +446,15 @@
 					</div>
 				{/if}
 			</header>
-			<main class="min-w-0 flex-1 p-6">
+			<main class="min-w-0 flex-1 p-6 {workstationActive ? 'min-h-0 overflow-hidden' : ''}">
 				{#each KEPT_PAGES as kept (kept.path)}
 					{#if visitedPaths[kept.path]}
-						<div hidden={activePath !== kept.path}>
-							<kept.component visible={activePath === kept.path} />
+						<div hidden={activePath !== kept.path} class={kept.path === "/" && workstationActive ? "h-full min-h-0" : undefined}>
+							{#if kept.path === "/"}
+								<DashboardPage visible={activePath === "/"} onworkstationchange={(value) => dashboardWorkstation = value} />
+							{:else}
+								<kept.component visible={activePath === kept.path} />
+							{/if}
 						</div>
 					{/if}
 				{/each}

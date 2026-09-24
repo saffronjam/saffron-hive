@@ -80,6 +80,7 @@
 		class?: string;
 		/** Plays a brief neutral press pulse without changing the card's live tint. */
 		pressFeedback?: boolean;
+		current?: boolean;
 		/**
 		 * Whole-card click handler. When set, the card wrapper becomes a
 		 * keyboard-focusable button-like region (role="button", Enter/Space
@@ -168,6 +169,7 @@
 		readOnly = false,
 		class: extraClass = "",
 		pressFeedback = false,
+		current = false,
 		onclick,
 		onpointerenter,
 		iconArea,
@@ -344,6 +346,7 @@
 		: ''} {extraClass}"
 	style={tintStyle}
 	role={onclick ? "button" : undefined}
+	aria-current={current ? "true" : undefined}
 	tabindex={onclick ? 0 : undefined}
 	onclick={onclick ? handleClick : undefined}
 	onpointerenter={onpointerenter ? () => onpointerenter(entity) : undefined}

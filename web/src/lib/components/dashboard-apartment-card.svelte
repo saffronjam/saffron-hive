@@ -23,9 +23,11 @@
 		devices: Device[];
 		client: Client;
 		sensorHistoryEnabled?: boolean;
+		onselect?: () => void;
+		selected?: boolean;
 	}
 
-	let { devices, client, sensorHistoryEnabled = true }: Props = $props();
+	let { devices, client, sensorHistoryEnabled = true, onselect, selected = false }: Props = $props();
 
 	const apartmentEntity = $derived({
 		id: "apartment",
@@ -115,26 +117,31 @@
 	{tintStrength}
 	{tintTransitionSeconds}
 	tintInactive={!brightnessActive}
-	{brightnessFill}
-	{dragOpts}
+	brightnessFill={onselect ? null : brightnessFill}
+	dragOpts={onselect ? undefined : dragOpts}
+	current={selected}
 	readOnly
 	iconAreaSize="sm"
 	onclick={(_entity, event) => {
 		if (popoverDismissedRecently()) return;
+		if (onselect) {
+			onselect();
+			return;
+		}
 		if (lights.length === 0) return;
 		haptics.play("selection", event);
 		void commitGroupToggle(client, lights, !isOn);
 	}}
 >
 	{#snippet leadingActions()}
-		{#if hasSensors}
+		{#if hasSensors && !onselect}
 			<SensorHistoryPopover
 				target={{ kind: "apartment" }}
 				fields={sensorFields}
 				title={apartmentEntity.name}
 				align="end"
 				triggerClass="group rounded focus-visible:outline-none"
-				interactive={sensorHistoryEnabled}
+				interactive={sensorHistoryEnabled && !onselect}
 			>
 				<div class="grid grid-cols-[auto_auto_auto] items-center gap-x-1 gap-y-0.5 text-sm tabular-nums text-muted-foreground transition-colors group-hover:text-foreground group-focus-visible:text-foreground">
 					{#each sensorReadings as r (r.label)}

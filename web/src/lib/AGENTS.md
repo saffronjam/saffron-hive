@@ -31,6 +31,8 @@ Shared TypeScript modules — domain logic, mutation helpers, reactivity primiti
 
 ## Routing
 
+- `dashboard-navigation.svelte.ts` — `DashboardNavigation` coordinates local desktop room selection with compact drawer history. Layout changes preserve the room and consume drawer-owned Back steps.
+
 - `auth-gate.ts` — `nextRoute(state)` returns the route the root layout's gate should redirect to, or `null` to stay put. Pure, so the precedence between setup / login / forced-password-change is table-testable; `+layout.svelte` gathers the state and performs the `goto`.
 
 ## Reactivity primitives

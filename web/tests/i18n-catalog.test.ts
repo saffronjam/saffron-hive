@@ -35,15 +35,13 @@ describe("translated catalog plurals", () => {
     );
   });
 
-  it("uses grammatical Russian contact states and light counts", () => {
+  it("uses grammatical Russian contact states", () => {
     expect(m.contact_summary_single({ role: "door", state: "open" }, { locale: "ru" })).toBe(
       "Дверь открыта",
     );
     expect(m.contact_summary_single({ role: "door", state: "closed" }, { locale: "ru" })).toBe(
       "Дверь закрыта",
     );
-    expect(m.lights_on_count({ on: 0, total: 1 }, { locale: "ru" })).toBe("0 из 1 лампы");
-    expect(m.lights_on_count({ on: 2, total: 5 }, { locale: "ru" })).toBe("2 из 5 ламп");
   });
 
   it("uses grammatical Swedish contact states", () => {

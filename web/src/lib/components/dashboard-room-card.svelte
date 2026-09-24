@@ -33,6 +33,8 @@
 		client: Client;
 		onopen: (room: RoomEntity) => void;
 		sensorHistoryEnabled?: boolean;
+		navigationOnly?: boolean;
+		selected?: boolean;
 	}
 
 	let {
@@ -43,6 +45,8 @@
 		client,
 		onopen,
 		sensorHistoryEnabled = true,
+		navigationOnly = false,
+		selected = false,
 	}: Props = $props();
 
 	const roomDevices = $derived(
@@ -138,8 +142,9 @@
 	{tintStrength}
 	{tintTransitionSeconds}
 	tintInactive={!brightnessActive}
-	{brightnessFill}
-	{dragOpts}
+	brightnessFill={navigationOnly ? null : brightnessFill}
+	dragOpts={navigationOnly ? undefined : dragOpts}
+	current={selected}
 	readOnly
 	iconAreaSize="sm"
 	onclick={() => {
@@ -148,14 +153,14 @@
 	}}
 >
 	{#snippet leadingActions()}
-		{#if hasSensors}
+		{#if hasSensors && !navigationOnly}
 			<SensorHistoryPopover
 				target={{ kind: "room", id: room.id }}
 				fields={sensorFields}
 				title={entityDisplayName("room", room)}
 				align="end"
 				triggerClass="group rounded focus-visible:outline-none"
-				interactive={sensorHistoryEnabled}
+				interactive={sensorHistoryEnabled && !navigationOnly}
 			>
 				<div class="grid grid-cols-[auto_auto_auto] items-center gap-x-1 gap-y-0.5 text-sm tabular-nums text-muted-foreground transition-colors group-hover:text-foreground group-focus-visible:text-foreground">
 					{#each sensorReadings as r (r.label)}

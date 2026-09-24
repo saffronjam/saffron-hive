@@ -11992,21 +11992,6 @@ export const language_swedish: ((inputs?: Language_SwedishInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
-* | totalPlural | output |
-* | --- | --- |
-* | "one" | "{on} of {total} light" |
-* | * | "{on} of {total} lights" |
-*
-* @param {Lights_On_CountInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const lights_on_count: ((inputs: Lights_On_CountInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Lights_On_CountInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
 * | output |
 * | --- |
 * | "Live" |
@@ -15900,20 +15885,6 @@ export const room_members_empty: ((inputs?: Room_Members_EmptyInputs, options?: 
 export const room_name: ((inputs?: Room_NameInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Room_NameInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "No lights in this room." |
-*
-* @param {Room_No_LightsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const room_no_lights: ((inputs?: Room_No_LightsInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Room_No_LightsInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -26196,10 +26167,6 @@ export type Integrations_Status_DisabledInputs = {};
 export type Language_EnglishInputs = {};
 export type Language_RussianInputs = {};
 export type Language_SwedishInputs = {};
-export type Lights_On_CountInputs = {
-    on: NonNullable<unknown>;
-    total: NonNullable<unknown>;
-};
 export type Logs_LiveInputs = {};
 export type Logs_PausedInputs = {};
 export type Logs_SearchInputs = {};
@@ -26535,7 +26502,6 @@ export type Room_GenericInputs = {};
 export type Room_LightsInputs = {};
 export type Room_Members_EmptyInputs = {};
 export type Room_NameInputs = {};
-export type Room_No_LightsInputs = {};
 export type Room_No_MatchInputs = {};
 export type Room_NoneInputs = {};
 export type Room_None_HelpInputs = {};

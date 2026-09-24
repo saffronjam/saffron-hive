@@ -24,6 +24,11 @@ type Documents = {
     "\n  mutation E2EAutomationsCreateGroup($input: CreateGroupInput!) {\n    createGroup(input: $input) {\n      id\n      name\n    }\n  }\n": typeof types.E2EAutomationsCreateGroupDocument,
     "\n  mutation E2EAutomationsAddGroupMember($input: AddGroupMemberInput!) {\n    addGroupMember(input: $input) {\n      id\n    }\n  }\n": typeof types.E2EAutomationsAddGroupMemberDocument,
     "\n  mutation E2EAutomationsDeleteGroup($id: ID!) {\n    deleteGroup(id: $id)\n  }\n": typeof types.E2EAutomationsDeleteGroupDocument,
+    "\n  mutation DashboardBrowserCreateRoom($name: String!) {\n    createRoom(input: { name: $name }) {\n      id\n    }\n  }\n": typeof types.DashboardBrowserCreateRoomDocument,
+    "\n  mutation DashboardBrowserAddMember($input: AddRoomMemberInput!) {\n    addRoomMember(input: $input) {\n      id\n    }\n  }\n": typeof types.DashboardBrowserAddMemberDocument,
+    "\n  mutation DashboardBrowserCreateScene($input: CreateSceneInput!) {\n    createScene(input: $input) {\n      id\n    }\n  }\n": typeof types.DashboardBrowserCreateSceneDocument,
+    "\n  mutation DashboardBrowserDeleteRoom($id: ID!) {\n    deleteRoom(id: $id)\n  }\n": typeof types.DashboardBrowserDeleteRoomDocument,
+    "\n  mutation DashboardBrowserDeleteScene($id: ID!) {\n    deleteScene(id: $id)\n  }\n": typeof types.DashboardBrowserDeleteSceneDocument,
     "\n  query E2EDevicesList {\n    devices {\n      id\n      name\n      friendlyName\n      source\n      type\n      available\n      state {\n        on\n        brightness\n        colorTemp\n        temperature\n        humidity\n        battery\n        power\n        voltage\n        current\n        energy\n      }\n    }\n  }\n": typeof types.E2EDevicesListDocument,
     "\n  query E2EDevice($id: ID!) {\n    device(id: $id) {\n      id\n      name\n      friendlyName\n      source\n      type\n      available\n      state {\n        on\n        brightness\n        colorTemp\n        temperature\n        humidity\n        battery\n        power\n        voltage\n        current\n        energy\n      }\n    }\n  }\n": typeof types.E2EDeviceDocument,
     "\n  query E2EZigbeeDeviceMetadata($id: ID!) {\n    device(id: $id) {\n      zigbee2Mqtt {\n        imageCandidate\n        imageVersion\n        ieeeAddress\n        networkAddress\n        supported\n        softwareBuildId\n        definitionUrl\n        definition {\n          model\n          vendor\n          description\n          supportsOta\n        }\n        ota {\n          state\n          installedVersion\n          latestVersion\n          progress\n        }\n        endpoints {\n          id\n          profileId\n          deviceId\n          inputClusters\n          outputClusters\n          bindings {\n            cluster\n            targetType\n            targetIeeeAddress\n            targetEndpoint\n            targetGroupId\n          }\n          reportings {\n            cluster\n            attribute\n            minimumReportInterval\n            maximumReportInterval\n            reportableChange\n          }\n        }\n        groups {\n          id\n          providerGroupId\n          name\n          endpoint\n        }\n        bridgeInfo {\n          adapterType\n          firmwareVersion\n          channel\n          panId\n          extendedPanId\n          zigbee2MqttVersion\n          zigbee2MqttCommit\n          zigbeeHerdsmanVersion\n          zigbeeHerdsmanConvertersVersion\n        }\n      }\n    }\n  }\n": typeof types.E2EZigbeeDeviceMetadataDocument,
@@ -102,7 +107,6 @@ type Documents = {
     "\n\t\tmutation DeleteAlarm($alarmId: ID!) {\n\t\t\tdeleteAlarm(alarmId: $alarmId)\n\t\t}\n\t": typeof types.DeleteAlarmDocument,
     "\n\t\tmutation BatchDeleteAlarms($alarmIds: [ID!]!) {\n\t\t\tbatchDeleteAlarms(alarmIds: $alarmIds)\n\t\t}\n\t": typeof types.BatchDeleteAlarmsDocument,
     "\n\t\tmutation DashboardApplianceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t": typeof types.DashboardApplianceCardSetDeviceStateDocument,
-    "\n\t\tmutation DashboardLightCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t": typeof types.DashboardLightCardSetDeviceStateDocument,
     "\n\t\tquery DashboardIntegrations {\n\t\t\tintegrations {\n\t\t\t\tprovider\n\t\t\t\tconfigured\n\t\t\t}\n\t\t}\n\t": typeof types.DashboardIntegrationsDocument,
     "\n\t\tmutation DeviceActionMenuSimulate($deviceId: ID!, $action: String!) {\n\t\t\tsimulateDeviceAction(deviceId: $deviceId, action: $action)\n\t\t}\n\t": typeof types.DeviceActionMenuSimulateDocument,
     "\n\t\tmutation DeviceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t": typeof types.DeviceCardSetDeviceStateDocument,
@@ -273,6 +277,11 @@ const documents: Documents = {
     "\n  mutation E2EAutomationsCreateGroup($input: CreateGroupInput!) {\n    createGroup(input: $input) {\n      id\n      name\n    }\n  }\n": types.E2EAutomationsCreateGroupDocument,
     "\n  mutation E2EAutomationsAddGroupMember($input: AddGroupMemberInput!) {\n    addGroupMember(input: $input) {\n      id\n    }\n  }\n": types.E2EAutomationsAddGroupMemberDocument,
     "\n  mutation E2EAutomationsDeleteGroup($id: ID!) {\n    deleteGroup(id: $id)\n  }\n": types.E2EAutomationsDeleteGroupDocument,
+    "\n  mutation DashboardBrowserCreateRoom($name: String!) {\n    createRoom(input: { name: $name }) {\n      id\n    }\n  }\n": types.DashboardBrowserCreateRoomDocument,
+    "\n  mutation DashboardBrowserAddMember($input: AddRoomMemberInput!) {\n    addRoomMember(input: $input) {\n      id\n    }\n  }\n": types.DashboardBrowserAddMemberDocument,
+    "\n  mutation DashboardBrowserCreateScene($input: CreateSceneInput!) {\n    createScene(input: $input) {\n      id\n    }\n  }\n": types.DashboardBrowserCreateSceneDocument,
+    "\n  mutation DashboardBrowserDeleteRoom($id: ID!) {\n    deleteRoom(id: $id)\n  }\n": types.DashboardBrowserDeleteRoomDocument,
+    "\n  mutation DashboardBrowserDeleteScene($id: ID!) {\n    deleteScene(id: $id)\n  }\n": types.DashboardBrowserDeleteSceneDocument,
     "\n  query E2EDevicesList {\n    devices {\n      id\n      name\n      friendlyName\n      source\n      type\n      available\n      state {\n        on\n        brightness\n        colorTemp\n        temperature\n        humidity\n        battery\n        power\n        voltage\n        current\n        energy\n      }\n    }\n  }\n": types.E2EDevicesListDocument,
     "\n  query E2EDevice($id: ID!) {\n    device(id: $id) {\n      id\n      name\n      friendlyName\n      source\n      type\n      available\n      state {\n        on\n        brightness\n        colorTemp\n        temperature\n        humidity\n        battery\n        power\n        voltage\n        current\n        energy\n      }\n    }\n  }\n": types.E2EDeviceDocument,
     "\n  query E2EZigbeeDeviceMetadata($id: ID!) {\n    device(id: $id) {\n      zigbee2Mqtt {\n        imageCandidate\n        imageVersion\n        ieeeAddress\n        networkAddress\n        supported\n        softwareBuildId\n        definitionUrl\n        definition {\n          model\n          vendor\n          description\n          supportsOta\n        }\n        ota {\n          state\n          installedVersion\n          latestVersion\n          progress\n        }\n        endpoints {\n          id\n          profileId\n          deviceId\n          inputClusters\n          outputClusters\n          bindings {\n            cluster\n            targetType\n            targetIeeeAddress\n            targetEndpoint\n            targetGroupId\n          }\n          reportings {\n            cluster\n            attribute\n            minimumReportInterval\n            maximumReportInterval\n            reportableChange\n          }\n        }\n        groups {\n          id\n          providerGroupId\n          name\n          endpoint\n        }\n        bridgeInfo {\n          adapterType\n          firmwareVersion\n          channel\n          panId\n          extendedPanId\n          zigbee2MqttVersion\n          zigbee2MqttCommit\n          zigbeeHerdsmanVersion\n          zigbeeHerdsmanConvertersVersion\n        }\n      }\n    }\n  }\n": types.E2EZigbeeDeviceMetadataDocument,
@@ -351,7 +360,6 @@ const documents: Documents = {
     "\n\t\tmutation DeleteAlarm($alarmId: ID!) {\n\t\t\tdeleteAlarm(alarmId: $alarmId)\n\t\t}\n\t": types.DeleteAlarmDocument,
     "\n\t\tmutation BatchDeleteAlarms($alarmIds: [ID!]!) {\n\t\t\tbatchDeleteAlarms(alarmIds: $alarmIds)\n\t\t}\n\t": types.BatchDeleteAlarmsDocument,
     "\n\t\tmutation DashboardApplianceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t": types.DashboardApplianceCardSetDeviceStateDocument,
-    "\n\t\tmutation DashboardLightCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t": types.DashboardLightCardSetDeviceStateDocument,
     "\n\t\tquery DashboardIntegrations {\n\t\t\tintegrations {\n\t\t\t\tprovider\n\t\t\t\tconfigured\n\t\t\t}\n\t\t}\n\t": types.DashboardIntegrationsDocument,
     "\n\t\tmutation DeviceActionMenuSimulate($deviceId: ID!, $action: String!) {\n\t\t\tsimulateDeviceAction(deviceId: $deviceId, action: $action)\n\t\t}\n\t": types.DeviceActionMenuSimulateDocument,
     "\n\t\tmutation DeviceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t": types.DeviceCardSetDeviceStateDocument,
@@ -566,6 +574,26 @@ export function graphql(source: "\n  mutation E2EAutomationsAddGroupMember($inpu
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation E2EAutomationsDeleteGroup($id: ID!) {\n    deleteGroup(id: $id)\n  }\n"): (typeof documents)["\n  mutation E2EAutomationsDeleteGroup($id: ID!) {\n    deleteGroup(id: $id)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DashboardBrowserCreateRoom($name: String!) {\n    createRoom(input: { name: $name }) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation DashboardBrowserCreateRoom($name: String!) {\n    createRoom(input: { name: $name }) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DashboardBrowserAddMember($input: AddRoomMemberInput!) {\n    addRoomMember(input: $input) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation DashboardBrowserAddMember($input: AddRoomMemberInput!) {\n    addRoomMember(input: $input) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DashboardBrowserCreateScene($input: CreateSceneInput!) {\n    createScene(input: $input) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation DashboardBrowserCreateScene($input: CreateSceneInput!) {\n    createScene(input: $input) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DashboardBrowserDeleteRoom($id: ID!) {\n    deleteRoom(id: $id)\n  }\n"): (typeof documents)["\n  mutation DashboardBrowserDeleteRoom($id: ID!) {\n    deleteRoom(id: $id)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DashboardBrowserDeleteScene($id: ID!) {\n    deleteScene(id: $id)\n  }\n"): (typeof documents)["\n  mutation DashboardBrowserDeleteScene($id: ID!) {\n    deleteScene(id: $id)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -878,10 +906,6 @@ export function graphql(source: "\n\t\tmutation BatchDeleteAlarms($alarmIds: [ID
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\t\tmutation DashboardApplianceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation DashboardApplianceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n\t\tmutation DashboardLightCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation DashboardLightCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
