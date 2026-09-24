@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   chromium,
   type Browser,
@@ -15,6 +15,7 @@ import {
   SceneTargetType,
 } from "$lib/gql/graphql";
 import { getContext, publishDeviceState } from "./setup.js";
+import { browserDiagnostics } from "./browser-diagnostics.js";
 
 const CREATE_SEARCH_FIXTURES = graphql(`
   mutation BrowserSearchCreateFixtures(
@@ -114,6 +115,7 @@ let browserContext: BrowserContext;
 let browserPage: Page;
 let fixtureIds: FixtureIds | null = null;
 let deletedDeviceId: string | null = null;
+const diagnostics = browserDiagnostics("search-state");
 
 async function cleanUpDeletedDevice(): Promise<void> {
   if (!deletedDeviceId) return;
@@ -205,8 +207,13 @@ beforeAll(async () => {
     localStorage.setItem("hive.token", authToken);
   }, token);
   browserPage = await browserContext.newPage();
+  await diagnostics.start(browserPage);
   await browserPage.goto(appUrl, { waitUntil: "domcontentloaded" });
 }, 120_000);
+
+afterEach(async ({ task }) => {
+  if (task.result?.state === "fail") await diagnostics.capture(task.name);
+});
 
 afterAll(async () => {
   await browserContext?.close();
@@ -289,17 +296,15 @@ describe("URL-backed search restoration", () => {
   it("restores the Users header after browser back navigation", async () => {
     const { appUrl } = getContext();
     await browserPage.goto(`${appUrl}/users`, { waitUntil: "domcontentloaded" });
-    await expect.poll(() => browserPage.getByRole("button", { name: "Add guest" }).count()).toBe(1);
+    await browserPage.getByRole("button", { name: "Add guest" }).waitFor();
 
     await browserPage.getByRole("link", { name: "Dashboard" }).first().click();
     await browserPage.waitForURL((url) => url.pathname === "/");
     await browserPage.goBack({ waitUntil: "domcontentloaded" });
 
-    await expect.poll(() => new URL(browserPage.url()).pathname).toBe("/users");
-    await expect.poll(() => browserPage.getByRole("button", { name: "Add guest" }).count()).toBe(1);
-    await expect
-      .poll(() => browserPage.getByRole("button", { name: "Create user" }).count())
-      .toBe(1);
+    await browserPage.waitForURL((url) => url.pathname === "/users");
+    await browserPage.getByRole("button", { name: "Add guest" }).waitFor();
+    await browserPage.getByRole("button", { name: "Create user" }).waitFor();
   });
 
   it("keeps the protected shell hidden when history returns after logout", async () => {
