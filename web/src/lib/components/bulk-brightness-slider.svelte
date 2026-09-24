@@ -3,6 +3,9 @@
 	import { Slider } from "$lib/components/ui/slider/index.js";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
+	import { onDestroy } from "svelte";
+	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
+	import { powerIntents } from "$lib/stores/power-intents.svelte";
 
 	interface Props {
 		devices: Device[];
@@ -28,7 +31,7 @@
 	// Runtime-disabled devices are excluded: the slider must show, and average,
 	// only what it can actually command.
 	const dimmable = $derived(
-		devices.filter(
+		powerIntents.devices(devices).filter(
 			(d) => isRuntimeEnabledDevice(d) && d.type === "light" && d.state?.brightness != null,
 		),
 	);
@@ -57,9 +60,7 @@
 	let initialised = $state(value !== undefined);
 	let interacting = $state(false);
 	let interactingTimer: ReturnType<typeof setTimeout> | null = null;
-	let lastSent = 0;
-	let trailingTimer: ReturnType<typeof setTimeout> | null = null;
-	const THROTTLE_MS = 250;
+	const brightnessThrottle: Throttle = { lastSent: 0, trailing: null };
 	const INTERACT_COOLDOWN_MS = 1500;
 
 	function noteInteract() {
@@ -70,6 +71,16 @@
 			interacting = false;
 		}, INTERACT_COOLDOWN_MS);
 	}
+
+	$effect(() => {
+		if (powerIntents.has(devices)) {
+			flushThrottle(brightnessThrottle);
+			if (interactingTimer) clearTimeout(interactingTimer);
+			interactingTimer = null;
+			interacting = false;
+			value = liveValue;
+		}
+	});
 
 	$effect(() => {
 		if (!initialised && hasLights) {
@@ -83,32 +94,30 @@
 	// thumb from snapping backward to a stale `liveValue` mid-drag while the
 	// echo from our own commit is still in flight.
 	$effect(() => {
-		if (initialised && !interacting && !trailingTimer) {
+		if (initialised && !interacting && !brightnessThrottle.trailing) {
 			value = liveValue;
 		}
 	});
 
 	function handleChange(val: number) {
+		powerIntents.clear(devices);
 		value = val;
 		oninteract?.();
 		noteInteract();
-		const now = Date.now();
-		const elapsed = now - lastSent;
-		if (trailingTimer) {
-			clearTimeout(trailingTimer);
-			trailingTimer = null;
-		}
-		if (elapsed >= THROTTLE_MS) {
-			lastSent = now;
-			onbrightness?.(val);
-		} else {
-			trailingTimer = setTimeout(() => {
-				trailingTimer = null;
-				lastSent = Date.now();
-				onbrightness?.(val);
-			}, THROTTLE_MS - elapsed);
-		}
+		throttle(brightnessThrottle, () => onbrightness?.(val));
 	}
+
+	function handleCommit() {
+		const pending = brightnessThrottle.trailing !== null;
+		flushThrottle(brightnessThrottle);
+		if (pending && value !== undefined) onbrightness?.(value);
+		noteInteract();
+	}
+
+	onDestroy(() => {
+		flushThrottle(brightnessThrottle);
+		if (interactingTimer) clearTimeout(interactingTimer);
+	});
 </script>
 
 {#if hasLights}
@@ -119,6 +128,7 @@
 		max={254}
 		step={1}
 		onValueChange={handleChange}
+		onValueCommit={handleCommit}
 		{disabled}
 	aria-label={resolvedAriaLabel}
 	/>

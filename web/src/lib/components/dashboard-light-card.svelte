@@ -2,6 +2,7 @@
 	import type { Component } from "svelte";
 	import { deviceDisplayName } from "$lib/utils";
 	import EntityCard from "$lib/components/entity-card.svelte";
+	import { powerIntents } from "$lib/stores/power-intents.svelte";
 	import BulkBrightnessSlider from "$lib/components/bulk-brightness-slider.svelte";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
@@ -54,7 +55,7 @@
 	const onOffDevices = $derived(
 		devices.filter((d) => d.capabilities.some((c) => c.name === "on_off")),
 	);
-	const isOn = $derived(onOffDevices.some((d) => d.state?.on));
+	const isOn = $derived(powerIntents.devices(onOffDevices).some((d) => d.state?.on));
 
 	const dimmableLights = $derived(
 		devices.filter((d) => d.type === "light" && d.state?.brightness != null),
@@ -72,7 +73,7 @@
 	const INTERACT_COOLDOWN_MS = 1500;
 	const appearance = $derived(
 		aggregateLightAppearance(
-			devices,
+			powerIntents.devices(devices),
 			previewBrightness == null ? {} : { brightnessPreview: previewBrightness },
 		),
 	);
@@ -90,6 +91,9 @@
 	}
 	onDestroy(() => {
 		if (interactingTimer) clearTimeout(interactingTimer);
+		flushThrottle(brightnessThrottle);
+		flushThrottle(colorThrottle);
+		flushThrottle(tempThrottle);
 	});
 
 	const brightnessFill = $derived(appearance.hasDimmable ? appearance.outputRatio : null);
@@ -136,6 +140,13 @@
 
 	const colorThrottle: Throttle = { lastSent: 0, trailing: null };
 	const tempThrottle: Throttle = { lastSent: 0, trailing: null };
+	$effect(() => {
+		if (!powerIntents.has(devices)) return;
+		previewBrightness = null;
+		flushThrottle(brightnessThrottle);
+		flushThrottle(colorThrottle);
+		flushThrottle(tempThrottle);
+	});
 
 	function handleColorChange(c: { r: number; g: number; b: number }) {
 		throttle(colorThrottle, () => commitGroupColor(client, devices, c, commandTarget));

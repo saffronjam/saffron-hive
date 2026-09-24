@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount, type ComponentProps } from "svelte";
 import DashboardTargetPanel from "$lib/components/dashboard-target-panel.svelte";
+import BulkBrightnessSlider from "$lib/components/bulk-brightness-slider.svelte";
 import { CapabilityCategory, ContactRole, ControlledLoadRole, type Device } from "$lib/gql/graphql";
 import { createMockClient } from "../helpers/mock-client";
 
@@ -251,5 +252,50 @@ describe("dashboard target panel", () => {
     expect(mainCard?.textContent).not.toContain("°C");
     expect(host!.querySelector('[class*="tint-fill-horizontal"]')).toBeNull();
     expect(host!.querySelector('[aria-label="Scenes"]')).not.toBeNull();
+  });
+});
+
+describe("brightness interaction lifetime", () => {
+  function renderSlider() {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    const changed = vi.fn();
+    instance = mount(BulkBrightnessSlider, {
+      target: host,
+      props: { devices: [lamp], onbrightness: changed },
+    });
+    flushSync();
+    return { changed, slider: host.querySelector<HTMLElement>('[role="slider"]')! };
+  }
+
+  it("cancels a queued brightness command when the control is destroyed", async () => {
+    vi.useFakeTimers();
+    const { changed } = renderSlider();
+    const track = host!.querySelector<HTMLElement>('[data-slot="slider"]')!;
+    vi.spyOn(track, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 254, 20));
+    track.dispatchEvent(
+      new MouseEvent("pointerdown", { clientX: 110, clientY: 10, button: 0, bubbles: true }),
+    );
+    flushSync();
+    document.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 120, clientY: 10, bubbles: true }),
+    );
+    flushSync();
+    expect(changed).toHaveBeenCalledTimes(1);
+    await unmount(instance!);
+    instance = null;
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(changed).toHaveBeenCalledTimes(1);
+  });
+
+  it("commits each keyboard value immediately", () => {
+    vi.useFakeTimers();
+    const { changed, slider } = renderSlider();
+    slider.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    flushSync();
+    expect(host!.querySelector('[role="slider"]')).toBe(slider);
+    slider.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    flushSync();
+    expect(changed).toHaveBeenLastCalledWith(102);
   });
 });

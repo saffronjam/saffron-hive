@@ -1,5 +1,6 @@
 <script lang="ts">
 	import EntityCard from "$lib/components/entity-card.svelte";
+	import { powerIntents } from "$lib/stores/power-intents.svelte";
 	import DeviceQuickControls from "$lib/components/device-quick-controls.svelte";
 	import { graphql } from "$lib/gql";
 	import type { Device } from "$lib/stores/devices";
@@ -24,15 +25,16 @@
 
 	const client = getContextClient();
 	const Icon = $derived(deviceIcon(device.type));
-	const isOn = $derived(device.state?.on ?? false);
+	const isOn = $derived(powerIntents.device(device).state?.on ?? false);
 	const hasOnOff = $derived(device.capabilities.some((c) => c.name === "on_off" || c.name === "state"));
 
 	function handleToggle(_entity: { id: string }, event: MouseEvent | KeyboardEvent) {
 		if (!hasOnOff || !device.available) return;
 		haptics.play("selection", event);
-		void client
-			.mutation(SET_DEVICE_STATE, { deviceId: device.id, state: { on: !isOn } })
-			.toPromise();
+		const on = !isOn;
+		void powerIntents.toggle([device], on, () =>
+			client.mutation(SET_DEVICE_STATE, { deviceId: device.id, state: { on } }).toPromise(),
+		);
 	}
 </script>
 

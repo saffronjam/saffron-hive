@@ -1,5 +1,6 @@
 <script lang="ts">
 	import EntityCard from "$lib/components/entity-card.svelte";
+	import { powerIntents } from "$lib/stores/power-intents.svelte";
 	import SensorHistoryPopover from "$lib/components/sensor-history-popover.svelte";
 	import { popoverDismissedRecently } from "$lib/popover-guard";
 	import { DoorOpen } from "@lucide/svelte";
@@ -54,7 +55,7 @@
 	);
 
 	const lights = $derived(roomDevices.filter(isLightControlDevice));
-	const onLights = $derived(lights.filter((d) => d.state?.on));
+	const onLights = $derived(powerIntents.devices(lights).filter((d) => d.state?.on));
 	const isOn = $derived(onLights.length > 0);
 
 	const sensors = $derived(roomDevices.filter((d) => d.type === "sensor"));
@@ -82,7 +83,7 @@
 	const INTERACT_COOLDOWN_MS = 1500;
 	const appearance = $derived(
 		aggregateLightAppearance(
-			roomDevices,
+			powerIntents.devices(roomDevices),
 			previewBrightness == null ? {} : { brightnessPreview: previewBrightness },
 		),
 	);
@@ -100,19 +101,25 @@
 	}
 	onDestroy(() => {
 		if (interactingTimer) clearTimeout(interactingTimer);
+		flushThrottle(brightnessThrottle);
 	});
 
 	const brightnessFill = $derived(appearance.hasDimmable ? appearance.outputRatio : null);
 	const brightnessActive = $derived(appearance.active);
 
 	const brightnessThrottle: Throttle = { lastSent: 0, trailing: null };
+	$effect(() => {
+		if (!powerIntents.has(lights)) return;
+		previewBrightness = null;
+		flushThrottle(brightnessThrottle);
+	});
 
 	const dragOpts = $derived({
 		initial: () => (isOn ? avgBrightness : 0),
 		onpreview: (v: number) => {
 			previewBrightness = v;
 			throttle(brightnessThrottle, () =>
-				commitGroupBrightness(client, dimmableLights, v, {
+				commitGroupBrightness(client, roomDevices, v, {
 					targetType: CommandTargetType.Room,
 					targetId: room.id,
 				}),
@@ -120,7 +127,7 @@
 		},
 		oncommit: (v: number) => {
 			flushThrottle(brightnessThrottle);
-			commitGroupBrightness(client, dimmableLights, v, {
+			commitGroupBrightness(client, roomDevices, v, {
 				targetType: CommandTargetType.Room,
 				targetId: room.id,
 			});

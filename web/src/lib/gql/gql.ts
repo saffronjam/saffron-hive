@@ -109,7 +109,6 @@ type Documents = {
     "\n\t\tmutation DashboardApplianceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t": typeof types.DashboardApplianceCardSetDeviceStateDocument,
     "\n\t\tquery DashboardIntegrations {\n\t\t\tintegrations {\n\t\t\t\tprovider\n\t\t\t\tconfigured\n\t\t\t}\n\t\t}\n\t": typeof types.DashboardIntegrationsDocument,
     "\n\t\tmutation DeviceActionMenuSimulate($deviceId: ID!, $action: String!) {\n\t\t\tsimulateDeviceAction(deviceId: $deviceId, action: $action)\n\t\t}\n\t": typeof types.DeviceActionMenuSimulateDocument,
-    "\n\t\tmutation DeviceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t": typeof types.DeviceCardSetDeviceStateDocument,
     "\n\t\tmutation DeviceTableSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t": typeof types.DeviceTableSetDeviceStateDocument,
     "\n\t\tmutation UpdateDevice($id: ID!, $input: UpdateDeviceInput!) {\n\t\t\tupdateDevice(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\troles {\n\t\t\t\t\tcontrolledLoad\n\t\t\t\t\tcontact\n\t\t\t\t}\n\t\t\t\tdisabled\n\t\t\t\tfriendlyName\n\t\t\t\tseen\n\t\t\t}\n\t\t}\n\t": typeof types.UpdateDeviceDocument,
     "\n\t\tmutation MarkDevicesSeen($ids: [ID!]!) {\n\t\t\tmarkDevicesSeen(ids: $ids)\n\t\t}\n\t": typeof types.MarkDevicesSeenDocument,
@@ -129,7 +128,6 @@ type Documents = {
     "\n\t\tsubscription EffectsPageNativeSupportChanged {\n\t\t\tnativeEffectSupportChanged\n\t\t}\n\t": typeof types.EffectsPageNativeSupportChangedDocument,
     "\n\t\tquery GuestSessionCurrent {\n\t\t\tcurrentGuest {\n\t\t\t\tid\n\t\t\t\texpiresAt\n\t\t\t}\n\t\t}\n\t": typeof types.GuestSessionCurrentDocument,
     "\n\t\tsubscription GuestSessionChanged {\n\t\t\tguestChanged {\n\t\t\t\tkind\n\t\t\t\tguest {\n\t\t\t\t\tid\n\t\t\t\t\texpiresAt\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.GuestSessionChangedDocument,
-    "\n\t\tmutation RoomsPageSetDeviceState($targetId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: ROOM, id: $targetId }, state: $state)\n\t\t}\n\t": typeof types.RoomsPageSetDeviceStateDocument,
     "\n\t\tquery SceneCreateVibePreview($input: PreviewVibeInput!) {\n\t\t\tpreviewVibe(input: $input) {\n\t\t\t\tpreview { width height pixels { r g b } swatches { x y color { r g b } } }\n\t\t\t\tdomain seed brightness movement cycleSeconds minimumLightness maximumLightness\n\t\t\t}\n\t\t}\n\t": typeof types.SceneCreateVibePreviewDocument,
     "\n\t\tquery SceneOutputRate {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tcontinuousCommandsPerSecond\n\t\t\t\tactiveContinuousDeviceIds\n\t\t\t}\n\t\t}\n\t": typeof types.SceneOutputRateDocument,
     "\n\t\tquery GuidedVibeChoices($input: GuidedVibeRoundInput!) {\n\t\t\tguidedVibeRound(input: $input) {\n\t\t\t\tround\n\t\t\t\tcanFinish\n\t\t\t\tcomplete\n\t\t\t\toptions {\n\t\t\t\t\tid\n\t\t\t\t\tlabelId\n\t\t\t\t\tpreview {\n\t\t\t\t\t\twidth height\n\t\t\t\t\t\tpixels { r g b }\n\t\t\t\t\t\tswatches { x y color { r g b } }\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.GuidedVibeChoicesDocument,
@@ -362,7 +360,6 @@ const documents: Documents = {
     "\n\t\tmutation DashboardApplianceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t": types.DashboardApplianceCardSetDeviceStateDocument,
     "\n\t\tquery DashboardIntegrations {\n\t\t\tintegrations {\n\t\t\t\tprovider\n\t\t\t\tconfigured\n\t\t\t}\n\t\t}\n\t": types.DashboardIntegrationsDocument,
     "\n\t\tmutation DeviceActionMenuSimulate($deviceId: ID!, $action: String!) {\n\t\t\tsimulateDeviceAction(deviceId: $deviceId, action: $action)\n\t\t}\n\t": types.DeviceActionMenuSimulateDocument,
-    "\n\t\tmutation DeviceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t": types.DeviceCardSetDeviceStateDocument,
     "\n\t\tmutation DeviceTableSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t": types.DeviceTableSetDeviceStateDocument,
     "\n\t\tmutation UpdateDevice($id: ID!, $input: UpdateDeviceInput!) {\n\t\t\tupdateDevice(id: $id, input: $input) {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\ticon\n\t\t\t\troles {\n\t\t\t\t\tcontrolledLoad\n\t\t\t\t\tcontact\n\t\t\t\t}\n\t\t\t\tdisabled\n\t\t\t\tfriendlyName\n\t\t\t\tseen\n\t\t\t}\n\t\t}\n\t": types.UpdateDeviceDocument,
     "\n\t\tmutation MarkDevicesSeen($ids: [ID!]!) {\n\t\t\tmarkDevicesSeen(ids: $ids)\n\t\t}\n\t": types.MarkDevicesSeenDocument,
@@ -382,7 +379,6 @@ const documents: Documents = {
     "\n\t\tsubscription EffectsPageNativeSupportChanged {\n\t\t\tnativeEffectSupportChanged\n\t\t}\n\t": types.EffectsPageNativeSupportChangedDocument,
     "\n\t\tquery GuestSessionCurrent {\n\t\t\tcurrentGuest {\n\t\t\t\tid\n\t\t\t\texpiresAt\n\t\t\t}\n\t\t}\n\t": types.GuestSessionCurrentDocument,
     "\n\t\tsubscription GuestSessionChanged {\n\t\t\tguestChanged {\n\t\t\t\tkind\n\t\t\t\tguest {\n\t\t\t\t\tid\n\t\t\t\t\texpiresAt\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.GuestSessionChangedDocument,
-    "\n\t\tmutation RoomsPageSetDeviceState($targetId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: ROOM, id: $targetId }, state: $state)\n\t\t}\n\t": types.RoomsPageSetDeviceStateDocument,
     "\n\t\tquery SceneCreateVibePreview($input: PreviewVibeInput!) {\n\t\t\tpreviewVibe(input: $input) {\n\t\t\t\tpreview { width height pixels { r g b } swatches { x y color { r g b } } }\n\t\t\t\tdomain seed brightness movement cycleSeconds minimumLightness maximumLightness\n\t\t\t}\n\t\t}\n\t": types.SceneCreateVibePreviewDocument,
     "\n\t\tquery SceneOutputRate {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tcontinuousCommandsPerSecond\n\t\t\t\tactiveContinuousDeviceIds\n\t\t\t}\n\t\t}\n\t": types.SceneOutputRateDocument,
     "\n\t\tquery GuidedVibeChoices($input: GuidedVibeRoundInput!) {\n\t\t\tguidedVibeRound(input: $input) {\n\t\t\t\tround\n\t\t\t\tcanFinish\n\t\t\t\tcomplete\n\t\t\t\toptions {\n\t\t\t\t\tid\n\t\t\t\t\tlabelId\n\t\t\t\t\tpreview {\n\t\t\t\t\t\twidth height\n\t\t\t\t\t\tpixels { r g b }\n\t\t\t\t\t\tswatches { x y color { r g b } }\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.GuidedVibeChoicesDocument,
@@ -917,10 +913,6 @@ export function graphql(source: "\n\t\tmutation DeviceActionMenuSimulate($device
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\t\tmutation DeviceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation DeviceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
 export function graphql(source: "\n\t\tmutation DeviceTableSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation DeviceTableSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -994,10 +986,6 @@ export function graphql(source: "\n\t\tquery GuestSessionCurrent {\n\t\t\tcurren
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\t\tsubscription GuestSessionChanged {\n\t\t\tguestChanged {\n\t\t\t\tkind\n\t\t\t\tguest {\n\t\t\t\t\tid\n\t\t\t\t\texpiresAt\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tsubscription GuestSessionChanged {\n\t\t\tguestChanged {\n\t\t\t\tkind\n\t\t\t\tguest {\n\t\t\t\t\tid\n\t\t\t\t\texpiresAt\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n\t\tmutation RoomsPageSetDeviceState($targetId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: ROOM, id: $targetId }, state: $state)\n\t\t}\n\t"): (typeof documents)["\n\t\tmutation RoomsPageSetDeviceState($targetId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: ROOM, id: $targetId }, state: $state)\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

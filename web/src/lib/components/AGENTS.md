@@ -11,7 +11,7 @@ Shared UI components. Before adding a new file, scan this index — most needs a
 - `dashboard-apartment-card.svelte` — whole-home summary. Compact mode shows aggregate readings and controls lighting; desktop mode selects Apartment with full-surface tint.
 - `dashboard-target-panel.svelte` — shared Apartment/Room content: aggregate controls, sensor/contact boxes, room scenes, lights and appliances. Apartment shows aggregate controls and stats. Key each instance by target and presentation so drag and picker callbacks remain scoped to their target.
 - `room-drawer.svelte` — bottom Sheet shell for compact room controls, rendered by `DashboardTargetPanel`.
-- `device-card.svelte` — the card the `/devices` list renders. Icon + inline rename + quick controls + membership chips, with a brightness throttle and interacting cooldown. Shows disabled devices greyed and without controls.
+- `device-card.svelte` — the card the `/devices` list renders. Icon + inline rename + quick controls + membership chips, with `BulkBrightnessSlider` and shared optimistic power feedback. Shows disabled devices greyed and without controls.
 - `device-quick-controls.svelte` — toggle + brightness slider + colour picker for a single device, designed for the device detail view.
 
 ## Controls

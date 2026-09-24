@@ -3,6 +3,7 @@ import { graphql } from "$lib/gql";
 import { rgbToXy } from "$lib/color";
 import { isLightControlDevice, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 import { CommandTargetType, type DeviceStateInput } from "$lib/gql/graphql";
+import { powerIntents } from "$lib/stores/power-intents.svelte";
 
 export interface GroupMemberRef {
   memberType: string;
@@ -36,13 +37,13 @@ async function commitState(
   targets: Device[],
   state: DeviceStateInput,
   target?: CommandTarget,
-): Promise<void> {
+) {
   const active = commandable(devices);
   const commandTarget =
     target && active.length === targets.length
       ? { type: target.targetType, id: target.targetId }
       : { type: CommandTargetType.DeviceSet, deviceIds: targets.map((device) => device.id) };
-  await client
+  return client
     .mutation(GROUP_COMMANDS_SET_DEVICE_STATE, { target: commandTarget, state })
     .toPromise();
 }
@@ -108,8 +109,8 @@ export async function commitGroupBrightness(
     (d) => d.type === "light" && d.state?.brightness != null,
   );
   if (lights.length === 0) return;
-  const input: { on?: true; brightness: number } = { brightness };
-  if (lights.some((d) => !d.state?.on)) input.on = true;
+  powerIntents.clear(lights);
+  const input = { on: true, brightness };
   await commitState(client, devices, lights, input, target);
 }
 
@@ -121,7 +122,9 @@ export async function commitGroupToggle(
 ): Promise<void> {
   const targets = commandable(devices).filter(isLightControlDevice);
   if (targets.length === 0) return;
-  await commitState(client, devices, targets, { on }, target);
+  await powerIntents.toggle(targets, on, () =>
+    commitState(client, devices, targets, { on }, target),
+  );
 }
 
 export async function commitGroupColor(
@@ -139,7 +142,8 @@ export async function commitGroupColor(
     on?: true;
     color: { r: number; g: number; b: number; x: number; y: number };
   } = { color: { ...color, x: xy.x, y: xy.y } };
-  if (targets.some((d) => !d.state?.on)) input.on = true;
+  if (powerIntents.has(targets) || targets.some((d) => !d.state?.on)) input.on = true;
+  powerIntents.clear(targets);
   await commitState(client, devices, targets, input, target);
 }
 
@@ -154,6 +158,7 @@ export async function commitGroupTemp(
   );
   if (targets.length === 0) return;
   const input: { on?: true; colorTemp: number } = { colorTemp: mired };
-  if (targets.some((d) => !d.state?.on)) input.on = true;
+  if (powerIntents.has(targets) || targets.some((d) => !d.state?.on)) input.on = true;
+  powerIntents.clear(targets);
   await commitState(client, devices, targets, input, target);
 }

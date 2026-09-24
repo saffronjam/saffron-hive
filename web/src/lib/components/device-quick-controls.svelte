@@ -21,6 +21,7 @@
 	import { deviceTint } from "$lib/device-tint";
 	import { deviceDisplayName } from "$lib/utils";
 	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
+	import { powerIntents } from "$lib/stores/power-intents.svelte";
 	import { Palette, Thermometer } from "@lucide/svelte";
 	import { onDestroy } from "svelte";
 	import { m } from "$lib/i18n/messages";
@@ -74,12 +75,19 @@
 	}
 
 	function handleToggle(checked: boolean) {
-		send({ on: checked });
+		void powerIntents.toggle([device], checked, () =>
+			client.mutation(SET_DEVICE_STATE, { deviceId: device.id, state: { on: checked } }).toPromise(),
+		);
 	}
 
 	const colorTempThrottle: Throttle = { lastSent: 0, trailing: null };
 	const colorThrottle: Throttle = { lastSent: 0, trailing: null };
 	const targetTemperatureThrottle: Throttle = { lastSent: 0, trailing: null };
+	$effect(() => {
+		if (!powerIntents.has([device])) return;
+		flushThrottle(colorTempThrottle);
+		flushThrottle(colorThrottle);
+	});
 	let selectedTargetTemperature = $state(0);
 	let selectedHvacMode = $state("");
 	let selectedFanMode = $state("");
@@ -112,10 +120,14 @@
 	onDestroy(() => {
 		if (targetTemperatureInteractTimer) clearTimeout(targetTemperatureInteractTimer);
 		flushThrottle(targetTemperatureThrottle);
+		flushThrottle(colorTempThrottle);
+		flushThrottle(colorThrottle);
 	});
 
 	function autoOn(): { on: true } | Record<string, never> {
-		return device.state?.on ? {} : { on: true };
+		const needsOn = powerIntents.has([device]) || !device.state?.on;
+		powerIntents.clear([device]);
+		return needsOn ? { on: true } : {};
 	}
 
 	function handleColorTempChange(val: number) {
@@ -181,7 +193,7 @@
 		send({ swing: value });
 	}
 
-	const isOn = $derived(device.state?.on ?? false);
+	const isOn = $derived(powerIntents.device(device).state?.on ?? false);
 
 	// A closed bits-ui Popover still mounts its portal, so on a list row these
 	// cost as much as an open one. Build them on first hover or click instead.

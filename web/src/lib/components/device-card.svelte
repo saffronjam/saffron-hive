@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { getContextClient } from "@urql/svelte";
-	import { graphql } from "$lib/gql";
+	import { onDestroy } from "svelte";
+	import { commitGroupBrightness } from "$lib/group-commands";
+	import { powerIntents } from "$lib/stores/power-intents.svelte";
 	import { type Device } from "$lib/stores/devices";
 	import {
 		aggregateSensorReadings,
@@ -13,7 +15,7 @@
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { deviceIcon, deviceDisplayName } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button/index.js";
-	import { Slider } from "$lib/components/ui/slider/index.js";
+	import BulkBrightnessSlider from "$lib/components/bulk-brightness-slider.svelte";
 	import {
 		DropdownMenu,
 		DropdownMenuContent,
@@ -71,12 +73,9 @@
 		isNew = false,
 	}: Props = $props();
 
-	let localBrightness = $state(0);
-	let brightnessLastSent = 0;
-	let brightnessTrailingTimer: ReturnType<typeof setTimeout> | null = null;
+	let localBrightness = $state<number | undefined>(undefined);
 	let interacting = $state(false);
 	let interactingTimer: ReturnType<typeof setTimeout> | null = null;
-	const BRIGHTNESS_THROTTLE_MS = 250;
 	const INTERACT_COOLDOWN_MS = 1500;
 
 	function noteInteract() {
@@ -87,6 +86,12 @@
 			interacting = false;
 		}, INTERACT_COOLDOWN_MS);
 	}
+	$effect(() => {
+		if (powerIntents.has([device])) interacting = false;
+	});
+	onDestroy(() => {
+		if (interactingTimer) clearTimeout(interactingTimer);
+	});
 
 	// Disabled and offline both mean the card is not actionable right now, so
 	// they share one muted treatment. The Ban icon and the offline dot say which.
@@ -117,15 +122,16 @@
 				})
 			: [],
 	);
+	const displayDevice = $derived(powerIntents.device(device));
 	const tintDevice = $derived(
-		device.state?.brightness != null
-			? { ...device, state: { ...device.state, brightness: localBrightness } }
-			: device,
+		interacting && localBrightness !== undefined
+			? { ...displayDevice, state: { ...displayDevice.state, on: true, brightness: localBrightness } }
+			: displayDevice,
 	);
 	const tintColor = $derived(device.disabled || device.deleted ? null : deviceTintBase(tintDevice));
 	const tintStrength = $derived.by(() => {
-		if (!device.state?.on) return 0;
-		return hasBrightness ? brightnessToTintStrength(localBrightness) : 1;
+		if (!tintDevice.state?.on) return 0;
+		return hasBrightness ? brightnessToTintStrength(tintDevice.state?.brightness ?? 0) : 1;
 	});
 	const cardStyle = $derived(
 		tintColor ? `--tint-color: ${tintColor}; --tint-strength: ${tintStrength}` : "",
@@ -133,46 +139,7 @@
 	const iconGradient = $derived(tintIconGradient(tintColor ? [tintColor] : []));
 	const mutedTextClass = $derived(tintColor ? "text-foreground/70" : "text-muted-foreground");
 
-	const SET_DEVICE_STATE = graphql(`
-		mutation DeviceCardSetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {
-			setTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)
-		}
-	`);
-
 	const client = getContextClient();
-
-	$effect(() => {
-		if (!brightnessTrailingTimer && !interacting && device.state?.brightness != null) {
-			localBrightness = device.state.on ? device.state.brightness : 0;
-		}
-	});
-
-	function sendBrightness(val: number) {
-		const input: { on?: true; brightness: number } = { brightness: val };
-		if (!device.state?.on) input.on = true;
-		void client.mutation(SET_DEVICE_STATE, { deviceId: device.id, state: input }).toPromise();
-	}
-
-	function handleBrightnessChange(val: number) {
-		localBrightness = val;
-		noteInteract();
-		const now = Date.now();
-		const elapsed = now - brightnessLastSent;
-		if (brightnessTrailingTimer) {
-			clearTimeout(brightnessTrailingTimer);
-			brightnessTrailingTimer = null;
-		}
-		if (elapsed >= BRIGHTNESS_THROTTLE_MS) {
-			brightnessLastSent = now;
-			sendBrightness(val);
-		} else {
-			brightnessTrailingTimer = setTimeout(() => {
-				brightnessTrailingTimer = null;
-				brightnessLastSent = Date.now();
-				sendBrightness(val);
-			}, BRIGHTNESS_THROTTLE_MS - elapsed);
-		}
-	}
 
 	const hasSensorReading = $derived(sensorReadings.length > 0);
 </script>
@@ -196,7 +163,7 @@
 					size="sm"
 					iconClass="size-4 {mutedTextClass}"
 					tintBackground={iconGradient}
-					tintVisible={device.state?.on !== true}
+					tintVisible={tintDevice.state?.on !== true}
 				/>
 				<InlineEditName name={deviceDisplayName(device)} entityType="device" entityId={device.id} onsave={(newName) => onrename(device.id, newName)} />
 				{#if device.deleted}
@@ -306,15 +273,13 @@
 				</div>
 			</SensorHistoryPopover>
 		{:else if hasBrightness}
-			<Slider
-				type="single"
-				value={localBrightness}
-				min={0}
-				max={254}
-				step={1}
-				onValueChange={handleBrightnessChange}
+			<BulkBrightnessSlider
+				devices={[device]}
+				bind:value={localBrightness}
+				oninteract={noteInteract}
+				onbrightness={(value) => { void commitGroupBrightness(client, [device], value); }}
 				disabled={!device.available || device.disabled || device.deleted}
-				aria-label={m.devices_brightness_named(
+				ariaLabel={m.devices_brightness_named(
 					{ name: deviceDisplayName(device) },
 					locale.messageOptions(),
 				)}

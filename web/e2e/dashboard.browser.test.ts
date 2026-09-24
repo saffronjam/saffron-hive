@@ -199,6 +199,28 @@ describe("adaptive dashboard", () => {
       .toBe("false");
   });
 
+  it("animates the room slider on live member updates without sending commands", async () => {
+    const slider = panel().getByRole("slider").first();
+    await publishDeviceState("Living Room Light", { state: "ON", brightness: 40 });
+    await expect.poll(() => slider.getAttribute("aria-valuenow")).toBe("40");
+    await expect.poll(() => slider.evaluate((node) => node.getAnimations().length)).toBe(0);
+    const thumb = await slider.elementHandle();
+    if (!thumb) throw new Error("Room brightness handle missing");
+    await thumb.evaluate((node) => {
+      node.addEventListener("transitionrun", (event) => {
+        if (event instanceof TransitionEvent && event.propertyName === "left") {
+          node.setAttribute("data-live-transition", "true");
+        }
+      });
+    });
+    const commandCount = commands.length;
+    await publishDeviceState("Living Room Light", { state: "ON", brightness: 220 });
+    await expect.poll(() => slider.getAttribute("aria-valuenow")).toBe("220");
+    expect(await thumb.evaluate((node) => node.isConnected)).toBe(true);
+    await expect.poll(() => slider.getAttribute("data-live-transition")).toBe("true");
+    expect(commands).toHaveLength(commandCount);
+    await thumb.dispose();
+  });
 
   it("scrolls both panes independently and resets only the selected panel", async () => {
     await navigator().evaluate((node) => {
@@ -295,4 +317,47 @@ describe("adaptive dashboard", () => {
     expect(errors).toEqual([]);
   });
 
+  it("holds Apartment off through staggered reports and resumes confirmed live state", async () => {
+    await page.getByRole("link", { name: "Dashboard", exact: true }).click();
+    await panel().waitFor();
+    await navigator().getByRole("button", { name: "Apartment", exact: true }).click();
+    const slider = panel().getByRole("slider").first();
+    const toggle = panel().getByRole("switch").first();
+    await publishDeviceState("Living Room Light", { state: "ON", brightness: 40 });
+    await publishDeviceState("Bedroom Light", { state: "ON", brightness: 120 });
+    await publishDeviceState("Kitchen Light", { state: "ON", brightness: 230 });
+    await expect.poll(() => slider.getAttribute("aria-valuenow")).toBe("130");
+
+    await toggle.click();
+    await expect.poll(() => toggle.getAttribute("aria-checked")).toBe("false");
+    await expect.poll(() => slider.getAttribute("aria-valuenow")).toBe("0");
+    const observed = await slider.evaluateHandle((node) => {
+      const samples: string[] = [];
+      const observer = new MutationObserver(() =>
+        samples.push(node.getAttribute("aria-valuenow") ?? ""),
+      );
+      observer.observe(node, { attributes: true, attributeFilter: ["aria-valuenow"] });
+      return { samples, observer };
+    });
+    await publishDeviceState("Living Room Light", { state: "OFF", brightness: 40 });
+    await publishDeviceState("Bedroom Light", { state: "ON", brightness: 20 });
+    await page.waitForTimeout(2_000);
+    expect(await toggle.getAttribute("aria-checked")).toBe("false");
+    expect(await slider.getAttribute("aria-valuenow")).toBe("0");
+    expect(
+      await observed.evaluate(({ samples }) => samples.every((sample) => sample === "0")),
+    ).toBe(true);
+    await observed.evaluate(({ observer }) => observer.disconnect());
+    await observed.dispose();
+
+    await publishDeviceState("Bedroom Light", { state: "OFF", brightness: 20 });
+    await publishDeviceState("Kitchen Light", { state: "OFF", brightness: 230 });
+    await publishDeviceState("Living Room Light", { state: "OFF", brightness: 41 });
+    await expect.poll(() => reportedPower.get("0x00158d0002b3c4d5")).toBe(false);
+    await expect.poll(() => reportedPower.get("0x00158d0003c4d5e6")).toBe(false);
+    await publishDeviceState("Bedroom Light", { state: "ON", brightness: 170 });
+    await expect.poll(() => slider.getAttribute("aria-valuenow")).toBe("170");
+    expect(await toggle.getAttribute("aria-checked")).toBe("true");
+    expect(errors).toEqual([]);
+  });
 });

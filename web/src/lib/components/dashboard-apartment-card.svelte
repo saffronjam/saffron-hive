@@ -1,5 +1,6 @@
 <script lang="ts">
 	import EntityCard from "$lib/components/entity-card.svelte";
+	import { powerIntents } from "$lib/stores/power-intents.svelte";
 	import SensorHistoryPopover from "$lib/components/sensor-history-popover.svelte";
 	import { House } from "@lucide/svelte";
 	import {
@@ -36,7 +37,7 @@
 	});
 
 	const lights = $derived(devices.filter(isLightControlDevice));
-	const onLights = $derived(lights.filter((d) => d.state?.on));
+	const onLights = $derived(powerIntents.devices(lights).filter((d) => d.state?.on));
 	const isOn = $derived(onLights.length > 0);
 
 	const sensors = $derived(devices.filter((d) => d.type === "sensor"));
@@ -64,7 +65,7 @@
 	const INTERACT_COOLDOWN_MS = 1500;
 	const appearance = $derived(
 		aggregateLightAppearance(
-			devices,
+			powerIntents.devices(devices),
 			previewBrightness == null ? {} : { brightnessPreview: previewBrightness },
 		),
 	);
@@ -82,12 +83,18 @@
 	}
 	onDestroy(() => {
 		if (interactingTimer) clearTimeout(interactingTimer);
+		flushThrottle(brightnessThrottle);
 	});
 
 	const brightnessFill = $derived(appearance.hasDimmable ? appearance.outputRatio : null);
 	const brightnessActive = $derived(appearance.active);
 
 	const brightnessThrottle: Throttle = { lastSent: 0, trailing: null };
+	$effect(() => {
+		if (!powerIntents.has(lights)) return;
+		previewBrightness = null;
+		flushThrottle(brightnessThrottle);
+	});
 
 	const dragOpts = $derived({
 		initial: () => (isOn ? avgBrightness : 0),

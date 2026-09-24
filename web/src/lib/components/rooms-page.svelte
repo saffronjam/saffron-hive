@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { getContextClient } from "@urql/svelte";
 	import { measureMount } from "$lib/perf";
-	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import {
@@ -16,6 +15,7 @@
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import MemberTable from "$lib/components/member-table.svelte";
 	import DeviceCollectionCard from "$lib/components/device-collection-card.svelte";
+	import { commitGroupBrightness, commitGroupToggle, commitGroupColor, commitGroupTemp } from "$lib/group-commands";
 	import RoomTable from "$lib/components/room-table.svelte";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
@@ -41,11 +41,11 @@
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import { deviceStore, isLightControlDevice, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
+	import { deviceStore, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
+	import { CommandTargetType } from "$lib/gql/graphql";
 	import { roomsStore, type Room } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
 	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
-	import { rgbToXy } from "$lib/color";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { m } from "$lib/paraglide/messages.js";
 	import { locale } from "$lib/i18n/locale.svelte";
@@ -63,12 +63,6 @@
 	let { visible }: Props = $props();
 
 	const client = getContextClient();
-
-	const SET_DEVICE_STATE = graphql(`
-		mutation RoomsPageSetDeviceState($targetId: ID!, $state: DeviceStateInput!) {
-			setTargetState(target: { type: ROOM, id: $targetId }, state: $state)
-		}
-	`);
 
 	const rooms = $derived(roomsStore.items);
 	// Runtime-disabled devices leave this page entirely: no member row, no picker
@@ -94,40 +88,19 @@
 	}
 
 	async function commitRoomBrightness(room: Room, brightness: number) {
-		const lights = roomDevices(room).filter((d) => d.type === "light" && d.state?.brightness != null);
-		if (lights.length === 0) return;
-		const input: { on?: true; brightness: number } = { brightness };
-		if (lights.some((d) => !d.state?.on)) input.on = true;
-		await client.mutation(SET_DEVICE_STATE, { targetId: room.id, state: input }).toPromise();
+		await commitGroupBrightness(client, roomDevices(room), brightness, { targetType: CommandTargetType.Room, targetId: room.id });
 	}
 
 	async function commitRoomToggle(room: Room, on: boolean) {
-		const targets = roomDevices(room).filter(isLightControlDevice);
-		if (targets.length === 0) return;
-		await client.mutation(SET_DEVICE_STATE, { targetId: room.id, state: { on } }).toPromise();
+		await commitGroupToggle(client, roomDevices(room), on, { targetType: CommandTargetType.Room, targetId: room.id });
 	}
 
 	async function commitRoomColor(room: Room, color: { r: number; g: number; b: number }) {
-		const targets = roomDevices(room).filter((d) =>
-			d.capabilities.some((c) => c.name === "color"),
-		);
-		if (targets.length === 0) return;
-		const xy = rgbToXy(color.r, color.g, color.b);
-		const input: { on?: true; color: { r: number; g: number; b: number; x: number; y: number } } = {
-			color: { ...color, x: xy.x, y: xy.y },
-		};
-		if (targets.some((d) => !d.state?.on)) input.on = true;
-		await client.mutation(SET_DEVICE_STATE, { targetId: room.id, state: input }).toPromise();
+		await commitGroupColor(client, roomDevices(room), color, { targetType: CommandTargetType.Room, targetId: room.id });
 	}
 
 	async function commitRoomTemp(room: Room, mired: number) {
-		const targets = roomDevices(room).filter((d) =>
-			d.capabilities.some((c) => c.name === "color_temp"),
-		);
-		if (targets.length === 0) return;
-		const input: { on?: true; colorTemp: number } = { colorTemp: mired };
-		if (targets.some((d) => !d.state?.on)) input.on = true;
-		await client.mutation(SET_DEVICE_STATE, { targetId: room.id, state: input }).toPromise();
+		await commitGroupTemp(client, roomDevices(room), mired, { targetType: CommandTargetType.Room, targetId: room.id });
 	}
 
 	const searchController = createUrlSearchState({

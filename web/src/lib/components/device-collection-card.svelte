@@ -1,5 +1,6 @@
 <script lang="ts" generics="T extends { id: string; name?: string | null; friendlyName?: string | null; icon?: string | null }">
-	import type { Component } from "svelte";
+	import { onDestroy, type Component } from "svelte";
+	import { powerIntents } from "$lib/stores/power-intents.svelte";
 	import { isLightControlDevice, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import EntityCard from "$lib/components/entity-card.svelte";
 	import BulkBrightnessSlider from "$lib/components/bulk-brightness-slider.svelte";
@@ -19,7 +20,7 @@
 		aggregateLightAppearance,
 		lightTintTransitionSeconds,
 	} from "$lib/device-tint";
-	import { throttle, type Throttle } from "$lib/throttle";
+	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
 	import { me } from "$lib/stores/me.svelte";
 	import { contactCollectionSummary } from "$lib/device-collection-summary";
 	import { Palette } from "@lucide/svelte";
@@ -79,10 +80,7 @@
 
 	let preview = $state<number | undefined>(undefined);
 	let userTouched = $state(false);
-	// Optimistic toggle intent. Set the moment the user clicks the Switch so
-	// the card/slider/tint repaint immediately, before the zigbee echo lands.
-	// Cleared by an effect below once the live state confirms the intent.
-	let togglePending = $state<"on" | "off" | null>(null);
+	let previewTimer: ReturnType<typeof setTimeout> | null = null;
 
 	const hasLights = $derived(
 		devices.some((d) => d.type === "light" && d.state?.brightness != null),
@@ -98,11 +96,7 @@
 
 	const onOffDevices = $derived(devices.filter(isLightControlDevice));
 	const hasOnOff = $derived(onOffDevices.length > 0);
-	const isOn = $derived.by(() => {
-		if (togglePending === "off") return false;
-		if (togglePending === "on") return true;
-		return onOffDevices.some((d) => d.state?.on);
-	});
+	const isOn = $derived(powerIntents.devices(onOffDevices).some((d) => d.state?.on));
 
 	const hasColor = $derived(
 		devices.some((d) => d.capabilities.some((c) => c.name === "color")),
@@ -124,63 +118,46 @@
 		return onWithTemp?.state?.colorTemp ?? null;
 	});
 
-	const effectiveDevices = $derived.by((): Device[] => {
-		if (togglePending === null && (!userTouched || preview === undefined)) return devices;
-		return devices.map((d) => {
-			const isOnOffCap = isLightControlDevice(d);
-			const isDimmable = d.type === "light" && d.state?.brightness != null;
-			if (!isOnOffCap && !isDimmable) return d;
-			let on: boolean = d.state?.on ?? false;
-			let brightness: number | null | undefined = d.state?.brightness ?? null;
-			if (togglePending === "off" && isOnOffCap) on = false;
-			else if (togglePending === "on" && isOnOffCap) on = true;
-			if (userTouched && preview !== undefined && isDimmable) {
-				brightness = preview;
-				on = true;
-			}
-			if (on === (d.state?.on ?? false) && brightness === (d.state?.brightness ?? null)) {
-				return d;
-			}
-			return { ...d, state: { ...d.state, on, brightness } } as Device;
-		});
-	});
+	const effectiveDevices = $derived(powerIntents.devices(devices));
 
 	const resolvedSubtitle = $derived(
 		stateSummary ? contactCollectionSummary(effectiveDevices) : subtitle,
 	);
 
-	$effect(() => {
-		if (togglePending === "off") {
-			const stillOn = onOffDevices.some((d) => d.state?.on);
-			if (!stillOn) togglePending = null;
-		} else if (togglePending === "on") {
-			const anyOn = onOffDevices.some((d) => d.state?.on);
-			if (anyOn) togglePending = null;
-		}
-	});
-
 	function handleToggle(on: boolean) {
-		togglePending = on ? "on" : "off";
-		// Drop any active slider override; its `on: true` would otherwise
-		// fight the toggle-off intent and keep the card looking lit.
 		userTouched = false;
 		ontoggle?.(on);
 	}
 
 	function handleSliderInteract() {
 		userTouched = true;
-		// Slider intent supersedes a pending toggle: dragging means "drive
-		// to this brightness", not "stay at the previous toggle state".
-		togglePending = null;
+		if (previewTimer) clearTimeout(previewTimer);
+		previewTimer = setTimeout(() => {
+			previewTimer = null;
+			userTouched = false;
+		}, 1500);
 	}
 
-	const appearance = $derived(aggregateLightAppearance(effectiveDevices));
+	const appearance = $derived(aggregateLightAppearance(effectiveDevices,
+		userTouched && preview !== undefined ? { brightnessPreview: preview } : {},
+	));
 	const tintColors = $derived(appearance.colors);
 	const tintStrength = $derived(appearance.tintStrength);
 	const tintTransitionSeconds = $derived(lightTintTransitionSeconds(effectiveDevices));
 
 	const colorThrottle: Throttle = { lastSent: 0, trailing: null };
 	const tempThrottle: Throttle = { lastSent: 0, trailing: null };
+	$effect(() => {
+		if (!powerIntents.has(devices)) return;
+		userTouched = false;
+		flushThrottle(colorThrottle);
+		flushThrottle(tempThrottle);
+	});
+	onDestroy(() => {
+		if (previewTimer) clearTimeout(previewTimer);
+		flushThrottle(colorThrottle);
+		flushThrottle(tempThrottle);
+	});
 
 	function handleColor(c: { r: number; g: number; b: number }) {
 		throttle(colorThrottle, () => oncolor?.(c));
@@ -283,7 +260,7 @@
 				{/if}
 				{#if hasLights}
 					<BulkBrightnessSlider
-						devices={effectiveDevices}
+						{devices}
 						bind:value={preview}
 						oninteract={handleSliderInteract}
 						{onbrightness}
