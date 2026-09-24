@@ -145,8 +145,6 @@
 						{/each}
 					</div>
 				</div>
-			{:else if !debouncedQuery}
-				<p class="py-4 text-center text-xs text-muted-foreground">{m.icon_search_prompt({}, locale.messageOptions())}</p>
 			{/if}
 		</div>
 	</PopoverContent>

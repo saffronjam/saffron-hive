@@ -267,6 +267,11 @@
 				value={data.config.mode}
 				placeholder={m.automation_node_select_trigger({}, messageOptions)}
 				options={modes}
+				selectedFallback={data.config.mode === "custom" ? {
+					value: "custom",
+					label: m.automation_trigger_custom({}, messageOptions),
+					description: m.automation_trigger_custom_description({}, messageOptions),
+				} : null}
 				disabled={data.readOnly}
 				invalid={validationError?.field === "mode"}
 				onchange={handleModeChange}

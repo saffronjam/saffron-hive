@@ -120,7 +120,7 @@
 			disabled={disabled}
 			onValueChange={(v) => v && setField(v)}
 		>
-			<SelectTrigger class="w-full text-xs">{fieldSelectedLabel}</SelectTrigger>
+			<SelectTrigger class="w-full text-sm">{fieldSelectedLabel}</SelectTrigger>
 			<SelectContent>
 				{#each settableCaps as c (c.name)}
 					<SelectItem value={c.name}>

@@ -21,6 +21,7 @@
 		cancelLabel?: string;
 		variant?: "destructive" | "default";
 		loading?: boolean;
+		showCloseButton?: boolean;
 		onconfirm: () => void;
 		oncancel: () => void;
 	}
@@ -34,6 +35,7 @@
 		cancelLabel,
 		variant = "destructive",
 		loading = false,
+		showCloseButton = false,
 		onconfirm,
 		oncancel,
 	}: Props = $props();
@@ -47,7 +49,7 @@
 </script>
 
 <Dialog bind:open>
-	<DialogContent>
+	<DialogContent {showCloseButton}>
 		<DialogHeader>
 			<DialogTitle>{title}</DialogTitle>
 			{#if description}

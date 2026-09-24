@@ -834,7 +834,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Icon_ClearInputs */
 /** @typedef {{}} Icon_NoneInputs */
 /** @typedef {{}} Icon_SearchInputs */
-/** @typedef {{}} Icon_Search_PromptInputs */
 /** @typedef {{}} Integrations_AddInputs */
 /** @typedef {{}} Integrations_Add_DescriptionInputs */
 /** @typedef {{}} Integrations_Add_ShortInputs */
@@ -14328,21 +14327,6 @@ export const icon_search = /** @type {((inputs?: Icon_SearchInputs, options?: { 
 	if (locale === "sv") return __sv.icon_search(inputs)
 	if (locale === "ru") return __ru.icon_search(inputs)
 	return __en.icon_search(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Type to search icons." |
-*
-* @param {Icon_Search_PromptInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const icon_search_prompt = /** @type {((inputs?: Icon_Search_PromptInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Icon_Search_PromptInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.icon_search_prompt(inputs)
-	if (locale === "ru") return __ru.icon_search_prompt(inputs)
-	return __en.icon_search_prompt(inputs)
 });
 /**
 * | output |

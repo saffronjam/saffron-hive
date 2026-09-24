@@ -8,18 +8,20 @@
 		value: string;
 		placeholder: string;
 		options: readonly AutomationNodeOption[];
+		selectedFallback?: AutomationNodeOption | null;
 		disabled?: boolean;
 		invalid?: boolean;
 		onchange: (value: string | undefined) => void;
 	}
 
-	let { value, placeholder, options, disabled = false, invalid = false, onchange }: Props = $props();
+	let { value, placeholder, options, selectedFallback = null, disabled = false, invalid = false, onchange }: Props = $props();
 	const items = $derived([...options]);
 </script>
 
 <HiveSelectAutocomplete
 	{items}
 	{value}
+	{selectedFallback}
 	getValue={(option) => option.value}
 	getLabel={(option) => option.label}
 	{placeholder}

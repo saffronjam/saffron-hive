@@ -1671,7 +1671,6 @@
   "icon_search": "Sök bland ikoner…",
   "icon_clear": "Rensa ikon",
   "icon_none": "Inga ikoner hittades.",
-  "icon_search_prompt": "Skriv för att söka efter ikoner.",
   "color_picker_aria": "Nyans och mättnad",
   "temperature_picker_aria": "Färgtemperatur från varmt till kallt",
   "target_subject_room": "Rum",

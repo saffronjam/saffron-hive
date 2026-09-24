@@ -78,6 +78,7 @@
 
 	const configuredIntegrations = $derived(integrations.filter((i) => i.configured));
 	const availableProviders = $derived(integrations.filter((i) => !i.configured));
+	const canAddIntegration = $derived(hydrated && availableProviders.length > 0);
 	const filteredAvailable = $derived.by(() => {
 		const q = searchController.value.freeText.trim().toLowerCase();
 		if (!q) return availableProviders;
@@ -106,6 +107,7 @@
 	}
 
 	function openAddDialog() {
+		if (!canAddIntegration) return;
 		const url = new URL(page.url);
 		url.searchParams.set("add", "1");
 		pushState(url, page.state);
@@ -143,7 +145,7 @@
 	}
 
 	$effect(() => {
-		pageHeader.actions = [{ label: m.integrations_add({}, messageOptions), mobileLabel: m.integrations_add_short({}, messageOptions), icon: Plus, onclick: openAddDialog }];
+		pageHeader.actions = [{ label: m.integrations_add({}, messageOptions), mobileLabel: m.integrations_add_short({}, messageOptions), icon: Plus, disabled: !canAddIntegration, onclick: openAddDialog }];
 		pageHeader.viewToggle = null;
 		pageHeader.breadcrumbs = [{ label: m.nav_integrations({}, messageOptions) }];
 	});
@@ -164,7 +166,7 @@
 			<p class="mt-2 text-sm text-muted-foreground">
 				{m.integrations_empty_help({}, messageOptions)}
 			</p>
-			<Button class="mt-4" onclick={openAddDialog}>
+			<Button class="mt-4" disabled={!canAddIntegration} onclick={openAddDialog}>
 				<Plus class="size-4" />
 				<span>{m.integrations_add({}, messageOptions)}</span>
 			</Button>

@@ -832,7 +832,6 @@
 /** @typedef {{}} Icon_ClearInputs */
 /** @typedef {{}} Icon_NoneInputs */
 /** @typedef {{}} Icon_SearchInputs */
-/** @typedef {{}} Icon_Search_PromptInputs */
 /** @typedef {{}} Integrations_AddInputs */
 /** @typedef {{}} Integrations_Add_DescriptionInputs */
 /** @typedef {{}} Integrations_Add_ShortInputs */
@@ -5200,10 +5199,6 @@ export const icon_none = /** @type {(inputs: Icon_NoneInputs) => LocalizedString
 
 export const icon_search = /** @type {(inputs: Icon_SearchInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Sök bland ikoner…`)
-};
-
-export const icon_search_prompt = /** @type {(inputs: Icon_Search_PromptInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Skriv för att söka efter ikoner.`)
 };
 
 export const integrations_add = /** @type {(inputs: Integrations_AddInputs) => LocalizedString} */ () => {

@@ -680,7 +680,7 @@
 					size="sm"
 					separatedItems
 					disabled={data.readOnly}
-					class={validationError?.field === "target" ? `text-xs ${INVALID_CLS}` : "text-xs"}
+					class={validationError?.field === "target" ? `text-sm ${INVALID_CLS}` : "text-sm"}
 					onchange={handleTargetChange}
 				>
 					{#snippet renderSelected(t: TargetItem)}

@@ -32,11 +32,6 @@ export function triggerOptions(): readonly AutomationNodeOption[] {
       label: m.automation_trigger_schedule({}, options),
       description: m.automation_trigger_schedule_description({}, options),
     },
-    {
-      value: "custom",
-      label: m.automation_trigger_custom({}, options),
-      description: m.automation_trigger_custom_description({}, options),
-    },
   ] as const satisfies readonly AutomationNodeOption[];
 }
 
@@ -57,11 +52,6 @@ export function conditionOptions(): readonly AutomationNodeOption[] {
       value: "device_state",
       label: m.automation_condition_device_state({}, options),
       description: m.automation_condition_device_state_description({}, options),
-    },
-    {
-      value: "custom",
-      label: m.automation_condition_custom({}, options),
-      description: m.automation_condition_custom_description({}, options),
     },
   ] as const satisfies readonly AutomationNodeOption[];
 }

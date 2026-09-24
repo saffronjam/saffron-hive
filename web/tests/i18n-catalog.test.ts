@@ -122,7 +122,6 @@ describe("translated catalog plurals", () => {
     expect(m.effects_no_required_capabilities({}, { locale: "ru" })).toBe(
       "Возможности не используются",
     );
-    expect(m.icon_search_prompt({}, { locale: "ru" })).toBe("Иконки");
   });
 
   it("uses Swedish interface terminology", () => {

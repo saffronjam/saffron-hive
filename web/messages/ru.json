@@ -1671,7 +1671,6 @@
   "icon_search": "Поиск иконок...",
   "icon_clear": "Удалить значок",
   "icon_none": "Значки не найдены.",
-  "icon_search_prompt": "Иконки",
   "color_picker_aria": "Оттенок и насыщенность",
   "temperature_picker_aria": "Цветовая температура: от тёплого света к холодному",
   "target_subject_room": "Комната",

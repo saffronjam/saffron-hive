@@ -11698,20 +11698,6 @@ export const icon_search: ((inputs?: Icon_SearchInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "Type to search icons." |
-*
-* @param {Icon_Search_PromptInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const icon_search_prompt: ((inputs?: Icon_Search_PromptInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Icon_Search_PromptInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
 * | "Add integration" |
 *
 * @param {Integrations_AddInputs} inputs
@@ -26254,7 +26240,6 @@ export type Icon_Change_FailedInputs = {};
 export type Icon_ClearInputs = {};
 export type Icon_NoneInputs = {};
 export type Icon_SearchInputs = {};
-export type Icon_Search_PromptInputs = {};
 export type Integrations_AddInputs = {};
 export type Integrations_Add_DescriptionInputs = {};
 export type Integrations_Add_ShortInputs = {};
