@@ -76,6 +76,9 @@ type Documents = {
     "\n  query BrowserSearchDevices {\n    devices {\n      id\n      friendlyName\n    }\n  }\n": typeof types.BrowserSearchDevicesDocument,
     "\n  mutation BrowserSearchCleanUpDeletedDevice($id: ID!, $input: UpdateDeviceInput!) {\n    restoreDevice(id: $id) {\n      id\n    }\n    updateDevice(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.BrowserSearchCleanUpDeletedDeviceDocument,
     "\n  query E2EDevices {\n    devices {\n      id\n      name\n      friendlyName\n      source\n      type\n      available\n    }\n  }\n": typeof types.E2EDevicesDocument,
+    "\n  mutation HistoryBrowserCreateRoom {\n    createRoom(input: { name: \"History cache room\" }) {\n      id\n    }\n  }\n": typeof types.HistoryBrowserCreateRoomDocument,
+    "\n  mutation HistoryBrowserAddSensor($roomId: ID!) {\n    addRoomMember(\n      input: { roomId: $roomId, memberType: \"device\", memberId: \"0x00158d0004d5e6f7\" }\n    ) {\n      id\n    }\n  }\n": typeof types.HistoryBrowserAddSensorDocument,
+    "\n  mutation HistoryBrowserDeleteRoom($id: ID!) {\n    deleteRoom(id: $id)\n  }\n": typeof types.HistoryBrowserDeleteRoomDocument,
     "\n  query E2EStateHistoryDevices {\n    devices {\n      id\n      name\n      friendlyName\n      type\n    }\n  }\n": typeof types.E2EStateHistoryDevicesDocument,
     "\n  query E2EStateHistory($filter: StateHistoryFilter!) {\n    stateHistory(filter: $filter) {\n      deviceId\n      field\n      valueType\n      points {\n        at\n        numberValue\n        booleanValue\n        textValue\n      }\n    }\n  }\n": typeof types.E2EStateHistoryDocument,
     "\n  subscription E2EDeviceStateChanged {\n    deviceStateChanged {\n      deviceId\n      state {\n        on\n        brightness\n        colorTemp\n        temperature\n        humidity\n        battery\n        power\n        voltage\n        current\n        energy\n      }\n    }\n  }\n": typeof types.E2EDeviceStateChangedDocument,
@@ -125,8 +128,6 @@ type Documents = {
     "\n\t\tmutation RoomsPageSetDeviceState($targetId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: ROOM, id: $targetId }, state: $state)\n\t\t}\n\t": typeof types.RoomsPageSetDeviceStateDocument,
     "\n\t\tquery SceneCreateVibePreview($input: PreviewVibeInput!) {\n\t\t\tpreviewVibe(input: $input) {\n\t\t\t\tpreview { width height pixels { r g b } swatches { x y color { r g b } } }\n\t\t\t\tdomain seed brightness movement cycleSeconds minimumLightness maximumLightness\n\t\t\t}\n\t\t}\n\t": typeof types.SceneCreateVibePreviewDocument,
     "\n\t\tquery SceneOutputRate {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tcontinuousCommandsPerSecond\n\t\t\t\tactiveContinuousDeviceIds\n\t\t\t}\n\t\t}\n\t": typeof types.SceneOutputRateDocument,
-    "\n\t\tquery StateHistory($filter: StateHistoryFilter!) {\n\t\t\tstateHistory(filter: $filter) {\n\t\t\t\tdeviceId\n\t\t\t\tfield\n\t\t\t\tvalueType\n\t\t\t\tpoints {\n\t\t\t\t\tat\n\t\t\t\t\tnumberValue\n\t\t\t\t\tbooleanValue\n\t\t\t\t\ttextValue\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.StateHistoryDocument,
-    "\n\t\tquery AggregatedStateHistory($filter: AggregatedStateHistoryFilter!) {\n\t\t\taggregatedStateHistory(filter: $filter) {\n\t\t\t\tfield\n\t\t\t\tpoints {\n\t\t\t\t\tat\n\t\t\t\t\tvalue\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.AggregatedStateHistoryDocument,
     "\n\t\tquery GuidedVibeChoices($input: GuidedVibeRoundInput!) {\n\t\t\tguidedVibeRound(input: $input) {\n\t\t\t\tround\n\t\t\t\tcanFinish\n\t\t\t\tcomplete\n\t\t\t\toptions {\n\t\t\t\t\tid\n\t\t\t\t\tlabelId\n\t\t\t\t\tpreview {\n\t\t\t\t\t\twidth height\n\t\t\t\t\t\tpixels { r g b }\n\t\t\t\t\t\tswatches { x y color { r g b } }\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": typeof types.GuidedVibeChoicesDocument,
     "\n\t\tquery SceneEditorVibePreview($input: PreviewVibeInput!) {\n\t\t\tpreviewVibe(input: $input) {\n\t\t\t\tpreview { width height pixels { r g b } swatches { x y color { r g b } } }\n\t\t\t\tdomain seed brightness movement cycleSeconds\n\t\t\t}\n\t\t}\n\t": typeof types.SceneEditorVibePreviewDocument,
     "\n  query Automation($id: ID!) {\n    automation(id: $id) {\n      id\n      name\n      icon\n      enabled\n      compilable\n      nodes {\n        id\n        type\n        config\n        positionX\n        positionY\n        runtimeState\n      }\n      edges {\n        fromNodeId\n        toNodeId\n      }\n    }\n  }\n": typeof types.AutomationDocument,
@@ -196,6 +197,8 @@ type Documents = {
     "\n  mutation ScenesStoreApply($sceneId: ID!) {\n    applyScene(sceneId: $sceneId) {\n      ...SceneFields\n    }\n  }\n": typeof types.ScenesStoreApplyDocument,
     "\n  mutation ScenesStoreStop($sceneId: ID!) {\n    deactivateScene(sceneId: $sceneId) {\n      ...SceneFields\n    }\n  }\n": typeof types.ScenesStoreStopDocument,
     "\n  subscription ScenesStoreActiveChanged {\n    sceneActiveChanged {\n      sceneId\n      activatedAt\n    }\n  }\n": typeof types.ScenesStoreActiveChangedDocument,
+    "\n  query StateHistory($filter: StateHistoryFilter!) {\n    stateHistory(filter: $filter) {\n      deviceId\n      field\n      valueType\n      points {\n        at\n        numberValue\n        booleanValue\n        textValue\n      }\n    }\n  }\n": typeof types.StateHistoryDocument,
+    "\n  query AggregatedStateHistory($filter: AggregatedStateHistoryFilter!) {\n    aggregatedStateHistory(filter: $filter) {\n      field\n      points {\n        at\n        value\n      }\n    }\n  }\n": typeof types.AggregatedStateHistoryDocument,
     "\n  query VibeCatalog {\n    vibePresets {\n      id\n      category\n      domain\n      seed\n      brightness\n      movement\n      cycleSeconds\n      preview {\n        width\n        height\n        pixels {\n          r\n          g\n          b\n        }\n        swatches {\n          x\n          y\n          color {\n            r\n            g\n            b\n          }\n        }\n      }\n    }\n  }\n": typeof types.VibeCatalogDocument,
     "\n  fragment WebhookEndpointFields on WebhookEndpoint {\n    id\n    name\n    enabled\n    rateLimitCount\n    rateLimitWindowMs\n    createdAt\n    updatedAt\n    lastDeliveryAt\n    createdBy {\n      id\n      username\n      name\n    }\n  }\n": typeof types.WebhookEndpointFieldsFragmentDoc,
     "\n  query WebhookEndpointsStore {\n    webhookEndpoints {\n      ...WebhookEndpointFields\n    }\n  }\n": typeof types.WebhookEndpointsStoreDocument,
@@ -322,6 +325,9 @@ const documents: Documents = {
     "\n  query BrowserSearchDevices {\n    devices {\n      id\n      friendlyName\n    }\n  }\n": types.BrowserSearchDevicesDocument,
     "\n  mutation BrowserSearchCleanUpDeletedDevice($id: ID!, $input: UpdateDeviceInput!) {\n    restoreDevice(id: $id) {\n      id\n    }\n    updateDevice(id: $id, input: $input) {\n      id\n    }\n  }\n": types.BrowserSearchCleanUpDeletedDeviceDocument,
     "\n  query E2EDevices {\n    devices {\n      id\n      name\n      friendlyName\n      source\n      type\n      available\n    }\n  }\n": types.E2EDevicesDocument,
+    "\n  mutation HistoryBrowserCreateRoom {\n    createRoom(input: { name: \"History cache room\" }) {\n      id\n    }\n  }\n": types.HistoryBrowserCreateRoomDocument,
+    "\n  mutation HistoryBrowserAddSensor($roomId: ID!) {\n    addRoomMember(\n      input: { roomId: $roomId, memberType: \"device\", memberId: \"0x00158d0004d5e6f7\" }\n    ) {\n      id\n    }\n  }\n": types.HistoryBrowserAddSensorDocument,
+    "\n  mutation HistoryBrowserDeleteRoom($id: ID!) {\n    deleteRoom(id: $id)\n  }\n": types.HistoryBrowserDeleteRoomDocument,
     "\n  query E2EStateHistoryDevices {\n    devices {\n      id\n      name\n      friendlyName\n      type\n    }\n  }\n": types.E2EStateHistoryDevicesDocument,
     "\n  query E2EStateHistory($filter: StateHistoryFilter!) {\n    stateHistory(filter: $filter) {\n      deviceId\n      field\n      valueType\n      points {\n        at\n        numberValue\n        booleanValue\n        textValue\n      }\n    }\n  }\n": types.E2EStateHistoryDocument,
     "\n  subscription E2EDeviceStateChanged {\n    deviceStateChanged {\n      deviceId\n      state {\n        on\n        brightness\n        colorTemp\n        temperature\n        humidity\n        battery\n        power\n        voltage\n        current\n        energy\n      }\n    }\n  }\n": types.E2EDeviceStateChangedDocument,
@@ -371,8 +377,6 @@ const documents: Documents = {
     "\n\t\tmutation RoomsPageSetDeviceState($targetId: ID!, $state: DeviceStateInput!) {\n\t\t\tsetTargetState(target: { type: ROOM, id: $targetId }, state: $state)\n\t\t}\n\t": types.RoomsPageSetDeviceStateDocument,
     "\n\t\tquery SceneCreateVibePreview($input: PreviewVibeInput!) {\n\t\t\tpreviewVibe(input: $input) {\n\t\t\t\tpreview { width height pixels { r g b } swatches { x y color { r g b } } }\n\t\t\t\tdomain seed brightness movement cycleSeconds minimumLightness maximumLightness\n\t\t\t}\n\t\t}\n\t": types.SceneCreateVibePreviewDocument,
     "\n\t\tquery SceneOutputRate {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tcontinuousCommandsPerSecond\n\t\t\t\tactiveContinuousDeviceIds\n\t\t\t}\n\t\t}\n\t": types.SceneOutputRateDocument,
-    "\n\t\tquery StateHistory($filter: StateHistoryFilter!) {\n\t\t\tstateHistory(filter: $filter) {\n\t\t\t\tdeviceId\n\t\t\t\tfield\n\t\t\t\tvalueType\n\t\t\t\tpoints {\n\t\t\t\t\tat\n\t\t\t\t\tnumberValue\n\t\t\t\t\tbooleanValue\n\t\t\t\t\ttextValue\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.StateHistoryDocument,
-    "\n\t\tquery AggregatedStateHistory($filter: AggregatedStateHistoryFilter!) {\n\t\t\taggregatedStateHistory(filter: $filter) {\n\t\t\t\tfield\n\t\t\t\tpoints {\n\t\t\t\t\tat\n\t\t\t\t\tvalue\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.AggregatedStateHistoryDocument,
     "\n\t\tquery GuidedVibeChoices($input: GuidedVibeRoundInput!) {\n\t\t\tguidedVibeRound(input: $input) {\n\t\t\t\tround\n\t\t\t\tcanFinish\n\t\t\t\tcomplete\n\t\t\t\toptions {\n\t\t\t\t\tid\n\t\t\t\t\tlabelId\n\t\t\t\t\tpreview {\n\t\t\t\t\t\twidth height\n\t\t\t\t\t\tpixels { r g b }\n\t\t\t\t\t\tswatches { x y color { r g b } }\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t": types.GuidedVibeChoicesDocument,
     "\n\t\tquery SceneEditorVibePreview($input: PreviewVibeInput!) {\n\t\t\tpreviewVibe(input: $input) {\n\t\t\t\tpreview { width height pixels { r g b } swatches { x y color { r g b } } }\n\t\t\t\tdomain seed brightness movement cycleSeconds\n\t\t\t}\n\t\t}\n\t": types.SceneEditorVibePreviewDocument,
     "\n  query Automation($id: ID!) {\n    automation(id: $id) {\n      id\n      name\n      icon\n      enabled\n      compilable\n      nodes {\n        id\n        type\n        config\n        positionX\n        positionY\n        runtimeState\n      }\n      edges {\n        fromNodeId\n        toNodeId\n      }\n    }\n  }\n": types.AutomationDocument,
@@ -442,6 +446,8 @@ const documents: Documents = {
     "\n  mutation ScenesStoreApply($sceneId: ID!) {\n    applyScene(sceneId: $sceneId) {\n      ...SceneFields\n    }\n  }\n": types.ScenesStoreApplyDocument,
     "\n  mutation ScenesStoreStop($sceneId: ID!) {\n    deactivateScene(sceneId: $sceneId) {\n      ...SceneFields\n    }\n  }\n": types.ScenesStoreStopDocument,
     "\n  subscription ScenesStoreActiveChanged {\n    sceneActiveChanged {\n      sceneId\n      activatedAt\n    }\n  }\n": types.ScenesStoreActiveChangedDocument,
+    "\n  query StateHistory($filter: StateHistoryFilter!) {\n    stateHistory(filter: $filter) {\n      deviceId\n      field\n      valueType\n      points {\n        at\n        numberValue\n        booleanValue\n        textValue\n      }\n    }\n  }\n": types.StateHistoryDocument,
+    "\n  query AggregatedStateHistory($filter: AggregatedStateHistoryFilter!) {\n    aggregatedStateHistory(filter: $filter) {\n      field\n      points {\n        at\n        value\n      }\n    }\n  }\n": types.AggregatedStateHistoryDocument,
     "\n  query VibeCatalog {\n    vibePresets {\n      id\n      category\n      domain\n      seed\n      brightness\n      movement\n      cycleSeconds\n      preview {\n        width\n        height\n        pixels {\n          r\n          g\n          b\n        }\n        swatches {\n          x\n          y\n          color {\n            r\n            g\n            b\n          }\n        }\n      }\n    }\n  }\n": types.VibeCatalogDocument,
     "\n  fragment WebhookEndpointFields on WebhookEndpoint {\n    id\n    name\n    enabled\n    rateLimitCount\n    rateLimitWindowMs\n    createdAt\n    updatedAt\n    lastDeliveryAt\n    createdBy {\n      id\n      username\n      name\n    }\n  }\n": types.WebhookEndpointFieldsFragmentDoc,
     "\n  query WebhookEndpointsStore {\n    webhookEndpoints {\n      ...WebhookEndpointFields\n    }\n  }\n": types.WebhookEndpointsStoreDocument,
@@ -771,6 +777,18 @@ export function graphql(source: "\n  query E2EDevices {\n    devices {\n      id
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  mutation HistoryBrowserCreateRoom {\n    createRoom(input: { name: \"History cache room\" }) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation HistoryBrowserCreateRoom {\n    createRoom(input: { name: \"History cache room\" }) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation HistoryBrowserAddSensor($roomId: ID!) {\n    addRoomMember(\n      input: { roomId: $roomId, memberType: \"device\", memberId: \"0x00158d0004d5e6f7\" }\n    ) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation HistoryBrowserAddSensor($roomId: ID!) {\n    addRoomMember(\n      input: { roomId: $roomId, memberType: \"device\", memberId: \"0x00158d0004d5e6f7\" }\n    ) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation HistoryBrowserDeleteRoom($id: ID!) {\n    deleteRoom(id: $id)\n  }\n"): (typeof documents)["\n  mutation HistoryBrowserDeleteRoom($id: ID!) {\n    deleteRoom(id: $id)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  query E2EStateHistoryDevices {\n    devices {\n      id\n      name\n      friendlyName\n      type\n    }\n  }\n"): (typeof documents)["\n  query E2EStateHistoryDevices {\n    devices {\n      id\n      name\n      friendlyName\n      type\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -964,14 +982,6 @@ export function graphql(source: "\n\t\tquery SceneCreateVibePreview($input: Prev
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\t\tquery SceneOutputRate {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tcontinuousCommandsPerSecond\n\t\t\t\tactiveContinuousDeviceIds\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery SceneOutputRate {\n\t\t\tzigbee2MqttConfig {\n\t\t\t\tcontinuousCommandsPerSecond\n\t\t\t\tactiveContinuousDeviceIds\n\t\t\t}\n\t\t}\n\t"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n\t\tquery StateHistory($filter: StateHistoryFilter!) {\n\t\t\tstateHistory(filter: $filter) {\n\t\t\t\tdeviceId\n\t\t\t\tfield\n\t\t\t\tvalueType\n\t\t\t\tpoints {\n\t\t\t\t\tat\n\t\t\t\t\tnumberValue\n\t\t\t\t\tbooleanValue\n\t\t\t\t\ttextValue\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery StateHistory($filter: StateHistoryFilter!) {\n\t\t\tstateHistory(filter: $filter) {\n\t\t\t\tdeviceId\n\t\t\t\tfield\n\t\t\t\tvalueType\n\t\t\t\tpoints {\n\t\t\t\t\tat\n\t\t\t\t\tnumberValue\n\t\t\t\t\tbooleanValue\n\t\t\t\t\ttextValue\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n\t\tquery AggregatedStateHistory($filter: AggregatedStateHistoryFilter!) {\n\t\t\taggregatedStateHistory(filter: $filter) {\n\t\t\t\tfield\n\t\t\t\tpoints {\n\t\t\t\t\tat\n\t\t\t\t\tvalue\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"): (typeof documents)["\n\t\tquery AggregatedStateHistory($filter: AggregatedStateHistoryFilter!) {\n\t\t\taggregatedStateHistory(filter: $filter) {\n\t\t\t\tfield\n\t\t\t\tpoints {\n\t\t\t\t\tat\n\t\t\t\t\tvalue\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1248,6 +1258,14 @@ export function graphql(source: "\n  mutation ScenesStoreStop($sceneId: ID!) {\n
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  subscription ScenesStoreActiveChanged {\n    sceneActiveChanged {\n      sceneId\n      activatedAt\n    }\n  }\n"): (typeof documents)["\n  subscription ScenesStoreActiveChanged {\n    sceneActiveChanged {\n      sceneId\n      activatedAt\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query StateHistory($filter: StateHistoryFilter!) {\n    stateHistory(filter: $filter) {\n      deviceId\n      field\n      valueType\n      points {\n        at\n        numberValue\n        booleanValue\n        textValue\n      }\n    }\n  }\n"): (typeof documents)["\n  query StateHistory($filter: StateHistoryFilter!) {\n    stateHistory(filter: $filter) {\n      deviceId\n      field\n      valueType\n      points {\n        at\n        numberValue\n        booleanValue\n        textValue\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query AggregatedStateHistory($filter: AggregatedStateHistoryFilter!) {\n    aggregatedStateHistory(filter: $filter) {\n      field\n      points {\n        at\n        value\n      }\n    }\n  }\n"): (typeof documents)["\n  query AggregatedStateHistory($filter: AggregatedStateHistoryFilter!) {\n    aggregatedStateHistory(filter: $filter) {\n      field\n      points {\n        at\n        value\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

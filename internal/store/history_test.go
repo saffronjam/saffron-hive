@@ -8,7 +8,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
-func seedHistoryDevice(t *testing.T, s *DB, id device.DeviceID) {
+func seedHistoryDevice(t testing.TB, s *DB, id device.DeviceID) {
 	t.Helper()
 	if _, err := s.CreateDevice(context.Background(), CreateDeviceParams{
 		ID:           id,
@@ -60,7 +60,7 @@ func TestInsertStateSampleAndQueryRaw(t *testing.T) {
 	}
 }
 
-func TestQueryStateHistoryEmptyFieldsMatchesAll(t *testing.T) {
+func TestQueryStateHistoryMultipleFields(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 	seedHistoryDevice(t, s, "sensor-1")
@@ -78,6 +78,7 @@ func TestQueryStateHistoryEmptyFieldsMatchesAll(t *testing.T) {
 
 	points, err := s.QueryStateHistory(ctx, StateHistoryQuery{
 		DeviceIDs: []device.DeviceID{"sensor-1"},
+		Fields:    []string{"temperature", "humidity", "battery"},
 		From:      now.Add(-time.Hour),
 		To:        now.Add(time.Hour),
 	})
@@ -263,6 +264,7 @@ func TestPruneDeviceStateSamplesOlderThan(t *testing.T) {
 
 	remaining, err := s.QueryStateHistory(ctx, StateHistoryQuery{
 		DeviceIDs: []device.DeviceID{"sensor-1"},
+		Fields:    []string{"temperature", "humidity", "battery"},
 		From:      now.Add(-72 * time.Hour),
 		To:        now.Add(time.Hour),
 	})

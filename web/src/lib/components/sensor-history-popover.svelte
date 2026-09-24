@@ -54,7 +54,7 @@
 	function activate(e: MouseEvent) {
 		e.stopPropagation();
 		mounted = true;
-		open = true;
+		changeOpen(true);
 	}
 
 	$effect(() => {
@@ -76,13 +76,15 @@
 	let from = $state<Date>(new Date(Date.now() - RANGE_MS));
 	let to = $state<Date>(new Date());
 
-	$effect(() => {
-		if (open) {
+	function changeOpen(next: boolean) {
+		if (next && !open) {
 			const now = Date.now();
 			from = new Date(now - RANGE_MS);
 			to = new Date(now);
 		}
-	});
+		if (!next) markPopoverDismissed();
+		open = next;
+	}
 
 	const sources = $derived<StateHistorySource[]>([
 		target.kind === "device"
@@ -126,10 +128,8 @@
 	</button>
 {:else}
 <Popover
-	bind:open
-	onOpenChange={(o) => {
-		if (!o) markPopoverDismissed();
-	}}
+	{open}
+	onOpenChange={changeOpen}
 >
 	<PopoverTrigger class={triggerClass} onclick={(e) => e.stopPropagation()}>
 		{@render children()}
@@ -142,7 +142,7 @@
 				<ExternalLink class="size-3" />
 			</Button>
 		</div>
-		<StateHistoryChart {sources} {fields} {from} {to} height="h-48" showChips={false} />
+		<StateHistoryChart {sources} {fields} {from} {to} enabled={open} rollingSnapshot height="h-48" showChips={false} />
 	</PopoverContent>
 </Popover>
 {/if}

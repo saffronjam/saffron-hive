@@ -47,15 +47,13 @@
 
 <script lang="ts">
 	import { getContextClient } from "@urql/svelte";
-	import { graphql } from "$lib/gql";
-	import { AggregatedHistoryTargetType, ContactRole } from "$lib/gql/graphql";
-	import type { CombinedError } from "@urql/core";
+	import { ContactRole } from "$lib/gql/graphql";
 	import { ChartContainer, type ChartConfig } from "$lib/components/ui/chart/index.js";
 	import { LineChart, Spline, ChartClipPath, Tooltip } from "layerchart";
-	import type { ComponentProps } from "svelte";
+	import { onDestroy, untrack, type ComponentProps } from "svelte";
 	import { IsMobile } from "$lib/hooks/is-mobile.svelte.js";
-	import { SvelteSet } from "svelte/reactivity";
-	import { SvelteMap } from "svelte/reactivity";
+	import { MediaQuery, SvelteSet } from "svelte/reactivity";
+	import { createStateHistory } from "$lib/stores/state-history.svelte";
 	import { curveMonotoneX } from "d3-shape";
 	import { fly } from "svelte/transition";
 	import { X } from "@lucide/svelte";
@@ -92,6 +90,8 @@
 		bucketSeconds?: number;
 		height?: string;
 		showChips?: boolean;
+		rollingSnapshot?: boolean;
+		enabled?: boolean;
 		disabledKeys?: SvelteSet<string>;
 		onSeriesChange?: (series: SeriesInfo[]) => void;
 		/**
@@ -111,150 +111,36 @@
 		bucketSeconds,
 		height = "h-64",
 		showChips = true,
+		rollingSnapshot = false,
+		enabled = true,
 		disabledKeys: externalDisabled,
 		onSeriesChange,
 		pinnedInspector = false,
 	}: Props = $props();
 
 	const isMobile = new IsMobile();
+	const coarsePointer = new MediaQuery("(pointer: coarse)");
+	const useTouchTooltip = $derived(isMobile.current || coarsePointer.current);
 	const usePinned = $derived(pinnedInspector && isMobile.current);
 
-	interface RawSeries {
-		field: string;
-		valueType: "NUMBER" | "BOOLEAN" | "TEXT";
-		points: { at: string; value: number | boolean | string }[];
-	}
-
-	const STATE_HISTORY_QUERY = graphql(`
-		query StateHistory($filter: StateHistoryFilter!) {
-			stateHistory(filter: $filter) {
-				deviceId
-				field
-				valueType
-				points {
-					at
-					numberValue
-					booleanValue
-					textValue
-				}
-			}
-		}
-	`);
-
-	const AGGREGATED_STATE_HISTORY_QUERY = graphql(`
-		query AggregatedStateHistory($filter: AggregatedStateHistoryFilter!) {
-			aggregatedStateHistory(filter: $filter) {
-				field
-				points {
-					at
-					value
-				}
-			}
-		}
-	`);
-
-	const client = getContextClient();
-
-	const rawSeriesBySource = new SvelteMap<string, RawSeries[]>();
-	let historyFetching = $state(true);
-	let historyError = $state<CombinedError | undefined>();
+	const history = createStateHistory(getContextClient());
+	onDestroy(() => history.destroy());
 
 	$effect(() => {
-		const currentSources = sources;
-		const fieldsArg = fields ?? null;
-		const fromIso = from.toISOString();
-		const toIso = to.toISOString();
-		const bucketArg = bucketSeconds ?? null;
+		const request = { sources, fields, from, to, bucketSeconds, rollingSnapshot, enabled };
+		untrack(() => history.update(request));
+	});
 
-		historyFetching = true;
-		let cancelled = false;
-
-		const queries = currentSources.map((s) => {
-			if (s.kind === "device") {
-				return client
-					.query(STATE_HISTORY_QUERY, {
-						filter: {
-							deviceIds: [s.id],
-							fields: fieldsArg,
-							from: fromIso,
-							to: toIso,
-							bucketSeconds: bucketArg,
-						},
-					})
-					.toPromise()
-					.then((result) => ({
-						source: s,
-						series: (result.data?.stateHistory ?? []).map((row) => ({
-							field: row.field,
-							valueType: row.valueType,
-							points: row.points.map((p) => ({
-								at: p.at as string,
-								value: p.numberValue ?? p.booleanValue ?? p.textValue ?? "",
-							})),
-						})) as RawSeries[],
-						error: result.error,
-					}));
+	$effect(() => {
+		for (const source of sources) {
+			const sk = sourceKey(source);
+			for (const series of history.results.get(sk)?.series ?? []) {
+				const key = `${sk}__${series.field}`;
+				if (seenKeys.has(key)) continue;
+				seenKeys.add(key);
+				if (shouldDefaultOff(source, series.field)) disabledKeys.add(key);
 			}
-			const target =
-				s.kind === "apartment"
-					? { type: AggregatedHistoryTargetType.Apartment }
-					: {
-							type:
-								s.kind === "room"
-									? AggregatedHistoryTargetType.Room
-									: AggregatedHistoryTargetType.Group,
-							id: s.id,
-						};
-			return client
-				.query(AGGREGATED_STATE_HISTORY_QUERY, {
-					filter: {
-						target,
-						fields: fieldsArg,
-						from: fromIso,
-						to: toIso,
-						bucketSeconds: bucketArg,
-					},
-				})
-				.toPromise()
-				.then((result) => ({
-					source: s,
-					series: (result.data?.aggregatedStateHistory ?? []).map((row) => ({
-						field: row.field,
-						valueType: "NUMBER" as const,
-						points: row.points.map((p) => ({ at: p.at as string, value: p.value })),
-					})) as RawSeries[],
-					error: result.error,
-				}));
-		});
-
-		void Promise.all(queries).then((results) => {
-			if (cancelled) return;
-			const validKeys = new Set(currentSources.map(sourceKey));
-			const stale: string[] = [];
-			for (const k of rawSeriesBySource.keys()) {
-				if (!validKeys.has(k)) stale.push(k);
-			}
-			for (const k of stale) rawSeriesBySource.delete(k);
-			let firstError: CombinedError | undefined;
-			for (const r of results) {
-				const sk = sourceKey(r.source);
-				rawSeriesBySource.set(sk, r.series);
-				for (const s of r.series) {
-					const seriesKey = `${sk}__${s.field}`;
-					if (!seenKeys.has(seriesKey)) {
-						seenKeys.add(seriesKey);
-						if (shouldDefaultOff(r.source, s.field)) disabledKeys.add(seriesKey);
-					}
-				}
-				if (!firstError && r.error) firstError = r.error;
-			}
-			historyError = firstError;
-			historyFetching = false;
-		});
-
-		return () => {
-			cancelled = true;
-		};
+		}
 	});
 
 	function sourceName(s: StateHistorySource): string {
@@ -286,7 +172,7 @@
 		const result: SeriesInfo[] = [];
 		for (const source of sources) {
 			const sk = sourceKey(source);
-			const raw = rawSeriesBySource.get(sk) ?? [];
+			const raw = history.results.get(sk)?.series ?? [];
 			const sName = sourceName(source);
 			for (const s of raw) {
 				result.push({
@@ -405,7 +291,7 @@
 		const byTs = new Map<number, Row>();
 		for (const source of sources) {
 			const sk = sourceKey(source);
-			const raw = rawSeriesBySource.get(sk) ?? [];
+			const raw = history.results.get(sk)?.series ?? [];
 			for (const s of raw) {
 				if (s.valueType !== "NUMBER") continue;
 				const seriesKey = `${sk}__${s.field}`;
@@ -495,7 +381,7 @@
 		for (const info of activeBooleanSeries) {
 			const source = sources.find((candidate) => sourceKey(candidate) === info.sourceKey);
 			if (!source) continue;
-			const raw = (rawSeriesBySource.get(info.sourceKey) ?? []).find(
+			const raw = (history.results.get(info.sourceKey)?.series ?? []).find(
 				(series) => series.field === info.field,
 			);
 			if (!raw) continue;
@@ -524,7 +410,7 @@
 		for (const info of activeTextSeries) {
 			const source = sources.find((candidate) => sourceKey(candidate) === info.sourceKey);
 			if (!source) continue;
-			const raw = (rawSeriesBySource.get(info.sourceKey) ?? []).find(
+			const raw = (history.results.get(info.sourceKey)?.series ?? []).find(
 				(series) => series.field === info.field,
 			);
 			if (!raw) continue;
@@ -541,11 +427,11 @@
 	});
 
 	const hasSamples = $derived(
-		[...rawSeriesBySource.values()].some((series) => series.some((item) => item.points.length > 0)),
+		[...history.results.values()].some((result) => result.series.some((item) => item.points.length > 0)),
 	);
 
 	$effect(() => {
-		if (historyError) console.error(historyError);
+		if (history.error) console.error(history.error);
 	});
 
 	const chartConfig = $derived.by<ChartConfig>(() => {
@@ -611,6 +497,23 @@
 	let chartContext = $state<ChartCtx | undefined>();
 	let chartEl = $state<HTMLElement | null>(null);
 	let panelEl = $state<HTMLElement | null>(null);
+
+	$effect(() => {
+		const el = chartEl;
+		if (!el) return;
+		// Cancel the native long-press gesture before it starts selecting chart labels.
+		const cancelTouch = (event: TouchEvent) => event.preventDefault();
+		const cancelContextMenu = (event: MouseEvent) => {
+			if (useTouchTooltip) event.preventDefault();
+		};
+		el.addEventListener("touchstart", cancelTouch, { passive: false });
+		el.addEventListener("contextmenu", cancelContextMenu);
+		return () => {
+			el.removeEventListener("touchstart", cancelTouch);
+			el.removeEventListener("contextmenu", cancelContextMenu);
+		};
+	});
+
 	let hoveredAt = $state<Date | null>(null);
 	const hoverLeft = $derived.by(() => {
 		if (!hoveredAt) return null;
@@ -682,11 +585,11 @@
 
 <svelte:window onpointerdown={onWindowPointerDown} onpointerup={onWindowPointerUp} />
 
-{#if historyFetching && allSeries.length === 0}
+{#if history.fetching && !history.loaded}
 	<div class="flex w-full {height} items-center justify-center text-sm text-muted-foreground">
 		{m.common_loading({}, locale.messageOptions())}
 	</div>
-{:else if historyError}
+{:else if history.error && !history.loaded}
 	<div class="flex w-full {height} items-center justify-center text-sm text-destructive">
 		{m.history_load_failed({}, locale.messageOptions())}
 	</div>
@@ -700,7 +603,7 @@
 	</div>
 {:else}
 	{#if lineSeries.length > 0}
-		<div class="w-full {height}" bind:clientWidth={chartWidth} bind:this={chartEl}>
+		<div class="history-chart w-full select-none {height}" bind:clientWidth={chartWidth} bind:this={chartEl}>
 			<ChartContainer config={chartConfig} class="h-full w-full">
 				<LineChart
 					bind:context={chartContext}
@@ -714,7 +617,10 @@
 						spline: { opacity: 1 },
 						highlight: { opacity: 1 },
 						xAxis: { ticks: xTickCount, format: formatXTick },
-						tooltip: { context: { radius: usePinned ? PINNED_HIT_RADIUS : Infinity } },
+						tooltip: { context: {
+							radius: usePinned ? PINNED_HIT_RADIUS : Infinity,
+							touchEvents: useTouchTooltip ? "none" : "pan-y",
+						} },
 					}}
 				>
 					{#snippet marks({ context })}
@@ -726,7 +632,16 @@
 					{/snippet}
 					{#snippet tooltip({ context })}
 						{#if !usePinned}
-							<Tooltip.Root {context}>
+							<!-- Numeric y prevents vertical flipping while x stays within the viewport. -->
+							<Tooltip.Root
+								{context}
+								anchor={useTouchTooltip ? "bottom" : "top-left"}
+								xOffset={useTouchTooltip ? 0 : 10}
+								y={useTouchTooltip ? context.tooltip.y : "pointer"}
+								yOffset={useTouchTooltip ? 24 : 10}
+								contained={useTouchTooltip ? "window" : "container"}
+								motion={useTouchTooltip ? "none" : "spring"}
+							>
 								{#snippet children({ data })}
 									{@const at = context.x(data) as Date}
 									{@const visible = [
@@ -960,6 +875,10 @@
 {/if}
 
 <style>
+	.history-chart {
+		-webkit-touch-callout: none;
+	}
+
 	:global(
 		.lc-tooltip-item-root[data-highlighted="false"] > .lc-tooltip-item-label,
 		.lc-tooltip-item-root[data-highlighted="false"] > .lc-tooltip-item-value

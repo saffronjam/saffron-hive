@@ -9,7 +9,7 @@ import (
 
 var storeTestTemplate = testdb.NewTemplate(Migrations, "migrations")
 
-func newTestStore(t *testing.T) *DB {
+func newTestStore(t testing.TB) *DB {
 	t.Helper()
 	db, err := storeTestTemplate.Open(
 		filepath.Join(t.TempDir(), "store.db"),

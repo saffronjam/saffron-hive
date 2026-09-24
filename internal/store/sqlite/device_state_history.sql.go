@@ -99,50 +99,40 @@ func (q *Queries) PruneDeviceStateSamplesOlderThan(ctx context.Context, cutoff s
 }
 
 const queryStateHistoryAnchors = `-- name: QueryStateHistoryAnchors :many
-WITH ranked AS (
-    SELECT
-        device_id,
-        field,
-        numeric_value,
-        text_value,
-        ROW_NUMBER() OVER (
-            PARTITION BY device_id, field
-            ORDER BY recorded_at DESC, id DESC
-        ) AS row_num
-    FROM device_state_samples
-    WHERE device_id IN (SELECT value FROM json_each(CAST(?1 AS TEXT)))
-      AND (json_array_length(CAST(?2 AS TEXT)) = 0
-           OR field IN (SELECT value FROM json_each(CAST(?2 AS TEXT))))
-      AND field IN (SELECT value FROM json_each(CAST(?3 AS TEXT)))
-      AND recorded_at < CAST(?4 AS TEXT)
+WITH requested AS (
+    SELECT DISTINCT CAST(d.value AS TEXT) AS device_id, CAST(f.value AS TEXT) AS field
+    FROM json_each(CAST(?2 AS TEXT)) AS d
+    CROSS JOIN json_each(CAST(?3 AS TEXT)) AS f
 )
-SELECT device_id, field, numeric_value, text_value
-FROM ranked
-WHERE row_num = 1
-ORDER BY device_id ASC, field ASC
+SELECT s.device_id, s.field, s.numeric_value, s.text_value
+FROM requested AS r
+JOIN device_state_samples AS s ON s.id = (
+    SELECT id
+    FROM device_state_samples
+    WHERE device_id = r.device_id
+      AND field = r.field
+      AND recorded_at < CAST(?1 AS TEXT)
+    ORDER BY recorded_at DESC, id DESC
+    LIMIT 1
+)
+ORDER BY s.device_id ASC, s.field ASC
 `
 
 type QueryStateHistoryAnchorsParams struct {
-	DeviceIdsJson      string
-	FieldsJson         string
-	StatefulFieldsJson string
-	FromTime           string
+	FromTime      string
+	DeviceIdsJson string
+	FieldsJson    string
 }
 
 type QueryStateHistoryAnchorsRow struct {
-	DeviceID     string
+	DeviceID     device.DeviceID
 	Field        string
 	NumericValue *float64
 	TextValue    *string
 }
 
 func (q *Queries) QueryStateHistoryAnchors(ctx context.Context, arg QueryStateHistoryAnchorsParams) ([]QueryStateHistoryAnchorsRow, error) {
-	rows, err := q.db.QueryContext(ctx, queryStateHistoryAnchors,
-		arg.DeviceIdsJson,
-		arg.FieldsJson,
-		arg.StatefulFieldsJson,
-		arg.FromTime,
-	)
+	rows, err := q.db.QueryContext(ctx, queryStateHistoryAnchors, arg.FromTime, arg.DeviceIdsJson, arg.FieldsJson)
 	if err != nil {
 		return nil, err
 	}
@@ -178,23 +168,20 @@ SELECT
     CAST(strftime('%s', substr(MIN(recorded_at), 1, 19)) AS INTEGER) AS bucket_start_unix
 FROM device_state_samples
 WHERE device_id IN (SELECT value FROM json_each(CAST(?2 AS TEXT)))
-  AND (json_array_length(CAST(?3 AS TEXT)) = 0
-       OR field IN (SELECT value FROM json_each(CAST(?3 AS TEXT))))
-  AND field NOT IN (SELECT value FROM json_each(CAST(?4 AS TEXT)))
+  AND field IN (SELECT value FROM json_each(CAST(?3 AS TEXT)))
   AND numeric_value IS NOT NULL
-  AND recorded_at >= CAST(?5 AS TEXT)
-  AND recorded_at <= CAST(?6 AS TEXT)
+  AND recorded_at >= CAST(?4 AS TEXT)
+  AND recorded_at <= CAST(?5 AS TEXT)
 GROUP BY device_id, field, bucket_key
 ORDER BY device_id ASC, field ASC, bucket_start_unix ASC
 `
 
 type QueryStateHistoryNumericBucketedParams struct {
-	BucketSeconds      int64
-	DeviceIdsJson      string
-	FieldsJson         string
-	StatefulFieldsJson string
-	FromTime           string
-	ToTime             string
+	BucketSeconds int64
+	DeviceIdsJson string
+	FieldsJson    string
+	FromTime      string
+	ToTime        string
 }
 
 type QueryStateHistoryNumericBucketedRow struct {
@@ -210,7 +197,6 @@ func (q *Queries) QueryStateHistoryNumericBucketed(ctx context.Context, arg Quer
 		arg.BucketSeconds,
 		arg.DeviceIdsJson,
 		arg.FieldsJson,
-		arg.StatefulFieldsJson,
 		arg.FromTime,
 		arg.ToTime,
 	)
@@ -245,8 +231,7 @@ const queryStateHistoryRaw = `-- name: QueryStateHistoryRaw :many
 SELECT device_id, field, numeric_value, text_value, recorded_at
 FROM device_state_samples
 WHERE device_id IN (SELECT value FROM json_each(CAST(?1 AS TEXT)))
-  AND (json_array_length(CAST(?2 AS TEXT)) = 0
-       OR field IN (SELECT value FROM json_each(CAST(?2 AS TEXT))))
+  AND field IN (SELECT value FROM json_each(CAST(?2 AS TEXT)))
   AND recorded_at >= CAST(?3 AS TEXT)
   AND recorded_at <= CAST(?4 AS TEXT)
 ORDER BY device_id ASC, field ASC, recorded_at ASC
@@ -316,11 +301,9 @@ WITH bucketed AS (
         CAST(strftime('%s', substr(recorded_at, 1, 19)) AS INTEGER) / CAST(?1 AS INTEGER) AS bucket_key
     FROM device_state_samples
     WHERE device_id IN (SELECT value FROM json_each(CAST(?2 AS TEXT)))
-      AND (json_array_length(CAST(?3 AS TEXT)) = 0
-           OR field IN (SELECT value FROM json_each(CAST(?3 AS TEXT))))
-      AND field IN (SELECT value FROM json_each(CAST(?4 AS TEXT)))
-      AND recorded_at >= CAST(?5 AS TEXT)
-      AND recorded_at <= CAST(?6 AS TEXT)
+      AND field IN (SELECT value FROM json_each(CAST(?3 AS TEXT)))
+      AND recorded_at >= CAST(?4 AS TEXT)
+      AND recorded_at <= CAST(?5 AS TEXT)
 ), ranked AS (
     SELECT
         device_id,
@@ -341,12 +324,11 @@ ORDER BY device_id ASC, field ASC, recorded_at ASC
 `
 
 type QueryStateHistoryStatefulBucketedParams struct {
-	BucketSeconds      int64
-	DeviceIdsJson      string
-	FieldsJson         string
-	StatefulFieldsJson string
-	FromTime           string
-	ToTime             string
+	BucketSeconds int64
+	DeviceIdsJson string
+	FieldsJson    string
+	FromTime      string
+	ToTime        string
 }
 
 type QueryStateHistoryStatefulBucketedRow struct {
@@ -362,7 +344,6 @@ func (q *Queries) QueryStateHistoryStatefulBucketed(ctx context.Context, arg Que
 		arg.BucketSeconds,
 		arg.DeviceIdsJson,
 		arg.FieldsJson,
-		arg.StatefulFieldsJson,
 		arg.FromTime,
 		arg.ToTime,
 	)

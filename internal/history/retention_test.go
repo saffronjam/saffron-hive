@@ -32,6 +32,7 @@ func TestRetentionPrunesOlderSamplesFromSetting(t *testing.T) {
 
 	points, err := s.QueryStateHistory(ctx, store.StateHistoryQuery{
 		DeviceIDs: []device.DeviceID{"sensor-1"},
+		Fields:    AllFields,
 		From:      now.Add(-96 * time.Hour),
 		To:        now.Add(time.Hour),
 	})

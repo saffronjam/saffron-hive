@@ -67,6 +67,7 @@ func TestRecorderFansOutPerField(t *testing.T) {
 		var err error
 		points, err = s.QueryStateHistory(ctx, store.StateHistoryQuery{
 			DeviceIDs: []device.DeviceID{"sensor-1"},
+			Fields:    AllFields,
 			From:      time.Now().Add(-time.Hour),
 			To:        time.Now().Add(time.Hour),
 		})
@@ -132,6 +133,7 @@ func TestRecorderPersistsMultistateSensorFields(t *testing.T) {
 		var err error
 		points, err = s.QueryStateHistory(ctx, store.StateHistoryQuery{
 			DeviceIDs: []device.DeviceID{"sensor-1"},
+			Fields:    AllFields,
 			From:      time.Now().Add(-time.Hour),
 			To:        time.Now().Add(time.Hour),
 		})
@@ -191,6 +193,7 @@ func TestRecorderRecordsOccupancyAsZeroOrOne(t *testing.T) {
 		var err error
 		points, err = s.QueryStateHistory(ctx, store.StateHistoryQuery{
 			DeviceIDs: []device.DeviceID{"sensor-1"},
+			Fields:    AllFields,
 			From:      time.Now().Add(-time.Hour),
 			To:        time.Now().Add(time.Hour),
 		})
@@ -244,6 +247,7 @@ func TestRecorderSkipsOccupancyWhenAbsent(t *testing.T) {
 		var err error
 		points, err = s.QueryStateHistory(ctx, store.StateHistoryQuery{
 			DeviceIDs: []device.DeviceID{"sensor-1"},
+			Fields:    AllFields,
 			From:      time.Now().Add(-time.Hour),
 			To:        time.Now().Add(time.Hour),
 		})
@@ -286,6 +290,7 @@ func TestRecorderSkipsEventsWithoutDeviceID(t *testing.T) {
 
 	points, err := s.QueryStateHistory(ctx, store.StateHistoryQuery{
 		DeviceIDs: []device.DeviceID{"sensor-1"},
+		Fields:    AllFields,
 		From:      time.Now().Add(-time.Hour),
 		To:        time.Now().Add(time.Hour),
 	})

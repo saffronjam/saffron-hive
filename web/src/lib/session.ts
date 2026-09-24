@@ -1,3 +1,4 @@
+import { clearStateHistory } from "$lib/stores/state-history.svelte";
 import { clearAllSnapshots } from "$lib/entity-cache";
 import { clearAllSessionSnapshots } from "$lib/session-cache";
 import { resetPrefetchedDetails } from "$lib/prefetch-detail";
@@ -27,6 +28,7 @@ import { clearDeviceImageCache } from "$lib/device-image-cache";
  * data.
  */
 export function sessionTeardown(): void {
+  clearStateHistory();
   alarmsStore.stop();
   maintenanceStore.stop();
   deviceStore.stop();

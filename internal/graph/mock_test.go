@@ -912,10 +912,8 @@ func (m *mockStore) QueryStateHistory(_ context.Context, q store.StateHistoryQue
 		if _, ok := deviceSet[string(p.DeviceID)]; !ok {
 			continue
 		}
-		if len(fieldSet) > 0 {
-			if _, ok := fieldSet[p.Field]; !ok {
-				continue
-			}
+		if _, ok := fieldSet[p.Field]; !ok {
+			continue
 		}
 		if !q.From.IsZero() && p.At.Before(q.From) {
 			continue

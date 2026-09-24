@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"sort"
 	"time"
 
@@ -63,7 +64,7 @@ func sampleValuesEqual(aNumber *float64, aText *string, bNumber *float64, bText 
 // averaged in fixed-size buckets, while stateful fields retain the last value
 // in each bucket and include the value active at the start of the range.
 func (s *DB) QueryStateHistory(ctx context.Context, q StateHistoryQuery) ([]StateHistoryPoint, error) {
-	if len(q.DeviceIDs) == 0 {
+	if len(q.DeviceIDs) == 0 || len(q.Fields) == 0 {
 		return nil, nil
 	}
 	deviceIDs := make([]string, len(q.DeviceIDs))
@@ -78,19 +79,30 @@ func (s *DB) QueryStateHistory(ctx context.Context, q StateHistoryQuery) ([]Stat
 	if err != nil {
 		return nil, fmt.Errorf("marshal fields: %w", err)
 	}
-	statefulFieldsJSON, err := marshalStringArray(q.StatefulFields)
+	var numericFields, statefulFields []string
+	for _, field := range q.Fields {
+		if slices.Contains(q.StatefulFields, field) {
+			statefulFields = append(statefulFields, field)
+		} else {
+			numericFields = append(numericFields, field)
+		}
+	}
+	numericFieldsJSON, err := marshalStringArray(numericFields)
+	if err != nil {
+		return nil, fmt.Errorf("marshal numeric fields: %w", err)
+	}
+	statefulFieldsJSON, err := marshalStringArray(statefulFields)
 	if err != nil {
 		return nil, fmt.Errorf("marshal stateful fields: %w", err)
 	}
 	fromText := formatSampleTime(q.From)
 	toText := formatSampleTime(q.To)
 	out := make([]StateHistoryPoint, 0, 128)
-	if len(q.StatefulFields) > 0 {
+	if len(statefulFields) > 0 {
 		anchors, err := s.q.QueryStateHistoryAnchors(ctx, sqlite.QueryStateHistoryAnchorsParams{
-			DeviceIdsJson:      deviceIDsJSON,
-			FieldsJson:         fieldsJSON,
-			StatefulFieldsJson: statefulFieldsJSON,
-			FromTime:           fromText,
+			DeviceIdsJson: deviceIDsJSON,
+			FieldsJson:    statefulFieldsJSON,
+			FromTime:      fromText,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("query state history anchors: %w", err)
@@ -106,45 +118,47 @@ func (s *DB) QueryStateHistory(ctx context.Context, q StateHistoryQuery) ([]Stat
 		}
 	}
 	if q.BucketSeconds > 0 {
-		numericRows, err := s.q.QueryStateHistoryNumericBucketed(ctx, sqlite.QueryStateHistoryNumericBucketedParams{
-			DeviceIdsJson:      deviceIDsJSON,
-			FieldsJson:         fieldsJSON,
-			StatefulFieldsJson: statefulFieldsJSON,
-			FromTime:           fromText,
-			ToTime:             toText,
-			BucketSeconds:      int64(q.BucketSeconds),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("query numeric state history: %w", err)
-		}
-		for _, row := range numericRows {
-			value := row.BucketValue
-			out = append(out, StateHistoryPoint{
-				DeviceID:     row.DeviceID,
-				Field:        row.Field,
-				At:           time.Unix(row.BucketStartUnix, 0).UTC(),
-				NumericValue: &value,
+		if len(numericFields) > 0 {
+			numericRows, err := s.q.QueryStateHistoryNumericBucketed(ctx, sqlite.QueryStateHistoryNumericBucketedParams{
+				DeviceIdsJson: deviceIDsJSON,
+				FieldsJson:    numericFieldsJSON,
+				FromTime:      fromText,
+				ToTime:        toText,
+				BucketSeconds: int64(q.BucketSeconds),
 			})
+			if err != nil {
+				return nil, fmt.Errorf("query numeric state history: %w", err)
+			}
+			for _, row := range numericRows {
+				value := row.BucketValue
+				out = append(out, StateHistoryPoint{
+					DeviceID:     row.DeviceID,
+					Field:        row.Field,
+					At:           time.Unix(row.BucketStartUnix, 0).UTC(),
+					NumericValue: &value,
+				})
+			}
 		}
-		statefulRows, err := s.q.QueryStateHistoryStatefulBucketed(ctx, sqlite.QueryStateHistoryStatefulBucketedParams{
-			DeviceIdsJson:      deviceIDsJSON,
-			FieldsJson:         fieldsJSON,
-			StatefulFieldsJson: statefulFieldsJSON,
-			FromTime:           fromText,
-			ToTime:             toText,
-			BucketSeconds:      int64(q.BucketSeconds),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("query stateful state history: %w", err)
-		}
-		for _, row := range statefulRows {
-			out = append(out, StateHistoryPoint{
-				DeviceID:     device.DeviceID(row.DeviceID),
-				Field:        row.Field,
-				At:           row.RecordedAt,
-				NumericValue: row.NumericValue,
-				TextValue:    row.TextValue,
+		if len(statefulFields) > 0 {
+			statefulRows, err := s.q.QueryStateHistoryStatefulBucketed(ctx, sqlite.QueryStateHistoryStatefulBucketedParams{
+				DeviceIdsJson: deviceIDsJSON,
+				FieldsJson:    statefulFieldsJSON,
+				FromTime:      fromText,
+				ToTime:        toText,
+				BucketSeconds: int64(q.BucketSeconds),
 			})
+			if err != nil {
+				return nil, fmt.Errorf("query stateful state history: %w", err)
+			}
+			for _, row := range statefulRows {
+				out = append(out, StateHistoryPoint{
+					DeviceID:     device.DeviceID(row.DeviceID),
+					Field:        row.Field,
+					At:           row.RecordedAt,
+					NumericValue: row.NumericValue,
+					TextValue:    row.TextValue,
+				})
+			}
 		}
 		sortStateHistory(out)
 		return out, nil

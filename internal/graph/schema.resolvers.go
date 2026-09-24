@@ -2372,7 +2372,7 @@ func (r *queryResolver) StateHistory(ctx context.Context, filter model.StateHist
 		deviceIDs[i] = device.DeviceID(id)
 	}
 
-	var fields []string
+	fields := history.AllFields
 	if fv := filter.Fields.Value(); len(fv) > 0 {
 		fields = make([]string, 0, len(fv))
 		for _, f := range fv {

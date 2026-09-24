@@ -21,8 +21,7 @@ LIMIT 1;
 SELECT device_id, field, numeric_value, text_value, recorded_at
 FROM device_state_samples
 WHERE device_id IN (SELECT value FROM json_each(CAST(sqlc.arg('device_ids_json') AS TEXT)))
-  AND (json_array_length(CAST(sqlc.arg('fields_json') AS TEXT)) = 0
-       OR field IN (SELECT value FROM json_each(CAST(sqlc.arg('fields_json') AS TEXT))))
+  AND field IN (SELECT value FROM json_each(CAST(sqlc.arg('fields_json') AS TEXT)))
   AND recorded_at >= CAST(sqlc.arg('from_time') AS TEXT)
   AND recorded_at <= CAST(sqlc.arg('to_time') AS TEXT)
 ORDER BY device_id ASC, field ASC, recorded_at ASC
@@ -37,9 +36,7 @@ SELECT
     CAST(strftime('%s', substr(MIN(recorded_at), 1, 19)) AS INTEGER) AS bucket_start_unix
 FROM device_state_samples
 WHERE device_id IN (SELECT value FROM json_each(CAST(sqlc.arg('device_ids_json') AS TEXT)))
-  AND (json_array_length(CAST(sqlc.arg('fields_json') AS TEXT)) = 0
-       OR field IN (SELECT value FROM json_each(CAST(sqlc.arg('fields_json') AS TEXT))))
-  AND field NOT IN (SELECT value FROM json_each(CAST(sqlc.arg('stateful_fields_json') AS TEXT)))
+  AND field IN (SELECT value FROM json_each(CAST(sqlc.arg('fields_json') AS TEXT)))
   AND numeric_value IS NOT NULL
   AND recorded_at >= CAST(sqlc.arg('from_time') AS TEXT)
   AND recorded_at <= CAST(sqlc.arg('to_time') AS TEXT)
@@ -58,9 +55,7 @@ WITH bucketed AS (
         CAST(strftime('%s', substr(recorded_at, 1, 19)) AS INTEGER) / CAST(sqlc.arg('bucket_seconds') AS INTEGER) AS bucket_key
     FROM device_state_samples
     WHERE device_id IN (SELECT value FROM json_each(CAST(sqlc.arg('device_ids_json') AS TEXT)))
-      AND (json_array_length(CAST(sqlc.arg('fields_json') AS TEXT)) = 0
-           OR field IN (SELECT value FROM json_each(CAST(sqlc.arg('fields_json') AS TEXT))))
-      AND field IN (SELECT value FROM json_each(CAST(sqlc.arg('stateful_fields_json') AS TEXT)))
+      AND field IN (SELECT value FROM json_each(CAST(sqlc.arg('fields_json') AS TEXT)))
       AND recorded_at >= CAST(sqlc.arg('from_time') AS TEXT)
       AND recorded_at <= CAST(sqlc.arg('to_time') AS TEXT)
 ), ranked AS (
@@ -82,27 +77,23 @@ WHERE row_num = 1
 ORDER BY device_id ASC, field ASC, recorded_at ASC;
 
 -- name: QueryStateHistoryAnchors :many
-WITH ranked AS (
-    SELECT
-        device_id,
-        field,
-        numeric_value,
-        text_value,
-        ROW_NUMBER() OVER (
-            PARTITION BY device_id, field
-            ORDER BY recorded_at DESC, id DESC
-        ) AS row_num
-    FROM device_state_samples
-    WHERE device_id IN (SELECT value FROM json_each(CAST(sqlc.arg('device_ids_json') AS TEXT)))
-      AND (json_array_length(CAST(sqlc.arg('fields_json') AS TEXT)) = 0
-           OR field IN (SELECT value FROM json_each(CAST(sqlc.arg('fields_json') AS TEXT))))
-      AND field IN (SELECT value FROM json_each(CAST(sqlc.arg('stateful_fields_json') AS TEXT)))
-      AND recorded_at < CAST(sqlc.arg('from_time') AS TEXT)
+WITH requested AS (
+    SELECT DISTINCT CAST(d.value AS TEXT) AS device_id, CAST(f.value AS TEXT) AS field
+    FROM json_each(CAST(sqlc.arg('device_ids_json') AS TEXT)) AS d
+    CROSS JOIN json_each(CAST(sqlc.arg('fields_json') AS TEXT)) AS f
 )
-SELECT device_id, field, numeric_value, text_value
-FROM ranked
-WHERE row_num = 1
-ORDER BY device_id ASC, field ASC;
+SELECT s.device_id, s.field, s.numeric_value, s.text_value
+FROM requested AS r
+JOIN device_state_samples AS s ON s.id = (
+    SELECT id
+    FROM device_state_samples
+    WHERE device_id = r.device_id
+      AND field = r.field
+      AND recorded_at < CAST(sqlc.arg('from_time') AS TEXT)
+    ORDER BY recorded_at DESC, id DESC
+    LIMIT 1
+)
+ORDER BY s.device_id ASC, s.field ASC;
 
 -- name: PruneDeviceStateSamplesOlderThan :execrows
 DELETE FROM device_state_samples

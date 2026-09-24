@@ -441,7 +441,7 @@ type StateSample struct {
 
 // StateHistoryQuery parameterises a device state history lookup. Numeric
 // measurements are averaged in buckets while stateful values retain the last
-// value in each bucket. Fields empty means "every field".
+// value in each bucket. DeviceIDs and Fields must both be nonempty.
 type StateHistoryQuery struct {
 	DeviceIDs      []device.DeviceID
 	Fields         []string
