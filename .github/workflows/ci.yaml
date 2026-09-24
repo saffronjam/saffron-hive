@@ -140,6 +140,11 @@ jobs:
       - run: bun install
         working-directory: web
 
+      - name: Stabilize browser test networking
+        # IPv6 autoconfiguration on Docker veth interfaces interrupts Chromium
+        # requests with ERR_NETWORK_CHANGED. Existing interfaces keep IPv6.
+        run: sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
+
       # Frontend e2e uses testcontainers to spin up the real saffron-hive
       # image + a mosquitto sidecar.
       - name: Build test image
