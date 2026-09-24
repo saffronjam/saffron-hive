@@ -169,6 +169,45 @@
   html {
     font-family: var(--font-sans);
   }
+  :is(
+    button,
+    a[href],
+    summary,
+    select,
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    input[type="checkbox"],
+    input[type="radio"],
+    input[type="range"],
+    input[type="color"],
+    input[type="file"],
+    [role="button"],
+    [role="link"],
+    [role="checkbox"],
+    [role="radio"],
+    [role="switch"],
+    [role="tab"],
+    [role="menuitem"],
+    [role="menuitemcheckbox"],
+    [role="menuitemradio"],
+    [role="option"],
+    [role="slider"],
+    [data-slot="slider"]
+  ):not(:disabled, [aria-disabled="true"], [data-disabled=""], [data-disabled="true"]) {
+    cursor: pointer;
+  }
+  :is(:disabled, [aria-disabled="true"], [data-disabled=""], [data-disabled="true"]) {
+    cursor: default;
+  }
+  input[type="file"]::file-selector-button {
+    cursor: inherit;
+  }
+  [contenteditable="true"],
+  [contenteditable=""],
+  [contenteditable="plaintext-only"] {
+    cursor: text;
+  }
   *::-webkit-scrollbar {
     width: 10px;
     height: 10px;

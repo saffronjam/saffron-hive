@@ -241,13 +241,14 @@ state makes the UI feel unpredictable.
 
 ## Cursor styling
 
-Do not set `cursor-*` utilities on interactive elements. Rely on visual cues — hover highlight, border/ring changes, color shifts — to signal interactivity. The default cursor stays the arrow everywhere except real text inputs (where the browser's native text caret applies).
+Enabled buttons, links, menu items, selectable options, toggles, sliders, and
+clickable cards use the pointer cursor. Shared defaults live in `src/app.css`;
+use semantic elements and roles so controls inherit them.
 
-- No `cursor-pointer` on buttons, dropdown items, cards, clickable icons, or toggle affordances.
-- No `cursor-help`, `cursor-not-allowed`, or other cursor variants.
-- The only acceptable cursor is the browser default on `<input type="text">`, `<textarea>`, and `contenteditable` surfaces.
-
-If an element looks clickable but lacks a hover state, add the hover state — don't swap in `cursor-pointer`.
+Text inputs and editable content keep the text cursor. Disabled controls keep
+a non-interactive cursor. Drag handles, resize handles, and drawing surfaces keep
+cursors suited to those interactions. Pointer cursors accompany the existing
+hover and focus feedback.
 
 ## Transitions
 

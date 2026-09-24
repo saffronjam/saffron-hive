@@ -20,7 +20,7 @@
 	}: Props = $props();
 </script>
 
-<div class="flex items-center justify-end gap-1">
+<div class="flex items-center justify-end gap-1 [&_[data-slot=button]]:duration-200 [&_[data-slot=button]:hover]:bg-accent">
 	{@render leading?.()}
 	{#if editHref}
 		<Button variant="ghost" size="icon-sm" href={editHref} aria-label={editLabel}>

@@ -35,6 +35,9 @@ type Documents = {
     "\n  mutation E2ESetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n    setTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n  }\n": typeof types.E2ESetDeviceStateDocument,
     "\n  mutation E2EUpdateDevice($id: ID!, $input: UpdateDeviceInput!) {\n    updateDevice(id: $id, input: $input) {\n      id\n      name\n    }\n  }\n": typeof types.E2EUpdateDeviceDocument,
     "\n  subscription E2EDevicesDeviceStateChanged {\n    deviceStateChanged {\n      deviceId\n      state {\n        on\n        brightness\n        colorTemp\n      }\n    }\n  }\n": typeof types.E2EDevicesDeviceStateChangedDocument,
+    "\n  mutation BrowserEditorCreateEffect($input: CreateEffectInput!) {\n    createEffect(input: $input) {\n      id\n    }\n  }\n": typeof types.BrowserEditorCreateEffectDocument,
+    "\n  mutation BrowserEditorDeleteEffect($id: ID!) {\n    deleteEffect(id: $id)\n  }\n": typeof types.BrowserEditorDeleteEffectDocument,
+    "\n  mutation BrowserEditorSetLanguage($language: Language!) {\n    updateCurrentUser(input: { language: $language }) {\n      language\n    }\n  }\n": typeof types.BrowserEditorSetLanguageDocument,
     "\n  query E2EErrorsScene($id: ID!) {\n    scene(id: $id) {\n      id\n      name\n    }\n  }\n": typeof types.E2EErrorsSceneDocument,
     "\n  query E2EErrorsAutomation($id: ID!) {\n    automation(id: $id) {\n      id\n      name\n    }\n  }\n": typeof types.E2EErrorsAutomationDocument,
     "\n  mutation E2EErrorsAddGroupMember($input: AddGroupMemberInput!) {\n    addGroupMember(input: $input) {\n      id\n    }\n  }\n": typeof types.E2EErrorsAddGroupMemberDocument,
@@ -289,6 +292,9 @@ const documents: Documents = {
     "\n  mutation E2ESetDeviceState($deviceId: ID!, $state: DeviceStateInput!) {\n    setTargetState(target: { type: DEVICE, id: $deviceId }, state: $state)\n  }\n": types.E2ESetDeviceStateDocument,
     "\n  mutation E2EUpdateDevice($id: ID!, $input: UpdateDeviceInput!) {\n    updateDevice(id: $id, input: $input) {\n      id\n      name\n    }\n  }\n": types.E2EUpdateDeviceDocument,
     "\n  subscription E2EDevicesDeviceStateChanged {\n    deviceStateChanged {\n      deviceId\n      state {\n        on\n        brightness\n        colorTemp\n      }\n    }\n  }\n": types.E2EDevicesDeviceStateChangedDocument,
+    "\n  mutation BrowserEditorCreateEffect($input: CreateEffectInput!) {\n    createEffect(input: $input) {\n      id\n    }\n  }\n": types.BrowserEditorCreateEffectDocument,
+    "\n  mutation BrowserEditorDeleteEffect($id: ID!) {\n    deleteEffect(id: $id)\n  }\n": types.BrowserEditorDeleteEffectDocument,
+    "\n  mutation BrowserEditorSetLanguage($language: Language!) {\n    updateCurrentUser(input: { language: $language }) {\n      language\n    }\n  }\n": types.BrowserEditorSetLanguageDocument,
     "\n  query E2EErrorsScene($id: ID!) {\n    scene(id: $id) {\n      id\n      name\n    }\n  }\n": types.E2EErrorsSceneDocument,
     "\n  query E2EErrorsAutomation($id: ID!) {\n    automation(id: $id) {\n      id\n      name\n    }\n  }\n": types.E2EErrorsAutomationDocument,
     "\n  mutation E2EErrorsAddGroupMember($input: AddGroupMemberInput!) {\n    addGroupMember(input: $input) {\n      id\n    }\n  }\n": types.E2EErrorsAddGroupMemberDocument,
@@ -620,6 +626,18 @@ export function graphql(source: "\n  mutation E2EUpdateDevice($id: ID!, $input: 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  subscription E2EDevicesDeviceStateChanged {\n    deviceStateChanged {\n      deviceId\n      state {\n        on\n        brightness\n        colorTemp\n      }\n    }\n  }\n"): (typeof documents)["\n  subscription E2EDevicesDeviceStateChanged {\n    deviceStateChanged {\n      deviceId\n      state {\n        on\n        brightness\n        colorTemp\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation BrowserEditorCreateEffect($input: CreateEffectInput!) {\n    createEffect(input: $input) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation BrowserEditorCreateEffect($input: CreateEffectInput!) {\n    createEffect(input: $input) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation BrowserEditorDeleteEffect($id: ID!) {\n    deleteEffect(id: $id)\n  }\n"): (typeof documents)["\n  mutation BrowserEditorDeleteEffect($id: ID!) {\n    deleteEffect(id: $id)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation BrowserEditorSetLanguage($language: Language!) {\n    updateCurrentUser(input: { language: $language }) {\n      language\n    }\n  }\n"): (typeof documents)["\n  mutation BrowserEditorSetLanguage($language: Language!) {\n    updateCurrentUser(input: { language: $language }) {\n      language\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

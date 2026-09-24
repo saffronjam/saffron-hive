@@ -242,12 +242,12 @@
 		{#if roomChips.length > 0 || groupChips.length > 0}
 			<div class="flex flex-wrap gap-x-2 text-xs {mutedTextClass}">
 				{#each roomChips as chip (chip.id)}
-					<a href={`/rooms?edit=${chip.id}`} class="cursor-default transition-colors hover:text-foreground">
+					<a href={`/rooms?edit=${chip.id}`} class="transition-colors hover:text-foreground">
 						{chip.name}
 					</a>
 				{/each}
 				{#each groupChips as chip (chip.id)}
-					<a href={`/groups?edit=${chip.id}`} class="cursor-default transition-colors hover:text-foreground">
+					<a href={`/groups?edit=${chip.id}`} class="transition-colors hover:text-foreground">
 						{chip.name}
 					</a>
 				{/each}
