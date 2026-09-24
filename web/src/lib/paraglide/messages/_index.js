@@ -423,6 +423,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Common_LoadingInputs */
 /** @typedef {{}} Common_NoInputs */
 /** @typedef {{}} Common_NoneInputs */
+/** @typedef {{}} Common_PasteInputs */
 /** @typedef {{}} Common_RemoveInputs */
 /** @typedef {{}} Common_SaveInputs */
 /** @typedef {{}} Common_SavingInputs */
@@ -591,6 +592,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Effect_Timeline_EmptyInputs */
 /** @typedef {{ end: NonNullable<unknown>, gap: NonNullable<unknown> }} Effect_Timeline_End_GapInputs */
 /** @typedef {{}} Effect_Timeline_FitInputs */
+/** @typedef {{}} Effect_Timeline_LoopInputs */
 /** @typedef {{}} Effect_Timeline_Loop_EffectInputs */
 /** @typedef {{ value: NonNullable<unknown> }} Effect_Timeline_MiredsInputs */
 /** @typedef {{}} Effect_Timeline_NativeInputs */
@@ -8127,6 +8129,21 @@ export const common_none = /** @type {((inputs?: Common_NoneInputs, options?: { 
 /**
 * | output |
 * | --- |
+* | "Paste" |
+*
+* @param {Common_PasteInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const common_paste = /** @type {((inputs?: Common_PasteInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Common_PasteInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.common_paste(inputs)
+	if (locale === "ru") return __ru.common_paste(inputs)
+	return __en.common_paste(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Remove" |
 *
 * @param {Common_RemoveInputs} inputs
@@ -10672,6 +10689,21 @@ export const effect_timeline_fit = /** @type {((inputs?: Effect_Timeline_FitInpu
 	if (locale === "sv") return __sv.effect_timeline_fit(inputs)
 	if (locale === "ru") return __ru.effect_timeline_fit(inputs)
 	return __en.effect_timeline_fit(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Loop" |
+*
+* @param {Effect_Timeline_LoopInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const effect_timeline_loop = /** @type {((inputs?: Effect_Timeline_LoopInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Effect_Timeline_LoopInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.effect_timeline_loop(inputs)
+	if (locale === "ru") return __ru.effect_timeline_loop(inputs)
+	return __en.effect_timeline_loop(inputs)
 });
 /**
 * | output |

@@ -1787,6 +1787,8 @@
   "standard_room_workshop": "Verkstad",
   "field_temperature_calibration": "Temperaturkalibrering",
   "field_humidity_calibration": "Luftfuktighetskalibrering",
+  "effect_timeline_loop": "Loop",
+  "common_paste": "Klistra in",
   "translation_default_about": "Om standardspråk för innehåll",
   "translation_standard_rooms_about": "Om översättning av rumsnamn",
   "device_memberships_search": "Sök rum och grupper…",

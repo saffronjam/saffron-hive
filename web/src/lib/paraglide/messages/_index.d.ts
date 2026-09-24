@@ -5905,6 +5905,20 @@ export const common_none: ((inputs?: Common_NoneInputs, options?: {
 /**
 * | output |
 * | --- |
+* | "Paste" |
+*
+* @param {Common_PasteInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const common_paste: ((inputs?: Common_PasteInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Common_PasteInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Remove" |
 *
 * @param {Common_RemoveInputs} inputs
@@ -8281,6 +8295,20 @@ export const effect_timeline_end_gap: ((inputs: Effect_Timeline_End_GapInputs, o
 export const effect_timeline_fit: ((inputs?: Effect_Timeline_FitInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Effect_Timeline_FitInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Loop" |
+*
+* @param {Effect_Timeline_LoopInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const effect_timeline_loop: ((inputs?: Effect_Timeline_LoopInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Effect_Timeline_LoopInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -25722,6 +25750,7 @@ export type Common_In_ProgressInputs = {};
 export type Common_LoadingInputs = {};
 export type Common_NoInputs = {};
 export type Common_NoneInputs = {};
+export type Common_PasteInputs = {};
 export type Common_RemoveInputs = {};
 export type Common_SaveInputs = {};
 export type Common_SavingInputs = {};
@@ -25942,6 +25971,7 @@ export type Effect_Timeline_End_GapInputs = {
     gap: NonNullable<unknown>;
 };
 export type Effect_Timeline_FitInputs = {};
+export type Effect_Timeline_LoopInputs = {};
 export type Effect_Timeline_Loop_EffectInputs = {};
 export type Effect_Timeline_MiredsInputs = {
     value: NonNullable<unknown>;

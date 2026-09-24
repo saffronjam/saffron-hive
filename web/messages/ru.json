@@ -1787,6 +1787,8 @@
   "standard_room_workshop": "Мастерская",
   "field_temperature_calibration": "Калибровка температуры",
   "field_humidity_calibration": "Калибровка влажности",
+  "effect_timeline_loop": "Повтор",
+  "common_paste": "Вставить",
   "translation_default_about": "О языке содержимого по умолчанию",
   "translation_standard_rooms_about": "О переводе названий комнат",
   "device_memberships_search": "Поиск комнат и групп…",

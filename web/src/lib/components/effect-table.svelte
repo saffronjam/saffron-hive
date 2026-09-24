@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { entityDisplayName } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button/index.js";
-	import { Badge } from "$lib/components/ui/badge/index.js";
+	import EffectCapabilityChip from "$lib/components/effect-capability-chip.svelte";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
 	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
@@ -14,7 +14,6 @@
 	import { createTableState, type ColumnDef } from "$lib/utils/table-state.svelte";
 	import type { TableSelection } from "$lib/utils/table-selection.svelte";
 	import { rowAttrsForSelection } from "$lib/utils/row-attrs";
-	import { effectCapabilityLabel } from "$lib/effect-display";
 	import { EffectKind } from "$lib/gql/graphql";
 	import { nativeEffectSupportSummary } from "$lib/native-effect";
 	import { Play, Sparkles, Zap } from "@lucide/svelte";
@@ -185,7 +184,7 @@
 	{#if row.kind === "timeline" && row.effect.requiredCapabilities.length > 0}
 		<div class="flex flex-wrap items-center gap-1">
 			{#each row.effect.requiredCapabilities as capability (capability)}
-				<Badge variant="outline" class="text-[10px]">{effectCapabilityLabel(capability)}</Badge>
+				<EffectCapabilityChip {capability} />
 			{/each}
 		</div>
 	{:else}

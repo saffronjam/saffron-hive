@@ -11,7 +11,7 @@
 	import { matchesEffectFilter } from "$lib/effect-search";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { Button } from "$lib/components/ui/button/index.js";
-	import { Badge } from "$lib/components/ui/badge/index.js";
+	import EffectCapabilityChip from "$lib/components/effect-capability-chip.svelte";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import {
@@ -38,7 +38,6 @@
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
 	import { BannerError } from "$lib/stores/banner-error.svelte";
-	import { effectCapabilityLabel } from "$lib/effect-display";
 	import { EffectKind, type Effect, type NativeEffectOption } from "$lib/gql/graphql";
 	import { nativeEffectSupportSummary } from "$lib/native-effect";
 	import { m } from "$lib/i18n/messages";
@@ -435,9 +434,7 @@
 											<div class="mt-3 flex flex-wrap items-center gap-1.5">
 												<HiveChip type="group" label="Hive" />
 												{#each effect.requiredCapabilities as cap (cap)}
-													<Badge variant="outline" class="text-[10px]">
-														{effectCapabilityLabel(cap)}
-													</Badge>
+													<EffectCapabilityChip capability={cap} />
 												{/each}
 												{#if effect.requiredCapabilities.length === 0}
 											<span class="text-[11px] text-muted-foreground">{m.effects_no_required_capabilities({}, locale.messageOptions())}</span>

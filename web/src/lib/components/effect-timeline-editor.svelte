@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, untrack } from "svelte";
+	import { onMount, tick, untrack } from "svelte";
 	import { toast } from "svelte-sonner";
 	import { getContextClient, queryStore, subscriptionStore } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
@@ -7,7 +7,7 @@
 	import { nativeEffectSupportSummary } from "$lib/native-effect";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
-	import HiveChip from "$lib/components/hive-chip.svelte";
+	import EffectCapabilityChip from "$lib/components/effect-capability-chip.svelte";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import NumberInput from "$lib/components/number-input.svelte";
@@ -62,7 +62,6 @@
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
 	import { formatShortDuration } from "$lib/i18n/format";
-	import { effectCapabilityLabel } from "$lib/effect-display";
 
 	interface Props {
 		tracks: EditableTrack[];
@@ -120,6 +119,7 @@
 
 	let pxPerMs = $state(0.05);
 	let viewportEl = $state<HTMLDivElement | null>(null);
+	let timelineEl = $state<HTMLDivElement | null>(null);
 	let editorRootEl = $state<HTMLDivElement | null>(null);
 	let viewportWidth = $state(800);
 	let activeClipUid = $state<string | null>(null);
@@ -193,14 +193,14 @@
 		if (snap) applySnapshot(snap);
 	}
 
-	type ContextMenuState = {
-		trackUid: string;
-		startMs: number;
-		x: number;
-		y: number;
-	};
+	type ContextMenuState = { x: number; y: number } & (
+		| { kind: "canvas" }
+		| { kind: "track"; trackUid: string; startMs: number }
+		| { kind: "clip"; trackUid: string; clipUid: string }
+	);
 	let contextMenuOpen = $state(false);
 	let contextMenuState = $state<ContextMenuState | null>(null);
+	let contextMenuRequest = 0;
 
 	const clipTypes = $derived.by<{ kind: ClipKind; label: string }[]>(() => [
 		{ kind: "set_on_off", label: m.effect_timeline_on_off({}, locale.messageOptions()) },
@@ -384,30 +384,6 @@
 	}
 
 
-	function capChipType(cap: string): string {
-		switch (cap) {
-			case "on_off":
-				return "on";
-			case "color_temp":
-				return "colorTemp";
-			case "brightness":
-				return "brightness";
-			case "color":
-				return "color";
-			default:
-				return cap;
-		}
-	}
-
-	function capChipIcon(cap: string): string | null {
-		switch (cap) {
-			case "color":
-				return "lucide:palette";
-			default:
-				return null;
-		}
-	}
-
 	function clipWidthPx(clip: EditableClip): number {
 		return Math.max(MIN_CLIP_VISUAL_PX, clip.transitionMaxMs * pxPerMs);
 	}
@@ -570,7 +546,7 @@
 		clip: EditableClip,
 		mode: "move" | "resize",
 	) {
-		if (disabled) return;
+		if (disabled || evt.button !== 0) return;
 		const target = evt.currentTarget as HTMLElement;
 		const startX = evt.clientX;
 		const startY = evt.clientY;
@@ -700,30 +676,93 @@
 		window.addEventListener("pointerup", handleUp);
 	}
 
-	function openTrackContextMenu(evt: MouseEvent, trackUid: string) {
+	function closeContextMenu() {
+		contextMenuRequest += 1;
+		contextMenuOpen = false;
+		contextMenuState = null;
+	}
+
+	async function openContextMenu(state: ContextMenuState) {
 		if (disabled) return;
-		evt.preventDefault();
-		evt.stopPropagation();
-		if (!viewportEl) return;
-		const rect = viewportEl.getBoundingClientRect();
-		const xInGrid = evt.clientX - rect.left + viewportEl.scrollLeft;
-		const desiredMs = Math.max(0, xInGrid / pxPerMs);
-		contextMenuState = {
-			trackUid,
-			startMs: desiredMs,
-			x: evt.clientX,
-			y: evt.clientY,
+		const request = ++contextMenuRequest;
+		contextMenuOpen = false;
+		contextMenuState = state;
+		await tick();
+		if (request === contextMenuRequest && !disabled && timelineEl) contextMenuOpen = true;
+	}
+
+	function contextMenuAt(target: Element | null, x: number, y: number): ContextMenuState | null {
+		if (!timelineEl || !viewportEl) return null;
+		const containsPoint = (element: Element) => {
+			const bounds = element.getBoundingClientRect();
+			return x >= bounds.left && x < bounds.right && y >= bounds.top && y < bounds.bottom;
 		};
-		contextMenuOpen = true;
+		if (!containsPoint(timelineEl) || target?.closest("input, textarea, [contenteditable=true]")) return null;
+		if (!containsPoint(viewportEl)) return { kind: "canvas", x, y };
+		const trackElement = Array.from(timelineEl.querySelectorAll<HTMLElement>("[data-track-uid]")).find(containsPoint);
+		const trackUid = trackElement?.dataset.trackUid;
+		if (!trackUid) return { kind: "canvas", x, y };
+		const clipUid = Array.from(trackElement.querySelectorAll<HTMLElement>("[data-clip-uid]")).find(containsPoint)?.dataset.clipUid;
+		if (clipUid) return { kind: "clip", trackUid, clipUid, x, y };
+		const rect = viewportEl.getBoundingClientRect();
+		const startMs = Math.max(0, (x - rect.left + viewportEl.scrollLeft) / pxPerMs);
+		return { kind: "track", trackUid, startMs, x, y };
+	}
+
+	function handleTimelineContextMenu(event: MouseEvent) {
+		if (disabled) return;
+		const state = contextMenuAt(event.target instanceof Element ? event.target : null, event.clientX, event.clientY);
+		if (!state) return;
+		event.preventDefault();
+		event.stopPropagation();
+		void openContextMenu(state);
+	}
+
+	async function handleOpenContextMenu(event: MouseEvent) {
+		if (!contextMenuOpen) return;
+		event.preventDefault();
+		const { clientX, clientY } = event;
+		closeContextMenu();
+		const request = contextMenuRequest;
+		await tick();
+		if (request !== contextMenuRequest || disabled) return;
+		const state = contextMenuAt(document.elementFromPoint(clientX, clientY), clientX, clientY);
+		if (state) await openContextMenu(state);
 	}
 
 	function handleContextMenuPick(kind: ClipKind) {
 		const state = contextMenuState;
-		contextMenuOpen = false;
-		contextMenuState = null;
-		if (!state) return;
+		closeContextMenu();
+		if (disabled || state?.kind !== "track") return;
 		addClipToTrackAt(state.trackUid, kind, state.startMs);
 	}
+
+	function copyFromContextMenu() {
+		const state = contextMenuState;
+		closeContextMenu();
+		if (disabled || state?.kind !== "clip") return;
+		const clip = tracks.find((track) => track.uid === state.trackUid)?.clips.find((clip) => clip.uid === state.clipUid);
+		if (clip) copyClip(clip);
+	}
+
+	function deleteFromContextMenu() {
+		const state = contextMenuState;
+		closeContextMenu();
+		if (disabled || state?.kind !== "clip") return;
+		removeClip(state.trackUid, state.clipUid);
+		if (activeClipUid === state.clipUid) activeClipUid = null;
+	}
+
+	function pasteFromContextMenu() {
+		const state = contextMenuState;
+		closeContextMenu();
+		if (disabled || state?.kind !== "track") return;
+		pasteClipOnTrack(state.trackUid, state.startMs);
+	}
+
+	$effect(() => {
+		if (disabled) untrack(closeContextMenu);
+	});
 
 	function handleWheel(e: WheelEvent) {
 		if (!e.ctrlKey && !e.metaKey) return;
@@ -848,7 +887,7 @@
 			kind: clip.kind,
 			transitionMinMs: clip.transitionMinMs,
 			transitionMaxMs: clip.transitionMaxMs,
-			config: structuredClone(clip.config),
+			config: $state.snapshot(clip.config),
 		};
 	}
 
@@ -870,7 +909,7 @@
 			transitionMinMs: entry.transitionMinMs,
 			transitionMaxMs: entry.transitionMaxMs,
 			kind: entry.kind,
-			config: structuredClone(entry.config),
+			config: $state.snapshot(entry.config),
 		};
 		updateTrack(trackUid, (t) => ({ ...t, clips: [...t.clips, newClip] }));
 		takeSnapshot();
@@ -967,6 +1006,8 @@
 	});
 </script>
 
+<svelte:window oncontextmenu={handleOpenContextMenu} />
+
 <div bind:this={editorRootEl} class="flex flex-col gap-3 rounded-lg shadow-card bg-card p-3">
 	<div class="flex flex-wrap items-center justify-between gap-2">
 		<h2 class="text-sm font-medium text-foreground">{m.effect_timeline_title({}, locale.messageOptions())}</h2>
@@ -1047,8 +1088,8 @@
 				</Button>
 			</div>
 			<label class="flex items-center gap-2 text-sm text-muted-foreground">
-				<span>{m.effects_loop({}, locale.messageOptions())}</span>
-				<Switch bind:checked={loop} aria-label={m.effect_timeline_loop_effect({}, locale.messageOptions())} />
+				<span>{m.effect_timeline_loop({}, locale.messageOptions())}</span>
+				<Switch bind:checked={loop} {disabled} aria-label={m.effect_timeline_loop_effect({}, locale.messageOptions())} />
 			</label>
 		</div>
 	</div>
@@ -1057,12 +1098,12 @@
 		<div class="flex flex-wrap items-center gap-1.5">
 			<span class="text-xs text-muted-foreground">{m.effect_timeline_required({}, locale.messageOptions())}</span>
 			{#each requiredCaps as cap (cap)}
-				<HiveChip type={capChipType(cap)} label={effectCapabilityLabel(cap)} iconOverride={capChipIcon(cap)} />
+				<EffectCapabilityChip capability={cap} />
 			{/each}
 		</div>
 	{/if}
 
-	<div class="flex w-full max-w-full overflow-hidden rounded-md bg-background">
+	<div bind:this={timelineEl} oncontextmenu={handleTimelineContextMenu} role="presentation" class="flex w-full max-w-full overflow-hidden rounded-md bg-background">
 		<div
 			class="flex shrink-0 flex-col border-r border-border bg-background"
 			style="width: {HEADER_WIDTH}px;"
@@ -1086,34 +1127,20 @@
 						onsave={(newName) => renameTrack(track.uid, newName)}
 					/>
 					<div class="flex items-center">
-						<DropdownMenu>
-							<DropdownMenuTrigger>
-								<Button
-									variant="ghost"
-									size="icon-sm"
-									{disabled}
-									aria-label={m.effect_timeline_add_clip_to({ name: track.name === "" ? m.effect_timeline_track({ number: trackIndex + 1 }, locale.messageOptions()) : track.name }, locale.messageOptions())}
-								>
-									<Plus class="size-3" />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="start" class="min-w-[12rem]">
-								{#each clipTypes as clipType (clipType.kind)}
-									{@const ClipTypeIcon = clipIcon(clipType)}
-									<DropdownMenuItem onclick={() => addClipToTrackAt(track.uid, clipType.kind, 0)}>
-										<ClipTypeIcon class="size-3.5" />
-										{clipType.label}
-									</DropdownMenuItem>
-								{/each}
-								{#if clipboardClip}
-									<DropdownMenuSeparator />
-									<DropdownMenuItem onclick={() => pasteClipOnTrack(track.uid, 0)}>
-										<ClipboardPaste class="size-3.5" />
-										{m.effect_timeline_paste_clip({}, locale.messageOptions())}
-									</DropdownMenuItem>
-								{/if}
-							</DropdownMenuContent>
-						</DropdownMenu>
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							{disabled}
+							aria-haspopup="menu"
+							aria-expanded={contextMenuOpen && contextMenuState?.kind === "track" && contextMenuState.trackUid === track.uid}
+							aria-label={m.effect_timeline_add_clip_to({ name: track.name === "" ? m.effect_timeline_track({ number: trackIndex + 1 }, locale.messageOptions()) : track.name }, locale.messageOptions())}
+							onclick={(event) => {
+								const rect = event.currentTarget.getBoundingClientRect();
+								void openContextMenu({ kind: "track", trackUid: track.uid, startMs: 0, x: rect.left, y: rect.bottom });
+							}}
+						>
+							<Plus class="size-3" />
+						</Button>
 						<Button
 							variant="ghost"
 							size="icon-sm"
@@ -1171,8 +1198,7 @@
 						class="relative border-t border-border/50 bg-muted/30"
 						style="height: {TRACK_HEIGHT}px;"
 						data-track-uid={track.uid}
-						oncontextmenu={(e: MouseEvent) => openTrackContextMenu(e, track.uid)}
-						ondblclick={(e: MouseEvent) => openTrackContextMenu(e, track.uid)}
+						ondblclick={handleTimelineContextMenu}
 						role="presentation"
 					>
 						{#each ticks as tick (tick.ms)}
@@ -1199,10 +1225,6 @@
 								onclick={(e: MouseEvent) => {
 									const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
 									openClipPanel(clip.uid, rect);
-								}}
-								oncontextmenu={(e: MouseEvent) => {
-									e.preventDefault();
-									e.stopPropagation();
 								}}
 								ondblclick={(e: MouseEvent) => e.stopPropagation()}
 								aria-label={m.effect_timeline_edit_clip({}, locale.messageOptions())}
@@ -1257,12 +1279,7 @@
 		</div>
 	</div>
 
-	<DropdownMenu
-		bind:open={contextMenuOpen}
-		onOpenChange={(o) => {
-			if (!o) contextMenuState = null;
-		}}
-	>
+	<DropdownMenu bind:open={contextMenuOpen}>
 		<DropdownMenuTrigger
 			class="pointer-events-none fixed size-0 opacity-0"
 			style="left: {contextMenuState?.x ?? 0}px; top: {contextMenuState?.y ?? 0}px;"
@@ -1270,25 +1287,35 @@
 			tabindex={-1}
 		></DropdownMenuTrigger>
 		<DropdownMenuContent align="start" class="min-w-[12rem]">
-			{#each clipTypes as ct (ct.kind)}
-				{@const ItemIcon = clipIcon(ct)}
-				<DropdownMenuItem onclick={() => handleContextMenuPick(ct.kind)}>
-					<ItemIcon class="size-3.5" />
-					{ct.label}
+			{#if contextMenuState?.kind === "canvas"}
+				<DropdownMenuItem {disabled} onclick={() => {
+					closeContextMenu();
+					if (!disabled) addTrack();
+				}}>
+					<Plus class="size-3.5" />
+					{m.effect_timeline_add_track({}, locale.messageOptions())}
 				</DropdownMenuItem>
-			{/each}
-			{#if clipboardClip}
+			{:else if contextMenuState?.kind === "clip"}
+				<DropdownMenuItem {disabled} onclick={copyFromContextMenu}>
+					<Copy class="size-3.5" />
+					{m.common_copy({}, locale.messageOptions())}
+				</DropdownMenuItem>
+				<DropdownMenuItem {disabled} variant="destructive" onclick={deleteFromContextMenu}>
+					<Trash2 class="size-3.5" />
+					{m.common_delete({}, locale.messageOptions())}
+				</DropdownMenuItem>
+			{:else if contextMenuState?.kind === "track"}
+				{#each clipTypes as ct (ct.kind)}
+					{@const ItemIcon = clipIcon(ct)}
+					<DropdownMenuItem {disabled} onclick={() => handleContextMenuPick(ct.kind)}>
+						<ItemIcon class="size-3.5" />
+						{ct.label}
+					</DropdownMenuItem>
+				{/each}
 				<DropdownMenuSeparator />
-				<DropdownMenuItem
-					onclick={() => {
-						const state = contextMenuState;
-						contextMenuOpen = false;
-						contextMenuState = null;
-						if (state) pasteClipOnTrack(state.trackUid, state.startMs);
-					}}
-				>
+				<DropdownMenuItem disabled={disabled || !clipboardClip} onclick={pasteFromContextMenu}>
 					<ClipboardPaste class="size-3.5" />
-					{m.effect_timeline_paste_clip({}, locale.messageOptions())}
+					{m.common_paste({}, locale.messageOptions())}
 				</DropdownMenuItem>
 			{/if}
 		</DropdownMenuContent>

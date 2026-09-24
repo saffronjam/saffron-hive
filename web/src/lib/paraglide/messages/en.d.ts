@@ -419,6 +419,7 @@ export const common_in_progress: (inputs: Common_In_ProgressInputs) => Localized
 export const common_loading: (inputs: Common_LoadingInputs) => LocalizedString;
 export const common_no: (inputs: Common_NoInputs) => LocalizedString;
 export const common_none: (inputs: Common_NoneInputs) => LocalizedString;
+export const common_paste: (inputs: Common_PasteInputs) => LocalizedString;
 export const common_remove: (inputs: Common_RemoveInputs) => LocalizedString;
 export const common_save: (inputs: Common_SaveInputs) => LocalizedString;
 export const common_saving: (inputs: Common_SavingInputs) => LocalizedString;
@@ -587,6 +588,7 @@ export const effect_timeline_edit_clip: (inputs: Effect_Timeline_Edit_ClipInputs
 export const effect_timeline_empty: (inputs: Effect_Timeline_EmptyInputs) => LocalizedString;
 export const effect_timeline_end_gap: (inputs: Effect_Timeline_End_GapInputs) => LocalizedString;
 export const effect_timeline_fit: (inputs: Effect_Timeline_FitInputs) => LocalizedString;
+export const effect_timeline_loop: (inputs: Effect_Timeline_LoopInputs) => LocalizedString;
 export const effect_timeline_loop_effect: (inputs: Effect_Timeline_Loop_EffectInputs) => LocalizedString;
 export const effect_timeline_mireds: (inputs: Effect_Timeline_MiredsInputs) => LocalizedString;
 export const effect_timeline_native: (inputs: Effect_Timeline_NativeInputs) => LocalizedString;
@@ -2324,6 +2326,7 @@ export type Common_In_ProgressInputs = {};
 export type Common_LoadingInputs = {};
 export type Common_NoInputs = {};
 export type Common_NoneInputs = {};
+export type Common_PasteInputs = {};
 export type Common_RemoveInputs = {};
 export type Common_SaveInputs = {};
 export type Common_SavingInputs = {};
@@ -2544,6 +2547,7 @@ export type Effect_Timeline_End_GapInputs = {
     gap: NonNullable<unknown>;
 };
 export type Effect_Timeline_FitInputs = {};
+export type Effect_Timeline_LoopInputs = {};
 export type Effect_Timeline_Loop_EffectInputs = {};
 export type Effect_Timeline_MiredsInputs = {
     value: NonNullable<unknown>;

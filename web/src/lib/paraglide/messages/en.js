@@ -421,6 +421,7 @@
 /** @typedef {{}} Common_LoadingInputs */
 /** @typedef {{}} Common_NoInputs */
 /** @typedef {{}} Common_NoneInputs */
+/** @typedef {{}} Common_PasteInputs */
 /** @typedef {{}} Common_RemoveInputs */
 /** @typedef {{}} Common_SaveInputs */
 /** @typedef {{}} Common_SavingInputs */
@@ -589,6 +590,7 @@
 /** @typedef {{}} Effect_Timeline_EmptyInputs */
 /** @typedef {{ end: NonNullable<unknown>, gap: NonNullable<unknown> }} Effect_Timeline_End_GapInputs */
 /** @typedef {{}} Effect_Timeline_FitInputs */
+/** @typedef {{}} Effect_Timeline_LoopInputs */
 /** @typedef {{}} Effect_Timeline_Loop_EffectInputs */
 /** @typedef {{ value: NonNullable<unknown> }} Effect_Timeline_MiredsInputs */
 /** @typedef {{}} Effect_Timeline_NativeInputs */
@@ -3501,6 +3503,10 @@ export const common_none = /** @type {(inputs: Common_NoneInputs) => LocalizedSt
 	return /** @type {LocalizedString} */ (`None`)
 };
 
+export const common_paste = /** @type {(inputs: Common_PasteInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Paste`)
+};
+
 export const common_remove = /** @type {(inputs: Common_RemoveInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Remove`)
 };
@@ -4208,6 +4214,10 @@ export const effect_timeline_end_gap = /** @type {(inputs: Effect_Timeline_End_G
 
 export const effect_timeline_fit = /** @type {(inputs: Effect_Timeline_FitInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Fit to viewport`)
+};
+
+export const effect_timeline_loop = /** @type {(inputs: Effect_Timeline_LoopInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Loop`)
 };
 
 export const effect_timeline_loop_effect = /** @type {(inputs: Effect_Timeline_Loop_EffectInputs) => LocalizedString} */ () => {

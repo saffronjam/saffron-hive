@@ -1787,6 +1787,8 @@
   ,"standard_room_workshop": "Workshop"
   ,"field_temperature_calibration": "Temperature calibration"
   ,"field_humidity_calibration": "Humidity calibration"
+  ,"effect_timeline_loop": "Loop"
+  ,"common_paste": "Paste"
   ,"translation_default_about": "About default content language"
   ,"translation_standard_rooms_about": "About room name translation"
   ,"device_memberships_search": "Search rooms and groups…"
