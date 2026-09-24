@@ -71,13 +71,19 @@ export function identifierLabel(value: string): string {
 }
 
 /** Presents stable state-history and capability fields in the active language. */
-export function historyFieldLabel(field: string): string {
+export function historyFieldLabel(field: string, fallbackLabel?: string | null): string {
   const options = locale.messageOptions();
   switch (field) {
     case "temperature":
       return m.field_temperature({}, options);
     case "humidity":
       return m.field_humidity({}, options);
+    case "temperatureCalibration":
+    case "temperature_calibration":
+      return m.field_temperature_calibration({}, options);
+    case "humidityCalibration":
+    case "humidity_calibration":
+      return m.field_humidity_calibration({}, options);
     case "pressure":
       return m.field_pressure({}, options);
     case "illuminance":
@@ -134,7 +140,7 @@ export function historyFieldLabel(field: string): string {
     case "link_quality":
       return m.field_link_quality({}, options);
     default:
-      return sentenceCase(field);
+      return fallbackLabel || sentenceCase(field);
   }
 }
 

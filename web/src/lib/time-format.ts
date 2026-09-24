@@ -17,17 +17,28 @@ function clockFormatter(mode: TimeMode): Intl.DateTimeFormat {
  * Format a past Date as a short relative string: "just now", "12m ago",
  * "3h ago", falling through to a clock time after a day.
  */
-export function formatRelative(date: Date, now: Date, mode: TimeMode): string {
+export function formatRelative(
+  date: Date,
+  now: Date,
+  mode: TimeMode,
+  style: "short" | "long" = "short",
+): string {
   const diff = now.getTime() - date.getTime();
   const seconds = Math.floor(diff / 1000);
   if (seconds < 60) return m.time_just_now({}, locale.messageOptions());
   const formatter = new Intl.RelativeTimeFormat(intlLocale(), {
     numeric: "always",
-    style: "short",
+    style,
   });
   const minutes = Math.floor(seconds / 60);
+  if (style === "short" && minutes < 60) {
+    return m.time_minutes_ago({ count: minutes }, locale.messageOptions());
+  }
   if (minutes < 60) return formatter.format(-minutes, "minute");
   const hours = Math.floor(minutes / 60);
+  if (style === "short" && hours < 24) {
+    return m.time_hours_ago({ count: hours }, locale.messageOptions());
+  }
   if (hours < 24) return formatter.format(-hours, "hour");
   return formatTime(date, mode);
 }

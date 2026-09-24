@@ -73,18 +73,23 @@ describe("formatRelative", () => {
     setLanguage("sv");
     const now = new Date(2026, 4, 2, 14, 45, 0);
     const past = new Date(2026, 4, 2, 14, 33, 0);
-    expect(formatRelative(past, now, "24h")).toBe(
-      new Intl.RelativeTimeFormat("sv-SE", { numeric: "always", style: "short" }).format(
-        -12,
-        "minute",
-      ),
-    );
+    expect(formatRelative(past, now, "24h")).toBe("för 12 min sedan");
   });
 
   it("falls through to formatTime past a day", () => {
     const now = new Date(2026, 4, 4, 14, 32, 9);
     expect(formatRelative(sample, now, "24h")).toBe("14:32:09");
     expect(formatRelative(sample, now, "12h")).toBe("02:32:09 PM");
+  });
+
+  it("uses full Swedish time units when requested and keeps the compact default", () => {
+    setLanguage("sv");
+    const now = new Date(2026, 4, 2, 14, 0, 0);
+    const oneHourAgo = new Date(2026, 4, 2, 13, 0, 0);
+    const threeHoursAgo = new Date(2026, 4, 2, 11, 0, 0);
+    expect(formatRelative(oneHourAgo, now, "24h", "long")).toBe("för 1 timme sedan");
+    expect(formatRelative(threeHoursAgo, now, "24h", "long")).toBe("för 3 timmar sedan");
+    expect(formatRelative(threeHoursAgo, now, "24h")).toBe("för 3 tim sedan");
   });
 });
 

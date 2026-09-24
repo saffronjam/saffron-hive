@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
 import {
   automationNodeCounts,
   compareDevicesByName,
@@ -9,6 +9,8 @@ import {
   sceneTargetBreakdown,
 } from "$lib/list-helpers";
 import type { Device } from "$lib/stores/devices";
+import { setLanguage } from "$lib/i18n/locale.svelte";
+import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 
 function device(id: string, name: string): Device {
   return {
@@ -189,20 +191,48 @@ describe("sceneTargetBreakdown", () => {
 });
 
 describe("sceneRoomLabel", () => {
+  afterEach(() => {
+    setLanguage("en");
+    localizedNamesStore.clear();
+  });
+
   it("returns an empty string for no rooms so the caller can omit the segment", () => {
     expect(sceneRoomLabel([])).toBe("");
   });
 
   it("names a single room", () => {
-    expect(sceneRoomLabel([{ name: "Living room" }])).toBe("Living room");
+    expect(sceneRoomLabel([{ id: "living", name: "Living room" }])).toBe("Living room");
+  });
+
+  it("follows room-name translation settings while preserving the source name", () => {
+    const room = { id: "living", name: "Living room" };
+    setLanguage("sv");
+    expect(sceneRoomLabel([room])).toBe("Living room");
+    localizedNamesStore.setTranslateStandardRoomNames(true);
+    expect(sceneRoomLabel([room])).toBe("Vardagsrum");
+    expect(sceneRoomLabel([{ id: "custom", name: "Alice's corner" }])).toBe("Alice's corner");
+    setLanguage("ru");
+    expect(sceneRoomLabel([room])).toBe("Зал");
+    expect(room.name).toBe("Living room");
+    localizedNamesStore.setTranslateStandardRoomNames(false);
+    expect(sceneRoomLabel([room])).toBe("Living room");
   });
 
   // Listing every room overflows a card subtitle, so several collapse to one word.
   it("collapses several rooms to Multi-room", () => {
-    expect(sceneRoomLabel([{ name: "Bedroom" }, { name: "Kitchen" }])).toBe("Multi-room");
-    expect(sceneRoomLabel([{ name: "Bedroom" }, { name: "Kitchen" }, { name: "Hall" }])).toBe(
-      "Multi-room",
-    );
+    expect(
+      sceneRoomLabel([
+        { id: "bedroom", name: "Bedroom" },
+        { id: "kitchen", name: "Kitchen" },
+      ]),
+    ).toBe("Multi-room");
+    expect(
+      sceneRoomLabel([
+        { id: "bedroom", name: "Bedroom" },
+        { id: "kitchen", name: "Kitchen" },
+        { id: "hall", name: "Hall" },
+      ]),
+    ).toBe("Multi-room");
   });
 });
 

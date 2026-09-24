@@ -1,6 +1,6 @@
 import type { Device } from "$lib/stores/devices";
 import type { SearchState } from "$lib/components/hive-searchbar";
-import { deviceDisplayName } from "$lib/utils";
+import { deviceDisplayName, entityDisplayName } from "$lib/utils";
 import { collator as localeCollator } from "$lib/i18n/format";
 import { formatList } from "$lib/i18n/format";
 import { m } from "$lib/i18n/messages";
@@ -119,8 +119,9 @@ export interface SceneTargetLike {
   targetType: string;
 }
 
-/** A minimal scene room shape — just the display name is needed. */
+/** A room identity and source name for localized Scene summaries. */
 export interface SceneRoomLike {
+  id: string;
   name: string;
 }
 
@@ -131,7 +132,7 @@ export interface SceneRoomLike {
  */
 export function sceneRoomLabel(rooms: SceneRoomLike[]): string {
   if (rooms.length === 0) return "";
-  if (rooms.length === 1) return rooms[0].name;
+  if (rooms.length === 1) return entityDisplayName("room", rooms[0]);
   return m.shared_multi_room({}, locale.messageOptions());
 }
 

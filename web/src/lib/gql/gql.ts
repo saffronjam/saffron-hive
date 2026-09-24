@@ -54,11 +54,14 @@ type Documents = {
     "\n  mutation E2ECreateGuest($input: CreateGuestInput!) {\n    createGuest(input: $input) {\n      id\n      name\n      language\n      expiresAt\n      createdAt\n    }\n  }\n": typeof types.E2ECreateGuestDocument,
     "\n  mutation E2EExtendGuest($id: ID!) {\n    extendGuest(id: $id, durationMinutes: 60) {\n      id\n      expiresAt\n    }\n  }\n": typeof types.E2EExtendGuestDocument,
     "\n  mutation E2EDeleteGuest($id: ID!) {\n    deleteGuest(id: $id)\n  }\n": typeof types.E2EDeleteGuestDocument,
-    "\n  query LocaleBootstrapState {\n    me {\n      language\n    }\n    settings {\n      key\n      value\n    }\n  }\n": typeof types.LocaleBootstrapStateDocument,
+    "\n  query LocaleBootstrapState {\n    me {\n      language\n    }\n    settings {\n      key\n      value\n    }\n    devices {\n      id\n      friendlyName\n    }\n  }\n": typeof types.LocaleBootstrapStateDocument,
     "\n  mutation LocaleBootstrapUpdateLanguage($language: Language!) {\n    updateCurrentUser(input: { language: $language }) {\n      language\n    }\n  }\n": typeof types.LocaleBootstrapUpdateLanguageDocument,
     "\n  mutation LocaleBootstrapUpdateSetting($key: String!, $value: String!) {\n    updateSetting(key: $key, value: $value) {\n      key\n      value\n    }\n  }\n": typeof types.LocaleBootstrapUpdateSettingDocument,
     "\n  mutation LocaleBootstrapCreateRoom($name: String!) {\n    createRoom(input: { name: $name }) {\n      id\n    }\n  }\n": typeof types.LocaleBootstrapCreateRoomDocument,
     "\n  mutation LocaleBootstrapDeleteRoom($id: ID!) {\n    deleteRoom(id: $id)\n  }\n": typeof types.LocaleBootstrapDeleteRoomDocument,
+    "\n  mutation LocaleBootstrapAddRoomMember($input: AddRoomMemberInput!) {\n    addRoomMember(input: $input) {\n      id\n    }\n  }\n": typeof types.LocaleBootstrapAddRoomMemberDocument,
+    "\n  mutation LocaleBootstrapCreateScene($input: CreateSceneInput!) {\n    createScene(input: $input) {\n      id\n    }\n  }\n": typeof types.LocaleBootstrapCreateSceneDocument,
+    "\n  mutation LocaleBootstrapDeleteScene($id: ID!) {\n    deleteScene(id: $id)\n  }\n": typeof types.LocaleBootstrapDeleteSceneDocument,
     "\n  query BrowserSceneFixtures {\n    devices {\n      id\n      friendlyName\n      type\n    }\n    vibePresets {\n      id\n    }\n  }\n": typeof types.BrowserSceneFixturesDocument,
     "\n  mutation BrowserSceneCreateStructure($room: CreateRoomInput!, $group: CreateGroupInput!) {\n    room: createRoom(input: $room) {\n      id\n    }\n    group: createGroup(input: $group) {\n      id\n    }\n  }\n": typeof types.BrowserSceneCreateStructureDocument,
     "\n  mutation BrowserSceneAddRoomMember($input: AddRoomMemberInput!) {\n    addRoomMember(input: $input) {\n      id\n    }\n  }\n": typeof types.BrowserSceneAddRoomMemberDocument,
@@ -305,11 +308,14 @@ const documents: Documents = {
     "\n  mutation E2ECreateGuest($input: CreateGuestInput!) {\n    createGuest(input: $input) {\n      id\n      name\n      language\n      expiresAt\n      createdAt\n    }\n  }\n": types.E2ECreateGuestDocument,
     "\n  mutation E2EExtendGuest($id: ID!) {\n    extendGuest(id: $id, durationMinutes: 60) {\n      id\n      expiresAt\n    }\n  }\n": types.E2EExtendGuestDocument,
     "\n  mutation E2EDeleteGuest($id: ID!) {\n    deleteGuest(id: $id)\n  }\n": types.E2EDeleteGuestDocument,
-    "\n  query LocaleBootstrapState {\n    me {\n      language\n    }\n    settings {\n      key\n      value\n    }\n  }\n": types.LocaleBootstrapStateDocument,
+    "\n  query LocaleBootstrapState {\n    me {\n      language\n    }\n    settings {\n      key\n      value\n    }\n    devices {\n      id\n      friendlyName\n    }\n  }\n": types.LocaleBootstrapStateDocument,
     "\n  mutation LocaleBootstrapUpdateLanguage($language: Language!) {\n    updateCurrentUser(input: { language: $language }) {\n      language\n    }\n  }\n": types.LocaleBootstrapUpdateLanguageDocument,
     "\n  mutation LocaleBootstrapUpdateSetting($key: String!, $value: String!) {\n    updateSetting(key: $key, value: $value) {\n      key\n      value\n    }\n  }\n": types.LocaleBootstrapUpdateSettingDocument,
     "\n  mutation LocaleBootstrapCreateRoom($name: String!) {\n    createRoom(input: { name: $name }) {\n      id\n    }\n  }\n": types.LocaleBootstrapCreateRoomDocument,
     "\n  mutation LocaleBootstrapDeleteRoom($id: ID!) {\n    deleteRoom(id: $id)\n  }\n": types.LocaleBootstrapDeleteRoomDocument,
+    "\n  mutation LocaleBootstrapAddRoomMember($input: AddRoomMemberInput!) {\n    addRoomMember(input: $input) {\n      id\n    }\n  }\n": types.LocaleBootstrapAddRoomMemberDocument,
+    "\n  mutation LocaleBootstrapCreateScene($input: CreateSceneInput!) {\n    createScene(input: $input) {\n      id\n    }\n  }\n": types.LocaleBootstrapCreateSceneDocument,
+    "\n  mutation LocaleBootstrapDeleteScene($id: ID!) {\n    deleteScene(id: $id)\n  }\n": types.LocaleBootstrapDeleteSceneDocument,
     "\n  query BrowserSceneFixtures {\n    devices {\n      id\n      friendlyName\n      type\n    }\n    vibePresets {\n      id\n    }\n  }\n": types.BrowserSceneFixturesDocument,
     "\n  mutation BrowserSceneCreateStructure($room: CreateRoomInput!, $group: CreateGroupInput!) {\n    room: createRoom(input: $room) {\n      id\n    }\n    group: createGroup(input: $group) {\n      id\n    }\n  }\n": types.BrowserSceneCreateStructureDocument,
     "\n  mutation BrowserSceneAddRoomMember($input: AddRoomMemberInput!) {\n    addRoomMember(input: $input) {\n      id\n    }\n  }\n": types.BrowserSceneAddRoomMemberDocument,
@@ -693,7 +699,7 @@ export function graphql(source: "\n  mutation E2EDeleteGuest($id: ID!) {\n    de
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query LocaleBootstrapState {\n    me {\n      language\n    }\n    settings {\n      key\n      value\n    }\n  }\n"): (typeof documents)["\n  query LocaleBootstrapState {\n    me {\n      language\n    }\n    settings {\n      key\n      value\n    }\n  }\n"];
+export function graphql(source: "\n  query LocaleBootstrapState {\n    me {\n      language\n    }\n    settings {\n      key\n      value\n    }\n    devices {\n      id\n      friendlyName\n    }\n  }\n"): (typeof documents)["\n  query LocaleBootstrapState {\n    me {\n      language\n    }\n    settings {\n      key\n      value\n    }\n    devices {\n      id\n      friendlyName\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -710,6 +716,18 @@ export function graphql(source: "\n  mutation LocaleBootstrapCreateRoom($name: S
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation LocaleBootstrapDeleteRoom($id: ID!) {\n    deleteRoom(id: $id)\n  }\n"): (typeof documents)["\n  mutation LocaleBootstrapDeleteRoom($id: ID!) {\n    deleteRoom(id: $id)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation LocaleBootstrapAddRoomMember($input: AddRoomMemberInput!) {\n    addRoomMember(input: $input) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation LocaleBootstrapAddRoomMember($input: AddRoomMemberInput!) {\n    addRoomMember(input: $input) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation LocaleBootstrapCreateScene($input: CreateSceneInput!) {\n    createScene(input: $input) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation LocaleBootstrapCreateScene($input: CreateSceneInput!) {\n    createScene(input: $input) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation LocaleBootstrapDeleteScene($id: ID!) {\n    deleteScene(id: $id)\n  }\n"): (typeof documents)["\n  mutation LocaleBootstrapDeleteScene($id: ID!) {\n    deleteScene(id: $id)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

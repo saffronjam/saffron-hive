@@ -39,6 +39,7 @@
 		rows: MemberRow[];
 		relatedLabel?: string;
 		emptyMessage?: string;
+		searchPlaceholder?: string;
 		addLabel?: string;
 		onadd?: () => void;
 		onremove?: (id: string) => void;
@@ -49,6 +50,7 @@
 		rows,
 		relatedLabel,
 		emptyMessage,
+		searchPlaceholder,
 		addLabel,
 		onadd,
 		onremove,
@@ -84,7 +86,7 @@
 			<Search class="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 			<Input
 				bind:value={search}
-				placeholder={m.member_search({}, locale.messageOptions())}
+				placeholder={searchPlaceholder ?? m.member_search({}, locale.messageOptions())}
 				class="pl-9"
 			/>
 		</div>

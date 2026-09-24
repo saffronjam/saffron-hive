@@ -125,30 +125,30 @@ describe("translated catalog plurals", () => {
     expect(m.icon_search_prompt({}, { locale: "ru" })).toBe("Иконки");
   });
 
-  it("uses Swedish history terminology", () => {
+  it("uses Swedish interface terminology", () => {
     expect(m.device_history({}, { locale: "sv" })).toBe("Historik");
     expect(m.settings_history({}, { locale: "sv" })).toBe("Historik");
     expect(m.nav_automations({}, { locale: "sv" })).toBe("Automatiseringar");
     expect(m.automations_title({}, { locale: "sv" })).toBe("Automatiseringar");
     expect(m.auth_sign_in_title({}, { locale: "sv" })).toBe("Logga in");
-    expect(m.scenes_column_breakdown({}, { locale: "sv" })).toBe("Väljare");
-    expect(m.field_breakdown({}, { locale: "sv" })).toBe("Sammansättning");
-    expect(m.shared_actions({}, { locale: "sv" })).toBe("Funktioner");
-    expect(m.scene_action_apply({}, { locale: "sv" })).toBe("Starta");
+    expect(m.scenes_column_breakdown({}, { locale: "sv" })).toBe("Urval");
+    expect(m.field_breakdown({}, { locale: "sv" })).toBe("Innehåll");
+    expect(m.shared_actions({}, { locale: "sv" })).toBe("Åtgärder");
+    expect(m.scene_action_apply({}, { locale: "sv" })).toBe("Aktivera");
     expect(m.device_apply({}, { locale: "sv" })).toBe("Tillämpa");
     expect(m.data_viewer_add({}, { locale: "sv" })).toBe("Lägg till");
     expect(m.scene_editor_add({}, { locale: "sv" })).toBe("Lägg till");
     expect(m.integrations_add_short({}, { locale: "sv" })).toBe("Lägg till");
     expect(m.scene_editor_live({}, { locale: "sv" })).toBe("Live");
     expect(m.logs_live({}, { locale: "sv" })).toBe("Live");
-    expect(m.vibe_use({}, { locale: "sv" })).toBe("Använd atmosfär");
-    expect(m.devices_search({}, { locale: "sv" })).toBe("Sök bland enheter...");
-    expect(m.automations_search({}, { locale: "sv" })).toBe("Sök bland automatiseringar...");
+    expect(m.vibe_use({}, { locale: "sv" })).toBe("Använd stämning");
+    expect(m.devices_search({}, { locale: "sv" })).toBe("Sök bland enheter…");
+    expect(m.automations_search({}, { locale: "sv" })).toBe("Sök bland automatiseringar…");
     expect(m.automations_create_description({}, { locale: "sv" })).toBe(
       "Du kan sedan ange när den ska köras och vad den ska göra i grafredigeraren.",
     );
-    expect(m.logs_search({}, { locale: "sv" })).toBe("Sök bland loggposter...");
-    expect(m.icon_search({}, { locale: "sv" })).toBe("Sök bland ikoner...");
+    expect(m.logs_search({}, { locale: "sv" })).toBe("Sök bland loggposter…");
+    expect(m.icon_search({}, { locale: "sv" })).toBe("Sök bland ikoner…");
   });
 
   it("uses Russian infinitives for actions rather than English-style imperatives", () => {

@@ -167,7 +167,7 @@
 	<CreatedByCell user={a.createdBy} />
 {/snippet}
 
-{#snippet actionsHead()}<ActionsHead />{/snippet}
+{#snippet actionsHead()}<ActionsHead label={m.automations_manage({}, locale.messageOptions())} />{/snippet}
 
 {#snippet actionsCell(a: Automation)}
 	<RowActionsCell

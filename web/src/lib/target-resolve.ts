@@ -8,7 +8,7 @@ import {
   type Device,
 } from "$lib/gql/graphql";
 import { isHiveVisibleDevice, isRuntimeEnabledDevice } from "$lib/stores/devices";
-import { sentenceCase } from "$lib/utils";
+import { historyFieldLabel } from "$lib/i18n/vocabulary";
 import { m } from "$lib/i18n/messages";
 import { locale } from "$lib/i18n/locale.svelte";
 import { compareLocalized } from "$lib/i18n/format";
@@ -112,8 +112,9 @@ export function capabilityLabel(name: string, capabilities: Capability[] = []): 
     case "on_off":
       return m.target_cap_switchable({}, options);
     default:
-      return (
-        capabilities.find((capability) => capability.name === name)?.label ?? sentenceCase(name)
+      return historyFieldLabel(
+        name,
+        capabilities.find((capability) => capability.name === name)?.label,
       );
   }
 }

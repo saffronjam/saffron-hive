@@ -12,7 +12,8 @@
 		SelectItem,
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
-	import { Save } from "@lucide/svelte";
+	import { Info, Save } from "@lucide/svelte";
+	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { m, languageName, type Language } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
@@ -192,7 +193,15 @@
 		<h2 class="text-lg font-semibold mb-4">{m.translation_card({}, locale.messageOptions())}</h2>
 		<div class="grid max-w-lg gap-5">
 			<div class="grid gap-1.5">
-			<label for="content-language" class="text-sm font-medium">{m.translation_default_language({}, locale.messageOptions())}</label>
+			<div class="flex items-center gap-1.5">
+				<label for="content-language" class="text-sm font-medium">{m.translation_default_language({}, locale.messageOptions())}</label>
+				<Tooltip>
+					<TooltipTrigger class="text-muted-foreground" aria-label={m.translation_default_about({}, locale.messageOptions())}>
+						<Info class="size-3.5" />
+					</TooltipTrigger>
+					<TooltipContent>{m.translation_default_help({}, locale.messageOptions())}</TooltipContent>
+				</Tooltip>
+			</div>
 			<Select type="single" value={defaultContentLanguage} onValueChange={(value) => { if (value) defaultContentLanguage = value as Language; }}>
 				<SelectTrigger id="content-language" class="w-48">{languageName(defaultContentLanguage, locale.currentLanguage)}</SelectTrigger>
 				<SelectContent>
@@ -201,15 +210,19 @@
 					{/each}
 				</SelectContent>
 			</Select>
-			<p class="text-xs text-muted-foreground">{m.translation_default_help({}, locale.messageOptions())}</p>
 			</div>
-			<label class="flex items-start gap-3">
-				<Checkbox bind:checked={translateStandardRoomNames} class="mt-0.5" />
-				<span class="grid gap-1">
-					<span class="text-sm font-medium">{m.translation_standard_rooms({}, locale.messageOptions())}</span>
-					<span class="text-xs text-muted-foreground">{m.translation_standard_rooms_help({}, locale.messageOptions())}</span>
-				</span>
-			</label>
+			<div class="flex items-center gap-3">
+				<Checkbox id="translate-standard-room-names" bind:checked={translateStandardRoomNames} />
+				<div class="flex items-center gap-1.5">
+					<label for="translate-standard-room-names" class="text-sm font-medium">{m.translation_standard_rooms({}, locale.messageOptions())}</label>
+					<Tooltip>
+						<TooltipTrigger class="text-muted-foreground" aria-label={m.translation_standard_rooms_about({}, locale.messageOptions())}>
+							<Info class="size-3.5" />
+						</TooltipTrigger>
+						<TooltipContent>{m.translation_standard_rooms_help({}, locale.messageOptions())}</TooltipContent>
+					</Tooltip>
+				</div>
+			</div>
 		</div>
 	</div>
 

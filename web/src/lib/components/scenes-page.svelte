@@ -499,7 +499,18 @@
 										{#snippet subtitleTrailing()}
 											{@const roomLabel = sceneRoomLabel(scene.rooms)}
 											{#if roomLabel}
-												<span class="text-muted-foreground/70">· {roomLabel}</span>
+												<span class="text-muted-foreground/70">
+													·
+													{#if scene.rooms.length === 1}
+														<a
+															href={`/rooms?edit=${scene.rooms[0].id}`}
+															class="transition-colors hover:text-foreground"
+															data-card-click-ignore
+														>{roomLabel}</a>
+													{:else}
+														{roomLabel}
+													{/if}
+												</span>
 											{/if}
 										{/snippet}
 										{#snippet leadingActions()}

@@ -380,6 +380,7 @@
 /** @typedef {{}} Automations_Filter_SceneInputs */
 /** @typedef {{}} Automations_Filter_TriggerInputs */
 /** @typedef {{ time: NonNullable<unknown> }} Automations_FiredInputs */
+/** @typedef {{}} Automations_ManageInputs */
 /** @typedef {{}} Automations_Name_PlaceholderInputs */
 /** @typedef {{}} Automations_No_MatchInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Automations_Node_CountInputs */
@@ -495,6 +496,7 @@
 /** @typedef {{ name: NonNullable<unknown> }} Device_Image_AltInputs */
 /** @typedef {{}} Device_InfoInputs */
 /** @typedef {{}} Device_Memberships_EmptyInputs */
+/** @typedef {{}} Device_Memberships_SearchInputs */
 /** @typedef {{}} Device_ModeInputs */
 /** @typedef {{}} Device_NameInputs */
 /** @typedef {{}} Device_No_StateInputs */
@@ -720,6 +722,7 @@
 /** @typedef {{}} Field_EnergyInputs */
 /** @typedef {{}} Field_Fan_ModeInputs */
 /** @typedef {{}} Field_HumidityInputs */
+/** @typedef {{}} Field_Humidity_CalibrationInputs */
 /** @typedef {{}} Field_Hvac_ModeInputs */
 /** @typedef {{}} Field_IlluminanceInputs */
 /** @typedef {{}} Field_Last_SeenInputs */
@@ -740,6 +743,7 @@
 /** @typedef {{}} Field_SwingInputs */
 /** @typedef {{}} Field_Target_TemperatureInputs */
 /** @typedef {{}} Field_TemperatureInputs */
+/** @typedef {{}} Field_Temperature_CalibrationInputs */
 /** @typedef {{}} Field_TransitionInputs */
 /** @typedef {{}} Field_TypeInputs */
 /** @typedef {{}} Field_VoltageInputs */
@@ -1462,13 +1466,17 @@
 /** @typedef {{}} Target_Subject_WritableInputs */
 /** @typedef {{}} Target_Type_FilterInputs */
 /** @typedef {{}} Temperature_Picker_AriaInputs */
+/** @typedef {{ count: NonNullable<unknown> }} Time_Hours_AgoInputs */
 /** @typedef {{}} Time_Just_NowInputs */
+/** @typedef {{ count: NonNullable<unknown> }} Time_Minutes_AgoInputs */
 /** @typedef {{}} Translation_CardInputs */
+/** @typedef {{}} Translation_Default_AboutInputs */
 /** @typedef {{}} Translation_Default_HelpInputs */
 /** @typedef {{}} Translation_Default_LanguageInputs */
 /** @typedef {{}} Translation_NamesInputs */
 /** @typedef {{}} Translation_Source_LanguageInputs */
 /** @typedef {{}} Translation_Standard_RoomsInputs */
+/** @typedef {{}} Translation_Standard_Rooms_AboutInputs */
 /** @typedef {{}} Translation_Standard_Rooms_HelpInputs */
 /** @typedef {{}} Tuya_Access_IdInputs */
 /** @typedef {{}} Tuya_Access_SecretInputs */
@@ -2387,7 +2395,7 @@ export const automation_change_value = /** @type {(inputs: Automation_Change_Val
 };
 
 export const automation_condition_custom = /** @type {(inputs: Automation_Condition_CustomInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Пользовательское`)
+	return /** @type {LocalizedString} */ (`Пользовательский`)
 };
 
 export const automation_condition_custom_description = /** @type {(inputs: Automation_Condition_Custom_DescriptionInputs) => LocalizedString} */ () => {
@@ -2963,7 +2971,7 @@ export const automation_trigger_device_event = /** @type {(inputs: Automation_Tr
 };
 
 export const automation_trigger_device_event_description = /** @type {(inputs: Automation_Trigger_Device_Event_DescriptionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Запускается при нажатиях, удержаниях, касаниях и других мгновенных событиях`)
+	return /** @type {LocalizedString} */ (`Запускается при кратковременных событиях устройства`)
 };
 
 export const automation_trigger_device_state = /** @type {(inputs: Automation_Trigger_Device_StateInputs) => LocalizedString} */ () => {
@@ -3352,6 +3360,10 @@ export const automations_filter_trigger = /** @type {(inputs: Automations_Filter
 
 export const automations_fired = /** @type {(inputs: Automations_FiredInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`Сработала ${i?.time}`)
+};
+
+export const automations_manage = /** @type {(inputs: Automations_ManageInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Управление`)
 };
 
 export const automations_name_placeholder = /** @type {(inputs: Automations_Name_PlaceholderInputs) => LocalizedString} */ () => {
@@ -3914,6 +3926,10 @@ export const device_info = /** @type {(inputs: Device_InfoInputs) => LocalizedSt
 
 export const device_memberships_empty = /** @type {(inputs: Device_Memberships_EmptyInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Пока нет ни в одной комнате или группе.`)
+};
+
+export const device_memberships_search = /** @type {(inputs: Device_Memberships_SearchInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Поиск комнат и групп…`)
 };
 
 export const device_mode = /** @type {(inputs: Device_ModeInputs) => LocalizedString} */ () => {
@@ -4549,7 +4565,7 @@ export const effects_kind = /** @type {(inputs: Effects_KindInputs) => Localized
 };
 
 export const effects_loop = /** @type {(inputs: Effects_LoopInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Зациклить`)
+	return /** @type {LocalizedString} */ (`Циклический`)
 };
 
 export const effects_managed_zigbee = /** @type {(inputs: Effects_Managed_ZigbeeInputs) => LocalizedString} */ () => {
@@ -4585,7 +4601,7 @@ export const effects_no_required_capabilities = /** @type {(inputs: Effects_No_R
 };
 
 export const effects_once = /** @type {(inputs: Effects_OnceInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Один раз`)
+	return /** @type {LocalizedString} */ (`Однократный`)
 };
 
 export const effects_picker_description = /** @type {(inputs: Effects_Picker_DescriptionInputs) => LocalizedString} */ () => {
@@ -4857,6 +4873,10 @@ export const field_humidity = /** @type {(inputs: Field_HumidityInputs) => Local
 	return /** @type {LocalizedString} */ (`Влажность`)
 };
 
+export const field_humidity_calibration = /** @type {(inputs: Field_Humidity_CalibrationInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Калибровка влажности`)
+};
+
 export const field_hvac_mode = /** @type {(inputs: Field_Hvac_ModeInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Режим климата`)
 };
@@ -4935,6 +4955,10 @@ export const field_target_temperature = /** @type {(inputs: Field_Target_Tempera
 
 export const field_temperature = /** @type {(inputs: Field_TemperatureInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Температура`)
+};
+
+export const field_temperature_calibration = /** @type {(inputs: Field_Temperature_CalibrationInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Калибровка температуры`)
 };
 
 export const field_transition = /** @type {(inputs: Field_TransitionInputs) => LocalizedString} */ () => {
@@ -7942,12 +7966,24 @@ export const temperature_picker_aria = /** @type {(inputs: Temperature_Picker_Ar
 	return /** @type {LocalizedString} */ (`Цветовая температура: от тёплого света к холодному`)
 };
 
+export const time_hours_ago = /** @type {(inputs: Time_Hours_AgoInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.count} ч назад`)
+};
+
 export const time_just_now = /** @type {(inputs: Time_Just_NowInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Прямо сейчас`)
 };
 
+export const time_minutes_ago = /** @type {(inputs: Time_Minutes_AgoInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.count} мин. назад`)
+};
+
 export const translation_card = /** @type {(inputs: Translation_CardInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Перевод`)
+};
+
+export const translation_default_about = /** @type {(inputs: Translation_Default_AboutInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`О языке содержимого по умолчанию`)
 };
 
 export const translation_default_help = /** @type {(inputs: Translation_Default_HelpInputs) => LocalizedString} */ () => {
@@ -7968,6 +8004,10 @@ export const translation_source_language = /** @type {(inputs: Translation_Sourc
 
 export const translation_standard_rooms = /** @type {(inputs: Translation_Standard_RoomsInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Перевод стандартных названий комнат`)
+};
+
+export const translation_standard_rooms_about = /** @type {(inputs: Translation_Standard_Rooms_AboutInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`О переводе названий комнат`)
 };
 
 export const translation_standard_rooms_help = /** @type {(inputs: Translation_Standard_Rooms_HelpInputs) => LocalizedString} */ () => {
@@ -8547,7 +8587,7 @@ export const webhooks_body_unavailable = /** @type {(inputs: Webhooks_Body_Unava
 };
 
 export const webhooks_column_automations = /** @type {(inputs: Webhooks_Column_AutomationsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Автоматизации`)
+	return /** @type {LocalizedString} */ (`Используется в`)
 };
 
 export const webhooks_column_created_by = /** @type {(inputs: Webhooks_Column_Created_ByInputs) => LocalizedString} */ () => {

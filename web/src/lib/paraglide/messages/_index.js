@@ -382,6 +382,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Automations_Filter_SceneInputs */
 /** @typedef {{}} Automations_Filter_TriggerInputs */
 /** @typedef {{ time: NonNullable<unknown> }} Automations_FiredInputs */
+/** @typedef {{}} Automations_ManageInputs */
 /** @typedef {{}} Automations_Name_PlaceholderInputs */
 /** @typedef {{}} Automations_No_MatchInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Automations_Node_CountInputs */
@@ -497,6 +498,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{ name: NonNullable<unknown> }} Device_Image_AltInputs */
 /** @typedef {{}} Device_InfoInputs */
 /** @typedef {{}} Device_Memberships_EmptyInputs */
+/** @typedef {{}} Device_Memberships_SearchInputs */
 /** @typedef {{}} Device_ModeInputs */
 /** @typedef {{}} Device_NameInputs */
 /** @typedef {{}} Device_No_StateInputs */
@@ -722,6 +724,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Field_EnergyInputs */
 /** @typedef {{}} Field_Fan_ModeInputs */
 /** @typedef {{}} Field_HumidityInputs */
+/** @typedef {{}} Field_Humidity_CalibrationInputs */
 /** @typedef {{}} Field_Hvac_ModeInputs */
 /** @typedef {{}} Field_IlluminanceInputs */
 /** @typedef {{}} Field_Last_SeenInputs */
@@ -742,6 +745,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Field_SwingInputs */
 /** @typedef {{}} Field_Target_TemperatureInputs */
 /** @typedef {{}} Field_TemperatureInputs */
+/** @typedef {{}} Field_Temperature_CalibrationInputs */
 /** @typedef {{}} Field_TransitionInputs */
 /** @typedef {{}} Field_TypeInputs */
 /** @typedef {{}} Field_VoltageInputs */
@@ -1464,13 +1468,17 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Target_Subject_WritableInputs */
 /** @typedef {{}} Target_Type_FilterInputs */
 /** @typedef {{}} Temperature_Picker_AriaInputs */
+/** @typedef {{ count: NonNullable<unknown> }} Time_Hours_AgoInputs */
 /** @typedef {{}} Time_Just_NowInputs */
+/** @typedef {{ count: NonNullable<unknown> }} Time_Minutes_AgoInputs */
 /** @typedef {{}} Translation_CardInputs */
+/** @typedef {{}} Translation_Default_AboutInputs */
 /** @typedef {{}} Translation_Default_HelpInputs */
 /** @typedef {{}} Translation_Default_LanguageInputs */
 /** @typedef {{}} Translation_NamesInputs */
 /** @typedef {{}} Translation_Source_LanguageInputs */
 /** @typedef {{}} Translation_Standard_RoomsInputs */
+/** @typedef {{}} Translation_Standard_Rooms_AboutInputs */
 /** @typedef {{}} Translation_Standard_Rooms_HelpInputs */
 /** @typedef {{}} Tuya_Access_IdInputs */
 /** @typedef {{}} Tuya_Access_SecretInputs */
@@ -6060,7 +6068,7 @@ export const automation_trigger_device_event = /** @type {((inputs?: Automation_
 /**
 * | output |
 * | --- |
-* | "Runs for presses, holds, taps, and other momentary events" |
+* | "Runs on momentary device events" |
 *
 * @param {Automation_Trigger_Device_Event_DescriptionInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -7498,6 +7506,21 @@ export const automations_fired = /** @type {((inputs: Automations_FiredInputs, o
 	if (locale === "sv") return __sv.automations_fired(inputs)
 	if (locale === "ru") return __ru.automations_fired(inputs)
 	return __en.automations_fired(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Manage" |
+*
+* @param {Automations_ManageInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automations_manage = /** @type {((inputs?: Automations_ManageInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automations_ManageInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automations_manage(inputs)
+	if (locale === "ru") return __ru.automations_manage(inputs)
+	return __en.automations_manage(inputs)
 });
 /**
 * | output |
@@ -9253,6 +9276,21 @@ export const device_memberships_empty = /** @type {((inputs?: Device_Memberships
 	if (locale === "sv") return __sv.device_memberships_empty(inputs)
 	if (locale === "ru") return __ru.device_memberships_empty(inputs)
 	return __en.device_memberships_empty(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Search rooms and groups…" |
+*
+* @param {Device_Memberships_SearchInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_memberships_search = /** @type {((inputs?: Device_Memberships_SearchInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Device_Memberships_SearchInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.device_memberships_search(inputs)
+	if (locale === "ru") return __ru.device_memberships_search(inputs)
+	return __en.device_memberships_search(inputs)
 });
 /**
 * | output |
@@ -11571,7 +11609,7 @@ export const effects_kind = /** @type {((inputs?: Effects_KindInputs, options?: 
 /**
 * | output |
 * | --- |
-* | "Loop" |
+* | "Looping" |
 *
 * @param {Effects_LoopInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -11706,7 +11744,7 @@ export const effects_no_required_capabilities = /** @type {((inputs?: Effects_No
 /**
 * | output |
 * | --- |
-* | "Once" |
+* | "One shot" |
 *
 * @param {Effects_OnceInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -12640,6 +12678,21 @@ export const field_humidity = /** @type {((inputs?: Field_HumidityInputs, option
 /**
 * | output |
 * | --- |
+* | "Humidity calibration" |
+*
+* @param {Field_Humidity_CalibrationInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const field_humidity_calibration = /** @type {((inputs?: Field_Humidity_CalibrationInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Field_Humidity_CalibrationInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.field_humidity_calibration(inputs)
+	if (locale === "ru") return __ru.field_humidity_calibration(inputs)
+	return __en.field_humidity_calibration(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "HVAC mode" |
 *
 * @param {Field_Hvac_ModeInputs} inputs
@@ -12936,6 +12989,21 @@ export const field_temperature = /** @type {((inputs?: Field_TemperatureInputs, 
 	if (locale === "sv") return __sv.field_temperature(inputs)
 	if (locale === "ru") return __ru.field_temperature(inputs)
 	return __en.field_temperature(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Temperature calibration" |
+*
+* @param {Field_Temperature_CalibrationInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const field_temperature_calibration = /** @type {((inputs?: Field_Temperature_CalibrationInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Field_Temperature_CalibrationInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.field_temperature_calibration(inputs)
+	if (locale === "ru") return __ru.field_temperature_calibration(inputs)
+	return __en.field_temperature_calibration(inputs)
 });
 /**
 * | output |
@@ -23795,6 +23863,21 @@ export const temperature_picker_aria = /** @type {((inputs?: Temperature_Picker_
 /**
 * | output |
 * | --- |
+* | "{count} hr. ago" |
+*
+* @param {Time_Hours_AgoInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const time_hours_ago = /** @type {((inputs: Time_Hours_AgoInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Time_Hours_AgoInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.time_hours_ago(inputs)
+	if (locale === "ru") return __ru.time_hours_ago(inputs)
+	return __en.time_hours_ago(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Just now" |
 *
 * @param {Time_Just_NowInputs} inputs
@@ -23810,6 +23893,21 @@ export const time_just_now = /** @type {((inputs?: Time_Just_NowInputs, options?
 /**
 * | output |
 * | --- |
+* | "{count} min. ago" |
+*
+* @param {Time_Minutes_AgoInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const time_minutes_ago = /** @type {((inputs: Time_Minutes_AgoInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Time_Minutes_AgoInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.time_minutes_ago(inputs)
+	if (locale === "ru") return __ru.time_minutes_ago(inputs)
+	return __en.time_minutes_ago(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Translation" |
 *
 * @param {Translation_CardInputs} inputs
@@ -23821,6 +23919,21 @@ export const translation_card = /** @type {((inputs?: Translation_CardInputs, op
 	if (locale === "sv") return __sv.translation_card(inputs)
 	if (locale === "ru") return __ru.translation_card(inputs)
 	return __en.translation_card(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "About default content language" |
+*
+* @param {Translation_Default_AboutInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const translation_default_about = /** @type {((inputs?: Translation_Default_AboutInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Translation_Default_AboutInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.translation_default_about(inputs)
+	if (locale === "ru") return __ru.translation_default_about(inputs)
+	return __en.translation_default_about(inputs)
 });
 /**
 * | output |
@@ -23896,6 +24009,21 @@ export const translation_standard_rooms = /** @type {((inputs?: Translation_Stan
 	if (locale === "sv") return __sv.translation_standard_rooms(inputs)
 	if (locale === "ru") return __ru.translation_standard_rooms(inputs)
 	return __en.translation_standard_rooms(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "About room name translation" |
+*
+* @param {Translation_Standard_Rooms_AboutInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const translation_standard_rooms_about = /** @type {((inputs?: Translation_Standard_Rooms_AboutInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Translation_Standard_Rooms_AboutInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.translation_standard_rooms_about(inputs)
+	if (locale === "ru") return __ru.translation_standard_rooms_about(inputs)
+	return __en.translation_standard_rooms_about(inputs)
 });
 /**
 * | output |
@@ -25990,7 +26118,7 @@ export const webhooks_body_unavailable = /** @type {((inputs?: Webhooks_Body_Una
 /**
 * | output |
 * | --- |
-* | "Automations" |
+* | "Used in" |
 *
 * @param {Webhooks_Column_AutomationsInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options

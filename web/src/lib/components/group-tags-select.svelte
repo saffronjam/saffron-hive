@@ -33,7 +33,6 @@
 		{@const chipType = tag.toLowerCase()}
 		<HiveChip
 			type={chipType}
-			label={chipType.charAt(0).toUpperCase() + chipType.slice(1)}
 			active={selected.has(tag)}
 			onclick={() => toggle(tag)}
 		/>

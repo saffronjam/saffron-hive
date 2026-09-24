@@ -380,6 +380,7 @@
 /** @typedef {{}} Automations_Filter_SceneInputs */
 /** @typedef {{}} Automations_Filter_TriggerInputs */
 /** @typedef {{ time: NonNullable<unknown> }} Automations_FiredInputs */
+/** @typedef {{}} Automations_ManageInputs */
 /** @typedef {{}} Automations_Name_PlaceholderInputs */
 /** @typedef {{}} Automations_No_MatchInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Automations_Node_CountInputs */
@@ -495,6 +496,7 @@
 /** @typedef {{ name: NonNullable<unknown> }} Device_Image_AltInputs */
 /** @typedef {{}} Device_InfoInputs */
 /** @typedef {{}} Device_Memberships_EmptyInputs */
+/** @typedef {{}} Device_Memberships_SearchInputs */
 /** @typedef {{}} Device_ModeInputs */
 /** @typedef {{}} Device_NameInputs */
 /** @typedef {{}} Device_No_StateInputs */
@@ -720,6 +722,7 @@
 /** @typedef {{}} Field_EnergyInputs */
 /** @typedef {{}} Field_Fan_ModeInputs */
 /** @typedef {{}} Field_HumidityInputs */
+/** @typedef {{}} Field_Humidity_CalibrationInputs */
 /** @typedef {{}} Field_Hvac_ModeInputs */
 /** @typedef {{}} Field_IlluminanceInputs */
 /** @typedef {{}} Field_Last_SeenInputs */
@@ -740,6 +743,7 @@
 /** @typedef {{}} Field_SwingInputs */
 /** @typedef {{}} Field_Target_TemperatureInputs */
 /** @typedef {{}} Field_TemperatureInputs */
+/** @typedef {{}} Field_Temperature_CalibrationInputs */
 /** @typedef {{}} Field_TransitionInputs */
 /** @typedef {{}} Field_TypeInputs */
 /** @typedef {{}} Field_VoltageInputs */
@@ -1462,13 +1466,17 @@
 /** @typedef {{}} Target_Subject_WritableInputs */
 /** @typedef {{}} Target_Type_FilterInputs */
 /** @typedef {{}} Temperature_Picker_AriaInputs */
+/** @typedef {{ count: NonNullable<unknown> }} Time_Hours_AgoInputs */
 /** @typedef {{}} Time_Just_NowInputs */
+/** @typedef {{ count: NonNullable<unknown> }} Time_Minutes_AgoInputs */
 /** @typedef {{}} Translation_CardInputs */
+/** @typedef {{}} Translation_Default_AboutInputs */
 /** @typedef {{}} Translation_Default_HelpInputs */
 /** @typedef {{}} Translation_Default_LanguageInputs */
 /** @typedef {{}} Translation_NamesInputs */
 /** @typedef {{}} Translation_Source_LanguageInputs */
 /** @typedef {{}} Translation_Standard_RoomsInputs */
+/** @typedef {{}} Translation_Standard_Rooms_AboutInputs */
 /** @typedef {{}} Translation_Standard_Rooms_HelpInputs */
 /** @typedef {{}} Tuya_Access_IdInputs */
 /** @typedef {{}} Tuya_Access_SecretInputs */
@@ -1843,7 +1851,7 @@ export const activity_device_removed_generic = /** @type {(inputs: Activity_Devi
 };
 
 export const activity_device_state_changed = /** @type {(inputs: Activity_Device_State_ChangedInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`${i?.name} tillstånd förändrats`)
+	return /** @type {LocalizedString} */ (`${i?.name} ändrade tillstånd`)
 };
 
 export const activity_empty = /** @type {(inputs: Activity_EmptyInputs) => LocalizedString} */ () => {
@@ -1879,11 +1887,11 @@ export const activity_event_node_activated = /** @type {(inputs: Activity_Event_
 };
 
 export const activity_event_scene_applied = /** @type {(inputs: Activity_Event_Scene_AppliedInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Scen tillämpad`)
+	return /** @type {LocalizedString} */ (`Scen aktiverad`)
 };
 
 export const activity_event_state_changed = /** @type {(inputs: Activity_Event_State_ChangedInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Tillstånd förändrats`)
+	return /** @type {LocalizedString} */ (`Tillstånd ändrat`)
 };
 
 export const activity_event_webhook_received = /** @type {(inputs: Activity_Event_Webhook_ReceivedInputs) => LocalizedString} */ () => {
@@ -1891,7 +1899,7 @@ export const activity_event_webhook_received = /** @type {(inputs: Activity_Even
 };
 
 export const activity_filter_device = /** @type {(inputs: Activity_Filter_DeviceInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Anordning`)
+	return /** @type {LocalizedString} */ (`Enhet`)
 };
 
 export const activity_filter_room = /** @type {(inputs: Activity_Filter_RoomInputs) => LocalizedString} */ () => {
@@ -1911,7 +1919,7 @@ export const activity_generic_automation = /** @type {(inputs: Activity_Generic_
 };
 
 export const activity_generic_device = /** @type {(inputs: Activity_Generic_DeviceInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Anordning`)
+	return /** @type {LocalizedString} */ (`Enhet`)
 };
 
 export const activity_message = /** @type {(inputs: Activity_MessageInputs) => LocalizedString} */ () => {
@@ -1931,7 +1939,7 @@ export const activity_node_deactivated = /** @type {(inputs: Activity_Node_Deact
 };
 
 export const activity_payload = /** @type {(inputs: Activity_PayloadInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Nyttolast`)
+	return /** @type {LocalizedString} */ (`Data`)
 };
 
 export const activity_recent = /** @type {(inputs: Activity_RecentInputs) => LocalizedString} */ () => {
@@ -1943,15 +1951,15 @@ export const activity_recent_empty = /** @type {(inputs: Activity_Recent_EmptyIn
 };
 
 export const activity_scene_applied = /** @type {(inputs: Activity_Scene_AppliedInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Scen tillämpad: ${i?.name}`)
+	return /** @type {LocalizedString} */ (`Scen aktiverad: ${i?.name}`)
 };
 
 export const activity_scene_applied_generic = /** @type {(inputs: Activity_Scene_Applied_GenericInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Scen tillämpad`)
+	return /** @type {LocalizedString} */ (`Scen aktiverad`)
 };
 
 export const activity_search = /** @type {(inputs: Activity_SearchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland händelser...`)
+	return /** @type {LocalizedString} */ (`Sök bland händelser…`)
 };
 
 export const activity_select = /** @type {(inputs: Activity_SelectInputs) => LocalizedString} */ (i) => {
@@ -2011,7 +2019,7 @@ export const activity_type_scene = /** @type {(inputs: Activity_Type_SceneInputs
 };
 
 export const activity_type_state = /** @type {(inputs: Activity_Type_StateInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Ange`)
+	return /** @type {LocalizedString} */ (`Tillstånd`)
 };
 
 export const activity_type_webhook = /** @type {(inputs: Activity_Type_WebhookInputs) => LocalizedString} */ () => {
@@ -2035,11 +2043,11 @@ export const alarm_battery_low = /** @type {(inputs: Alarm_Battery_LowInputs) =>
 };
 
 export const alarm_broker_disconnected = /** @type {(inputs: Alarm_Broker_DisconnectedInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Zigbee2MQTT-mäklaren är frånkopplad`)
+	return /** @type {LocalizedString} */ (`Zigbee2MQTT-brokern är frånkopplad`)
 };
 
 export const alarm_device_unavailable = /** @type {(inputs: Alarm_Device_UnavailableInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Enhet "${i?.name}” har inte rapporterat nyligen`)
+	return /** @type {LocalizedString} */ (`Enheten ”${i?.name}” har inte rapporterat på ett tag`)
 };
 
 export const alarm_disk_low = /** @type {(inputs: Alarm_Disk_LowInputs) => LocalizedString} */ (i) => {
@@ -2069,11 +2077,11 @@ export const alarm_unknown_system = /** @type {(inputs: Alarm_Unknown_SystemInpu
 };
 
 export const alarms_column_count = /** @type {(inputs: Alarms_Column_CountInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Räkna`)
+	return /** @type {LocalizedString} */ (`Antal`)
 };
 
 export const alarms_column_last_raised = /** @type {(inputs: Alarms_Column_Last_RaisedInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Senast uppvuxen`)
+	return /** @type {LocalizedString} */ (`Senast utlöst`)
 };
 
 export const alarms_column_message = /** @type {(inputs: Alarms_Column_MessageInputs) => LocalizedString} */ () => {
@@ -2115,11 +2123,11 @@ export const alarms_empty_help = /** @type {(inputs: Alarms_Empty_HelpInputs) =>
 };
 
 export const alarms_filter_kind = /** @type {(inputs: Alarms_Filter_KindInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Slag`)
+	return /** @type {LocalizedString} */ (`Typ`)
 };
 
 export const alarms_filter_severity = /** @type {(inputs: Alarms_Filter_SeverityInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Stränghet`)
+	return /** @type {LocalizedString} */ (`Allvarlighetsgrad`)
 };
 
 export const alarms_filter_since = /** @type {(inputs: Alarms_Filter_SinceInputs) => LocalizedString} */ () => {
@@ -2131,7 +2139,7 @@ export const alarms_filter_source = /** @type {(inputs: Alarms_Filter_SourceInpu
 };
 
 export const alarms_kind_auto = /** @type {(inputs: Alarms_Kind_AutoInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Bil`)
+	return /** @type {LocalizedString} */ (`Auto`)
 };
 
 export const alarms_kind_one_shot = /** @type {(inputs: Alarms_Kind_One_ShotInputs) => LocalizedString} */ () => {
@@ -2143,7 +2151,7 @@ export const alarms_no_match = /** @type {(inputs: Alarms_No_MatchInputs) => Loc
 };
 
 export const alarms_search = /** @type {(inputs: Alarms_SearchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland larm...`)
+	return /** @type {LocalizedString} */ (`Sök bland larm…`)
 };
 
 export const alarms_select = /** @type {(inputs: Alarms_SelectInputs) => LocalizedString} */ (i) => {
@@ -2151,7 +2159,7 @@ export const alarms_select = /** @type {(inputs: Alarms_SelectInputs) => Localiz
 };
 
 export const alarms_severity_aria = /** @type {(inputs: Alarms_Severity_AriaInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`${i?.severity} stränghet`)
+	return /** @type {LocalizedString} */ (`${i?.severity} allvarlighetsgrad`)
 };
 
 export const alarms_severity_high = /** @type {(inputs: Alarms_Severity_HighInputs) => LocalizedString} */ () => {
@@ -2163,7 +2171,7 @@ export const alarms_severity_low = /** @type {(inputs: Alarms_Severity_LowInputs
 };
 
 export const alarms_severity_medium = /** @type {(inputs: Alarms_Severity_MediumInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Medium`)
+	return /** @type {LocalizedString} */ (`Medel`)
 };
 
 export const alarms_title = /** @type {(inputs: Alarms_TitleInputs) => LocalizedString} */ () => {
@@ -2287,7 +2295,7 @@ export const automation_action_change_value = /** @type {(inputs: Automation_Act
 };
 
 export const automation_action_change_value_description = /** @type {(inputs: Automation_Action_Change_Value_DescriptionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Justerar ett numeriskt värde med ett belopp`)
+	return /** @type {LocalizedString} */ (`Ändrar ett numeriskt värde`)
 };
 
 export const automation_action_clear_alarm = /** @type {(inputs: Automation_Action_Clear_AlarmInputs) => LocalizedString} */ () => {
@@ -2299,7 +2307,7 @@ export const automation_action_clear_alarm_description = /** @type {(inputs: Aut
 };
 
 export const automation_action_configure_device = /** @type {(inputs: Automation_Action_Configure_DeviceInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Konfigurera enheten`)
+	return /** @type {LocalizedString} */ (`Konfigurera enhet`)
 };
 
 export const automation_action_configure_device_description = /** @type {(inputs: Automation_Action_Configure_Device_DescriptionInputs) => LocalizedString} */ () => {
@@ -2315,7 +2323,7 @@ export const automation_action_cycle_scenes_description = /** @type {(inputs: Au
 };
 
 export const automation_action_raise_alarm = /** @type {(inputs: Automation_Action_Raise_AlarmInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Slå larm`)
+	return /** @type {LocalizedString} */ (`Aktivera larm`)
 };
 
 export const automation_action_raise_alarm_description = /** @type {(inputs: Automation_Action_Raise_Alarm_DescriptionInputs) => LocalizedString} */ () => {
@@ -2339,11 +2347,11 @@ export const automation_action_set_state_description = /** @type {(inputs: Autom
 };
 
 export const automation_action_toggle_state = /** @type {(inputs: Automation_Action_Toggle_StateInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Växla tillstånd`)
+	return /** @type {LocalizedString} */ (`Ändra tillstånd`)
 };
 
 export const automation_action_toggle_state_description = /** @type {(inputs: Automation_Action_Toggle_State_DescriptionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Växlar ström för en enhet, grupp eller rum`)
+	return /** @type {LocalizedString} */ (`Ändrar strömtillståndet för en enhet, grupp eller rum`)
 };
 
 export const automation_change_delta = /** @type {(inputs: Automation_Change_DeltaInputs) => LocalizedString} */ () => {
@@ -2367,7 +2375,7 @@ export const automation_change_value = /** @type {(inputs: Automation_Change_Val
 };
 
 export const automation_condition_custom = /** @type {(inputs: Automation_Condition_CustomInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Beställnings`)
+	return /** @type {LocalizedString} */ (`Anpassad`)
 };
 
 export const automation_condition_custom_description = /** @type {(inputs: Automation_Condition_Custom_DescriptionInputs) => LocalizedString} */ () => {
@@ -2379,7 +2387,7 @@ export const automation_condition_device_state = /** @type {(inputs: Automation_
 };
 
 export const automation_condition_device_state_description = /** @type {(inputs: Automation_Condition_Device_State_DescriptionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Kontrollerar det aktuella tillståndet för en enhet, grupp eller rum`)
+	return /** @type {LocalizedString} */ (`Kontrollerar tillståndet för en enhet, grupp eller rum`)
 };
 
 export const automation_condition_time_window = /** @type {(inputs: Automation_Condition_Time_WindowInputs) => LocalizedString} */ () => {
@@ -2395,7 +2403,7 @@ export const automation_condition_weekday = /** @type {(inputs: Automation_Condi
 };
 
 export const automation_condition_weekday_description = /** @type {(inputs: Automation_Condition_Weekday_DescriptionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Passar utvalda dagar`)
+	return /** @type {LocalizedString} */ (`Passerar på valda dagar`)
 };
 
 export const automation_editor_add_node = /** @type {(inputs: Automation_Editor_Add_NodeInputs) => LocalizedString} */ () => {
@@ -2423,7 +2431,7 @@ export const automation_editor_copy_trigger_condition = /** @type {(inputs: Auto
 };
 
 export const automation_editor_delete_description = /** @type {(inputs: Automation_Editor_Delete_DescriptionInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Ta bort "${i?.name}"? Åtgärden kan inte ångras.`)
+	return /** @type {LocalizedString} */ (`Ta bort "${i?.name}"? Det går inte att ångra.`)
 };
 
 export const automation_editor_delete_failed = /** @type {(inputs: Automation_Editor_Delete_FailedInputs) => LocalizedString} */ () => {
@@ -2519,7 +2527,7 @@ export const automation_node_after_minute = /** @type {(inputs: Automation_Node_
 };
 
 export const automation_node_alarm_auto = /** @type {(inputs: Automation_Node_Alarm_AutoInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Bil`)
+	return /** @type {LocalizedString} */ (`Auto`)
 };
 
 export const automation_node_alarm_id_clear_placeholder = /** @type {(inputs: Automation_Node_Alarm_Id_Clear_PlaceholderInputs) => LocalizedString} */ () => {
@@ -2551,7 +2559,7 @@ export const automation_node_before_minute = /** @type {(inputs: Automation_Node
 };
 
 export const automation_node_condition = /** @type {(inputs: Automation_Node_ConditionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Skick`)
+	return /** @type {LocalizedString} */ (`Villkor`)
 };
 
 export const automation_node_condition_expression = /** @type {(inputs: Automation_Node_Condition_ExpressionInputs) => LocalizedString} */ () => {
@@ -2611,19 +2619,19 @@ export const automation_node_filter_type = /** @type {(inputs: Automation_Node_F
 };
 
 export const automation_node_grace = /** @type {(inputs: Automation_Node_GraceInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Nåd`)
+	return /** @type {LocalizedString} */ (`Respittid`)
 };
 
 export const automation_node_grace_about = /** @type {(inputs: Automation_Node_Grace_AboutInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Om trigger grace`)
+	return /** @type {LocalizedString} */ (`Om utlösarens respittid`)
 };
 
 export const automation_node_grace_help = /** @type {(inputs: Automation_Node_Grace_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Håll denna utlösare aktiv så att AND/OR kan kombinera den med senare händelser.`)
+	return /** @type {LocalizedString} */ (`Håll denna utlösare aktiv så att OCH/ELLER kan kombinera den med senare händelser.`)
 };
 
 export const automation_node_grace_short = /** @type {(inputs: Automation_Node_Grace_ShortInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`T: ${i?.duration}`)
+	return /** @type {LocalizedString} */ (`R: ${i?.duration}`)
 };
 
 export const automation_node_hours = /** @type {(inputs: Automation_Node_HoursInputs) => LocalizedString} */ () => {
@@ -2631,7 +2639,7 @@ export const automation_node_hours = /** @type {(inputs: Automation_Node_HoursIn
 };
 
 export const automation_node_kind = /** @type {(inputs: Automation_Node_KindInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Slag`)
+	return /** @type {LocalizedString} */ (`Typ`)
 };
 
 export const automation_node_minutes = /** @type {(inputs: Automation_Node_MinutesInputs) => LocalizedString} */ () => {
@@ -2739,7 +2747,7 @@ export const automation_node_select_webhook = /** @type {(inputs: Automation_Nod
 };
 
 export const automation_node_severity = /** @type {(inputs: Automation_Node_SeverityInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Stränghet`)
+	return /** @type {LocalizedString} */ (`Allvarlighetsgrad`)
 };
 
 export const automation_node_severity_high = /** @type {(inputs: Automation_Node_Severity_HighInputs) => LocalizedString} */ () => {
@@ -2751,7 +2759,7 @@ export const automation_node_severity_low = /** @type {(inputs: Automation_Node_
 };
 
 export const automation_node_severity_medium = /** @type {(inputs: Automation_Node_Severity_MediumInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Medium`)
+	return /** @type {LocalizedString} */ (`Medel`)
 };
 
 export const automation_node_simple = /** @type {(inputs: Automation_Node_SimpleInputs) => LocalizedString} */ () => {
@@ -2783,7 +2791,7 @@ export const automation_operator_delay = /** @type {(inputs: Automation_Operator
 };
 
 export const automation_operator_not = /** @type {(inputs: Automation_Operator_NotInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`INTE`)
+	return /** @type {LocalizedString} */ (`ICKE`)
 };
 
 export const automation_operator_or = /** @type {(inputs: Automation_Operator_OrInputs) => LocalizedString} */ () => {
@@ -2877,7 +2885,7 @@ export const automation_state_no_capabilities = /** @type {(inputs: Automation_S
 };
 
 export const automation_state_power = /** @type {(inputs: Automation_State_PowerInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Driva`)
+	return /** @type {LocalizedString} */ (`På/av`)
 };
 
 export const automation_state_select_fan = /** @type {(inputs: Automation_State_Select_FanInputs) => LocalizedString} */ () => {
@@ -2925,7 +2933,7 @@ export const automation_trigger_availability_description = /** @type {(inputs: A
 };
 
 export const automation_trigger_custom = /** @type {(inputs: Automation_Trigger_CustomInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Beställnings`)
+	return /** @type {LocalizedString} */ (`Anpassad`)
 };
 
 export const automation_trigger_custom_description = /** @type {(inputs: Automation_Trigger_Custom_DescriptionInputs) => LocalizedString} */ () => {
@@ -2937,11 +2945,11 @@ export const automation_trigger_device_event = /** @type {(inputs: Automation_Tr
 };
 
 export const automation_trigger_device_event_description = /** @type {(inputs: Automation_Trigger_Device_Event_DescriptionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Körs för tryckningar, spärrar, tryckningar och andra tillfälliga händelser`)
+	return /** @type {LocalizedString} */ (`Körs vid tillfälliga händelser på en enhet`)
 };
 
 export const automation_trigger_device_state = /** @type {(inputs: Automation_Trigger_Device_StateInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Enhetens tillstånd har ändrats`)
+	return /** @type {LocalizedString} */ (`Ändring av enhetstillstånd`)
 };
 
 export const automation_trigger_device_state_description = /** @type {(inputs: Automation_Trigger_Device_State_DescriptionInputs) => LocalizedString} */ () => {
@@ -3033,7 +3041,7 @@ export const automation_validation_interval_positive = /** @type {(inputs: Autom
 };
 
 export const automation_validation_json_invalid = /** @type {(inputs: Automation_Validation_Json_InvalidInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Nyttolasten måste vara giltig JSON`)
+	return /** @type {LocalizedString} */ (`Data måste vara giltig JSON`)
 };
 
 export const automation_validation_property_required = /** @type {(inputs: Automation_Validation_Property_RequiredInputs) => LocalizedString} */ () => {
@@ -3191,7 +3199,7 @@ export const automations_action_count = /** @type {(inputs: Automations_Action_C
 };
 
 export const automations_column_composition = /** @type {(inputs: Automations_Column_CompositionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sammansättning`)
+	return /** @type {LocalizedString} */ (`Innehåll`)
 };
 
 export const automations_column_created_by = /** @type {(inputs: Automations_Column_Created_ByInputs) => LocalizedString} */ () => {
@@ -3199,11 +3207,11 @@ export const automations_column_created_by = /** @type {(inputs: Automations_Col
 };
 
 export const automations_column_last_triggered = /** @type {(inputs: Automations_Column_Last_TriggeredInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Senast utlöst`)
+	return /** @type {LocalizedString} */ (`Senast körd`)
 };
 
 export const automations_column_meta = /** @type {(inputs: Automations_Column_MetaInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Meta`)
+	return /** @type {LocalizedString} */ (`Noder`)
 };
 
 export const automations_column_name = /** @type {(inputs: Automations_Column_NameInputs) => LocalizedString} */ () => {
@@ -3223,7 +3231,7 @@ export const automations_create_first = /** @type {(inputs: Automations_Create_F
 };
 
 export const automations_create_more = /** @type {(inputs: Automations_Create_MoreInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Skapa en till`)
+	return /** @type {LocalizedString} */ (`Skapa fler`)
 };
 
 export const automations_create_short = /** @type {(inputs: Automations_Create_ShortInputs) => LocalizedString} */ () => {
@@ -3235,7 +3243,7 @@ export const automations_creating = /** @type {(inputs: Automations_CreatingInpu
 };
 
 export const automations_delete_description = /** @type {(inputs: Automations_Delete_DescriptionInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Ta bort "${i?.name}"? Åtgärden kan inte ångras.`)
+	return /** @type {LocalizedString} */ (`Ta bort "${i?.name}"? Det går inte att ångra.`)
 };
 
 export const automations_delete_many_description = /** @type {(inputs: Automations_Delete_Many_DescriptionInputs) => LocalizedString} */ () => {
@@ -3305,7 +3313,7 @@ export const automations_filter_device = /** @type {(inputs: Automations_Filter_
 };
 
 export const automations_filter_empty = /** @type {(inputs: Automations_Filter_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Tom`)
+	return /** @type {LocalizedString} */ (`Inga noder`)
 };
 
 export const automations_filter_enabled = /** @type {(inputs: Automations_Filter_EnabledInputs) => LocalizedString} */ () => {
@@ -3322,6 +3330,10 @@ export const automations_filter_trigger = /** @type {(inputs: Automations_Filter
 
 export const automations_fired = /** @type {(inputs: Automations_FiredInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`Körd ${i?.time}`)
+};
+
+export const automations_manage = /** @type {(inputs: Automations_ManageInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Hantera`)
 };
 
 export const automations_name_placeholder = /** @type {(inputs: Automations_Name_PlaceholderInputs) => LocalizedString} */ () => {
@@ -3345,7 +3357,7 @@ export const automations_operator_count = /** @type {(inputs: Automations_Operat
 };
 
 export const automations_search = /** @type {(inputs: Automations_SearchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland automatiseringar...`)
+	return /** @type {LocalizedString} */ (`Sök bland automatiseringar…`)
 };
 
 export const automations_select = /** @type {(inputs: Automations_SelectInputs) => LocalizedString} */ (i) => {
@@ -3483,7 +3495,7 @@ export const common_loading = /** @type {(inputs: Common_LoadingInputs) => Local
 };
 
 export const common_no = /** @type {(inputs: Common_NoInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Inga`)
+	return /** @type {LocalizedString} */ (`Nej`)
 };
 
 export const common_none = /** @type {(inputs: Common_NoneInputs) => LocalizedString} */ () => {
@@ -3543,11 +3555,11 @@ export const common_unknown_value = /** @type {(inputs: Common_Unknown_ValueInpu
 };
 
 export const common_unsupported = /** @type {(inputs: Common_UnsupportedInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Utan stöd`)
+	return /** @type {LocalizedString} */ (`Stöds inte`)
 };
 
 export const common_uploading = /** @type {(inputs: Common_UploadingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Laddar upp...`)
+	return /** @type {LocalizedString} */ (`Laddar upp…`)
 };
 
 export const common_yes = /** @type {(inputs: Common_YesInputs) => LocalizedString} */ () => {
@@ -3744,7 +3756,7 @@ export const device_apply = /** @type {(inputs: Device_ApplyInputs) => Localized
 };
 
 export const device_applying = /** @type {(inputs: Device_ApplyingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Ansöker...`)
+	return /** @type {LocalizedString} */ (`Ansöker…`)
 };
 
 export const device_back_to_devices = /** @type {(inputs: Device_Back_To_DevicesInputs) => LocalizedString} */ () => {
@@ -3784,11 +3796,11 @@ export const device_configuration_timeout = /** @type {(inputs: Device_Configura
 };
 
 export const device_controls_disabled = /** @type {(inputs: Device_Controls_DisabledInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Kontroller är inte tillgängliga när den här enheten är inaktiverad.`)
+	return /** @type {LocalizedString} */ (`Enheten kan inte styras när den är inaktiverad.`)
 };
 
 export const device_controls_enable_help = /** @type {(inputs: Device_Controls_Enable_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Slå på aktiverat igen ovan för att beordra det igen.`)
+	return /** @type {LocalizedString} */ (`Aktivera den ovan för att styra den igen.`)
 };
 
 export const device_copy_id = /** @type {(inputs: Device_Copy_IdInputs) => LocalizedString} */ () => {
@@ -3800,7 +3812,7 @@ export const device_fan = /** @type {(inputs: Device_FanInputs) => LocalizedStri
 };
 
 export const device_generic = /** @type {(inputs: Device_GenericInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Anordning`)
+	return /** @type {LocalizedString} */ (`Enhet`)
 };
 
 export const device_history = /** @type {(inputs: Device_HistoryInputs) => LocalizedString} */ () => {
@@ -3812,7 +3824,7 @@ export const device_id = /** @type {(inputs: Device_IdInputs) => LocalizedString
 };
 
 export const device_image_alt = /** @type {(inputs: Device_Image_AltInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`${i?.name} anordning`)
+	return /** @type {LocalizedString} */ (`${i?.name} enhet`)
 };
 
 export const device_info = /** @type {(inputs: Device_InfoInputs) => LocalizedString} */ () => {
@@ -3821,6 +3833,10 @@ export const device_info = /** @type {(inputs: Device_InfoInputs) => LocalizedSt
 
 export const device_memberships_empty = /** @type {(inputs: Device_Memberships_EmptyInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Inte i något rum eller grupp ännu.`)
+};
+
+export const device_memberships_search = /** @type {(inputs: Device_Memberships_SearchInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Sök rum och grupper…`)
 };
 
 export const device_mode = /** @type {(inputs: Device_ModeInputs) => LocalizedString} */ () => {
@@ -3844,7 +3860,7 @@ export const device_not_found_help = /** @type {(inputs: Device_Not_Found_HelpIn
 };
 
 export const device_power = /** @type {(inputs: Device_PowerInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Driva`)
+	return /** @type {LocalizedString} */ (`På/av`)
 };
 
 export const device_roles = /** @type {(inputs: Device_RolesInputs) => LocalizedString} */ () => {
@@ -3856,11 +3872,11 @@ export const device_roles_appliance = /** @type {(inputs: Device_Roles_Appliance
 };
 
 export const device_roles_contact = /** @type {(inputs: Device_Roles_ContactInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Kontakta`)
+	return /** @type {LocalizedString} */ (`Kontakt`)
 };
 
 export const device_roles_controls = /** @type {(inputs: Device_Roles_ControlsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Kontroller`)
+	return /** @type {LocalizedString} */ (`Styr`)
 };
 
 export const device_roles_general_contact = /** @type {(inputs: Device_Roles_General_ContactInputs) => LocalizedString} */ () => {
@@ -3960,7 +3976,7 @@ export const device_update = /** @type {(inputs: Device_UpdateInputs) => Localiz
 };
 
 export const device_waiting = /** @type {(inputs: Device_WaitingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Väntar på enhet...`)
+	return /** @type {LocalizedString} */ (`Väntar på enhet…`)
 };
 
 export const device_white = /** @type {(inputs: Device_WhiteInputs) => LocalizedString} */ () => {
@@ -4046,7 +4062,7 @@ export const devices_none_help = /** @type {(inputs: Devices_None_HelpInputs) =>
 };
 
 export const devices_offline = /** @type {(inputs: Devices_OfflineInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Off-line`)
+	return /** @type {LocalizedString} */ (`Offline`)
 };
 
 export const devices_online = /** @type {(inputs: Devices_OnlineInputs) => LocalizedString} */ () => {
@@ -4066,7 +4082,7 @@ export const devices_restore_named = /** @type {(inputs: Devices_Restore_NamedIn
 };
 
 export const devices_search = /** @type {(inputs: Devices_SearchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland enheter...`)
+	return /** @type {LocalizedString} */ (`Sök bland enheter…`)
 };
 
 export const devices_trigger_event = /** @type {(inputs: Devices_Trigger_EventInputs) => LocalizedString} */ (i) => {
@@ -4074,7 +4090,7 @@ export const devices_trigger_event = /** @type {(inputs: Devices_Trigger_EventIn
 };
 
 export const effect_action_run = /** @type {(inputs: Effect_Action_RunInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sikt`)
+	return /** @type {LocalizedString} */ (`Kör`)
 };
 
 export const effect_back = /** @type {(inputs: Effect_BackInputs) => LocalizedString} */ () => {
@@ -4094,7 +4110,7 @@ export const effect_cap_color_temp = /** @type {(inputs: Effect_Cap_Color_TempIn
 };
 
 export const effect_cap_on_off = /** @type {(inputs: Effect_Cap_On_OffInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`På/Av`)
+	return /** @type {LocalizedString} */ (`På/av`)
 };
 
 export const effect_change_icon = /** @type {(inputs: Effect_Change_IconInputs) => LocalizedString} */ () => {
@@ -4176,7 +4192,7 @@ export const effect_timeline_drag_loop_end = /** @type {(inputs: Effect_Timeline
 };
 
 export const effect_timeline_duration = /** @type {(inputs: Effect_Timeline_DurationInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Varaktighet ${i?.duration}`)
+	return /** @type {LocalizedString} */ (`Längd ${i?.duration}`)
 };
 
 export const effect_timeline_edit_clip = /** @type {(inputs: Effect_Timeline_Edit_ClipInputs) => LocalizedString} */ () => {
@@ -4196,7 +4212,7 @@ export const effect_timeline_fit = /** @type {(inputs: Effect_Timeline_FitInputs
 };
 
 export const effect_timeline_loop_effect = /** @type {(inputs: Effect_Timeline_Loop_EffectInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Loop effekt`)
+	return /** @type {LocalizedString} */ (`Loopa effekten`)
 };
 
 export const effect_timeline_mireds = /** @type {(inputs: Effect_Timeline_MiredsInputs) => LocalizedString} */ (i) => {
@@ -4244,7 +4260,7 @@ export const effect_timeline_remove_track = /** @type {(inputs: Effect_Timeline_
 };
 
 export const effect_timeline_required = /** @type {(inputs: Effect_Timeline_RequiredInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Nödvändig:`)
+	return /** @type {LocalizedString} */ (`Krav:`)
 };
 
 export const effect_timeline_resize_clip = /** @type {(inputs: Effect_Timeline_Resize_ClipInputs) => LocalizedString} */ () => {
@@ -4260,7 +4276,7 @@ export const effect_timeline_start_ms_aria = /** @type {(inputs: Effect_Timeline
 };
 
 export const effect_timeline_state = /** @type {(inputs: Effect_Timeline_StateInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Ange`)
+	return /** @type {LocalizedString} */ (`Tillstånd`)
 };
 
 export const effect_timeline_title = /** @type {(inputs: Effect_Timeline_TitleInputs) => LocalizedString} */ () => {
@@ -4268,7 +4284,7 @@ export const effect_timeline_title = /** @type {(inputs: Effect_Timeline_TitleIn
 };
 
 export const effect_timeline_track = /** @type {(inputs: Effect_Timeline_TrackInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Spåra ${i?.number}`)
+	return /** @type {LocalizedString} */ (`Spår ${i?.number}`)
 };
 
 export const effect_timeline_track_count = /** @type {(inputs: Effect_Timeline_Track_CountInputs) => LocalizedString} */ (i) => {const countPlural = registry.plural("sv", i?.count, {});
@@ -4322,7 +4338,7 @@ export const effect_validation_config_invalid = /** @type {(inputs: Effect_Valid
 };
 
 export const effect_validation_duration_negative = /** @type {(inputs: Effect_Validation_Duration_NegativeInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Varaktigheten måste vara noll eller positiv`)
+	return /** @type {LocalizedString} */ (`Längden måste vara noll eller positiv`)
 };
 
 export const effect_validation_name_required = /** @type {(inputs: Effect_Validation_Name_RequiredInputs) => LocalizedString} */ () => {
@@ -4338,7 +4354,7 @@ export const effect_validation_overlap = /** @type {(inputs: Effect_Validation_O
 };
 
 export const effect_validation_past_loop = /** @type {(inputs: Effect_Validation_Past_LoopInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Klämman sträcker sig förbi öglans ände`)
+	return /** @type {LocalizedString} */ (`Klippet sträcker sig förbi loopens slut`)
 };
 
 export const effect_validation_transition_invalid = /** @type {(inputs: Effect_Validation_Transition_InvalidInputs) => LocalizedString} */ () => {
@@ -4358,7 +4374,7 @@ export const effects_column_name = /** @type {(inputs: Effects_Column_NameInputs
 };
 
 export const effects_column_required = /** @type {(inputs: Effects_Column_RequiredInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Använder`)
+	return /** @type {LocalizedString} */ (`Krav`)
 };
 
 export const effects_column_source = /** @type {(inputs: Effects_Column_SourceInputs) => LocalizedString} */ () => {
@@ -4378,7 +4394,7 @@ export const effects_create_first = /** @type {(inputs: Effects_Create_FirstInpu
 };
 
 export const effects_create_more = /** @type {(inputs: Effects_Create_MoreInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Skapa mer`)
+	return /** @type {LocalizedString} */ (`Skapa fler`)
 };
 
 export const effects_create_short = /** @type {(inputs: Effects_Create_ShortInputs) => LocalizedString} */ () => {
@@ -4390,7 +4406,7 @@ export const effects_creating = /** @type {(inputs: Effects_CreatingInputs) => L
 };
 
 export const effects_delete_description = /** @type {(inputs: Effects_Delete_DescriptionInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Ta bort "${i?.name}"? Detta kan inte ångras. Scener och automatiseringar som refererar till denna effekt måste uppdateras.`)
+	return /** @type {LocalizedString} */ (`Ta bort "${i?.name}"? Det går inte att ångra. Scener och automatiseringar som refererar till denna effekt måste uppdateras.`)
 };
 
 export const effects_delete_many_description = /** @type {(inputs: Effects_Delete_Many_DescriptionInputs) => LocalizedString} */ () => {
@@ -4444,11 +4460,11 @@ export const effects_hive_group = /** @type {(inputs: Effects_Hive_GroupInputs) 
 };
 
 export const effects_kind = /** @type {(inputs: Effects_KindInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Slag`)
+	return /** @type {LocalizedString} */ (`Typ`)
 };
 
 export const effects_loop = /** @type {(inputs: Effects_LoopInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Slinga`)
+	return /** @type {LocalizedString} */ (`Loopande`)
 };
 
 export const effects_managed_zigbee = /** @type {(inputs: Effects_Managed_ZigbeeInputs) => LocalizedString} */ () => {
@@ -4468,7 +4484,7 @@ export const effects_native_load_error = /** @type {(inputs: Effects_Native_Load
 };
 
 export const effects_native_loading = /** @type {(inputs: Effects_Native_LoadingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Laddar tillgängliga effekter...`)
+	return /** @type {LocalizedString} */ (`Laddar tillgängliga effekter…`)
 };
 
 export const effects_no_confirmation = /** @type {(inputs: Effects_No_ConfirmationInputs) => LocalizedString} */ () => {
@@ -4484,7 +4500,7 @@ export const effects_no_required_capabilities = /** @type {(inputs: Effects_No_R
 };
 
 export const effects_once = /** @type {(inputs: Effects_OnceInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`En gång`)
+	return /** @type {LocalizedString} */ (`Engångseffekt`)
 };
 
 export const effects_picker_description = /** @type {(inputs: Effects_Picker_DescriptionInputs) => LocalizedString} */ () => {
@@ -4508,7 +4524,7 @@ export const effects_run_zigbee = /** @type {(inputs: Effects_Run_ZigbeeInputs) 
 };
 
 export const effects_search = /** @type {(inputs: Effects_SearchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland effekter...`)
+	return /** @type {LocalizedString} */ (`Sök bland effekter…`)
 };
 
 export const effects_select = /** @type {(inputs: Effects_SelectInputs) => LocalizedString} */ (i) => {
@@ -4555,7 +4571,7 @@ export const effects_support_confirmed = /** @type {(inputs: Effects_Support_Con
 };
 
 export const effects_support_unsupported = /** @type {(inputs: Effects_Support_UnsupportedInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Utan stöd`)
+	return /** @type {LocalizedString} */ (`Stöds inte`)
 };
 
 export const effects_support_untested = /** @type {(inputs: Effects_Support_UntestedInputs) => LocalizedString} */ () => {
@@ -4671,7 +4687,7 @@ export const field_battery = /** @type {(inputs: Field_BatteryInputs) => Localiz
 };
 
 export const field_breakdown = /** @type {(inputs: Field_BreakdownInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sammansättning`)
+	return /** @type {LocalizedString} */ (`Innehåll`)
 };
 
 export const field_brightness = /** @type {(inputs: Field_BrightnessInputs) => LocalizedString} */ () => {
@@ -4687,7 +4703,7 @@ export const field_color_temperature = /** @type {(inputs: Field_Color_Temperatu
 };
 
 export const field_contact = /** @type {(inputs: Field_ContactInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Kontakta`)
+	return /** @type {LocalizedString} */ (`Kontakt`)
 };
 
 export const field_created_by = /** @type {(inputs: Field_Created_ByInputs) => LocalizedString} */ () => {
@@ -4695,7 +4711,7 @@ export const field_created_by = /** @type {(inputs: Field_Created_ByInputs) => L
 };
 
 export const field_current = /** @type {(inputs: Field_CurrentInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Nuvarande`)
+	return /** @type {LocalizedString} */ (`Ström`)
 };
 
 export const field_deleted = /** @type {(inputs: Field_DeletedInputs) => LocalizedString} */ () => {
@@ -4703,11 +4719,11 @@ export const field_deleted = /** @type {(inputs: Field_DeletedInputs) => Localiz
 };
 
 export const field_device = /** @type {(inputs: Field_DeviceInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Anordning`)
+	return /** @type {LocalizedString} */ (`Enhet`)
 };
 
 export const field_device_posture = /** @type {(inputs: Field_Device_PostureInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Enhetens hållning`)
+	return /** @type {LocalizedString} */ (`Enhetens läge`)
 };
 
 export const field_disabled = /** @type {(inputs: Field_DisabledInputs) => LocalizedString} */ () => {
@@ -4735,7 +4751,11 @@ export const field_fan_mode = /** @type {(inputs: Field_Fan_ModeInputs) => Local
 };
 
 export const field_humidity = /** @type {(inputs: Field_HumidityInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Fuktighet`)
+	return /** @type {LocalizedString} */ (`Luftfuktighet`)
+};
+
+export const field_humidity_calibration = /** @type {(inputs: Field_Humidity_CalibrationInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Luftfuktighetskalibrering`)
 };
 
 export const field_hvac_mode = /** @type {(inputs: Field_Hvac_ModeInputs) => LocalizedString} */ () => {
@@ -4775,7 +4795,7 @@ export const field_occupancy = /** @type {(inputs: Field_OccupancyInputs) => Loc
 };
 
 export const field_on = /** @type {(inputs: Field_OnInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Driva`)
+	return /** @type {LocalizedString} */ (`På/av`)
 };
 
 export const field_orientation = /** @type {(inputs: Field_OrientationInputs) => LocalizedString} */ () => {
@@ -4783,7 +4803,7 @@ export const field_orientation = /** @type {(inputs: Field_OrientationInputs) =>
 };
 
 export const field_power = /** @type {(inputs: Field_PowerInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Driva`)
+	return /** @type {LocalizedString} */ (`Effekt`)
 };
 
 export const field_power_on_behavior = /** @type {(inputs: Field_Power_On_BehaviorInputs) => LocalizedString} */ () => {
@@ -4803,7 +4823,7 @@ export const field_source = /** @type {(inputs: Field_SourceInputs) => Localized
 };
 
 export const field_state = /** @type {(inputs: Field_StateInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Status`)
+	return /** @type {LocalizedString} */ (`Tillstånd`)
 };
 
 export const field_swing = /** @type {(inputs: Field_SwingInputs) => LocalizedString} */ () => {
@@ -4816,6 +4836,10 @@ export const field_target_temperature = /** @type {(inputs: Field_Target_Tempera
 
 export const field_temperature = /** @type {(inputs: Field_TemperatureInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Temperatur`)
+};
+
+export const field_temperature_calibration = /** @type {(inputs: Field_Temperature_CalibrationInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Temperaturkalibrering`)
 };
 
 export const field_transition = /** @type {(inputs: Field_TransitionInputs) => LocalizedString} */ () => {
@@ -4867,7 +4891,7 @@ export const group_create_first = /** @type {(inputs: Group_Create_FirstInputs) 
 };
 
 export const group_create_more = /** @type {(inputs: Group_Create_MoreInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Skapa mer`)
+	return /** @type {LocalizedString} */ (`Skapa fler`)
 };
 
 export const group_creating = /** @type {(inputs: Group_CreatingInputs) => LocalizedString} */ () => {
@@ -4879,7 +4903,7 @@ export const group_delete = /** @type {(inputs: Group_DeleteInputs) => Localized
 };
 
 export const group_delete_description = /** @type {(inputs: Group_Delete_DescriptionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Denna åtgärd kan inte ångras.`)
+	return /** @type {LocalizedString} */ (`Det går inte att ångra.`)
 };
 
 export const group_delete_failed = /** @type {(inputs: Group_Delete_FailedInputs) => LocalizedString} */ () => {
@@ -4887,7 +4911,7 @@ export const group_delete_failed = /** @type {(inputs: Group_Delete_FailedInputs
 };
 
 export const group_delete_many_description = /** @type {(inputs: Group_Delete_Many_DescriptionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Detta tar permanent bort de valda grupperna och tar bort deras medlemskap. Detta kan inte ångras.`)
+	return /** @type {LocalizedString} */ (`Detta tar permanent bort de valda grupperna och tar bort deras medlemskap. Det går inte att ångra.`)
 };
 
 export const group_delete_many_failed = /** @type {(inputs: Group_Delete_Many_FailedInputs) => LocalizedString} */ () => {
@@ -4953,7 +4977,7 @@ export const group_save_failed = /** @type {(inputs: Group_Save_FailedInputs) =>
 };
 
 export const group_search = /** @type {(inputs: Group_SearchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland grupper...`)
+	return /** @type {LocalizedString} */ (`Sök bland grupper…`)
 };
 
 export const group_tags = /** @type {(inputs: Group_TagsInputs) => LocalizedString} */ () => {
@@ -5129,7 +5153,7 @@ export const history_resolution = /** @type {(inputs: History_ResolutionInputs) 
 };
 
 export const history_resolution_auto = /** @type {(inputs: History_Resolution_AutoInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Bil`)
+	return /** @type {LocalizedString} */ (`Auto`)
 };
 
 export const history_resolution_days = /** @type {(inputs: History_Resolution_DaysInputs) => LocalizedString} */ (i) => {const countPlural = registry.plural("sv", i?.count, {});
@@ -5175,7 +5199,7 @@ export const icon_none = /** @type {(inputs: Icon_NoneInputs) => LocalizedString
 };
 
 export const icon_search = /** @type {(inputs: Icon_SearchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland ikoner...`)
+	return /** @type {LocalizedString} */ (`Sök bland ikoner…`)
 };
 
 export const icon_search_prompt = /** @type {(inputs: Icon_Search_PromptInputs) => LocalizedString} */ () => {
@@ -5207,7 +5231,7 @@ export const integrations_delete_keep_description = /** @type {(inputs: Integrat
 };
 
 export const integrations_delete_purge_description = /** @type {(inputs: Integrations_Delete_Purge_DescriptionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Om du tar bort denna integration tas dess konfiguration bort och alla enheter som är anslutna via den. Detta kan inte ångras.`)
+	return /** @type {LocalizedString} */ (`Om du tar bort denna integration tas dess konfiguration bort och alla enheter som är anslutna via den. Det går inte att ångra.`)
 };
 
 export const integrations_delete_title = /** @type {(inputs: Integrations_Delete_TitleInputs) => LocalizedString} */ () => {
@@ -5219,7 +5243,7 @@ export const integrations_description_generic = /** @type {(inputs: Integrations
 };
 
 export const integrations_description_tuya = /** @type {(inputs: Integrations_Description_TuyaInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Cloud API-enhetsadapter`)
+	return /** @type {LocalizedString} */ (`Enhetsadapter via Tuya Cloud API`)
 };
 
 export const integrations_description_zigbee2mqtt = /** @type {(inputs: Integrations_Description_Zigbee2mqttInputs) => LocalizedString} */ () => {
@@ -5255,7 +5279,7 @@ export const integrations_none_available = /** @type {(inputs: Integrations_None
 };
 
 export const integrations_search = /** @type {(inputs: Integrations_SearchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland integrationer...`)
+	return /** @type {LocalizedString} */ (`Sök bland integrationer…`)
 };
 
 export const integrations_status_configured = /** @type {(inputs: Integrations_Status_ConfiguredInputs) => LocalizedString} */ () => {
@@ -5291,7 +5315,7 @@ export const logs_paused = /** @type {(inputs: Logs_PausedInputs) => LocalizedSt
 };
 
 export const logs_search = /** @type {(inputs: Logs_SearchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland loggposter...`)
+	return /** @type {LocalizedString} */ (`Sök bland loggposter…`)
 };
 
 export const maintenance_battery_action = /** @type {(inputs: Maintenance_Battery_ActionInputs) => LocalizedString} */ () => {
@@ -5311,7 +5335,7 @@ export const maintenance_empty = /** @type {(inputs: Maintenance_EmptyInputs) =>
 };
 
 export const maintenance_filter_device = /** @type {(inputs: Maintenance_Filter_DeviceInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Anordning`)
+	return /** @type {LocalizedString} */ (`Enhet`)
 };
 
 export const maintenance_filter_device_type = /** @type {(inputs: Maintenance_Filter_Device_TypeInputs) => LocalizedString} */ () => {
@@ -5355,7 +5379,7 @@ export const maintenance_group_updates = /** @type {(inputs: Maintenance_Group_U
 };
 
 export const maintenance_loading = /** @type {(inputs: Maintenance_LoadingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Laddar underhåll...`)
+	return /** @type {LocalizedString} */ (`Laddar underhåll…`)
 };
 
 export const maintenance_mark_all_done = /** @type {(inputs: Maintenance_Mark_All_DoneInputs) => LocalizedString} */ () => {
@@ -5387,7 +5411,7 @@ export const maintenance_replace_battery = /** @type {(inputs: Maintenance_Repla
 };
 
 export const maintenance_search = /** @type {(inputs: Maintenance_SearchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland underhållsuppgifter...`)
+	return /** @type {LocalizedString} */ (`Sök bland underhållsuppgifter…`)
 };
 
 export const maintenance_status_disabled = /** @type {(inputs: Maintenance_Status_DisabledInputs) => LocalizedString} */ () => {
@@ -5395,7 +5419,7 @@ export const maintenance_status_disabled = /** @type {(inputs: Maintenance_Statu
 };
 
 export const maintenance_status_offline = /** @type {(inputs: Maintenance_Status_OfflineInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Off-line`)
+	return /** @type {LocalizedString} */ (`Offline`)
 };
 
 export const maintenance_status_online = /** @type {(inputs: Maintenance_Status_OnlineInputs) => LocalizedString} */ () => {
@@ -5889,7 +5913,7 @@ export const map_tool_length = /** @type {(inputs: Map_Tool_LengthInputs) => Loc
 };
 
 export const map_tool_measure = /** @type {(inputs: Map_Tool_MeasureInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Mäta`)
+	return /** @type {LocalizedString} */ (`Mät`)
 };
 
 export const map_tool_move = /** @type {(inputs: Map_Tool_MoveInputs) => LocalizedString} */ () => {
@@ -5905,7 +5929,7 @@ export const map_tool_rotate = /** @type {(inputs: Map_Tool_RotateInputs) => Loc
 };
 
 export const map_tool_select = /** @type {(inputs: Map_Tool_SelectInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Välja`)
+	return /** @type {LocalizedString} */ (`Markera`)
 };
 
 export const map_tool_stamp_room = /** @type {(inputs: Map_Tool_Stamp_RoomInputs) => LocalizedString} */ () => {
@@ -5929,7 +5953,7 @@ export const map_unlock_room = /** @type {(inputs: Map_Unlock_RoomInputs) => Loc
 };
 
 export const map_view_connectivity = /** @type {(inputs: Map_View_ConnectivityInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Anslutningsmöjligheter`)
+	return /** @type {LocalizedString} */ (`Anslutningar`)
 };
 
 export const map_view_light = /** @type {(inputs: Map_View_LightInputs) => LocalizedString} */ () => {
@@ -5957,11 +5981,11 @@ export const member_empty = /** @type {(inputs: Member_EmptyInputs) => Localized
 };
 
 export const member_more = /** @type {(inputs: Member_MoreInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`+${i?.count} mer`)
+	return /** @type {LocalizedString} */ (`+${i?.count} fler`)
 };
 
 export const member_search = /** @type {(inputs: Member_SearchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland medlemmar...`)
+	return /** @type {LocalizedString} */ (`Sök bland medlemmar…`)
 };
 
 export const nav_action = /** @type {(inputs: Nav_ActionInputs) => LocalizedString} */ () => {
@@ -6073,7 +6097,7 @@ export const nav_webhooks = /** @type {(inputs: Nav_WebhooksInputs) => Localized
 };
 
 export const plug_current = /** @type {(inputs: Plug_CurrentInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Nuvarande`)
+	return /** @type {LocalizedString} */ (`Ström`)
 };
 
 export const plug_energy = /** @type {(inputs: Plug_EnergyInputs) => LocalizedString} */ () => {
@@ -6081,7 +6105,7 @@ export const plug_energy = /** @type {(inputs: Plug_EnergyInputs) => LocalizedSt
 };
 
 export const plug_status = /** @type {(inputs: Plug_StatusInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Plug status`)
+	return /** @type {LocalizedString} */ (`Status`)
 };
 
 export const plug_toggle = /** @type {(inputs: Plug_ToggleInputs) => LocalizedString} */ () => {
@@ -6193,7 +6217,7 @@ export const profile_preferences = /** @type {(inputs: Profile_PreferencesInputs
 };
 
 export const profile_removing = /** @type {(inputs: Profile_RemovingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Tar bort...`)
+	return /** @type {LocalizedString} */ (`Tar bort…`)
 };
 
 export const profile_sign_out_description = /** @type {(inputs: Profile_Sign_Out_DescriptionInputs) => LocalizedString} */ () => {
@@ -6213,7 +6237,7 @@ export const profile_sign_out_success = /** @type {(inputs: Profile_Sign_Out_Suc
 };
 
 export const profile_signing_out = /** @type {(inputs: Profile_Signing_OutInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Loggar ut...`)
+	return /** @type {LocalizedString} */ (`Loggar ut…`)
 };
 
 export const profile_temperature_about = /** @type {(inputs: Profile_Temperature_AboutInputs) => LocalizedString} */ () => {
@@ -6341,7 +6365,7 @@ export const room_create_first = /** @type {(inputs: Room_Create_FirstInputs) =>
 };
 
 export const room_create_more = /** @type {(inputs: Room_Create_MoreInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Skapa mer`)
+	return /** @type {LocalizedString} */ (`Skapa fler`)
 };
 
 export const room_creating = /** @type {(inputs: Room_CreatingInputs) => LocalizedString} */ () => {
@@ -6353,7 +6377,7 @@ export const room_delete = /** @type {(inputs: Room_DeleteInputs) => LocalizedSt
 };
 
 export const room_delete_description = /** @type {(inputs: Room_Delete_DescriptionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Denna åtgärd kan inte ångras.`)
+	return /** @type {LocalizedString} */ (`Det går inte att ångra.`)
 };
 
 export const room_delete_failed = /** @type {(inputs: Room_Delete_FailedInputs) => LocalizedString} */ () => {
@@ -6361,7 +6385,7 @@ export const room_delete_failed = /** @type {(inputs: Room_Delete_FailedInputs) 
 };
 
 export const room_delete_many_description = /** @type {(inputs: Room_Delete_Many_DescriptionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Detta tar permanent bort de valda rummen och tar bort deras enhetstilldelningar. Detta kan inte ångras.`)
+	return /** @type {LocalizedString} */ (`Detta tar permanent bort de valda rummen och tar bort deras enhetstilldelningar. Det går inte att ångra.`)
 };
 
 export const room_delete_many_failed = /** @type {(inputs: Room_Delete_Many_FailedInputs) => LocalizedString} */ () => {
@@ -6423,11 +6447,11 @@ export const room_save_failed = /** @type {(inputs: Room_Save_FailedInputs) => L
 };
 
 export const room_search = /** @type {(inputs: Room_SearchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland rum...`)
+	return /** @type {LocalizedString} */ (`Sök bland rum…`)
 };
 
 export const scene_action_apply = /** @type {(inputs: Scene_Action_ApplyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Starta`)
+	return /** @type {LocalizedString} */ (`Aktivera`)
 };
 
 export const scene_action_stop = /** @type {(inputs: Scene_Action_StopInputs) => LocalizedString} */ () => {
@@ -6447,7 +6471,7 @@ export const scene_choose_icon = /** @type {(inputs: Scene_Choose_IconInputs) =>
 };
 
 export const scene_create_add_selector = /** @type {(inputs: Scene_Create_Add_SelectorInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Lägg till väljare`)
+	return /** @type {LocalizedString} */ (`Lägg till urval`)
 };
 
 export const scene_create_adjust_lighting = /** @type {(inputs: Scene_Create_Adjust_LightingInputs) => LocalizedString} */ () => {
@@ -6467,11 +6491,11 @@ export const scene_create_building = /** @type {(inputs: Scene_Create_BuildingIn
 };
 
 export const scene_create_choose_location = /** @type {(inputs: Scene_Create_Choose_LocationInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Välj var den ska bo`)
+	return /** @type {LocalizedString} */ (`Välj var scenen ska gälla`)
 };
 
 export const scene_create_choose_look = /** @type {(inputs: Scene_Create_Choose_LookInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Välj utseende`)
+	return /** @type {LocalizedString} */ (`Välj stämning`)
 };
 
 export const scene_create_creating = /** @type {(inputs: Scene_Create_CreatingInputs) => LocalizedString} */ () => {
@@ -6479,7 +6503,7 @@ export const scene_create_creating = /** @type {(inputs: Scene_Create_CreatingIn
 };
 
 export const scene_create_error_choose_vibe = /** @type {(inputs: Scene_Create_Error_Choose_VibeInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Välj en Vibe innan du fortsätter.`)
+	return /** @type {LocalizedString} */ (`Välj en stämning innan du fortsätter.`)
 };
 
 export const scene_create_error_create = /** @type {(inputs: Scene_Create_Error_CreateInputs) => LocalizedString} */ () => {
@@ -6487,7 +6511,7 @@ export const scene_create_error_create = /** @type {(inputs: Scene_Create_Error_
 };
 
 export const scene_create_full_color = /** @type {(inputs: Scene_Create_Full_ColorInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Fullfärg`)
+	return /** @type {LocalizedString} */ (`Färg`)
 };
 
 export const scene_create_loading_gallery = /** @type {(inputs: Scene_Create_Loading_GalleryInputs) => LocalizedString} */ () => {
@@ -6511,7 +6535,7 @@ export const scene_create_photo_atmosphere = /** @type {(inputs: Scene_Create_Ph
 };
 
 export const scene_create_photo_formats = /** @type {(inputs: Scene_Create_Photo_FormatsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`JPEG, PNG, WebP eller annan webbläsarstödd bild`)
+	return /** @type {LocalizedString} */ (`JPEG, PNG, WebP eller annat format som webbläsaren stöder`)
 };
 
 export const scene_create_photo_privacy = /** @type {(inputs: Scene_Create_Photo_PrivacyInputs) => LocalizedString} */ () => {
@@ -6531,11 +6555,11 @@ export const scene_create_turn_on = /** @type {(inputs: Scene_Create_Turn_OnInpu
 };
 
 export const scene_create_vibe_preview_empty = /** @type {(inputs: Scene_Create_Vibe_Preview_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Din Vibe kommer att visas här.`)
+	return /** @type {LocalizedString} */ (`Din stämning visas här.`)
 };
 
 export const scene_create_whites_only = /** @type {(inputs: Scene_Create_Whites_OnlyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Endast vita`)
+	return /** @type {LocalizedString} */ (`Vitt`)
 };
 
 export const scene_editor_add = /** @type {(inputs: Scene_Editor_AddInputs) => LocalizedString} */ () => {
@@ -6543,15 +6567,15 @@ export const scene_editor_add = /** @type {(inputs: Scene_Editor_AddInputs) => L
 };
 
 export const scene_editor_add_lighting_targets = /** @type {(inputs: Scene_Editor_Add_Lighting_TargetsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Lägg till belysningsmål`)
+	return /** @type {LocalizedString} */ (`Lägg till rum eller enhet`)
 };
 
 export const scene_editor_add_selector = /** @type {(inputs: Scene_Editor_Add_SelectorInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Lägg till väljare`)
+	return /** @type {LocalizedString} */ (`Lägg till urval`)
 };
 
 export const scene_editor_add_supporting = /** @type {(inputs: Scene_Editor_Add_SupportingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Lägg till stödjande enheter`)
+	return /** @type {LocalizedString} */ (`Lägg till kompletterande enheter`)
 };
 
 export const scene_editor_add_supporting_description = /** @type {(inputs: Scene_Editor_Add_Supporting_DescriptionInputs) => LocalizedString} */ () => {
@@ -6607,7 +6631,7 @@ export const scene_editor_devices = /** @type {(inputs: Scene_Editor_DevicesInpu
 };
 
 export const scene_editor_done = /** @type {(inputs: Scene_Editor_DoneInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Gjort`)
+	return /** @type {LocalizedString} */ (`Klar`)
 };
 
 export const scene_editor_edit = /** @type {(inputs: Scene_Editor_EditInputs) => LocalizedString} */ () => {
@@ -6619,7 +6643,7 @@ export const scene_editor_edit_item = /** @type {(inputs: Scene_Editor_Edit_Item
 };
 
 export const scene_editor_edit_selector = /** @type {(inputs: Scene_Editor_Edit_SelectorInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Redigera väljare`)
+	return /** @type {LocalizedString} */ (`Redigera urval`)
 };
 
 export const scene_editor_effect = /** @type {(inputs: Scene_Editor_EffectInputs) => LocalizedString} */ () => {
@@ -6696,7 +6720,7 @@ export const scene_editor_pace = /** @type {(inputs: Scene_Editor_PaceInputs) =>
 };
 
 export const scene_editor_power = /** @type {(inputs: Scene_Editor_PowerInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Driva`)
+	return /** @type {LocalizedString} */ (`På/av`)
 };
 
 export const scene_editor_remove = /** @type {(inputs: Scene_Editor_RemoveInputs) => LocalizedString} */ () => {
@@ -6716,15 +6740,15 @@ export const scene_editor_rooms = /** @type {(inputs: Scene_Editor_RoomsInputs) 
 };
 
 export const scene_editor_selector = /** @type {(inputs: Scene_Editor_SelectorInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Väljare`)
+	return /** @type {LocalizedString} */ (`Urval`)
 };
 
 export const scene_editor_selector_name = /** @type {(inputs: Scene_Editor_Selector_NameInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Väljarens namn`)
+	return /** @type {LocalizedString} */ (`Urvalets namn`)
 };
 
 export const scene_editor_set_power = /** @type {(inputs: Scene_Editor_Set_PowerInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Uppsättning ${i?.name} driva`)
+	return /** @type {LocalizedString} */ (`Ställ in på/av för ${i?.name}`)
 };
 
 export const scene_editor_shuffle = /** @type {(inputs: Scene_Editor_ShuffleInputs) => LocalizedString} */ () => {
@@ -6736,15 +6760,15 @@ export const scene_editor_simple = /** @type {(inputs: Scene_Editor_SimpleInputs
 };
 
 export const scene_editor_state = /** @type {(inputs: Scene_Editor_StateInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Ange`)
+	return /** @type {LocalizedString} */ (`Tillstånd`)
 };
 
 export const scene_editor_supporting_devices = /** @type {(inputs: Scene_Editor_Supporting_DevicesInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Stödutrustning`)
+	return /** @type {LocalizedString} */ (`Kompletterande enheter`)
 };
 
 export const scene_editor_targets = /** @type {(inputs: Scene_Editor_TargetsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Mål`)
+	return /** @type {LocalizedString} */ (`Gäller för`)
 };
 
 export const scene_error_save = /** @type {(inputs: Scene_Error_SaveInputs) => LocalizedString} */ () => {
@@ -6760,7 +6784,7 @@ export const scene_generic = /** @type {(inputs: Scene_GenericInputs) => Localiz
 };
 
 export const scene_loading = /** @type {(inputs: Scene_LoadingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Laddar scen...`)
+	return /** @type {LocalizedString} */ (`Laddar scen…`)
 };
 
 export const scene_name_aria = /** @type {(inputs: Scene_Name_AriaInputs) => LocalizedString} */ () => {
@@ -6772,11 +6796,11 @@ export const scene_not_found = /** @type {(inputs: Scene_Not_FoundInputs) => Loc
 };
 
 export const scenes_add_target = /** @type {(inputs: Scenes_Add_TargetInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Lägg till mål`)
+	return /** @type {LocalizedString} */ (`Lägg till rum eller enhet`)
 };
 
 export const scenes_add_targets = /** @type {(inputs: Scenes_Add_TargetsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Lägg till mål`)
+	return /** @type {LocalizedString} */ (`Lägg till rum eller enhet`)
 };
 
 export const scenes_add_targets_description = /** @type {(inputs: Scenes_Add_Targets_DescriptionInputs) => LocalizedString} */ () => {
@@ -6784,15 +6808,15 @@ export const scenes_add_targets_description = /** @type {(inputs: Scenes_Add_Tar
 };
 
 export const scenes_add_targets_to = /** @type {(inputs: Scenes_Add_Targets_ToInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Lägg till mål till ${i?.name}`)
+	return /** @type {LocalizedString} */ (`Lägg till rum eller enhet till ${i?.name}`)
 };
 
 export const scenes_apply = /** @type {(inputs: Scenes_ApplyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Använd scen`)
+	return /** @type {LocalizedString} */ (`Aktivera scen`)
 };
 
 export const scenes_column_breakdown = /** @type {(inputs: Scenes_Column_BreakdownInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Väljare`)
+	return /** @type {LocalizedString} */ (`Urval`)
 };
 
 export const scenes_column_created_by = /** @type {(inputs: Scenes_Column_Created_ByInputs) => LocalizedString} */ () => {
@@ -6808,7 +6832,7 @@ export const scenes_column_rooms = /** @type {(inputs: Scenes_Column_RoomsInputs
 };
 
 export const scenes_column_targets = /** @type {(inputs: Scenes_Column_TargetsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Mål`)
+	return /** @type {LocalizedString} */ (`Gäller för`)
 };
 
 export const scenes_create = /** @type {(inputs: Scenes_CreateInputs) => LocalizedString} */ () => {
@@ -6824,11 +6848,11 @@ export const scenes_create_short = /** @type {(inputs: Scenes_Create_ShortInputs
 };
 
 export const scenes_delete_description = /** @type {(inputs: Scenes_Delete_DescriptionInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Är du säker på att du vill ta bort "${i?.name}Denna åtgärd kan inte ångras.`)
+	return /** @type {LocalizedString} */ (`Ta bort "${i?.name}"? Det går inte att ångra.`)
 };
 
 export const scenes_delete_many_description = /** @type {(inputs: Scenes_Delete_Many_DescriptionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Detta tar permanent bort de valda scenerna och deras kompositioner. Detta kan inte ångras.`)
+	return /** @type {LocalizedString} */ (`Detta tar permanent bort de valda scenerna och deras kompositioner. Det går inte att ångra.`)
 };
 
 export const scenes_delete_many_title = /** @type {(inputs: Scenes_Delete_Many_TitleInputs) => LocalizedString} */ (i) => {const countPlural = registry.plural("sv", i?.count, {});
@@ -6864,7 +6888,7 @@ export const scenes_empty_help = /** @type {(inputs: Scenes_Empty_HelpInputs) =>
 };
 
 export const scenes_error_apply = /** @type {(inputs: Scenes_Error_ApplyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Kunde inte tillämpa scenen.`)
+	return /** @type {LocalizedString} */ (`Det gick inte att aktivera scenen.`)
 };
 
 export const scenes_error_delete = /** @type {(inputs: Scenes_Error_DeleteInputs) => LocalizedString} */ () => {
@@ -6892,7 +6916,7 @@ export const scenes_error_update = /** @type {(inputs: Scenes_Error_UpdateInputs
 };
 
 export const scenes_filter_device = /** @type {(inputs: Scenes_Filter_DeviceInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Anordning`)
+	return /** @type {LocalizedString} */ (`Enhet`)
 };
 
 export const scenes_filter_empty = /** @type {(inputs: Scenes_Filter_EmptyInputs) => LocalizedString} */ () => {
@@ -6908,7 +6932,7 @@ export const scenes_filter_room = /** @type {(inputs: Scenes_Filter_RoomInputs) 
 };
 
 export const scenes_filter_target = /** @type {(inputs: Scenes_Filter_TargetInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Mål`)
+	return /** @type {LocalizedString} */ (`Gäller för`)
 };
 
 export const scenes_groups = /** @type {(inputs: Scenes_GroupsInputs) => LocalizedString} */ () => {
@@ -6916,7 +6940,7 @@ export const scenes_groups = /** @type {(inputs: Scenes_GroupsInputs) => Localiz
 };
 
 export const scenes_loading = /** @type {(inputs: Scenes_LoadingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Läser in scener...`)
+	return /** @type {LocalizedString} */ (`Läser in scener…`)
 };
 
 export const scenes_member_count = /** @type {(inputs: Scenes_Member_CountInputs) => LocalizedString} */ (i) => {const countPlural = registry.plural("sv", i?.count, {});
@@ -6938,7 +6962,7 @@ export const scenes_rooms = /** @type {(inputs: Scenes_RoomsInputs) => Localized
 };
 
 export const scenes_search = /** @type {(inputs: Scenes_SearchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland scener...`)
+	return /** @type {LocalizedString} */ (`Sök bland scener…`)
 };
 
 export const scenes_select = /** @type {(inputs: Scenes_SelectInputs) => LocalizedString} */ (i) => {
@@ -6960,7 +6984,7 @@ export const scenes_title = /** @type {(inputs: Scenes_TitleInputs) => Localized
 };
 
 export const sensor_contact = /** @type {(inputs: Sensor_ContactInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Kontakta`)
+	return /** @type {LocalizedString} */ (`Kontakt`)
 };
 
 export const sensor_current_readings = /** @type {(inputs: Sensor_Current_ReadingsInputs) => LocalizedString} */ () => {
@@ -6972,7 +6996,7 @@ export const sensor_details = /** @type {(inputs: Sensor_DetailsInputs) => Local
 };
 
 export const sensor_device_posture = /** @type {(inputs: Sensor_Device_PostureInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Enhetens hållning`)
+	return /** @type {LocalizedString} */ (`Enhetens läge`)
 };
 
 export const sensor_door = /** @type {(inputs: Sensor_DoorInputs) => LocalizedString} */ () => {
@@ -6980,7 +7004,7 @@ export const sensor_door = /** @type {(inputs: Sensor_DoorInputs) => LocalizedSt
 };
 
 export const sensor_humidity = /** @type {(inputs: Sensor_HumidityInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Fuktighet`)
+	return /** @type {LocalizedString} */ (`Luftfuktighet`)
 };
 
 export const sensor_illuminance = /** @type {(inputs: Sensor_IlluminanceInputs) => LocalizedString} */ () => {
@@ -7012,7 +7036,7 @@ export const settings_history = /** @type {(inputs: Settings_HistoryInputs) => L
 };
 
 export const settings_internals = /** @type {(inputs: Settings_InternalsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Interner`)
+	return /** @type {LocalizedString} */ (`Avancerat`)
 };
 
 export const settings_log_debug = /** @type {(inputs: Settings_Log_DebugInputs) => LocalizedString} */ () => {
@@ -7036,15 +7060,15 @@ export const settings_log_warn = /** @type {(inputs: Settings_Log_WarnInputs) =>
 };
 
 export const settings_retention_aria = /** @type {(inputs: Settings_Retention_AriaInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Retentionsdagar`)
+	return /** @type {LocalizedString} */ (`Lagringstid i dagar`)
 };
 
 export const settings_retention_days = /** @type {(inputs: Settings_Retention_DaysInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Retention (dagar)`)
+	return /** @type {LocalizedString} */ (`Lagringstid (dagar)`)
 };
 
 export const settings_retention_help = /** @type {(inputs: Settings_Retention_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Prover av enhetstillstånd äldre än detta beskärs var 6:e ​​timme.`)
+	return /** @type {LocalizedString} */ (`Enhetsdata som är äldre än så rensas var 6:e timme.`)
 };
 
 export const settings_save_failed = /** @type {(inputs: Settings_Save_FailedInputs) => LocalizedString} */ () => {
@@ -7052,7 +7076,7 @@ export const settings_save_failed = /** @type {(inputs: Settings_Save_FailedInpu
 };
 
 export const shared_actions = /** @type {(inputs: Shared_ActionsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Funktioner`)
+	return /** @type {LocalizedString} */ (`Åtgärder`)
 };
 
 export const shared_add_items = /** @type {(inputs: Shared_Add_ItemsInputs) => LocalizedString} */ (i) => {const countPlural = registry.plural("sv", i?.count, {});
@@ -7216,8 +7240,8 @@ export const shared_selected_count = /** @type {(inputs: Shared_Selected_CountIn
 };
 
 export const shared_selector_count = /** @type {(inputs: Shared_Selector_CountInputs) => LocalizedString} */ (i) => {const countPlural = registry.plural("sv", i?.count, {});
-	if (countPlural === "one") return /** @type {LocalizedString} */ (`${i?.count} väljare`);
-	return /** @type {LocalizedString} */ (`${i?.count} väljare`)
+	if (countPlural === "one") return /** @type {LocalizedString} */ (`${i?.count} urval`);
+	return /** @type {LocalizedString} */ (`${i?.count} urval`)
 	
 };
 
@@ -7242,11 +7266,11 @@ export const shared_unsaved_description = /** @type {(inputs: Shared_Unsaved_Des
 };
 
 export const shared_unsaved_leave = /** @type {(inputs: Shared_Unsaved_LeaveInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Kasta och lämna`)
+	return /** @type {LocalizedString} */ (`Lämna utan att spara`)
 };
 
 export const shared_unsaved_stay = /** @type {(inputs: Shared_Unsaved_StayInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Vistelse`)
+	return /** @type {LocalizedString} */ (`Stanna`)
 };
 
 export const shared_unsaved_title = /** @type {(inputs: Shared_Unsaved_TitleInputs) => LocalizedString} */ () => {
@@ -7566,7 +7590,7 @@ export const state_climate_target = /** @type {(inputs: State_Climate_TargetInpu
 };
 
 export const state_closed = /** @type {(inputs: State_ClosedInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Stängd`)
+	return /** @type {LocalizedString} */ (`Stängt`)
 };
 
 export const state_light_on_brightness = /** @type {(inputs: State_Light_On_BrightnessInputs) => LocalizedString} */ (i) => {
@@ -7598,7 +7622,7 @@ export const state_on = /** @type {(inputs: State_OnInputs) => LocalizedString} 
 };
 
 export const state_open = /** @type {(inputs: State_OpenInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Öppna`)
+	return /** @type {LocalizedString} */ (`Öppet`)
 };
 
 export const state_plug_power = /** @type {(inputs: State_Plug_PowerInputs) => LocalizedString} */ (i) => {
@@ -7610,7 +7634,7 @@ export const state_unavailable = /** @type {(inputs: State_UnavailableInputs) =>
 };
 
 export const state_unknown = /** @type {(inputs: State_UnknownInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Okänd`)
+	return /** @type {LocalizedString} */ (`Okänt`)
 };
 
 export const static_app_description = /** @type {(inputs: Static_App_DescriptionInputs) => LocalizedString} */ () => {
@@ -7688,11 +7712,11 @@ export const target_op_is_one_of = /** @type {(inputs: Target_Op_Is_One_OfInputs
 };
 
 export const target_placeholder_add_rule = /** @type {(inputs: Target_Placeholder_Add_RuleInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Lägg till en regel...`)
+	return /** @type {LocalizedString} */ (`Lägg till en regel…`)
 };
 
 export const target_placeholder_connector = /** @type {(inputs: Target_Placeholder_ConnectorInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`och/eller...`)
+	return /** @type {LocalizedString} */ (`och/eller…`)
 };
 
 export const target_placeholder_field = /** @type {(inputs: Target_Placeholder_FieldInputs) => LocalizedString} */ () => {
@@ -7704,7 +7728,7 @@ export const target_placeholder_includes = /** @type {(inputs: Target_Placeholde
 };
 
 export const target_placeholder_operator = /** @type {(inputs: Target_Placeholder_OperatorInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`är/är inte...`)
+	return /** @type {LocalizedString} */ (`är/är inte…`)
 };
 
 export const target_placeholder_value = /** @type {(inputs: Target_Placeholder_ValueInputs) => LocalizedString} */ () => {
@@ -7720,7 +7744,7 @@ export const target_removed = /** @type {(inputs: Target_RemovedInputs) => Local
 };
 
 export const target_subject_device = /** @type {(inputs: Target_Subject_DeviceInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Anordning`)
+	return /** @type {LocalizedString} */ (`Enhet`)
 };
 
 export const target_subject_device_role = /** @type {(inputs: Target_Subject_Device_RoleInputs) => LocalizedString} */ () => {
@@ -7748,23 +7772,35 @@ export const target_subject_writable = /** @type {(inputs: Target_Subject_Writab
 };
 
 export const target_type_filter = /** @type {(inputs: Target_Type_FilterInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Skriv för att filtrera...`)
+	return /** @type {LocalizedString} */ (`Skriv för att filtrera…`)
 };
 
 export const temperature_picker_aria = /** @type {(inputs: Temperature_Picker_AriaInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Färgtemperatur från varmt till kallt`)
 };
 
+export const time_hours_ago = /** @type {(inputs: Time_Hours_AgoInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`för ${i?.count} tim sedan`)
+};
+
 export const time_just_now = /** @type {(inputs: Time_Just_NowInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Just nu`)
+};
+
+export const time_minutes_ago = /** @type {(inputs: Time_Minutes_AgoInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`för ${i?.count} min sedan`)
 };
 
 export const translation_card = /** @type {(inputs: Translation_CardInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Översättning`)
 };
 
+export const translation_default_about = /** @type {(inputs: Translation_Default_AboutInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Om standardspråk för innehåll`)
+};
+
 export const translation_default_help = /** @type {(inputs: Translation_Default_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Ställer in det fasta källspråket för enheter som skapats i efterhand. Befintliga namn är oförändrade.`)
+	return /** @type {LocalizedString} */ (`Anger källspråket för nya enheter. Befintliga namn ändras inte.`)
 };
 
 export const translation_default_language = /** @type {(inputs: Translation_Default_LanguageInputs) => LocalizedString} */ () => {
@@ -7783,40 +7819,44 @@ export const translation_standard_rooms = /** @type {(inputs: Translation_Standa
 	return /** @type {LocalizedString} */ (`Översätt vanliga rumsnamn`)
 };
 
+export const translation_standard_rooms_about = /** @type {(inputs: Translation_Standard_Rooms_AboutInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Om översättning av rumsnamn`)
+};
+
 export const translation_standard_rooms_help = /** @type {(inputs: Translation_Standard_Rooms_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Översätter identifierade vanliga rumsnamn efter bästa förmåga. Egna namn lämnas oförändrade.`)
+	return /** @type {LocalizedString} */ (`Vanliga rumsnamn som känns igen översätts automatiskt. Egna namn ändras inte.`)
 };
 
 export const tuya_access_id = /** @type {(inputs: Tuya_Access_IdInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Åtkomst-ID / klient-ID`)
+	return /** @type {LocalizedString} */ (`Access ID / Client ID`)
 };
 
 export const tuya_access_secret = /** @type {(inputs: Tuya_Access_SecretInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Åtkomsthemlighet / klienthemlighet`)
+	return /** @type {LocalizedString} */ (`Access Secret / Client Secret`)
 };
 
 export const tuya_check_connection = /** @type {(inputs: Tuya_Check_ConnectionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Kontrollera anslutningen`)
+	return /** @type {LocalizedString} */ (`Testa anslutningen`)
 };
 
 export const tuya_cloud_keys = /** @type {(inputs: Tuya_Cloud_KeysInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Moln nycklar`)
+	return /** @type {LocalizedString} */ (`API-nycklar`)
 };
 
 export const tuya_cloud_step_account = /** @type {(inputs: Tuya_Cloud_Step_AccountInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`3. Anslut appkontot till molnprojektet Tuya.`)
+	return /** @type {LocalizedString} */ (`3. Länka ditt Tuya-appkonto till molnprojektet.`)
 };
 
 export const tuya_cloud_step_app = /** @type {(inputs: Tuya_Cloud_Step_AppInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`1. Anslut enheten till Tuya-appen.`)
+	return /** @type {LocalizedString} */ (`1. Lägg till dina enheter i Tuya-appen.`)
 };
 
 export const tuya_cloud_step_keys = /** @type {(inputs: Tuya_Cloud_Step_KeysInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`4. Registrera molntjänstens API-nycklar från Tuya här.`)
+	return /** @type {LocalizedString} */ (`4. Ange molnprojektets API-nycklar här.`)
 };
 
 export const tuya_cloud_step_project = /** @type {(inputs: Tuya_Cloud_Step_ProjectInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`2. Skapa ett Tuya molnprojekt.`)
+	return /** @type {LocalizedString} */ (`2. Skapa ett molnprojekt på Tuyas utvecklarplattform.`)
 };
 
 export const tuya_enabled = /** @type {(inputs: Tuya_EnabledInputs) => LocalizedString} */ () => {
@@ -7824,7 +7864,7 @@ export const tuya_enabled = /** @type {(inputs: Tuya_EnabledInputs) => Localized
 };
 
 export const tuya_region = /** @type {(inputs: Tuya_RegionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Område`)
+	return /** @type {LocalizedString} */ (`Region`)
 };
 
 export const tuya_region_cn = /** @type {(inputs: Tuya_Region_CnInputs) => LocalizedString} */ () => {
@@ -7946,7 +7986,7 @@ export const users_deleted_count = /** @type {(inputs: Users_Deleted_CountInputs
 };
 
 export const users_deleting = /** @type {(inputs: Users_DeletingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Tar bort...`)
+	return /** @type {LocalizedString} */ (`Tar bort…`)
 };
 
 export const users_display_name = /** @type {(inputs: Users_Display_NameInputs) => LocalizedString} */ () => {
@@ -7954,7 +7994,7 @@ export const users_display_name = /** @type {(inputs: Users_Display_NameInputs) 
 };
 
 export const users_loading_accounts = /** @type {(inputs: Users_Loading_AccountsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Läser in användare och gäster...`)
+	return /** @type {LocalizedString} */ (`Läser in användare och gäster…`)
 };
 
 export const users_new_password = /** @type {(inputs: Users_New_PasswordInputs) => LocalizedString} */ () => {
@@ -7986,7 +8026,7 @@ export const users_saving = /** @type {(inputs: Users_SavingInputs) => Localized
 };
 
 export const users_search_accounts = /** @type {(inputs: Users_Search_AccountsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland användare och gäster...`)
+	return /** @type {LocalizedString} */ (`Sök bland användare och gäster…`)
 };
 
 export const users_type = /** @type {(inputs: Users_TypeInputs) => LocalizedString} */ () => {
@@ -7994,11 +8034,11 @@ export const users_type = /** @type {(inputs: Users_TypeInputs) => LocalizedStri
 };
 
 export const value_abnormal = /** @type {(inputs: Value_AbnormalInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Onormal`)
+	return /** @type {LocalizedString} */ (`Avvikande`)
 };
 
 export const value_auto = /** @type {(inputs: Value_AutoInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Bil`)
+	return /** @type {LocalizedString} */ (`Auto`)
 };
 
 export const value_back = /** @type {(inputs: Value_BackInputs) => LocalizedString} */ () => {
@@ -8054,7 +8094,7 @@ export const value_low = /** @type {(inputs: Value_LowInputs) => LocalizedString
 };
 
 export const value_mid = /** @type {(inputs: Value_MidInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Medium`)
+	return /** @type {LocalizedString} */ (`Medel`)
 };
 
 export const value_normal = /** @type {(inputs: Value_NormalInputs) => LocalizedString} */ () => {
@@ -8086,7 +8126,7 @@ export const vibe_building = /** @type {(inputs: Vibe_BuildingInputs) => Localiz
 };
 
 export const vibe_category_atmosphere = /** @type {(inputs: Vibe_Category_AtmosphereInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Atmosfär`)
+	return /** @type {LocalizedString} */ (`Stämning`)
 };
 
 export const vibe_category_nature = /** @type {(inputs: Vibe_Category_NatureInputs) => LocalizedString} */ () => {
@@ -8098,7 +8138,7 @@ export const vibe_category_unknown = /** @type {(inputs: Vibe_Category_UnknownIn
 };
 
 export const vibe_category_whites = /** @type {(inputs: Vibe_Category_WhitesInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Vita`)
+	return /** @type {LocalizedString} */ (`Vitt`)
 };
 
 export const vibe_choices_failed = /** @type {(inputs: Vibe_Choices_FailedInputs) => LocalizedString} */ () => {
@@ -8106,11 +8146,11 @@ export const vibe_choices_failed = /** @type {(inputs: Vibe_Choices_FailedInputs
 };
 
 export const vibe_choices_round = /** @type {(inputs: Vibe_Choices_RoundInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Guidade Vibe-val, runda ${i?.round}`)
+	return /** @type {LocalizedString} */ (`Guidade stämningsval, runda ${i?.round}`)
 };
 
 export const vibe_choose_closest = /** @type {(inputs: Vibe_Choose_ClosestInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Välj det som känns närmast`)
+	return /** @type {LocalizedString} */ (`Välj den som passar bäst`)
 };
 
 export const vibe_choose_photo = /** @type {(inputs: Vibe_Choose_PhotoInputs) => LocalizedString} */ () => {
@@ -8118,15 +8158,15 @@ export const vibe_choose_photo = /** @type {(inputs: Vibe_Choose_PhotoInputs) =>
 };
 
 export const vibe_colors = /** @type {(inputs: Vibe_ColorsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Färger`)
+	return /** @type {LocalizedString} */ (`Färg`)
 };
 
 export const vibe_domain_full_color = /** @type {(inputs: Vibe_Domain_Full_ColorInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Fullfärg`)
+	return /** @type {LocalizedString} */ (`Färg`)
 };
 
 export const vibe_domain_white_ambience = /** @type {(inputs: Vibe_Domain_White_AmbienceInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Vit atmosfär`)
+	return /** @type {LocalizedString} */ (`Vitt`)
 };
 
 export const vibe_gallery = /** @type {(inputs: Vibe_GalleryInputs) => LocalizedString} */ () => {
@@ -8162,7 +8202,7 @@ export const vibe_guide_daylight = /** @type {(inputs: Vibe_Guide_DaylightInputs
 };
 
 export const vibe_guide_ember = /** @type {(inputs: Vibe_Guide_EmberInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Glödande kol`)
+	return /** @type {LocalizedString} */ (`Glöd`)
 };
 
 export const vibe_guide_gold = /** @type {(inputs: Vibe_Guide_GoldInputs) => LocalizedString} */ () => {
@@ -8194,7 +8234,7 @@ export const vibe_guide_neutral = /** @type {(inputs: Vibe_Guide_NeutralInputs) 
 };
 
 export const vibe_guide_orchid = /** @type {(inputs: Vibe_Guide_OrchidInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Orkide`)
+	return /** @type {LocalizedString} */ (`Orkidé`)
 };
 
 export const vibe_guide_rose = /** @type {(inputs: Vibe_Guide_RoseInputs) => LocalizedString} */ () => {
@@ -8202,7 +8242,7 @@ export const vibe_guide_rose = /** @type {(inputs: Vibe_Guide_RoseInputs) => Loc
 };
 
 export const vibe_guide_sky = /** @type {(inputs: Vibe_Guide_SkyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sky`)
+	return /** @type {LocalizedString} */ (`Himmel`)
 };
 
 export const vibe_guide_softer = /** @type {(inputs: Vibe_Guide_SofterInputs) => LocalizedString} */ () => {
@@ -8218,7 +8258,7 @@ export const vibe_guide_violet = /** @type {(inputs: Vibe_Guide_VioletInputs) =>
 };
 
 export const vibe_guide_warm = /** @type {(inputs: Vibe_Guide_WarmInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Värma`)
+	return /** @type {LocalizedString} */ (`Varm`)
 };
 
 export const vibe_guide_warmer = /** @type {(inputs: Vibe_Guide_WarmerInputs) => LocalizedString} */ () => {
@@ -8230,7 +8270,7 @@ export const vibe_guided = /** @type {(inputs: Vibe_GuidedInputs) => LocalizedSt
 };
 
 export const vibe_load_failed = /** @type {(inputs: Vibe_Load_FailedInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Det gick inte att ladda Vibe-galleriet.`)
+	return /** @type {LocalizedString} */ (`Det gick inte att ladda stämningsgalleriet.`)
 };
 
 export const vibe_loading_choices = /** @type {(inputs: Vibe_Loading_ChoicesInputs) => LocalizedString} */ () => {
@@ -8246,7 +8286,7 @@ export const vibe_photo_failed = /** @type {(inputs: Vibe_Photo_FailedInputs) =>
 };
 
 export const vibe_preset_aurora_haze = /** @type {(inputs: Vibe_Preset_Aurora_HazeInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Aurora Haze`)
+	return /** @type {LocalizedString} */ (`Norrsken`)
 };
 
 export const vibe_preset_candlelight = /** @type {(inputs: Vibe_Preset_CandlelightInputs) => LocalizedString} */ () => {
@@ -8254,7 +8294,7 @@ export const vibe_preset_candlelight = /** @type {(inputs: Vibe_Preset_Candlelig
 };
 
 export const vibe_preset_cool_morning = /** @type {(inputs: Vibe_Preset_Cool_MorningInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Cool morgon`)
+	return /** @type {LocalizedString} */ (`Sval morgon`)
 };
 
 export const vibe_preset_ember_hearth = /** @type {(inputs: Vibe_Preset_Ember_HearthInputs) => LocalizedString} */ () => {
@@ -8262,7 +8302,7 @@ export const vibe_preset_ember_hearth = /** @type {(inputs: Vibe_Preset_Ember_He
 };
 
 export const vibe_preset_forest_canopy = /** @type {(inputs: Vibe_Preset_Forest_CanopyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Skogstak`)
+	return /** @type {LocalizedString} */ (`Lövtak`)
 };
 
 export const vibe_preset_neutral_focus = /** @type {(inputs: Vibe_Preset_Neutral_FocusInputs) => LocalizedString} */ () => {
@@ -8270,11 +8310,11 @@ export const vibe_preset_neutral_focus = /** @type {(inputs: Vibe_Preset_Neutral
 };
 
 export const vibe_preset_night_sky = /** @type {(inputs: Vibe_Preset_Night_SkyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Natthimlen`)
+	return /** @type {LocalizedString} */ (`Natthimmel`)
 };
 
 export const vibe_preset_ocean_drift = /** @type {(inputs: Vibe_Preset_Ocean_DriftInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Ocean Drift`)
+	return /** @type {LocalizedString} */ (`Havsdjup`)
 };
 
 export const vibe_preset_sunset_glow = /** @type {(inputs: Vibe_Preset_Sunset_GlowInputs) => LocalizedString} */ () => {
@@ -8304,15 +8344,15 @@ export const vibe_replace_photo = /** @type {(inputs: Vibe_Replace_PhotoInputs) 
 };
 
 export const vibe_source_gallery_detail = /** @type {(inputs: Vibe_Source_Gallery_DetailInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Börja från en utvald ljuskänsla.`)
+	return /** @type {LocalizedString} */ (`Utgå från en färdig stämning.`)
 };
 
 export const vibe_source_guided_detail = /** @type {(inputs: Vibe_Source_Guided_DetailInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Bygg en Vibe genom tre till fem visuella val.`)
+	return /** @type {LocalizedString} */ (`Skapa en stämning i tre till fem enkla steg.`)
 };
 
 export const vibe_source_individual = /** @type {(inputs: Vibe_Source_IndividualInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Individuella lampor`)
+	return /** @type {LocalizedString} */ (`Enskilda lampor`)
 };
 
 export const vibe_source_individual_detail = /** @type {(inputs: Vibe_Source_Individual_DetailInputs) => LocalizedString} */ () => {
@@ -8320,15 +8360,15 @@ export const vibe_source_individual_detail = /** @type {(inputs: Vibe_Source_Ind
 };
 
 export const vibe_source_photo_detail = /** @type {(inputs: Vibe_Source_Photo_DetailInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Förvandla färgatmosfären i en bild till ljus.`)
+	return /** @type {LocalizedString} */ (`Gör om färgerna i en bild till ljus.`)
 };
 
 export const vibe_use = /** @type {(inputs: Vibe_UseInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Använd atmosfär`)
+	return /** @type {LocalizedString} */ (`Använd stämning`)
 };
 
 export const vibe_whites = /** @type {(inputs: Vibe_WhitesInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Vita`)
+	return /** @type {LocalizedString} */ (`Vitt`)
 };
 
 export const webhooks_accept_requests = /** @type {(inputs: Webhooks_Accept_RequestsInputs) => LocalizedString} */ () => {
@@ -8350,7 +8390,7 @@ export const webhooks_body_unavailable = /** @type {(inputs: Webhooks_Body_Unava
 };
 
 export const webhooks_column_automations = /** @type {(inputs: Webhooks_Column_AutomationsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Automatiseringar`)
+	return /** @type {LocalizedString} */ (`Används i`)
 };
 
 export const webhooks_column_created_by = /** @type {(inputs: Webhooks_Column_Created_ByInputs) => LocalizedString} */ () => {
@@ -8358,7 +8398,7 @@ export const webhooks_column_created_by = /** @type {(inputs: Webhooks_Column_Cr
 };
 
 export const webhooks_column_last_request = /** @type {(inputs: Webhooks_Column_Last_RequestInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sista förfrågan`)
+	return /** @type {LocalizedString} */ (`Senaste förfrågan`)
 };
 
 export const webhooks_column_name = /** @type {(inputs: Webhooks_Column_NameInputs) => LocalizedString} */ () => {
@@ -8378,7 +8418,7 @@ export const webhooks_copy_body = /** @type {(inputs: Webhooks_Copy_BodyInputs) 
 };
 
 export const webhooks_copy_url = /** @type {(inputs: Webhooks_Copy_UrlInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Kopiera webhook URL`)
+	return /** @type {LocalizedString} */ (`Kopiera webhook-URL`)
 };
 
 export const webhooks_create = /** @type {(inputs: Webhooks_CreateInputs) => LocalizedString} */ () => {
@@ -8386,7 +8426,7 @@ export const webhooks_create = /** @type {(inputs: Webhooks_CreateInputs) => Loc
 };
 
 export const webhooks_create_description = /** @type {(inputs: Webhooks_Create_DescriptionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Skapa en slutpunkt för en logisk extern händelse.`)
+	return /** @type {LocalizedString} */ (`Skapa en slutpunkt som tar emot externa händelser.`)
 };
 
 export const webhooks_create_failed = /** @type {(inputs: Webhooks_Create_FailedInputs) => LocalizedString} */ () => {
@@ -8406,7 +8446,7 @@ export const webhooks_creating = /** @type {(inputs: Webhooks_CreatingInputs) =>
 };
 
 export const webhooks_delete_description = /** @type {(inputs: Webhooks_Delete_DescriptionInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Ta bort ”${i?.name}”? Åtgärden kan inte ångras.`)
+	return /** @type {LocalizedString} */ (`Ta bort ”${i?.name}”? Det går inte att ångra.`)
 };
 
 export const webhooks_delete_failed = /** @type {(inputs: Webhooks_Delete_FailedInputs) => LocalizedString} */ () => {
@@ -8422,8 +8462,8 @@ export const webhooks_delete_many_title = /** @type {(inputs: Webhooks_Delete_Ma
 };
 
 export const webhooks_delete_many_with_history = /** @type {(inputs: Webhooks_Delete_Many_With_HistoryInputs) => LocalizedString} */ (i) => {const countPlural = registry.plural("sv", i?.count, {});
-	if (countPlural === "one") return /** @type {LocalizedString} */ (`Radera ${i?.count} webhook och deras leveranshistorik? Detta kan inte ångras.`);
-	return /** @type {LocalizedString} */ (`Radera ${i?.count} webhooks och deras leveranshistorik? Detta kan inte ångras.`)
+	if (countPlural === "one") return /** @type {LocalizedString} */ (`Radera ${i?.count} webhook och deras leveranshistorik? Det går inte att ångra.`);
+	return /** @type {LocalizedString} */ (`Radera ${i?.count} webhooks och deras leveranshistorik? Det går inte att ångra.`)
 	
 };
 
@@ -8440,7 +8480,7 @@ export const webhooks_delete_used_kept = /** @type {(inputs: Webhooks_Delete_Use
 };
 
 export const webhooks_delete_with_history = /** @type {(inputs: Webhooks_Delete_With_HistoryInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Ta bort "${i?.name}” och dess leveranshistorik? Detta kan inte ångras.`)
+	return /** @type {LocalizedString} */ (`Ta bort "${i?.name}" och dess leveranshistorik? Det går inte att ångra.`)
 };
 
 export const webhooks_detail_fallback = /** @type {(inputs: Webhooks_Detail_FallbackInputs) => LocalizedString} */ () => {
@@ -8456,11 +8496,11 @@ export const webhooks_disabled = /** @type {(inputs: Webhooks_DisabledInputs) =>
 };
 
 export const webhooks_done = /** @type {(inputs: Webhooks_DoneInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Gjort`)
+	return /** @type {LocalizedString} */ (`Klar`)
 };
 
 export const webhooks_duration = /** @type {(inputs: Webhooks_DurationInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Varaktighet`)
+	return /** @type {LocalizedString} */ (`Längd`)
 };
 
 export const webhooks_edit_named = /** @type {(inputs: Webhooks_Edit_NamedInputs) => LocalizedString} */ (i) => {
@@ -8496,11 +8536,11 @@ export const webhooks_headers = /** @type {(inputs: Webhooks_HeadersInputs) => L
 };
 
 export const webhooks_latest_count = /** @type {(inputs: Webhooks_Latest_CountInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Senast ${i?.count}`)
+	return /** @type {LocalizedString} */ (`Senaste ${i?.count}`)
 };
 
 export const webhooks_name = /** @type {(inputs: Webhooks_NameInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Webhook namn`)
+	return /** @type {LocalizedString} */ (`Webhook-namn`)
 };
 
 export const webhooks_name_placeholder = /** @type {(inputs: Webhooks_Name_PlaceholderInputs) => LocalizedString} */ () => {
@@ -8608,11 +8648,11 @@ export const webhooks_save_failed = /** @type {(inputs: Webhooks_Save_FailedInpu
 };
 
 export const webhooks_search = /** @type {(inputs: Webhooks_SearchInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland webhooks...`)
+	return /** @type {LocalizedString} */ (`Sök bland webhooks…`)
 };
 
 export const webhooks_search_automations = /** @type {(inputs: Webhooks_Search_AutomationsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Sök bland automatiseringar...`)
+	return /** @type {LocalizedString} */ (`Sök bland automatiseringar…`)
 };
 
 export const webhooks_size = /** @type {(inputs: Webhooks_SizeInputs) => LocalizedString} */ () => {
@@ -8636,11 +8676,11 @@ export const webhooks_update_failed = /** @type {(inputs: Webhooks_Update_Failed
 };
 
 export const webhooks_url_once = /** @type {(inputs: Webhooks_Url_OnceInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Denna URL visas en gång. Förvara den i anropssystemet innan du stänger.`)
+	return /** @type {LocalizedString} */ (`URL:en visas bara en gång. Kopiera och spara den i tjänsten som ska anropa webhooken innan du stänger.`)
 };
 
 export const webhooks_url_title = /** @type {(inputs: Webhooks_Url_TitleInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Webhook URL`)
+	return /** @type {LocalizedString} */ (`Webhook-URL`)
 };
 
 export const webhooks_used = /** @type {(inputs: Webhooks_UsedInputs) => LocalizedString} */ () => {
@@ -8684,7 +8724,7 @@ export const zigbee_adapter = /** @type {(inputs: Zigbee_AdapterInputs) => Local
 };
 
 export const zigbee_address_vendor = /** @type {(inputs: Zigbee_Address_VendorInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Adressförsäljare`)
+	return /** @type {LocalizedString} */ (`Adressleverantör`)
 };
 
 export const zigbee_attribute = /** @type {(inputs: Zigbee_AttributeInputs) => LocalizedString} */ () => {
@@ -8700,7 +8740,7 @@ export const zigbee_bindings = /** @type {(inputs: Zigbee_BindingsInputs) => Loc
 };
 
 export const zigbee_broker_address = /** @type {(inputs: Zigbee_Broker_AddressInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Mäklaradress`)
+	return /** @type {LocalizedString} */ (`Broker-adress`)
 };
 
 export const zigbee_change = /** @type {(inputs: Zigbee_ChangeInputs) => LocalizedString} */ () => {
@@ -8712,7 +8752,7 @@ export const zigbee_channel = /** @type {(inputs: Zigbee_ChannelInputs) => Local
 };
 
 export const zigbee_check_connection = /** @type {(inputs: Zigbee_Check_ConnectionInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Kontrollera anslutningen`)
+	return /** @type {LocalizedString} */ (`Testa anslutningen`)
 };
 
 export const zigbee_cluster = /** @type {(inputs: Zigbee_ClusterInputs) => LocalizedString} */ () => {
@@ -8720,7 +8760,7 @@ export const zigbee_cluster = /** @type {(inputs: Zigbee_ClusterInputs) => Local
 };
 
 export const zigbee_command_traffic = /** @type {(inputs: Zigbee_Command_TrafficInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Kommando trafik`)
+	return /** @type {LocalizedString} */ (`Kommandotrafik`)
 };
 
 export const zigbee_command_traffic_about = /** @type {(inputs: Zigbee_Command_Traffic_AboutInputs) => LocalizedString} */ () => {
@@ -8740,11 +8780,11 @@ export const zigbee_config_save_failed = /** @type {(inputs: Zigbee_Config_Save_
 };
 
 export const zigbee_connect_step_availability = /** @type {(inputs: Zigbee_Connect_Step_AvailabilityInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`3. Aktivera Zigbee2MQTTs tillgänglighetsfunktion för online- och offlinetillstånd.`)
+	return /** @type {LocalizedString} */ (`3. Aktivera Zigbee2MQTT:s tillgänglighetsfunktion (availability) så att du ser om enheter är online eller offline.`)
 };
 
 export const zigbee_connect_step_broker = /** @type {(inputs: Zigbee_Connect_Step_BrokerInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`1. Peka Hive på samma MQTT-mäklare som din Zigbee2MQTT-instans publicerar till.`)
+	return /** @type {LocalizedString} */ (`1. Anslut Hive till samma MQTT-broker som din Zigbee2MQTT-instans publicerar till.`)
 };
 
 export const zigbee_connect_step_registry = /** @type {(inputs: Zigbee_Connect_Step_RegistryInputs) => LocalizedString} */ () => {
@@ -8752,7 +8792,7 @@ export const zigbee_connect_step_registry = /** @type {(inputs: Zigbee_Connect_S
 };
 
 export const zigbee_connecting = /** @type {(inputs: Zigbee_ConnectingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Ansluter`)
+	return /** @type {LocalizedString} */ (`Så ansluter du`)
 };
 
 export const zigbee_continuous_rate = /** @type {(inputs: Zigbee_Continuous_RateInputs) => LocalizedString} */ () => {
@@ -8792,7 +8832,7 @@ export const zigbee_details = /** @type {(inputs: Zigbee_DetailsInputs) => Local
 };
 
 export const zigbee_device = /** @type {(inputs: Zigbee_DeviceInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Anordning`)
+	return /** @type {LocalizedString} */ (`Enhet`)
 };
 
 export const zigbee_enabled = /** @type {(inputs: Zigbee_EnabledInputs) => LocalizedString} */ () => {
@@ -8820,11 +8860,11 @@ export const zigbee_firmware = /** @type {(inputs: Zigbee_FirmwareInputs) => Loc
 };
 
 export const zigbee_frontend_url = /** @type {(inputs: Zigbee_Frontend_UrlInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Zigbee2MQTT frontend URL`)
+	return /** @type {LocalizedString} */ (`URL till Zigbee2MQTT-gränssnittet`)
 };
 
 export const zigbee_frontend_url_help = /** @type {(inputs: Zigbee_Frontend_Url_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Frivillig. Används för länkar till Zigbee2MQTT.`)
+	return /** @type {LocalizedString} */ (`Valfri. Används för länkar till Zigbee2MQTT.`)
 };
 
 export const zigbee_frontend_url_invalid = /** @type {(inputs: Zigbee_Frontend_Url_InvalidInputs) => LocalizedString} */ () => {
@@ -8876,7 +8916,7 @@ export const zigbee_interview = /** @type {(inputs: Zigbee_InterviewInputs) => L
 };
 
 export const zigbee_last_scanned = /** @type {(inputs: Zigbee_Last_ScannedInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Senast skannade ${i?.time}`)
+	return /** @type {LocalizedString} */ (`Senast skannat ${i?.time}`)
 };
 
 export const zigbee_manufacturer = /** @type {(inputs: Zigbee_ManufacturerInputs) => LocalizedString} */ () => {
@@ -8896,11 +8936,11 @@ export const zigbee_model = /** @type {(inputs: Zigbee_ModelInputs) => Localized
 };
 
 export const zigbee_model_id = /** @type {(inputs: Zigbee_Model_IdInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Modell ID`)
+	return /** @type {LocalizedString} */ (`Modell-ID`)
 };
 
 export const zigbee_mqtt_topic = /** @type {(inputs: Zigbee_Mqtt_TopicInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`MQTT ämne`)
+	return /** @type {LocalizedString} */ (`MQTT-ämne`)
 };
 
 export const zigbee_network = /** @type {(inputs: Zigbee_NetworkInputs) => LocalizedString} */ () => {
@@ -8936,7 +8976,7 @@ export const zigbee_not_in_group = /** @type {(inputs: Zigbee_Not_In_GroupInputs
 };
 
 export const zigbee_optional = /** @type {(inputs: Zigbee_OptionalInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Frivillig`)
+	return /** @type {LocalizedString} */ (`Valfri`)
 };
 
 export const zigbee_ota_progress = /** @type {(inputs: Zigbee_Ota_ProgressInputs) => LocalizedString} */ (i) => {
@@ -8964,7 +9004,7 @@ export const zigbee_password = /** @type {(inputs: Zigbee_PasswordInputs) => Loc
 };
 
 export const zigbee_password_keep = /** @type {(inputs: Zigbee_Password_KeepInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Lösenord inställt — lämna tomt för att behålla`)
+	return /** @type {LocalizedString} */ (`Lösenord sparat – lämna tomt för att behålla det`)
 };
 
 export const zigbee_power_source = /** @type {(inputs: Zigbee_Power_SourceInputs) => LocalizedString} */ () => {
@@ -8988,7 +9028,7 @@ export const zigbee_rate_order_invalid = /** @type {(inputs: Zigbee_Rate_Order_I
 };
 
 export const zigbee_reconnect_help = /** @type {(inputs: Zigbee_Reconnect_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Anslutnings- och skanningsschemaändringar återansluter till mäklaren. Kommandohastighetsändringar gäller utan att avbryta enhetsabonnemang.`)
+	return /** @type {LocalizedString} */ (`Om du ändrar anslutningen eller skanningsschemat ansluter Hive till brokern på nytt. Ändringar av kommandohastigheten gäller direkt, utan att enhetsprenumerationerna avbryts.`)
 };
 
 export const zigbee_reporting = /** @type {(inputs: Zigbee_ReportingInputs) => LocalizedString} */ () => {
@@ -8996,7 +9036,7 @@ export const zigbee_reporting = /** @type {(inputs: Zigbee_ReportingInputs) => L
 };
 
 export const zigbee_runs_daily_at = /** @type {(inputs: Zigbee_Runs_Daily_AtInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Går dagligen kl`)
+	return /** @type {LocalizedString} */ (`Körs dagligen kl.`)
 };
 
 export const zigbee_scan_complete = /** @type {(inputs: Zigbee_Scan_CompleteInputs) => LocalizedString} */ () => {
@@ -9012,7 +9052,7 @@ export const zigbee_scan_minute = /** @type {(inputs: Zigbee_Scan_MinuteInputs) 
 };
 
 export const zigbee_scan_network = /** @type {(inputs: Zigbee_Scan_NetworkInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Skanna nätverk`)
+	return /** @type {LocalizedString} */ (`Skanna nätverket`)
 };
 
 export const zigbee_scan_start_failed = /** @type {(inputs: Zigbee_Scan_Start_FailedInputs) => LocalizedString} */ () => {
@@ -9024,11 +9064,11 @@ export const zigbee_scanning = /** @type {(inputs: Zigbee_ScanningInputs) => Loc
 };
 
 export const zigbee_scheduled_scan = /** @type {(inputs: Zigbee_Scheduled_ScanInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Schemalagd genomsökning`)
+	return /** @type {LocalizedString} */ (`Schemalagd skanning`)
 };
 
 export const zigbee_software_build = /** @type {(inputs: Zigbee_Software_BuildInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Mjukvarubygge`)
+	return /** @type {LocalizedString} */ (`Firmwareversion`)
 };
 
 export const zigbee_support = /** @type {(inputs: Zigbee_SupportInputs) => LocalizedString} */ () => {
@@ -9064,5 +9104,5 @@ export const zigbee_username = /** @type {(inputs: Zigbee_UsernameInputs) => Loc
 };
 
 export const zigbee_vendor = /** @type {(inputs: Zigbee_VendorInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Försäljare`)
+	return /** @type {LocalizedString} */ (`Leverantör`)
 };

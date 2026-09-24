@@ -5,6 +5,7 @@
 		writableConfigurationCapabilities,
 	} from "$lib/device-configuration";
 	import { sentenceCase } from "$lib/utils";
+	import { historyFieldLabel } from "$lib/i18n/vocabulary";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -117,7 +118,7 @@
 	}
 
 	function label(capability: Capability): string {
-		return capability.label || sentenceCase(capability.name);
+		return historyFieldLabel(capability.name, capability.label);
 	}
 </script>
 

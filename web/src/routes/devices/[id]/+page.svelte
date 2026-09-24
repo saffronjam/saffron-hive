@@ -802,6 +802,7 @@
 						<CardContent>
 							<MemberTable
 								rows={membershipRows}
+								searchPlaceholder={m.device_memberships_search({}, locale.messageOptions())}
 								emptyMessage={m.device_memberships_empty({}, locale.messageOptions())}
 								addLabel={m.common_add_to({}, locale.messageOptions())}
 								onadd={() => (pickerOpen = true)}

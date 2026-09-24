@@ -550,7 +550,7 @@
 					{#if scanStartedAt}
 						{m.zigbee_scanning({ duration: elapsedLabel(scanStartedAt, nowStore.current) }, messageOptions)}
 					{:else if lastScannedAt}
-						{m.zigbee_last_scanned({ time: formatRelative(lastScannedAt, nowStore.current, me.user?.timeFormat ?? "24h") }, messageOptions)}
+						{m.zigbee_last_scanned({ time: formatRelative(lastScannedAt, nowStore.current, me.user?.timeFormat ?? "24h", "long") }, messageOptions)}
 					{:else}
 						{m.zigbee_never_scanned({}, messageOptions)}
 					{/if}
