@@ -1,7 +1,8 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 import { graphql } from "$lib/gql";
 import { getContext, publishDeviceState } from "./setup.js";
+import { browserDiagnostics } from "./browser-diagnostics.js";
 
 const CREATE_ROOM = graphql(`
   mutation HistoryBrowserCreateRoom {
@@ -26,6 +27,8 @@ const DELETE_ROOM = graphql(`
     deleteRoom(id: $id)
   }
 `);
+
+const diagnostics = browserDiagnostics("state-history");
 
 let browser: Browser;
 let browserContext: BrowserContext;
@@ -71,7 +74,12 @@ beforeAll(async () => {
     historyResponses++;
   });
   page = await browserContext.newPage();
+  await diagnostics.start(page);
   await page.goto(appUrl, { waitUntil: "domcontentloaded" });
+});
+
+afterEach(async ({ task }) => {
+  if (task.result?.state === "fail") await diagnostics.capture(task.name);
 });
 
 afterAll(async () => {

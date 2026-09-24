@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   chromium,
   type Browser,
@@ -8,6 +8,7 @@ import {
 } from "playwright-core";
 import { graphql } from "$lib/gql";
 import { getContext, publishDeviceState } from "./setup.js";
+import { browserDiagnostics } from "./browser-diagnostics.js";
 
 const DEVICE_ID = "0x00158d0001a2b3c4";
 const UI_TIMEOUT = 30_000;
@@ -37,6 +38,8 @@ interface ConnectionRecord {
   recoveryReason?: string;
   previousCloseCode?: number;
 }
+
+const diagnostics = browserDiagnostics("websocket-recovery");
 
 let browser: Browser;
 let browserContext: BrowserContext;
@@ -120,8 +123,13 @@ beforeAll(async () => {
   }, token);
   await browserContext.routeWebSocket(/\/graphql$/, routeSocket);
   page = await browserContext.newPage();
+  await diagnostics.start(page);
   await page.setViewportSize({ width: 1280, height: 900 });
 }, 120_000);
+
+afterEach(async ({ task }) => {
+  if (task.result?.state === "fail") await diagnostics.capture(task.name);
+});
 
 afterAll(async () => {
   await browserContext?.close();
