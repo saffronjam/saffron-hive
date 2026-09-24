@@ -4,8 +4,8 @@
 	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
-	import { Loader2 } from "@lucide/svelte";
-	import SegmentedControl from "$lib/components/segmented-control.svelte";
+	import { Loader2, Users } from "@lucide/svelte";
+	import HiveLogo from "$lib/components/icons/hive-logo.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
 	import { me } from "$lib/stores/me.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
@@ -118,24 +118,34 @@
 	});
 </script>
 
-<div class="flex min-h-screen items-center justify-center bg-background p-6">
-	<div class="w-full max-w-sm rounded-lg shadow-card bg-card p-8">
-		<h1 class="text-xl font-semibold">{title}</h1>
-		<SegmentedControl
-			class="mt-6 w-full [&>button]:flex-1"
-			value={mode}
-			onchange={setMode}
-			options={[
-				{ value: "user", label: m.guest_mode_user({}, locale.messageOptions()) },
-				{ value: "guest", label: m.guest_mode_guest({}, locale.messageOptions()) },
-			]}
+<div
+	class="relative isolate flex min-h-svh items-center justify-center overflow-hidden bg-background px-6 py-24"
+>
+	<Button
+		variant="ghost"
+		size="sm"
+		class="absolute top-6 right-6 z-10"
+		disabled={submitting}
+		onclick={() => setMode(mode === "user" ? "guest" : "user")}
+	>
+		<Users class="size-4" aria-hidden="true" />
+		{mode === "user"
+			? m.guest_mode_guest({}, locale.messageOptions())
+			: m.guest_mode_user({}, locale.messageOptions())}
+	</Button>
+	<div class="login-content relative isolate w-full max-w-[23.75rem]">
+		<HiveLogo
+			class="mx-auto mb-5 size-20"
+			role="img"
+			aria-label={m.common_brand_name({}, locale.messageOptions())}
 		/>
+		<h1 class="text-center text-3xl font-semibold tracking-tight">{title}</h1>
 		{#if unavailable && mode === "guest"}
 			<p class="mt-4 text-sm text-red-600 dark:text-red-400">
 				{m.guest_unavailable({}, locale.messageOptions())}
 			</p>
 		{/if}
-		<form class="mt-6 flex flex-col gap-4" onsubmit={submit}>
+		<form class="mt-8 flex min-h-60 flex-col gap-5" onsubmit={submit}>
 			{#if mode === "guest"}
 				<div class="grid gap-1.5">
 					<label for="guest-name" class="text-sm font-medium">
@@ -143,6 +153,7 @@
 					</label>
 					<Input
 						id="guest-name"
+						class="h-12 px-4 md:text-base"
 						bind:value={guestName}
 						autocomplete="off"
 						required
@@ -154,7 +165,13 @@
 					<label for="login-username" class="text-sm font-medium">
 						{m.auth_username({}, locale.messageOptions())}
 					</label>
-					<Input id="login-username" bind:value={username} autocomplete="username" required />
+					<Input
+						id="login-username"
+						class="h-12 px-4 md:text-base"
+						bind:value={username}
+						autocomplete="username"
+						required
+					/>
 				</div>
 				<div class="grid gap-1.5">
 					<label for="login-password" class="text-sm font-medium">
@@ -162,6 +179,7 @@
 					</label>
 					<Input
 						id="login-password"
+						class="h-12 px-4 md:text-base"
 						type="password"
 						bind:value={password}
 						autocomplete="current-password"
@@ -174,6 +192,7 @@
 			{/if}
 			<Button
 				type="submit"
+				class="mt-1 h-12 text-base"
 				disabled={submitting || (mode === "guest" ? !guestName.trim() : !username || !password)}
 			>
 				{#if submitting}
@@ -186,3 +205,23 @@
 		</form>
 	</div>
 </div>
+
+<style>
+	.login-content::before {
+		position: absolute;
+		z-index: -1;
+		top: 2.5rem;
+		left: 50%;
+		width: min(64rem, 200vw);
+		height: clamp(24rem, 80vw, 34rem);
+		transform: translate(-50%, -50%);
+		background: radial-gradient(
+			ellipse,
+			color-mix(in srgb, var(--brand) 24%, transparent),
+			color-mix(in srgb, var(--brand) 11%, transparent) 32%,
+			transparent 68%
+		);
+		content: "";
+		pointer-events: none;
+	}
+</style>
