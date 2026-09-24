@@ -1,0 +1,5 @@
+internal/graph/generated.go linguist-generated=true
+internal/graph/model/models_gen.go linguist-generated=true
+internal/store/sqlite/** linguist-generated=true
+web/src/lib/gql/** linguist-generated=true
+web/src/lib/paraglide/** linguist-generated=true

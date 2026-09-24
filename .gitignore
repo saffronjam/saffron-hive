@@ -8,7 +8,7 @@ saffron-hive
 
 # Frontend (build output embedded into Go binary)
 web/build/
-web/node_modules/
+node_modules/
 
 # The Dockerfile overlays web/build into cmd/serve/webdist/ before `go build`.
 # Only the placeholder index.html is tracked for local-dev bootstrap; every
