@@ -3,13 +3,16 @@ import { deviceStore, isRuntimeEnabledDevice, type Device } from "$lib/stores/de
 const CONFIRMATION_TIMEOUT_MS = 10_000;
 const RECONCILIATION_RETRY_MS = 3_000;
 
-interface PowerBatch {
+type ControlKind = "power" | "brightness";
+
+interface ControlBatch {
+  kind: ControlKind;
   accepted: boolean;
   timer?: ReturnType<typeof setTimeout>;
 }
 
-interface PowerIntent {
-  batch: PowerBatch;
+interface ControlIntent {
+  batch: ControlBatch;
   on: boolean;
   brightness: number | null | undefined;
   initialState: Device["state"];
@@ -22,12 +25,15 @@ interface CommandResult {
 }
 
 /** Transient control feedback, kept separate from confirmed device state and disk snapshots. */
-export class PowerIntents {
-  private pending = $state.raw(new Map<string, PowerIntent>());
+export class ControlIntents {
+  private pending = $state.raw(new Map<string, ControlIntent>());
   private live: Record<string, Device> = {};
 
-  has(devices: readonly Device[]): boolean {
-    return devices.some((device) => this.pending.has(device.id));
+  has(devices: readonly Device[], kind?: ControlKind): boolean {
+    return devices.some((device) => {
+      const intent = this.pending.get(device.id);
+      return intent !== undefined && (kind === undefined || intent.batch.kind === kind);
+    });
   }
 
   device(device: Device): Device {
@@ -43,7 +49,7 @@ export class PowerIntents {
     return devices.map((device) => this.device(device));
   }
 
-  private replace(next: Map<string, PowerIntent>) {
+  private replace(next: Map<string, ControlIntent>) {
     const active = new Set([...next.values()].map((intent) => intent.batch));
     for (const { batch } of this.pending.values()) {
       if (!active.has(batch)) clearTimeout(batch.timer);
@@ -51,15 +57,15 @@ export class PowerIntents {
     this.pending = next;
   }
 
-  private release(batch: PowerBatch) {
+  private release(batch: ControlBatch) {
     this.replace(new Map([...this.pending].filter(([, intent]) => intent.batch !== batch)));
   }
 
-  private hasBatch(batch: PowerBatch): boolean {
+  private hasBatch(batch: ControlBatch): boolean {
     return [...this.pending.values()].some((intent) => intent.batch === batch);
   }
 
-  private async refreshBatch(batch: PowerBatch, refresh: () => Promise<boolean>): Promise<void> {
+  private async refreshBatch(batch: ControlBatch, refresh: () => Promise<boolean>): Promise<void> {
     if (!this.hasBatch(batch)) return;
     let refreshed = false;
     try {
@@ -76,14 +82,20 @@ export class PowerIntents {
       );
   }
 
-  clear(devices?: readonly Device[]) {
-    if (this.pending.size === 0 || (devices && !this.has(devices))) return;
+  clear(devices?: readonly Device[], kind?: ControlKind) {
+    if (this.pending.size === 0 || (devices && !this.has(devices, kind))) return;
     if (!devices) {
       this.replace(new Map());
       return;
     }
     const ids = new Set(devices.map((device) => device.id));
-    this.replace(new Map([...this.pending].filter(([id]) => !ids.has(id))));
+    this.replace(
+      new Map(
+        [...this.pending].filter(
+          ([id, intent]) => !ids.has(id) || (kind !== undefined && intent.batch.kind !== kind),
+        ),
+      ),
+    );
   }
 
   reconcile(devices: Record<string, Device>) {
@@ -92,12 +104,13 @@ export class PowerIntents {
     const next = new Map(
       [...this.pending].filter(([id]) => devices[id] && isRuntimeEnabledDevice(devices[id])),
     );
-    const waiting = new Set<PowerBatch>();
+    const waiting = new Set<ControlBatch>();
     for (const [id, intent] of next) {
       const state = devices[id].state;
       if (
         !intent.batch.accepted ||
         state?.on !== intent.on ||
+        (intent.batch.kind === "brightness" && state?.brightness !== intent.brightness) ||
         (intent.needsEcho && state === intent.initialState)
       ) {
         waiting.add(intent.batch);
@@ -109,25 +122,50 @@ export class PowerIntents {
     if (next.size !== this.pending.size) this.replace(next);
   }
 
-  async toggle(
+  toggle(
     devices: readonly Device[],
     on: boolean,
     send: () => Promise<CommandResult>,
     refresh: () => Promise<boolean>,
   ): Promise<void> {
+    return this.send(devices, { kind: "power", on }, send, refresh);
+  }
+
+  brightness(
+    devices: readonly Device[],
+    brightness: number,
+    send: () => Promise<CommandResult>,
+    refresh: () => Promise<boolean>,
+  ): Promise<void> {
+    return this.send(devices, { kind: "brightness", on: true, brightness }, send, refresh);
+  }
+
+  private async send(
+    devices: readonly Device[],
+    desired: { kind: "power"; on: boolean } | { kind: "brightness"; on: true; brightness: number },
+    send: () => Promise<CommandResult>,
+    refresh: () => Promise<boolean>,
+  ): Promise<void> {
     const targets = devices.filter(isRuntimeEnabledDevice);
     if (targets.length === 0) return;
-    const batch: PowerBatch = {
+    const batch: ControlBatch = {
+      kind: desired.kind,
       accepted: false,
     };
     const next = new Map(this.pending);
     for (const device of targets) {
       next.set(device.id, {
         batch,
-        on,
-        brightness: this.device(device).state?.brightness,
+        on: desired.on,
+        brightness:
+          desired.kind === "brightness"
+            ? desired.brightness
+            : this.device(device).state?.brightness,
         initialState: device.state,
-        needsEcho: this.pending.has(device.id) || device.state?.on !== on,
+        needsEcho:
+          this.pending.has(device.id) ||
+          device.state?.on !== desired.on ||
+          (desired.kind === "brightness" && device.state?.brightness !== desired.brightness),
       });
     }
     this.replace(next);
@@ -151,5 +189,5 @@ export class PowerIntents {
   }
 }
 
-export const powerIntents = new PowerIntents();
-deviceStore.subscribe((devices) => powerIntents.reconcile(devices));
+export const controlIntents = new ControlIntents();
+deviceStore.subscribe((devices) => controlIntents.reconcile(devices));

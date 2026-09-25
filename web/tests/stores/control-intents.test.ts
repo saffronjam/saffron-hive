@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PowerIntents } from "$lib/stores/power-intents.svelte";
+import { ControlIntents } from "$lib/stores/control-intents.svelte";
 import type { Device } from "$lib/stores/devices";
 
 function light(id: string, on: boolean, brightness = 100): Device {
@@ -21,12 +21,12 @@ function light(id: string, on: boolean, brightness = 100): Device {
 }
 
 const accepted = async () => ({ data: { setTargetState: true } });
-let power: PowerIntents;
+let power: ControlIntents;
 let refresh: ReturnType<typeof vi.fn<() => Promise<boolean>>>;
 
 beforeEach(() => {
   vi.useFakeTimers();
-  power = new PowerIntents();
+  power = new ControlIntents();
   refresh = vi.fn(async () => true);
 });
 
@@ -257,5 +257,114 @@ describe("optimistic power intent", () => {
     power.reconcile({});
     expect(power.has([a])).toBe(false);
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("pending brightness", () => {
+  it("holds the requested brightness through partial and older reports", async () => {
+    const a = light("a", true, 40);
+    const b = light("b", true, 80);
+    power.reconcile({ a, b });
+    await power.brightness([a, b], 200, accepted, refresh);
+    expect(power.has([a, b], "power")).toBe(false);
+    expect(power.has([a, b], "brightness")).toBe(true);
+    expect(a.state?.brightness).toBe(40);
+    power.reconcile({ a: light("a", true, 200), b: light("b", true, 140) });
+    expect(power.devices([a, b]).map((d) => d.state?.brightness)).toEqual([200, 200]);
+    power.reconcile({ a: light("a", true, 200), b: light("b", true, 200) });
+    expect(power.has([a, b])).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("fetches missed confirmation without releasing brightness to the cached value", async () => {
+    const a = light("a", true, 40);
+    power.reconcile({ a });
+    let finish!: (fresh: boolean) => void;
+    refresh.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    await power.brightness([a], 200, accepted, refresh);
+    await vi.advanceTimersByTimeAsync(12_000);
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(power.device(a).state?.brightness).toBe(200);
+    const confirmed = light("a", true, 200);
+    power.reconcile({ a: confirmed });
+    finish(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(power.has([a])).toBe(false);
+    expect(power.device(confirmed).state?.brightness).toBe(200);
+  });
+
+  it("keeps a newer drag through an older response and an earlier brightness report", async () => {
+    const a = light("a", true, 40);
+    power.reconcile({ a });
+    let reject!: (reason: Error) => void;
+    const first = power.brightness(
+      [a],
+      100,
+      () =>
+        new Promise((_resolve, fail) => {
+          reject = fail;
+        }),
+      refresh,
+    );
+    await power.brightness([a], 200, accepted, refresh);
+    reject(new Error("Earlier request failed"));
+    await first;
+    power.reconcile({ a: light("a", true, 100) });
+    expect(power.device(a).state?.brightness).toBe(200);
+    power.reconcile({ a: light("a", true, 200) });
+    expect(power.has([a])).toBe(false);
+  });
+
+  it("does not clear newer brightness when an older refresh finishes", async () => {
+    const a = light("a", true, 40);
+    power.reconcile({ a });
+    let finish!: (fresh: boolean) => void;
+    refresh.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    await power.brightness([a], 100, accepted, refresh);
+    await vi.advanceTimersByTimeAsync(10_000);
+    await power.brightness([a], 200, accepted, refresh);
+    power.reconcile({ a: light("a", true, 100) });
+    finish(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(power.has([a])).toBe(true);
+    expect(power.device(a).state?.brightness).toBe(200);
+  });
+
+  it("lets a power toggle supersede a drag without losing its remembered brightness", async () => {
+    const a = light("a", true, 40);
+    power.reconcile({ a });
+    await power.brightness([a], 200, accepted, refresh);
+    await power.toggle([a], false, accepted, refresh);
+    power.reconcile({ a: light("a", true, 200) });
+    expect(power.device(a).state).toEqual({ on: false, brightness: 200 });
+    power.reconcile({ a: light("a", false, 200) });
+    expect(power.has([a])).toBe(false);
+  });
+
+  it("retries a failed snapshot and accepts an authoritative mismatch", async () => {
+    const a = light("a", true, 40);
+    power.reconcile({ a });
+    refresh.mockResolvedValueOnce(false);
+    await power.brightness([a], 200, accepted, refresh);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(power.device(a).state?.brightness).toBe(200);
+    const actual = light("a", true, 190);
+    refresh.mockImplementationOnce(async () => {
+      power.reconcile({ a: actual });
+      return true;
+    });
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(power.device(actual).state?.brightness).toBe(190);
+    expect(power.has([a])).toBe(false);
   });
 });

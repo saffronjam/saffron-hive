@@ -2,7 +2,7 @@
 	import type { Component } from "svelte";
 	import { deviceDisplayName } from "$lib/utils";
 	import EntityCard from "$lib/components/entity-card.svelte";
-	import { powerIntents } from "$lib/stores/power-intents.svelte";
+	import { controlIntents } from "$lib/stores/control-intents.svelte";
 	import BulkBrightnessSlider from "$lib/components/bulk-brightness-slider.svelte";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
@@ -55,12 +55,12 @@
 	const onOffDevices = $derived(
 		devices.filter((d) => d.capabilities.some((c) => c.name === "on_off")),
 	);
-	const isOn = $derived(powerIntents.devices(onOffDevices).some((d) => d.state?.on));
+	const isOn = $derived(controlIntents.devices(onOffDevices).some((d) => d.state?.on));
 
 	const dimmableLights = $derived(
 		devices.filter((d) => d.type === "light" && d.state?.brightness != null),
 	);
-	const onLights = $derived(dimmableLights.filter((d) => d.state?.on));
+	const onLights = $derived(controlIntents.devices(dimmableLights).filter((d) => d.state?.on));
 	const avgBrightness = $derived.by((): number => {
 		if (onLights.length === 0) return 0;
 		let sum = 0;
@@ -73,7 +73,7 @@
 	const INTERACT_COOLDOWN_MS = 1500;
 	const appearance = $derived(
 		aggregateLightAppearance(
-			powerIntents.devices(devices),
+			controlIntents.devices(devices),
 			previewBrightness == null ? {} : { brightnessPreview: previewBrightness },
 		),
 	);
@@ -104,6 +104,8 @@
 	const dragOpts = $derived({
 		initial: () => (isOn ? avgBrightness : 0),
 		onpreview: (v: number) => {
+			if (interactingTimer) clearTimeout(interactingTimer);
+			interactingTimer = null;
 			previewBrightness = v;
 			throttle(brightnessThrottle, () =>
 				commitGroupBrightness(client, devices, v, commandTarget),
@@ -141,7 +143,7 @@
 	const colorThrottle: Throttle = { lastSent: 0, trailing: null };
 	const tempThrottle: Throttle = { lastSent: 0, trailing: null };
 	$effect(() => {
-		if (!powerIntents.has(devices)) return;
+		if (!controlIntents.has(devices, "power")) return;
 		previewBrightness = null;
 		flushThrottle(brightnessThrottle);
 		flushThrottle(colorThrottle);

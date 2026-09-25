@@ -1,6 +1,6 @@
 <script lang="ts" generics="T extends { id: string; name?: string | null; friendlyName?: string | null; icon?: string | null }">
 	import { onDestroy, type Component } from "svelte";
-	import { powerIntents } from "$lib/stores/power-intents.svelte";
+	import { controlIntents } from "$lib/stores/control-intents.svelte";
 	import { isLightControlDevice, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import EntityCard from "$lib/components/entity-card.svelte";
 	import BulkBrightnessSlider from "$lib/components/bulk-brightness-slider.svelte";
@@ -96,7 +96,7 @@
 
 	const onOffDevices = $derived(devices.filter(isLightControlDevice));
 	const hasOnOff = $derived(onOffDevices.length > 0);
-	const isOn = $derived(powerIntents.devices(onOffDevices).some((d) => d.state?.on));
+	const isOn = $derived(controlIntents.devices(onOffDevices).some((d) => d.state?.on));
 
 	const hasColor = $derived(
 		devices.some((d) => d.capabilities.some((c) => c.name === "color")),
@@ -118,7 +118,7 @@
 		return onWithTemp?.state?.colorTemp ?? null;
 	});
 
-	const effectiveDevices = $derived(powerIntents.devices(devices));
+	const effectiveDevices = $derived(controlIntents.devices(devices));
 
 	const resolvedSubtitle = $derived(
 		stateSummary ? contactCollectionSummary(effectiveDevices) : subtitle,
@@ -148,7 +148,7 @@
 	const colorThrottle: Throttle = { lastSent: 0, trailing: null };
 	const tempThrottle: Throttle = { lastSent: 0, trailing: null };
 	$effect(() => {
-		if (!powerIntents.has(devices)) return;
+		if (!controlIntents.has(devices, "power")) return;
 		userTouched = false;
 		flushThrottle(colorThrottle);
 		flushThrottle(tempThrottle);

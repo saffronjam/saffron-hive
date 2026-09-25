@@ -10,7 +10,7 @@
 
 <script lang="ts">
 	import BulkBrightnessSlider from "$lib/components/bulk-brightness-slider.svelte";
-	import { powerIntents } from "$lib/stores/power-intents.svelte";
+	import { controlIntents } from "$lib/stores/control-intents.svelte";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import EntityCard from "$lib/components/entity-card.svelte";
 	import SectionDivider from "$lib/components/section-divider.svelte";
@@ -141,7 +141,7 @@
 			? applianceDevices[applianceDevices.length - 1]?.id
 			: null,
 	);
-	const onLights = $derived(powerIntents.devices(lightDevices).filter((d) => d.state?.on));
+	const onLights = $derived(controlIntents.devices(lightDevices).filter((d) => d.state?.on));
 	const isOn = $derived(onLights.length > 0);
 
 	const roomHasColor = $derived(
@@ -195,7 +195,7 @@
 	const ROOM_INTERACT_COOLDOWN_MS = 1500;
 	const roomAppearance = $derived(
 		aggregateLightAppearance(
-			powerIntents.devices(roomDevices),
+			controlIntents.devices(roomDevices),
 			roomPreviewBrightness == null ? {} : { brightnessPreview: roomPreviewBrightness },
 		),
 	);
@@ -224,7 +224,7 @@
 	const roomBrightnessActive = $derived(roomAppearance.active);
 	const roomBrightnessThrottle: Throttle = { lastSent: 0, trailing: null };
 	$effect(() => {
-		if (!powerIntents.has(lightDevices)) return;
+		if (!controlIntents.has(lightDevices, "power")) return;
 		roomPreviewBrightness = null;
 		flushThrottle(roomBrightnessThrottle);
 		flushThrottle(roomColorThrottle);
@@ -245,6 +245,8 @@
 		initial: () => (isOn ? roomAvgBrightness : 0),
 		onpreview: (v: number) => {
 			if (!room) return;
+			if (roomInteractingTimer) clearTimeout(roomInteractingTimer);
+			roomInteractingTimer = null;
 			roomPreviewBrightness = v;
 			throttle(roomBrightnessThrottle, () =>
 				commitGroupBrightness(client, roomDevices, v, commandTarget),

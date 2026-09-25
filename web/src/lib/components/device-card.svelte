@@ -2,7 +2,7 @@
 	import { getContextClient } from "@urql/svelte";
 	import { onDestroy } from "svelte";
 	import { commitGroupBrightness } from "$lib/group-commands";
-	import { powerIntents } from "$lib/stores/power-intents.svelte";
+	import { controlIntents } from "$lib/stores/control-intents.svelte";
 	import { type Device } from "$lib/stores/devices";
 	import {
 		aggregateSensorReadings,
@@ -87,7 +87,7 @@
 		}, INTERACT_COOLDOWN_MS);
 	}
 	$effect(() => {
-		if (powerIntents.has([device])) interacting = false;
+		if (controlIntents.has([device], "power")) interacting = false;
 	});
 	onDestroy(() => {
 		if (interactingTimer) clearTimeout(interactingTimer);
@@ -122,7 +122,7 @@
 				})
 			: [],
 	);
-	const displayDevice = $derived(powerIntents.device(device));
+	const displayDevice = $derived(controlIntents.device(device));
 	const tintDevice = $derived(
 		interacting && localBrightness !== undefined
 			? { ...displayDevice, state: { ...displayDevice.state, on: true, brightness: localBrightness } }

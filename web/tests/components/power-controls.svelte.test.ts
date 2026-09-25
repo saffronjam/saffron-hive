@@ -5,7 +5,7 @@ import DashboardTargetPanel from "$lib/components/dashboard-target-panel.svelte"
 import DeviceCollectionCard from "$lib/components/device-collection-card.svelte";
 import DeviceCard from "$lib/components/device-card.svelte";
 import { commitGroupBrightness, commitGroupToggle } from "$lib/group-commands";
-import { powerIntents } from "$lib/stores/power-intents.svelte";
+import { controlIntents } from "$lib/stores/control-intents.svelte";
 import { deviceStore, type Device } from "$lib/stores/devices";
 import { CapabilityCategory } from "$lib/gql/graphql";
 import { createMockClient } from "../helpers/mock-client";
@@ -51,7 +51,7 @@ afterEach(async () => {
   if (instance) await unmount(instance);
   instance = null;
   host?.remove();
-  powerIntents.clear();
+  controlIntents.clear();
   deviceStore.clear();
   vi.useRealTimers();
 });
@@ -155,7 +155,7 @@ describe("optimistic card power controls", () => {
       view.devices.forEach((device, index) =>
         view.report(index, false, device.state?.brightness ?? 0),
       );
-      expect(powerIntents.has(view.devices)).toBe(false);
+      expect(controlIntents.has(view.devices)).toBe(false);
       expect(view.slider().getAttribute("aria-valuenow")).toBe("0");
       view.report(0, true, 150);
       expect(view.toggle().getAttribute("aria-checked")).toBe("true");
@@ -207,7 +207,8 @@ describe("optimistic card power controls", () => {
     expect(view.slider().getAttribute("aria-valuenow")).toBe("0");
     view.slider().dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
     flushSync();
-    expect(powerIntents.has(view.devices)).toBe(false);
+    expect(controlIntents.has(view.devices, "power")).toBe(false);
+    expect(controlIntents.has(view.devices, "brightness")).toBe(true);
     expect(view.slider().getAttribute("aria-valuenow")).toBe("1");
     expect(view.mutations.at(-1)?.variables).toEqual({
       target: { type: "DEVICE_SET", deviceIds: ["a"] },

@@ -5,7 +5,7 @@
 	import { locale } from "$lib/i18n/locale.svelte";
 	import { onDestroy } from "svelte";
 	import { throttle, flushThrottle, type Throttle } from "$lib/throttle";
-	import { powerIntents } from "$lib/stores/power-intents.svelte";
+	import { controlIntents } from "$lib/stores/control-intents.svelte";
 
 	interface Props {
 		devices: Device[];
@@ -31,7 +31,7 @@
 	// Runtime-disabled devices are excluded: the slider must show, and average,
 	// only what it can actually command.
 	const dimmable = $derived(
-		powerIntents.devices(devices).filter(
+		controlIntents.devices(devices).filter(
 			(d) => isRuntimeEnabledDevice(d) && d.type === "light" && d.state?.brightness != null,
 		),
 	);
@@ -73,7 +73,7 @@
 	}
 
 	$effect(() => {
-		if (powerIntents.has(devices)) {
+		if (controlIntents.has(devices, "power")) {
 			flushThrottle(brightnessThrottle);
 			if (interactingTimer) clearTimeout(interactingTimer);
 			interactingTimer = null;
@@ -100,7 +100,7 @@
 	});
 
 	function handleChange(val: number) {
-		powerIntents.clear(devices);
+		controlIntents.clear(devices, "power");
 		value = val;
 		oninteract?.();
 		noteInteract();

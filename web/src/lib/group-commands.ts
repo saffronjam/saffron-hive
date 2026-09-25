@@ -8,7 +8,7 @@ import {
   type Device,
 } from "$lib/stores/devices";
 import { CommandTargetType, type DeviceStateInput } from "$lib/gql/graphql";
-import { powerIntents } from "$lib/stores/power-intents.svelte";
+import { controlIntents } from "$lib/stores/control-intents.svelte";
 
 export interface GroupMemberRef {
   memberType: string;
@@ -114,9 +114,13 @@ export async function commitGroupBrightness(
     (d) => d.type === "light" && d.state?.brightness != null,
   );
   if (lights.length === 0) return;
-  powerIntents.clear(lights);
   const input = { on: true, brightness };
-  await commitState(client, devices, lights, input, target);
+  await controlIntents.brightness(
+    lights,
+    brightness,
+    () => commitState(client, devices, lights, input, target),
+    () => deviceStore.refresh(client),
+  );
 }
 
 export async function commitGroupToggle(
@@ -127,7 +131,7 @@ export async function commitGroupToggle(
 ): Promise<void> {
   const targets = commandable(devices).filter(isLightControlDevice);
   if (targets.length === 0) return;
-  await powerIntents.toggle(
+  await controlIntents.toggle(
     targets,
     on,
     () => commitState(client, devices, targets, { on }, target),
@@ -150,8 +154,8 @@ export async function commitGroupColor(
     on?: true;
     color: { r: number; g: number; b: number; x: number; y: number };
   } = { color: { ...color, x: xy.x, y: xy.y } };
-  if (powerIntents.has(targets) || targets.some((d) => !d.state?.on)) input.on = true;
-  powerIntents.clear(targets);
+  if (controlIntents.has(targets) || targets.some((d) => !d.state?.on)) input.on = true;
+  controlIntents.clear(targets);
   await commitState(client, devices, targets, input, target);
 }
 
@@ -166,7 +170,7 @@ export async function commitGroupTemp(
   );
   if (targets.length === 0) return;
   const input: { on?: true; colorTemp: number } = { colorTemp: mired };
-  if (powerIntents.has(targets) || targets.some((d) => !d.state?.on)) input.on = true;
-  powerIntents.clear(targets);
+  if (controlIntents.has(targets) || targets.some((d) => !d.state?.on)) input.on = true;
+  controlIntents.clear(targets);
   await commitState(client, devices, targets, input, target);
 }
