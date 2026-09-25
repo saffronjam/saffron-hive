@@ -490,7 +490,7 @@ func wsCloseCode(value any) (int, bool) {
 }
 
 func wsTransportErrorFunc(ctx context.Context, err error) {
-	direction, closeCode := wsTransportErrorDetails(err)
+	direction, closeCode, expected := wsTransportErrorDetails(err)
 	attrs := []slog.Attr{
 		slog.String("direction", direction),
 		slog.Any("error", err),
@@ -505,27 +505,33 @@ func wsTransportErrorFunc(ctx context.Context, err error) {
 		attrs = append(attrs, slog.String("client_ip", clientIP))
 	}
 
-	if closeCode == websocket.CloseNormalClosure || closeCode == websocket.CloseGoingAway || closeCode == 4499 {
+	if expected {
 		serveLogger.LogAttrs(ctx, slog.LevelDebug, "GraphQL WebSocket transport closed", attrs...)
 		return
 	}
 	serveLogger.LogAttrs(ctx, slog.LevelWarn, "GraphQL WebSocket transport failed", attrs...)
 }
 
-func wsTransportErrorDetails(err error) (string, int) {
+func wsTransportErrorDetails(err error) (string, int, bool) {
 	direction := "write"
-	transportErr, ok := err.(transport.WebsocketError)
-	if !ok {
-		return direction, 0
-	}
-	if transportErr.IsReadError {
-		direction = "read"
+	var transportErr transport.WebsocketError
+	if errors.As(err, &transportErr) {
+		if transportErr.IsReadError {
+			direction = "read"
+		}
+		err = transportErr.Err
 	}
 	var closeErr *websocket.CloseError
-	if errors.As(transportErr.Err, &closeErr) {
-		return direction, closeErr.Code
+	if errors.As(err, &closeErr) {
+		expected := closeErr.Code == websocket.CloseNormalClosure ||
+			closeErr.Code == websocket.CloseGoingAway ||
+			closeErr.Code == websocket.CloseNoStatusReceived || closeErr.Code == 4499
+		return direction, closeErr.Code, expected
 	}
-	return direction, 0
+	// gqlgen represents normal and no-status read closures with an unexported sentinel.
+	expected := errors.Is(err, websocket.ErrCloseSent) || errors.Is(err, net.ErrClosed) ||
+		(direction == "read" && err.Error() == "websocket connection closed")
+	return direction, 0, expected
 }
 
 // seedInitialUser creates the first user from HIVE_INIT_USER / HIVE_INIT_PASSWORD

@@ -35,6 +35,8 @@ const LOGS_QUERY = graphql(`
 interface ConnectionRecord {
   id: number;
   acknowledged: boolean;
+  probes: number;
+  probeResponses: number;
   recoveryReason?: string;
   previousCloseCode?: number;
 }
@@ -48,6 +50,7 @@ let connectionCount = 0;
 let blockedConnection = 0;
 let droppedNextConnection = 0;
 const connections: ConnectionRecord[] = [];
+const sockets = new Map<number, WebSocketRoute>();
 
 function textMessage(message: string | Buffer): string {
   return typeof message === "string" ? message : message.toString("utf8");
@@ -55,16 +58,18 @@ function textMessage(message: string | Buffer): string {
 
 function routeSocket(socket: WebSocketRoute) {
   const id = ++connectionCount;
-  const record: ConnectionRecord = { id, acknowledged: false };
+  const record: ConnectionRecord = { id, acknowledged: false, probes: 0, probeResponses: 0 };
   connections.push(record);
+  sockets.set(id, socket);
   const server = socket.connectToServer();
 
   socket.onMessage((message) => {
     try {
       const parsed = JSON.parse(textMessage(message)) as {
         type?: string;
-        payload?: { recoveryReason?: string; previousCloseCode?: number };
+        payload?: { recoveryReason?: string; previousCloseCode?: number; hiveProbe?: number };
       };
+      if (parsed.type === "ping" && parsed.payload?.hiveProbe !== undefined) record.probes++;
       if (parsed.type === "connection_init") {
         record.recoveryReason = parsed.payload?.recoveryReason;
         record.previousCloseCode = parsed.payload?.previousCloseCode;
@@ -79,13 +84,19 @@ function routeSocket(socket: WebSocketRoute) {
     if (blockedConnection === id) return;
     let messageType: string | undefined;
     try {
-      const parsed = JSON.parse(textMessage(message)) as { type?: string };
+      const parsed = JSON.parse(textMessage(message)) as {
+        type?: string;
+        payload?: { hiveProbe?: number };
+      };
+      if (parsed.type === "pong" && parsed.payload?.hiveProbe !== undefined)
+        record.probeResponses++;
       messageType = parsed.type;
       if (parsed.type === "connection_ack") record.acknowledged = true;
     } catch {
       // Forward non-JSON frames without interpreting them.
     }
-    if (droppedNextConnection === id && messageType === "next") return;
+    if ((droppedNextConnection === id || droppedNextConnection === -1) && messageType === "next")
+      return;
     socket.send(message);
   });
 }
@@ -137,6 +148,26 @@ afterAll(async () => {
 });
 
 describe("browser WebSocket recovery", () => {
+  it("refreshes missed state after a normal socket closure", async () => {
+    const { appUrl } = getContext();
+    await publishDeviceState("Living Room Light", { state: "ON", brightness: 75 });
+    await waitForBackendBrightness(75);
+    await page.goto(`${appUrl}/devices`, { waitUntil: "domcontentloaded" });
+    await expect.poll(brightnessValue, { timeout: UI_TIMEOUT }).toBe(75);
+    await expect.poll(() => connections.at(-1)?.acknowledged).toBe(true);
+    const staleConnection = connectionCount;
+    droppedNextConnection = staleConnection;
+    await publishDeviceState("Living Room Light", { state: "ON", brightness: 175 });
+    await waitForBackendBrightness(175);
+    expect(await brightnessValue()).toBe(75);
+    await sockets.get(staleConnection)!.close({ code: 1000, reason: "Normal closure" });
+    await expect
+      .poll(() => connectionCount, { timeout: UI_TIMEOUT })
+      .toBeGreaterThan(staleConnection);
+    await expect.poll(brightnessValue, { timeout: UI_TIMEOUT }).toBe(175);
+    expect(connections.at(-1)?.previousCloseCode).toBe(1000);
+  });
+
   it("detects a black-holed connection and reconciles missed state without a reload", async () => {
     const { appUrl } = getContext();
     droppedNextConnection = 0;
@@ -176,8 +207,11 @@ describe("browser WebSocket recovery", () => {
             .query(LOGS_QUERY, {}, { requestPolicy: "network-only" })
             .toPromise();
           return (
-            result.data?.logs.find((entry) => entry.message === "GraphQL WebSocket recovered")
-              ?.attrs ?? null
+            result.data?.logs.find(
+              (entry) =>
+                entry.message === "GraphQL WebSocket recovered" &&
+                entry.attrs.includes("heartbeat_timeout"),
+            )?.attrs ?? null
           );
         },
         { timeout: UI_TIMEOUT },
@@ -195,7 +229,7 @@ describe("browser WebSocket recovery", () => {
       .toBeGreaterThan(0);
   });
 
-  it("reconciles missed state when a still-connected app regains focus", async () => {
+  it("reconciles missed state on repeated returns while retaining a responsive socket", async () => {
     const { appUrl } = getContext();
     blockedConnection = 0;
     droppedNextConnection = 0;
@@ -217,21 +251,139 @@ describe("browser WebSocket recovery", () => {
     expect(connectionCount).toBe(staleConnection);
     expect(await brightnessValue()).toBe(61);
 
-    const recoveryStartedAt = Date.now();
-    await page.evaluate(() => {
-      window.dispatchEvent(new Event("focus"));
-    });
-    await expect
-      .poll(() => connectionCount, { timeout: 2_500, interval: 50 })
-      .toBeGreaterThan(staleConnection);
-    expect(Date.now() - recoveryStartedAt).toBeLessThan(2_500);
-    await expect.poll(brightnessValue, { timeout: UI_TIMEOUT }).toBe(209);
+    const record = connections.find((connection) => connection.id === staleConnection)!;
+    for (let visit = 0; visit < 3; visit++) {
+      const replies = record.probeResponses;
+      await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+      await expect.poll(() => record.probeResponses, { timeout: 2_500 }).toBeGreaterThan(replies);
+      await expect.poll(brightnessValue, { timeout: UI_TIMEOUT }).toBe(209);
+      expect(connectionCount).toBe(staleConnection);
+      await page.waitForTimeout(300);
+    }
+    await page.waitForTimeout(2_500);
+    expect(connectionCount).toBe(staleConnection);
+    droppedNextConnection = 0;
+    await publishDeviceState("Living Room Light", { state: "ON", brightness: 210 });
+    await expect.poll(brightnessValue, { timeout: UI_TIMEOUT }).toBe(210);
+  });
 
+  it("replaces an unresponsive socket when the app returns", async () => {
+    const { appUrl } = getContext();
+    blockedConnection = 0;
+    droppedNextConnection = 0;
+    await publishDeviceState("Living Room Light", { state: "ON", brightness: 80 });
+    await waitForBackendBrightness(80);
+    await page.goto(`${appUrl}/devices`, { waitUntil: "domcontentloaded" });
+    await expect.poll(brightnessValue, { timeout: UI_TIMEOUT }).toBe(80);
+    await expect.poll(() => connections.at(-1)?.acknowledged).toBe(true);
+    await page.waitForTimeout(300);
+    const staleConnection = connectionCount;
+    blockedConnection = staleConnection;
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
     await expect
-      .poll(
-        () => connections.find((connection) => connection.id > staleConnection)?.recoveryReason,
-        { timeout: UI_TIMEOUT },
-      )
-      .toBe("foreground");
+      .poll(() => connections.find((record) => record.id === staleConnection)?.probes)
+      .toBeGreaterThan(0);
+    await publishDeviceState("Living Room Light", { state: "ON", brightness: 180 });
+    await expect.poll(() => connectionCount, { timeout: 4_000 }).toBeGreaterThan(staleConnection);
+    expect(connections.at(-1)).toMatchObject({
+      recoveryReason: "foreground",
+      previousCloseCode: 4499,
+    });
+    await expect.poll(brightnessValue, { timeout: UI_TIMEOUT }).toBe(180);
+  });
+
+  it("keeps the mobile Apartment off while confirmations and recovery snapshots are delayed", async () => {
+    const { appUrl } = getContext();
+    blockedConnection = 0;
+    droppedNextConnection = 0;
+    for (const name of ["Bedroom Light", "Kitchen Light", "Living Room Light"]) {
+      await publishDeviceState(name, { state: "ON", brightness: 124, color_temp: 300 });
+    }
+    await waitForBackendBrightness(124);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(appUrl, { waitUntil: "domcontentloaded" });
+    const apartment = page.getByRole("button", { name: "Apartment", exact: true });
+    const fill = () =>
+      apartment.evaluate((node) =>
+        parseFloat((node as HTMLElement).style.getPropertyValue("--brightness-fill")),
+      );
+    await expect.poll(fill, { timeout: UI_TIMEOUT }).toBeGreaterThan(0);
+    await expect.poll(() => connections.at(-1)?.acknowledged).toBe(true);
+
+    let releaseSnapshots!: () => void;
+    const snapshotsBlocked = new Promise<void>((resolve) => {
+      releaseSnapshots = resolve;
+    });
+    let snapshots = 0;
+    const graphqlRoute = /\/graphql(?:\?|$)/;
+    await page.route(graphqlRoute, async (route) => {
+      const query =
+        route.request().postData() ?? new URL(route.request().url()).searchParams.get("query");
+      if (!query?.includes("query DevicesInit")) return route.continue();
+      const response = await route.fetch();
+      snapshots++;
+      await snapshotsBlocked;
+      await route.fulfill({ response });
+    });
+    droppedNextConnection = -1;
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect.poll(() => snapshots, { timeout: UI_TIMEOUT }).toBeGreaterThan(0);
+    const commandResponse = page.waitForResponse(
+      (response) => response.request().postData()?.includes("GroupCommandsSetTargetState") ?? false,
+    );
+    await apartment.click();
+    const command = await (await commandResponse).json();
+    expect(command.data?.setTargetState).toBe(true);
+    await expect.poll(fill).toBe(0);
+    const observed = await apartment.evaluateHandle((node) => {
+      const samples: number[] = [];
+      const observer = new MutationObserver(() =>
+        samples.push(parseFloat((node as HTMLElement).style.getPropertyValue("--brightness-fill"))),
+      );
+      observer.observe(node, { attributes: true, attributeFilter: ["style"] });
+      return { samples, observer };
+    });
+    try {
+      for (const name of ["Bedroom Light", "Kitchen Light", "Living Room Light"]) {
+        await publishDeviceState(name, { state: "OFF", brightness: 125 });
+      }
+      await waitForBackendBrightness(125);
+      await page.waitForTimeout(12_000);
+      expect(await fill()).toBe(0);
+      await page.screenshot({ path: "/tmp/hive-mobile-pending-off.png" });
+      releaseSnapshots();
+      await expect.poll(() => snapshots, { timeout: UI_TIMEOUT }).toBeGreaterThan(1);
+      droppedNextConnection = 0;
+      const staleConnection = connectionCount;
+      await sockets.get(staleConnection)!.close({ code: 1000, reason: "Normal closure" });
+      await expect
+        .poll(() => connectionCount, { timeout: UI_TIMEOUT })
+        .toBeGreaterThan(staleConnection);
+      await page.waitForTimeout(1_000);
+      expect(await fill()).toBe(0);
+      expect(await observed.evaluate(({ samples }) => samples.every((value) => value === 0))).toBe(
+        true,
+      );
+      await page.screenshot({ path: "/tmp/hive-mobile-confirmed-off.png" });
+      await publishDeviceState("Living Room Light", { state: "ON", brightness: 126 });
+      await expect.poll(fill, { timeout: UI_TIMEOUT }).toBeGreaterThan(0);
+    } finally {
+      releaseSnapshots();
+      droppedNextConnection = 0;
+      await observed.evaluate(({ observer }) => observer.disconnect());
+      await observed.dispose();
+      await page.unroute(graphqlRoute);
+    }
+  });
+
+  it("keeps expected socket shutdowns out of transport failure logs", async () => {
+    const { graphqlClient } = getContext();
+    const result = await graphqlClient
+      .query(LOGS_QUERY, {}, { requestPolicy: "network-only" })
+      .toPromise();
+    expect(result.error).toBeUndefined();
+    expect(
+      result.data?.logs.filter((entry) => entry.message === "GraphQL WebSocket transport failed"),
+    ).toEqual([]);
   });
 });

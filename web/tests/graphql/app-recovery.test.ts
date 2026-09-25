@@ -6,6 +6,7 @@ function connection(): GraphQLConnection {
   return {
     client: {} as GraphQLConnection["client"],
     recover: vi.fn(),
+    suspend: vi.fn(),
     onRecovered: vi.fn(() => () => {}),
   };
 }
@@ -109,14 +110,36 @@ describe("app recovery triggers", () => {
     const uninstall = installAppRecovery(controller, () => true);
 
     window.dispatchEvent(new Event("online"));
-    setVisibility("hidden");
-    document.dispatchEvent(new Event("visibilitychange"));
-    setVisibility("visible");
     document.dispatchEvent(new Event("visibilitychange"));
     window.dispatchEvent(new Event("focus"));
 
     expect(controller.recover).toHaveBeenCalledTimes(1);
     uninstall();
+  });
+
+  it("suspends monitoring when hidden and checks again on a quick return", () => {
+    const controller = connection();
+    const uninstall = installAppRecovery(controller, () => true);
+    window.dispatchEvent(new Event("focus"));
+    setVisibility("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(controller.suspend).toHaveBeenCalledOnce();
+    setVisibility("visible");
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(controller.recover).toHaveBeenCalledTimes(2);
+    uninstall();
+  });
+
+  it("suspends a frozen document and removes the lifecycle listeners on teardown", () => {
+    const controller = connection();
+    const uninstall = installAppRecovery(controller, () => true);
+    document.dispatchEvent(new Event("freeze"));
+    expect(controller.suspend).toHaveBeenCalledOnce();
+    uninstall();
+    document.dispatchEvent(new Event("freeze"));
+    document.dispatchEvent(new Event("resume"));
+    expect(controller.suspend).toHaveBeenCalledOnce();
+    expect(controller.recover).not.toHaveBeenCalled();
   });
 
   it("ignores lifecycle signals while recovery is disabled", () => {

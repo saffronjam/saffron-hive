@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
-	import { deviceSceneCapabilities, type Device } from "$lib/stores/devices";
+	import { deviceStore, deviceSceneCapabilities, type Device } from "$lib/stores/devices";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import {
 		Popover,
@@ -75,8 +75,9 @@
 	}
 
 	function handleToggle(checked: boolean) {
-		void powerIntents.toggle([device], checked, () =>
-			client.mutation(SET_DEVICE_STATE, { deviceId: device.id, state: { on: checked } }).toPromise(),
+		void powerIntents.toggle([device], checked,
+			() => client.mutation(SET_DEVICE_STATE, { deviceId: device.id, state: { on: checked } }).toPromise(),
+			() => deviceStore.refresh(client),
 		);
 	}
 

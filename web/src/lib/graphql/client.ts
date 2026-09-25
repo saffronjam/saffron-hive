@@ -35,6 +35,7 @@ export interface ConnectionRecoveryEvent {
 export interface GraphQLConnection {
   client: Client;
   recover(reason: AppRecoveryReason): void;
+  suspend(): void;
   onRecovered(listener: (event: ConnectionRecoveryEvent) => void): () => void;
 }
 
@@ -84,6 +85,10 @@ export function createGraphQLConnection(options: GraphQLConnectionOptions = {}):
   let recoveryReason: ConnectionRecoveryReason | null = null;
   let previousCloseCode: number | undefined;
   let wsClient: WSClient;
+  let activeSocket: WebSocket | null = null;
+  let suspended = false;
+  let nextProbeID = 0;
+  let resumeProbe: { id: number; reason: AppRecoveryReason } | null = null;
   const recoveryListeners = new Set<(event: ConnectionRecoveryEvent) => void>();
 
   function clearPongTimeout() {
@@ -99,6 +104,18 @@ export function createGraphQLConnection(options: GraphQLConnectionOptions = {}):
 
   function notifyRecovered(event: ConnectionRecoveryEvent) {
     for (const listener of recoveryListeners) listener(event);
+  }
+
+  function watchForPong() {
+    clearPongTimeout();
+    pongTimeout = setTimeout(() => {
+      pongTimeout = null;
+      const reason = resumeProbe?.reason ?? "heartbeat_timeout";
+      resumeProbe = null;
+      if (suspended || document.visibilityState === "hidden") return;
+      beginRecovery(reason);
+      wsClient.terminate();
+    }, PONG_TIMEOUT_MS);
   }
 
   wsClient = createWSClient({
@@ -132,35 +149,42 @@ export function createGraphQLConnection(options: GraphQLConnectionOptions = {}):
       });
     },
     on: {
-      connected(_socket, _payload, wasRetry) {
+      connected(socket, _payload, wasRetry) {
         clearPongTimeout();
-        const recovered = wasRetry
-          ? {
-              reason: recoveryReason ?? "socket_closed",
-              ...(previousCloseCode === undefined ? {} : { previousCloseCode }),
-            }
-          : null;
+        activeSocket = socket as WebSocket;
+        resumeProbe = null;
+        const recovered =
+          wasRetry || recoveryReason !== null
+            ? {
+                reason: recoveryReason ?? "socket_closed",
+                ...(previousCloseCode === undefined ? {} : { previousCloseCode }),
+              }
+            : null;
         recoveryReason = null;
         previousCloseCode = undefined;
         if (recovered) setTimeout(() => notifyRecovered(recovered), 0);
       },
       ping(received) {
-        if (received) return;
-        clearPongTimeout();
-        pongTimeout = setTimeout(() => {
-          pongTimeout = null;
-          beginRecovery("heartbeat_timeout");
-          wsClient.terminate();
-        }, PONG_TIMEOUT_MS);
+        if (received || suspended || document.visibilityState === "hidden" || resumeProbe) return;
+        watchForPong();
       },
-      pong(received) {
-        if (received) clearPongTimeout();
+      pong(received, payload) {
+        if (!received) return;
+        if (resumeProbe && payload?.hiveProbe !== resumeProbe.id) return;
+        const resumed = resumeProbe;
+        resumeProbe = null;
+        clearPongTimeout();
+        if (resumed) notifyRecovered({ reason: resumed.reason });
       },
       closed(event) {
+        activeSocket = null;
+        resumeProbe = null;
         clearPongTimeout();
         beginRecovery("socket_closed", closeCode(event));
       },
       error() {
+        activeSocket = null;
+        resumeProbe = null;
         clearPongTimeout();
         beginRecovery("socket_error");
       },
@@ -208,9 +232,34 @@ export function createGraphQLConnection(options: GraphQLConnectionOptions = {}):
   return {
     client,
     recover(reason) {
-      beginRecovery(reason);
-      if (wakeRetry) wakeRetry();
-      else wsClient.terminate();
+      suspended = false;
+      if (wakeRetry) {
+        beginRecovery(reason);
+        wakeRetry();
+        return;
+      }
+      if (!activeSocket) return;
+      if (activeSocket.readyState !== WebSocket.OPEN) {
+        beginRecovery(reason);
+        wsClient.terminate();
+        return;
+      }
+      if (resumeProbe) return;
+      resumeProbe = { id: ++nextProbeID, reason };
+      watchForPong();
+      try {
+        activeSocket.send(JSON.stringify({ type: "ping", payload: { hiveProbe: resumeProbe.id } }));
+      } catch {
+        clearPongTimeout();
+        resumeProbe = null;
+        beginRecovery("socket_error");
+        wsClient.terminate();
+      }
+    },
+    suspend() {
+      suspended = true;
+      resumeProbe = null;
+      clearPongTimeout();
     },
     onRecovered(listener) {
       recoveryListeners.add(listener);

@@ -2,6 +2,8 @@ package serve
 
 import (
 	"errors"
+	"fmt"
+	"net"
 	"testing"
 
 	"github.com/99designs/gqlgen/graphql/handler/transport"
@@ -63,24 +65,36 @@ func TestWSRecoveryDiagnosticFromInit(t *testing.T) {
 }
 
 func TestWSTransportErrorDetails(t *testing.T) {
-	t.Run("extracts a read close code", func(t *testing.T) {
-		direction, code := wsTransportErrorDetails(transport.WebsocketError{
-			Err:         &websocket.CloseError{Code: 1006, Text: "unexpected EOF"},
-			IsReadError: true,
+	cases := []struct {
+		name     string
+		err      error
+		read     bool
+		code     int
+		expected bool
+	}{
+		{name: "normal closure", err: &websocket.CloseError{Code: 1000}, read: true, code: 1000, expected: true},
+		{name: "going away", err: &websocket.CloseError{Code: 1001}, read: true, code: 1001, expected: true},
+		{name: "client termination", err: &websocket.CloseError{Code: 4499}, read: true, code: 4499, expected: true},
+		{name: "abnormal closure", err: &websocket.CloseError{Code: 1006, Text: "unexpected EOF"}, read: true, code: 1006},
+		{name: "policy violation", err: &websocket.CloseError{Code: 1008}, read: true, code: 1008},
+		{name: "server failure", err: &websocket.CloseError{Code: 1011}, read: true, code: 1011},
+		{name: "subscription cleanup", err: websocket.ErrCloseSent, expected: true},
+		{name: "wrapped subscription cleanup", err: fmt.Errorf("complete subscription: %w", websocket.ErrCloseSent), expected: true},
+		{name: "closed transport", err: net.ErrClosed, expected: true},
+		{name: "gqlgen normal read closure", err: errors.New("websocket connection closed"), read: true, expected: true},
+		{name: "write failure", err: errors.New("broken pipe")},
+		{name: "read failure", err: errors.New("read timeout"), read: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			direction, code, expected := wsTransportErrorDetails(transport.WebsocketError{Err: tc.err, IsReadError: tc.read})
+			wantDirection := "write"
+			if tc.read {
+				wantDirection = "read"
+			}
+			if direction != wantDirection || code != tc.code || expected != tc.expected {
+				t.Fatalf("details = %q, %d, %v; want %q, %d, %v", direction, code, expected, wantDirection, tc.code, tc.expected)
+			}
 		})
-
-		if direction != "read" || code != 1006 {
-			t.Fatalf("details = %q, %d; want read, 1006", direction, code)
-		}
-	})
-
-	t.Run("reports a non-close write failure", func(t *testing.T) {
-		direction, code := wsTransportErrorDetails(transport.WebsocketError{
-			Err: errors.New("broken pipe"),
-		})
-
-		if direction != "write" || code != 0 {
-			t.Fatalf("details = %q, %d; want write, 0", direction, code)
-		}
-	})
+	}
 }

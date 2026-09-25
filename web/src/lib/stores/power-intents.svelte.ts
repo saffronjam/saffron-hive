@@ -1,10 +1,11 @@
 import { deviceStore, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 
 const CONFIRMATION_TIMEOUT_MS = 10_000;
+const RECONCILIATION_RETRY_MS = 3_000;
 
 interface PowerBatch {
   accepted: boolean;
-  timer: ReturnType<typeof setTimeout>;
+  timer?: ReturnType<typeof setTimeout>;
 }
 
 interface PowerIntent {
@@ -54,6 +55,27 @@ export class PowerIntents {
     this.replace(new Map([...this.pending].filter(([, intent]) => intent.batch !== batch)));
   }
 
+  private hasBatch(batch: PowerBatch): boolean {
+    return [...this.pending.values()].some((intent) => intent.batch === batch);
+  }
+
+  private async refreshBatch(batch: PowerBatch, refresh: () => Promise<boolean>): Promise<void> {
+    if (!this.hasBatch(batch)) return;
+    let refreshed = false;
+    try {
+      refreshed = await refresh();
+    } catch {
+      refreshed = false;
+    }
+    if (!this.hasBatch(batch)) return;
+    if (refreshed) this.release(batch);
+    else
+      batch.timer = setTimeout(
+        () => void this.refreshBatch(batch, refresh),
+        RECONCILIATION_RETRY_MS,
+      );
+  }
+
   clear(devices?: readonly Device[]) {
     if (this.pending.size === 0 || (devices && !this.has(devices))) return;
     if (!devices) {
@@ -91,12 +113,12 @@ export class PowerIntents {
     devices: readonly Device[],
     on: boolean,
     send: () => Promise<CommandResult>,
+    refresh: () => Promise<boolean>,
   ): Promise<void> {
     const targets = devices.filter(isRuntimeEnabledDevice);
     if (targets.length === 0) return;
     const batch: PowerBatch = {
       accepted: false,
-      timer: setTimeout(() => this.release(batch), CONFIRMATION_TIMEOUT_MS),
     };
     const next = new Map(this.pending);
     for (const device of targets) {
@@ -117,6 +139,12 @@ export class PowerIntents {
       }
       batch.accepted = true;
       this.reconcile(this.live);
+      if (this.hasBatch(batch)) {
+        batch.timer = setTimeout(
+          () => void this.refreshBatch(batch, refresh),
+          CONFIRMATION_TIMEOUT_MS,
+        );
+      }
     } catch {
       this.release(batch);
     }

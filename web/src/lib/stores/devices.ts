@@ -395,6 +395,17 @@ function toMap(devices: Device[]): DeviceMap {
   return map;
 }
 
+function preserveDeviceChanges<Field extends keyof Device>(
+  snapshot: Device,
+  previous: Device,
+  live: Device,
+  fields: Field[],
+): void {
+  for (const field of fields) {
+    if (live[field] !== previous[field]) snapshot[field] = live[field];
+  }
+}
+
 /**
  * True once the device list is safe to render. A restored snapshot counts, so
  * the list paints on the first frame after a cold start and the network
@@ -408,6 +419,9 @@ export function createDeviceStore() {
   let unsubFns: Array<() => void> = [];
   let persistTimer: ReturnType<typeof setTimeout> | null = null;
   let persistSuspended = false;
+  let generation = 0;
+  let refreshTail: Promise<unknown> = Promise.resolve();
+  const stateRevisions = new Map<string, number>();
 
   const { subscribe, set } = writable<DeviceMap>(current);
   // Subscribing emits synchronously, so everything `persist` touches must
@@ -436,6 +450,9 @@ export function createDeviceStore() {
 
   /** Empties the map without letting the write-through schedule a blank snapshot. */
   function emptyWithoutPersisting() {
+    generation++;
+    refreshTail = Promise.resolve();
+    stateRevisions.clear();
     cancelPendingPersist();
     persistSuspended = true;
     set({});
@@ -449,6 +466,7 @@ export function createDeviceStore() {
   function updateState(deviceId: string, state: DeviceState) {
     const device = current[deviceId];
     if (!device) return;
+    stateRevisions.set(deviceId, (stateRevisions.get(deviceId) ?? 0) + 1);
     if (statesEqual(device.state, state)) return;
     set({ ...current, [deviceId]: { ...device, state } });
   }
@@ -578,13 +596,38 @@ export function createDeviceStore() {
     set(rest);
   }
 
-  async function refresh(client: Client) {
-    const result = await client
-      .query(DEVICES_QUERY, {}, { requestPolicy: "network-only" })
-      .toPromise();
-    if (!result.data?.devices) return;
-    hydrate(result.data.devices as Device[]);
-    devicesHydrated.set(true);
+  function refresh(client: Client): Promise<boolean> {
+    const requestedGeneration = generation;
+    const request = refreshTail.then(async () => {
+      if (requestedGeneration !== generation) return false;
+      const before = current;
+      const revisions = new Map(stateRevisions);
+      const result = await client
+        .query(DEVICES_QUERY, {}, { requestPolicy: "network-only" })
+        .toPromise();
+      if (requestedGeneration !== generation || result.error || !result.data?.devices) return false;
+      const next = toMap(result.data.devices as Device[]);
+      // Live reports and edits received during the request take precedence over its snapshot.
+      for (const id of new Set([...Object.keys(before), ...Object.keys(current)])) {
+        if (before[id] === current[id] && revisions.get(id) === stateRevisions.get(id)) continue;
+        const live = current[id];
+        if (!live) {
+          delete next[id];
+        } else if (!before[id] || !next[id]) {
+          next[id] = live;
+        } else {
+          const merged = { ...next[id] };
+          preserveDeviceChanges(merged, before[id], live, Object.keys(live) as (keyof Device)[]);
+          if (revisions.get(id) !== stateRevisions.get(id)) merged.state = live.state;
+          next[id] = merged;
+        }
+      }
+      set(next);
+      devicesHydrated.set(true);
+      return true;
+    });
+    refreshTail = request.catch(() => false);
+    return request;
   }
 
   const deviceStore = {
@@ -608,8 +651,10 @@ export function createDeviceStore() {
     async start(client: Client) {
       if (started) return;
       started = true;
+      const startGeneration = generation;
 
       await refresh(client);
+      if (!started || startGeneration !== generation) return;
 
       const s1 = client.subscription(DEVICE_STATE_CHANGED, {}).subscribe((r) => {
         if (!r.data) return;

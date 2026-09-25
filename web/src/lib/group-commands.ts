@@ -1,7 +1,12 @@
 import type { Client } from "@urql/svelte";
 import { graphql } from "$lib/gql";
 import { rgbToXy } from "$lib/color";
-import { isLightControlDevice, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
+import {
+  deviceStore,
+  isLightControlDevice,
+  isRuntimeEnabledDevice,
+  type Device,
+} from "$lib/stores/devices";
 import { CommandTargetType, type DeviceStateInput } from "$lib/gql/graphql";
 import { powerIntents } from "$lib/stores/power-intents.svelte";
 
@@ -122,8 +127,11 @@ export async function commitGroupToggle(
 ): Promise<void> {
   const targets = commandable(devices).filter(isLightControlDevice);
   if (targets.length === 0) return;
-  await powerIntents.toggle(targets, on, () =>
-    commitState(client, devices, targets, { on }, target),
+  await powerIntents.toggle(
+    targets,
+    on,
+    () => commitState(client, devices, targets, { on }, target),
+    () => deviceStore.refresh(client),
   );
 }
 

@@ -3,7 +3,7 @@
 	import { powerIntents } from "$lib/stores/power-intents.svelte";
 	import DeviceQuickControls from "$lib/components/device-quick-controls.svelte";
 	import { graphql } from "$lib/gql";
-	import type { Device } from "$lib/stores/devices";
+	import { deviceStore, type Device } from "$lib/stores/devices";
 	import { APPLIANCE_TINT_COLOR } from "$lib/device-tint";
 	import { getContextClient } from "@urql/svelte";
 	import { deviceIcon, deviceDisplayName } from "$lib/utils";
@@ -32,8 +32,9 @@
 		if (!hasOnOff || !device.available) return;
 		haptics.play("selection", event);
 		const on = !isOn;
-		void powerIntents.toggle([device], on, () =>
-			client.mutation(SET_DEVICE_STATE, { deviceId: device.id, state: { on } }).toPromise(),
+		void powerIntents.toggle([device], on,
+			() => client.mutation(SET_DEVICE_STATE, { deviceId: device.id, state: { on } }).toPromise(),
+			() => deviceStore.refresh(client),
 		);
 	}
 </script>

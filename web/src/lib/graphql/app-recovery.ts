@@ -38,8 +38,13 @@ export function installAppRecovery(
     connection.recover(reason);
   };
 
+  const onSuspend = () => {
+    lastRecoveryAt = Number.NEGATIVE_INFINITY;
+    connection.suspend();
+  };
   const onVisibilityChange = () => {
     if (document.visibilityState === "visible") recover("foreground");
+    else onSuspend();
   };
   const onFocus = () => {
     if (document.visibilityState === "visible") recover("foreground");
@@ -61,13 +66,16 @@ export function installAppRecovery(
 
   document.addEventListener("visibilitychange", onVisibilityChange);
   document.addEventListener("resume", onResume);
+  document.addEventListener("freeze", onSuspend);
   window.addEventListener("focus", onFocus);
   window.addEventListener("pageshow", onPageShow);
   window.addEventListener("online", onOnline);
+  if (document.visibilityState === "hidden") onSuspend();
 
   return () => {
     document.removeEventListener("visibilitychange", onVisibilityChange);
     document.removeEventListener("resume", onResume);
+    document.removeEventListener("freeze", onSuspend);
     window.removeEventListener("focus", onFocus);
     window.removeEventListener("pageshow", onPageShow);
     window.removeEventListener("online", onOnline);

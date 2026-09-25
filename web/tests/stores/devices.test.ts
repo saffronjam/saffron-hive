@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { Client, fetchExchange } from "@urql/svelte";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { get } from "svelte/store";
 import {
   deviceStore,
+  createDeviceStore,
   deviceHasCapability,
   type Device,
   type DeviceState,
@@ -260,4 +262,103 @@ describe("deviceStore", () => {
     unsub();
     expect(notifications).toBe(1);
   });
+});
+
+describe("device snapshot reconciliation", () => {
+  let store: ReturnType<typeof createDeviceStore>["deviceStore"];
+  let responses: Array<(devices: Device[]) => void>;
+  let client: Client;
+
+  beforeEach(() => {
+    localStorage.clear();
+    store = createDeviceStore().deviceStore;
+    responses = [];
+    client = new Client({
+      url: "http://localhost/graphql",
+      exchanges: [fetchExchange],
+      fetch: () =>
+        new Promise<Response>((resolve) => {
+          responses.push((devices) =>
+            resolve(
+              new Response(JSON.stringify({ data: { devices } }), {
+                headers: { "Content-Type": "application/json" },
+              }),
+            ),
+          );
+        }),
+    });
+  });
+
+  afterEach(() => store.clear());
+
+  it("preserves a live confirmation that arrives before an older snapshot response", async () => {
+    store.hydrate([makeDevice("a", "A", { ...lightState, on: true })]);
+    const refresh = store.refresh(client);
+    await vi.waitFor(() => expect(responses).toHaveLength(1));
+    store.updateState("a", { ...lightState, on: false });
+    responses[0]([makeDevice("a", "A", { ...lightState, on: true })]);
+    expect(await refresh).toBe(true);
+    expect(get(store).a.state?.on).toBe(false);
+  });
+
+  it("preserves a live report even when its value matches the current state", async () => {
+    store.hydrate([makeDevice("a", "A", { ...lightState, on: false })]);
+    const refresh = store.refresh(client);
+    await vi.waitFor(() => expect(responses).toHaveLength(1));
+    store.updateState("a", { ...lightState, on: false });
+    responses[0]([makeDevice("a", "A", { ...lightState, on: true })]);
+    await refresh;
+    expect(get(store).a.state?.on).toBe(false);
+  });
+
+  it("preserves additions, removals and edits received during a snapshot request", async () => {
+    store.hydrate([makeDevice("a", "A"), makeDevice("b", "B")]);
+    const refresh = store.refresh(client);
+    await vi.waitFor(() => expect(responses).toHaveLength(1));
+    store.removeDevice("a");
+    store.updateName("b", "Edited");
+    store.addDevice(makeDevice("c", "C"));
+    responses[0]([makeDevice("a", "A"), makeDevice("b", "B")]);
+    await refresh;
+    expect(Object.keys(get(store)).sort()).toEqual(["b", "c"]);
+    expect(get(store).b.name).toBe("Edited");
+  });
+
+  it("applies fresh state while preserving an unrelated metadata edit", async () => {
+    store.hydrate([makeDevice("a", "A", { ...lightState, on: true })]);
+    const refresh = store.refresh(client);
+    await vi.waitFor(() => expect(responses).toHaveLength(1));
+    store.updateName("a", "Edited");
+    responses[0]([makeDevice("a", "A", { ...lightState, on: false })]);
+    await refresh;
+    expect(get(store).a.name).toBe("Edited");
+    expect(get(store).a.state?.on).toBe(false);
+  });
+
+  it("performs a separate fresh request for a refresh queued behind an in-flight query", async () => {
+    const first = store.refresh(client);
+    await vi.waitFor(() => expect(responses).toHaveLength(1));
+    const second = store.refresh(client);
+    responses[0]([makeDevice("a", "A", { ...lightState, on: true })]);
+    await first;
+    await vi.waitFor(() => expect(responses).toHaveLength(2));
+    responses[1]([makeDevice("a", "A", { ...lightState, on: false })]);
+    await second;
+    expect(get(store).a.state?.on).toBe(false);
+  });
+
+  it.each(["clear", "stop"] as const)(
+    "discards in-flight and queued snapshots after %s",
+    async (action) => {
+      const first = store.refresh(client);
+      await vi.waitFor(() => expect(responses).toHaveLength(1));
+      const second = store.refresh(client);
+      store[action]();
+      responses[0]([makeDevice("a", "A")]);
+      expect(await first).toBe(false);
+      expect(await second).toBe(false);
+      expect(get(store)).toEqual({});
+      expect(responses).toHaveLength(1);
+    },
+  );
 });
