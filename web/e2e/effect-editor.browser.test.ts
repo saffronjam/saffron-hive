@@ -97,10 +97,11 @@ afterAll(async () => {
 });
 
 async function rightClick(target: Locator, position?: { x: number; y: number }) {
+  await page.locator("html").evaluate((html) => html.removeAttribute("data-context-prevented"));
   await target.click({ button: "right", position });
   await page.getByRole("menu").waitFor();
   expect(await page.getByRole("menu").count()).toBe(1);
-  expect(await page.locator("html").getAttribute("data-context-prevented")).toBe("true");
+  await expect.poll(() => page.locator("html").getAttribute("data-context-prevented")).toBe("true");
 }
 
 async function addTrack() {
