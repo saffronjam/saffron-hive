@@ -38,7 +38,7 @@ describe("GraphQL WebSocket recovery", () => {
 
     const options = latestOptions();
     expect(options.keepAlive).toBe(3_000);
-    expect(options.connectionAckWaitTimeout).toBe(3_000);
+    expect(options.shouldRetry).toBeTypeOf("function");
     expect(options.retryAttempts).toBe(Number.POSITIVE_INFINITY);
     expect(options.retryWait).toBeTypeOf("function");
   });
@@ -73,11 +73,11 @@ describe("GraphQL WebSocket recovery", () => {
     connection.onRecovered(onRecovered);
     const options = latestOptions();
 
-    options.on?.connected?.({}, undefined, false);
+    options.on?.connected?.({ readyState: WebSocket.OPEN }, undefined, false);
     vi.runAllTimers();
     expect(onRecovered).not.toHaveBeenCalled();
 
-    options.on?.connected?.({}, undefined, true);
+    options.on?.connected?.({ readyState: WebSocket.OPEN }, undefined, true);
     expect(onRecovered).not.toHaveBeenCalled();
     vi.runAllTimers();
     expect(onRecovered).toHaveBeenCalledWith({ reason: "socket_closed" });
@@ -203,11 +203,29 @@ describe("GraphQL WebSocket recovery", () => {
 
   it("replaces a socket whose close handshake is still pending", () => {
     const connection = createGraphQLConnection();
-    const socket = { readyState: WebSocket.CLOSING, send: vi.fn() };
+    const socket = { readyState: Number(WebSocket.OPEN), send: vi.fn() };
     latestOptions().on?.connected?.(socket, undefined, false);
+    socket.readyState = WebSocket.CLOSING;
     connection.recover("foreground");
     expect(socket.send).not.toHaveBeenCalled();
     expect(ws.terminate).toHaveBeenCalledOnce();
+  });
+
+  it("ignores a late acknowledgement from an abandoned socket", () => {
+    const connection = createGraphQLConnection();
+    const recovered = vi.fn();
+    connection.onRecovered(recovered);
+    const options = latestOptions();
+    options.on?.closed?.({ code: 1006 } as CloseEvent);
+    options.on?.connected?.({ readyState: WebSocket.CLOSED }, undefined, true);
+    vi.runAllTimers();
+    expect(recovered).not.toHaveBeenCalled();
+    options.on?.connected?.({ readyState: WebSocket.OPEN }, undefined, false);
+    vi.runAllTimers();
+    expect(recovered).toHaveBeenCalledExactlyOnceWith({
+      reason: "socket_closed",
+      previousCloseCode: 1006,
+    });
   });
 
   it("reconciles a normal closure even when the library does not mark the connection as a retry", () => {
@@ -215,15 +233,15 @@ describe("GraphQL WebSocket recovery", () => {
     const recovered = vi.fn();
     connection.onRecovered(recovered);
     const options = latestOptions();
-    options.on?.connected?.({}, undefined, false);
+    options.on?.connected?.({ readyState: WebSocket.OPEN }, undefined, false);
     options.on?.closed?.({ code: 1000 } as CloseEvent);
-    options.on?.connected?.({}, undefined, false);
+    options.on?.connected?.({ readyState: WebSocket.OPEN }, undefined, false);
     vi.runAllTimers();
     expect(recovered).toHaveBeenCalledExactlyOnceWith({
       reason: "socket_closed",
       previousCloseCode: 1000,
     });
-    options.on?.connected?.({}, undefined, false);
+    options.on?.connected?.({ readyState: WebSocket.OPEN }, undefined, false);
     vi.runAllTimers();
     expect(recovered).toHaveBeenCalledTimes(1);
   });
@@ -237,7 +255,7 @@ describe("GraphQL WebSocket recovery", () => {
     options.on?.ping?.(false, undefined);
     vi.advanceTimersByTime(2_000);
     options.on?.closed?.({ code: 4499 } as CloseEvent);
-    options.on?.connected?.({}, undefined, true);
+    options.on?.connected?.({ readyState: WebSocket.OPEN }, undefined, true);
     vi.runAllTimers();
 
     expect(onRecovered).toHaveBeenCalledWith({

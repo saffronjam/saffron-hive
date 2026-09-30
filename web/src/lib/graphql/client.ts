@@ -13,7 +13,7 @@ import { sessionTeardown } from "$lib/session";
 const REFRESH_HEADER = "X-Refreshed-Token";
 const KEEP_ALIVE_MS = 3_000;
 const PONG_TIMEOUT_MS = 2_000;
-const CONNECTION_ACK_TIMEOUT_MS = 3_000;
+const CONNECTION_TIMEOUT_MS = 5_000;
 const MAX_RETRY_DELAY_MS = 15_000;
 
 interface GraphQLConnectionOptions {
@@ -24,6 +24,7 @@ export type AppRecoveryReason = "foreground" | "page_restore" | "network_restore
 export type ConnectionRecoveryReason =
   | AppRecoveryReason
   | "heartbeat_timeout"
+  | "connection_timeout"
   | "socket_closed"
   | "socket_error";
 
@@ -78,15 +79,22 @@ function closeCode(event: unknown): number | undefined {
   return typeof event.code === "number" ? event.code : undefined;
 }
 
+function isBrowserSocketError(event: unknown): event is Event {
+  return event instanceof Event && event.type === "error";
+}
+
 export function createGraphQLConnection(options: GraphQLConnectionOptions = {}): GraphQLConnection {
   const endpoint = options.endpoint ?? "/graphql";
   let pongTimeout: ReturnType<typeof setTimeout> | null = null;
+  let connectionTimeout: ReturnType<typeof setTimeout> | null = null;
   let wakeRetry: (() => void) | null = null;
   let recoveryReason: ConnectionRecoveryReason | null = null;
   let previousCloseCode: number | undefined;
   let wsClient: WSClient;
   let activeSocket: WebSocket | null = null;
   let suspended = false;
+  let connecting = false;
+  let subscriptions = 0;
   let nextProbeID = 0;
   let resumeProbe: { id: number; reason: AppRecoveryReason } | null = null;
   const recoveryListeners = new Set<(event: ConnectionRecoveryEvent) => void>();
@@ -95,6 +103,22 @@ export function createGraphQLConnection(options: GraphQLConnectionOptions = {}):
     if (pongTimeout === null) return;
     clearTimeout(pongTimeout);
     pongTimeout = null;
+  }
+
+  function clearConnectionTimeout() {
+    if (connectionTimeout === null) return;
+    clearTimeout(connectionTimeout);
+    connectionTimeout = null;
+  }
+
+  function watchForConnection() {
+    if (connectionTimeout !== null || suspended || document.visibilityState === "hidden") return;
+    connectionTimeout = setTimeout(() => {
+      connectionTimeout = null;
+      if (!subscriptions || suspended || document.visibilityState === "hidden") return;
+      beginRecovery("connection_timeout");
+      wsClient.terminate();
+    }, CONNECTION_TIMEOUT_MS);
   }
 
   function beginRecovery(reason: ConnectionRecoveryReason, code?: number) {
@@ -129,8 +153,8 @@ export function createGraphQLConnection(options: GraphQLConnectionOptions = {}):
       };
     },
     keepAlive: KEEP_ALIVE_MS,
-    connectionAckWaitTimeout: CONNECTION_ACK_TIMEOUT_MS,
     retryAttempts: Number.POSITIVE_INFINITY,
+    shouldRetry: (event) => closeCode(event) !== undefined || isBrowserSocketError(event),
     retryWait: async (retries) => {
       if (retries === 0) return;
       const delay = Math.min(1000 * 2 ** (retries - 1), MAX_RETRY_DELAY_MS);
@@ -149,7 +173,14 @@ export function createGraphQLConnection(options: GraphQLConnectionOptions = {}):
       });
     },
     on: {
+      connecting() {
+        connecting = true;
+        watchForConnection();
+      },
       connected(socket, _payload, wasRetry) {
+        if ((socket as WebSocket).readyState !== WebSocket.OPEN) return;
+        connecting = false;
+        clearConnectionTimeout();
         clearPongTimeout();
         activeSocket = socket as WebSocket;
         resumeProbe = null;
@@ -162,7 +193,11 @@ export function createGraphQLConnection(options: GraphQLConnectionOptions = {}):
             : null;
         recoveryReason = null;
         previousCloseCode = undefined;
-        if (recovered) setTimeout(() => notifyRecovered(recovered), 0);
+        if (recovered) {
+          setTimeout(() => {
+            if (activeSocket === socket) notifyRecovered(recovered);
+          }, 0);
+        }
       },
       ping(received) {
         if (received || suspended || document.visibilityState === "hidden" || resumeProbe) return;
@@ -177,16 +212,29 @@ export function createGraphQLConnection(options: GraphQLConnectionOptions = {}):
         if (resumed) notifyRecovered({ reason: resumed.reason });
       },
       closed(event) {
+        connecting = false;
+        clearConnectionTimeout();
         activeSocket = null;
         resumeProbe = null;
         clearPongTimeout();
         beginRecovery("socket_closed", closeCode(event));
       },
-      error() {
+      error(event) {
+        connecting = false;
+        clearConnectionTimeout();
         activeSocket = null;
         resumeProbe = null;
         clearPongTimeout();
         beginRecovery("socket_error");
+        if (isBrowserSocketError(event) && event.target instanceof WebSocket) {
+          // A delayed event from this socket must not interrupt its replacement.
+          const socket = event.target;
+          socket.onopen = null;
+          socket.onmessage = null;
+          socket.onerror = null;
+          socket.onclose = null;
+          socket.close();
+        }
       },
     },
   });
@@ -220,8 +268,34 @@ export function createGraphQLConnection(options: GraphQLConnectionOptions = {}):
           const input = { ...request, query: request.query || "" };
           return {
             subscribe(sink) {
-              const unsubscribe = wsClient.subscribe(input, sink);
-              return { unsubscribe };
+              subscriptions++;
+              let finished = false;
+              const finish = () => {
+                if (finished) return;
+                finished = true;
+                subscriptions--;
+                if (subscriptions === 0) {
+                  clearConnectionTimeout();
+                  clearPongTimeout();
+                }
+              };
+              const unsubscribe = wsClient.subscribe(input, {
+                next: sink.next,
+                error(error) {
+                  finish();
+                  sink.error(error);
+                },
+                complete() {
+                  finish();
+                  sink.complete();
+                },
+              });
+              return {
+                unsubscribe() {
+                  finish();
+                  unsubscribe();
+                },
+              };
             },
           };
         },
@@ -238,7 +312,13 @@ export function createGraphQLConnection(options: GraphQLConnectionOptions = {}):
         wakeRetry();
         return;
       }
-      if (!activeSocket) return;
+      if (!activeSocket) {
+        if (!subscriptions) return;
+        beginRecovery(reason);
+        if (!connecting) wsClient.terminate();
+        watchForConnection();
+        return;
+      }
       if (activeSocket.readyState !== WebSocket.OPEN) {
         beginRecovery(reason);
         wsClient.terminate();
@@ -260,6 +340,7 @@ export function createGraphQLConnection(options: GraphQLConnectionOptions = {}):
       suspended = true;
       resumeProbe = null;
       clearPongTimeout();
+      clearConnectionTimeout();
     },
     onRecovered(listener) {
       recoveryListeners.add(listener);

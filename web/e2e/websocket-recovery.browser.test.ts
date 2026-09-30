@@ -148,6 +148,15 @@ beforeAll(async () => {
   browserContext = await browser.newContext({ serviceWorkers: "block" });
   await browserContext.addInitScript((authToken) => {
     localStorage.setItem("hive.token", authToken);
+    const captured: WebSocket[] = [];
+    Object.defineProperty(window, "hiveTestSockets", { value: captured });
+    window.WebSocket = new Proxy(window.WebSocket, {
+      construct(target, args) {
+        const socket = Reflect.construct(target, args) as WebSocket;
+        captured.push(socket);
+        return socket;
+      },
+    });
   }, token);
   await browserContext.routeWebSocket(/\/graphql$/, routeSocket);
   page = await browserContext.newPage();
@@ -169,6 +178,44 @@ afterAll(async () => {
 });
 
 describe("browser WebSocket recovery", () => {
+  it("resumes mobile live updates after a background transport error without navigating", async () => {
+    const { appUrl } = getContext();
+    await publishDeviceState("Living Room Light", { state: "ON", brightness: 65 });
+    await waitForBackendBrightness(65);
+    await page.setViewportSize({ width: 390, height: 844 });
+    try {
+      await page.goto(`${appUrl}/devices`, { waitUntil: "domcontentloaded" });
+      await expect.poll(brightnessValue, { timeout: UI_TIMEOUT }).toBe(65);
+      await expect.poll(() => connections.at(-1)?.acknowledged).toBe(true);
+      const staleConnection = connectionCount;
+      await page.evaluate(() => {
+        Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+        document.dispatchEvent(new Event("visibilitychange"));
+        const socket = (window as unknown as { hiveTestSockets: WebSocket[] }).hiveTestSockets.at(
+          -1,
+        )!;
+        socket.dispatchEvent(new Event("error"));
+        socket.close(1000, "Suspended test connection");
+        Object.defineProperty(document, "visibilityState", {
+          configurable: true,
+          value: "visible",
+        });
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      await expect
+        .poll(() => connectionCount, { timeout: UI_TIMEOUT })
+        .toBeGreaterThan(staleConnection);
+      await expect.poll(() => connections.at(-1)?.acknowledged).toBe(true);
+      for (const brightness of [165, 95]) {
+        await publishDeviceState("Living Room Light", { state: "ON", brightness });
+        await expect.poll(brightnessValue, { timeout: UI_TIMEOUT }).toBe(brightness);
+      }
+      expect(connections.at(-1)?.recoveryReason).toBe("socket_error");
+    } finally {
+      await page.setViewportSize({ width: 1280, height: 900 });
+    }
+  });
+
   it("refreshes missed state after a normal socket closure", async () => {
     const { appUrl } = getContext();
     await publishDeviceState("Living Room Light", { state: "ON", brightness: 75 });

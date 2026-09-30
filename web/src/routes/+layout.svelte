@@ -264,9 +264,6 @@
 		uninstallAppRecovery = installAppRecovery(
 			connection,
 			() => ready && auth.isAuthenticated() && !PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r)),
-			() => {
-				void reconcileAppState();
-			},
 		);
 		void gate();
 		prefetchIconPacks();

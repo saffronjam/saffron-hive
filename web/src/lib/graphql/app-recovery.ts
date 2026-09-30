@@ -24,7 +24,6 @@ export function onGraphQLRecovered(listener: (event: ConnectionRecoveryEvent) =>
 export function installAppRecovery(
   connection: GraphQLConnection,
   enabled: () => boolean,
-  onRecoveryRequested: (reason: AppRecoveryReason) => void = () => {},
 ): () => void {
   let initialPageShowPending = document.readyState !== "complete";
   let lastRecoveryAt = Number.NEGATIVE_INFINITY;
@@ -34,7 +33,6 @@ export function installAppRecovery(
     const now = Date.now();
     if (now - lastRecoveryAt < RECOVERY_DEDUP_MS) return;
     lastRecoveryAt = now;
-    onRecoveryRequested(reason);
     connection.recover(reason);
   };
 

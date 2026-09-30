@@ -31,15 +31,13 @@ afterEach(() => {
 describe("app recovery triggers", () => {
   it("recovers from a visible lifecycle signal without observing the app become hidden", () => {
     const controller = connection();
-    const reconcile = vi.fn();
-    const uninstall = installAppRecovery(controller, () => true, reconcile);
+    const uninstall = installAppRecovery(controller, () => true);
 
     document.dispatchEvent(new Event("visibilitychange"));
     document.dispatchEvent(new Event("visibilitychange"));
 
     expect(controller.recover).toHaveBeenCalledTimes(1);
     expect(controller.recover).toHaveBeenCalledWith("foreground");
-    expect(reconcile).toHaveBeenCalledWith("foreground");
     uninstall();
   });
 

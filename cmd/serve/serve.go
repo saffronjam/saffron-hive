@@ -457,12 +457,13 @@ type wsRecoveryDiagnostic struct {
 }
 
 var wsRecoveryReasons = map[string]struct{}{
-	"foreground":        {},
-	"page_restore":      {},
-	"network_restored":  {},
-	"heartbeat_timeout": {},
-	"socket_closed":     {},
-	"socket_error":      {},
+	"foreground":         {},
+	"page_restore":       {},
+	"network_restored":   {},
+	"heartbeat_timeout":  {},
+	"connection_timeout": {},
+	"socket_closed":      {},
+	"socket_error":       {},
 }
 
 func wsRecoveryDiagnosticFromInit(init transport.InitPayload) (wsRecoveryDiagnostic, bool) {
