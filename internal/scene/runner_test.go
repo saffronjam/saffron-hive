@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
@@ -245,12 +247,18 @@ type runnerFixture struct {
 	commander *recordingCommander
 	runner    *Runner
 	now       time.Time
+	elapsed   atomic.Int64
 	cancel    context.CancelFunc
 	done      chan struct{}
 	stopOnce  sync.Once
 }
 
 func newRunnerFixture(t *testing.T, scene store.Scene) *runnerFixture {
+	t.Helper()
+	return newRunnerFixtureWithClock(t, scene, nil)
+}
+
+func newRunnerFixtureWithClock(t *testing.T, scene store.Scene, now func() time.Time) *runnerFixture {
 	t.Helper()
 	bus := eventbus.NewChannelBus()
 	state := device.NewMemoryStore()
@@ -259,7 +267,10 @@ func newRunnerFixture(t *testing.T, scene store.Scene) *runnerFixture {
 	commander := &recordingCommander{resolver: resolver, state: state}
 	runner := NewRunner(bus, persistence, resolver, commander, state, nil, &runnerEffectController{}, outputowner.New())
 	fixture := &runnerFixture{bus: bus, state: state, resolver: resolver, store: persistence, commander: commander, runner: runner, now: time.Unix(1_700_000_000, 0).UTC()}
-	runner.now = func() time.Time { return fixture.now }
+	if now == nil {
+		now = func() time.Time { return fixture.now.Add(time.Duration(fixture.elapsed.Load())) }
+	}
+	runner.now = now
 	ctx, cancel := context.WithCancel(context.Background())
 	fixture.cancel = cancel
 	fixture.done = make(chan struct{})
@@ -300,10 +311,10 @@ func TestRunnerApplyAndForeignDriftDeactivate(t *testing.T) {
 	if _, ok := fixture.store.run(scene.ID); !ok {
 		t.Fatal("active run was not persisted")
 	}
-	fixture.now = fixture.now.Add(settleWindow + time.Second)
+	fixture.elapsed.Store(int64(settleWindow + time.Second))
 	fixture.state.UpdateDeviceState("light-1", device.DeviceState{Brightness: device.Ptr(20)})
 	fixture.bus.Publish(eventbus.Event{
-		Type: eventbus.EventDeviceStateChanged, DeviceID: "light-1", Timestamp: fixture.now,
+		Type: eventbus.EventDeviceStateChanged, DeviceID: "light-1", Timestamp: fixture.runner.now(),
 		Payload: device.DeviceStateChange{State: device.DeviceState{Brightness: device.Ptr(20)}, Origin: device.CommandOrigin{Kind: "user", ID: "dashboard"}},
 	})
 	select {
@@ -317,6 +328,176 @@ func TestRunnerApplyAndForeignDriftDeactivate(t *testing.T) {
 	if _, ok := fixture.store.run(scene.ID); ok {
 		t.Fatal("deactivated run remains persisted")
 	}
+}
+
+func TestRunnerReconcilesRapidSceneSwitchingWithoutFurtherReports(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		brightness  int
+		colorTemp   int
+		retainFirst bool
+	}{
+		{name: "conflicting states", brightness: 47, colorTemp: 500},
+		{name: "conflicting temperature", brightness: 254, colorTemp: 500},
+		{name: "compatible states", brightness: 254, colorTemp: 263, retainFirst: true},
+		{name: "within tolerance", brightness: 252, colorTemp: 265, retainFirst: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				first := store.Scene{ID: "bright", UpdatedAt: time.Now(), Definition: manualDefinition(
+					store.SceneTarget{Type: device.TargetDevice, ID: "one"},
+					store.SceneTarget{Type: device.TargetDevice, ID: "two"},
+				)}
+				for i := range first.Definition.Lighting.Overrides {
+					first.Definition.Lighting.Overrides[i].State = &store.DesiredState{On: device.Ptr(true), Brightness: device.Ptr(254), ColorTemp: device.Ptr(263)}
+				}
+				second := store.Scene{ID: "cozy", UpdatedAt: time.Now(), Definition: manualDefinition(store.SceneTarget{Type: device.TargetDevice, ID: "two"})}
+				second.Definition.Lighting.Overrides[0].State = &store.DesiredState{Brightness: device.Ptr(test.brightness), ColorTemp: device.Ptr(test.colorTemp)}
+				fixture := newRunnerFixtureWithClock(t, first, time.Now)
+				fixture.store.scenes[second.ID] = second
+				fixture.registerLight("one")
+				fixture.registerLight("two")
+				for _, id := range []string{first.ID, second.ID, first.ID, second.ID} {
+					if _, err := fixture.runner.Apply(context.Background(), id); err != nil {
+						t.Fatal(err)
+					}
+					commands := fixture.commander.snapshot()
+					command := commands[len(commands)-1]
+					fixture.bus.Publish(eventbus.Event{
+						Type: eventbus.EventDeviceStateChanged, DeviceID: command.TargetID, Timestamp: time.Now(),
+						Payload: device.DeviceStateChange{State: device.DeviceState{Brightness: command.State.Brightness, ColorTemp: command.State.ColorTemp}, Origin: command.State.Origin},
+					})
+					synctest.Wait()
+					time.Sleep(700 * time.Millisecond)
+				}
+				if _, ok := fixture.store.run(first.ID); !ok {
+					t.Fatal("Scene deactivated during settlement")
+				}
+				deactivated := fixture.bus.Subscribe(eventbus.EventSceneDeactivated)
+				defer fixture.bus.Unsubscribe(deactivated)
+				commandCount := fixture.commander.count()
+				time.Sleep(settleWindow + time.Second)
+				synctest.Wait()
+				if _, ok := fixture.store.run(first.ID); ok != test.retainFirst {
+					t.Fatalf("first Scene active = %v, want %v", ok, test.retainFirst)
+				}
+				if _, ok := fixture.store.run(second.ID); !ok {
+					t.Fatal("matching Scene deactivated")
+				}
+				if !test.retainFirst {
+					select {
+					case event := <-deactivated:
+						if event.Payload.(RunEvent).SceneID != first.ID {
+							t.Fatalf("deactivated event = %#v", event)
+						}
+					default:
+						t.Fatal("reconciliation did not publish deactivation")
+					}
+				}
+				if fixture.commander.count() != commandCount {
+					t.Fatal("reconciliation issued physical commands")
+				}
+			})
+		})
+	}
+}
+
+func TestRunnerReconcilesAfterLongTransition(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		scene := store.Scene{ID: "fade", UpdatedAt: time.Now(), Definition: manualDefinition(store.SceneTarget{Type: device.TargetDevice, ID: "light"})}
+		scene.Definition.Lighting.Overrides[0].State.Transition = device.Ptr(10.0)
+		fixture := newRunnerFixtureWithClock(t, scene, time.Now)
+		fixture.registerLight("light")
+		fixture.commander.state = nil
+		fixture.state.UpdateDeviceState("light", device.DeviceState{On: device.Ptr(true), Brightness: device.Ptr(20)})
+		if _, err := fixture.runner.Apply(context.Background(), scene.ID); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(5 * time.Second)
+		synctest.Wait()
+		if _, ok := fixture.store.run(scene.ID); !ok {
+			t.Fatal("Scene deactivated before its transition completed")
+		}
+		time.Sleep(8 * time.Second)
+		synctest.Wait()
+		if _, ok := fixture.store.run(scene.ID); ok {
+			t.Fatal("unmatched Scene remained active after its transition and settlement")
+		}
+	})
+}
+
+func TestRunnerHydrationAllowsFreshSettlement(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		scene := store.Scene{ID: "restored", UpdatedAt: time.Now().Add(-2 * time.Hour), Definition: manualDefinition(store.SceneTarget{Type: device.TargetDevice, ID: "light"})}
+		fixture := newRunnerFixtureWithClock(t, scene, time.Now)
+		fixture.registerLight("light")
+		fixture.commander.state = nil
+		fixture.store.runs[scene.ID] = store.ActiveSceneRun{SceneID: scene.ID, RunID: "persisted", StartedAt: time.Now().Add(-time.Hour), DefinitionUpdatedAt: scene.UpdatedAt}
+		if err := fixture.runner.Hydrate(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(time.Second)
+		synctest.Wait()
+		if _, ok := fixture.store.run(scene.ID); !ok {
+			t.Fatal("hydrated Scene did not receive a fresh settling window")
+		}
+		fixture.state.UpdateDeviceState("light", device.DeviceState{On: device.Ptr(true), Brightness: device.Ptr(180)})
+		time.Sleep(3 * time.Second)
+		synctest.Wait()
+		if _, ok := fixture.store.run(scene.ID); !ok {
+			t.Fatal("matching hydrated Scene deactivated")
+		}
+	})
+}
+
+func TestRunnerReactivationHasIndependentSettlementAndLifecycle(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		scene := store.Scene{ID: "reapplied", UpdatedAt: time.Now(), Definition: manualDefinition(store.SceneTarget{Type: device.TargetDevice, ID: "light"})}
+		fixture := newRunnerFixtureWithClock(t, scene, time.Now)
+		fixture.registerLight("light")
+		if _, err := fixture.runner.Apply(context.Background(), scene.ID); err != nil {
+			t.Fatal(err)
+		}
+		previous := fixture.runner.activeSnapshot()[0]
+		time.Sleep(2 * time.Second)
+		fixture.commander.state = nil
+		fixture.state.UpdateDeviceState("light", device.DeviceState{Brightness: device.Ptr(20)})
+		if _, err := fixture.runner.Apply(context.Background(), scene.ID); err != nil {
+			t.Fatal(err)
+		}
+		current, _ := fixture.store.run(scene.ID)
+		if err := fixture.runner.deactivateRun(context.Background(), previous); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(time.Second)
+		synctest.Wait()
+		if run, ok := fixture.store.run(scene.ID); !ok || run.RunID != current.RunID {
+			t.Fatal("replaced run interfered with the current run")
+		}
+		fixture.state.UpdateDeviceState("light", device.DeviceState{Brightness: device.Ptr(180)})
+		time.Sleep(3 * time.Second)
+		synctest.Wait()
+		if _, ok := fixture.store.run(scene.ID); !ok {
+			t.Fatal("matching replacement run deactivated")
+		}
+	})
+}
+
+func TestRunnerReconciliationKeepsMovingVibe(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		scene := store.Scene{ID: "moving", UpdatedAt: time.Now(), Definition: vibeDefinition(store.SceneTarget{Type: device.TargetDevice, ID: "light"}, 1)}
+		fixture := newRunnerFixtureWithClock(t, scene, time.Now)
+		fixture.registerLight("light")
+		fixture.commander.state = nil
+		if _, err := fixture.runner.Apply(context.Background(), scene.ID); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(10 * time.Second)
+		synctest.Wait()
+		if _, ok := fixture.store.run(scene.ID); !ok {
+			t.Fatal("moving Scene was compared against its pending frame")
+		}
+	})
 }
 
 func TestRunnerRefreshesVibeMembershipInPlace(t *testing.T) {

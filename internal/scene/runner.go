@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"sync"
 	"time"
@@ -21,8 +22,9 @@ import (
 var logger = logging.Named("scene")
 
 const (
-	DynamicCadence = time.Second
-	settleWindow   = 2 * time.Second
+	DynamicCadence   = time.Second
+	settleWindow     = 2 * time.Second
+	reconcileCadence = 250 * time.Millisecond
 )
 
 // RunnerStore is the persistence surface required by Scene runtime ownership.
@@ -80,10 +82,11 @@ type Runner struct {
 	effects   EffectController
 	owners    *outputowner.Coordinator
 
-	mu     sync.Mutex
-	active map[string]*activeScene
-	events <-chan eventbus.Event
-	now    func() time.Time
+	lifecycle sync.Mutex
+	mu        sync.Mutex
+	active    map[string]*activeScene
+	events    <-chan eventbus.Event
+	now       func() time.Time
 }
 
 // NewRunner constructs a Scene runner and subscribes it before activation can begin.
@@ -122,6 +125,8 @@ func NewRunner(
 
 // Apply resolves and starts one fresh Scene run.
 func (r *Runner) Apply(ctx context.Context, sceneID string) (store.Scene, error) {
+	r.lifecycle.Lock()
+	defer r.lifecycle.Unlock()
 	storedScene, err := r.store.GetScene(ctx, sceneID)
 	if err != nil {
 		return store.Scene{}, err
@@ -129,7 +134,7 @@ func (r *Runner) Apply(ctx context.Context, sceneID string) (store.Scene, error)
 	if err := r.validateDefinition(ctx, storedScene.Definition); err != nil {
 		return store.Scene{}, err
 	}
-	if err := r.Deactivate(ctx, sceneID); err != nil {
+	if err := r.deactivate(ctx, sceneID); err != nil {
 		return store.Scene{}, err
 	}
 	startedAt := r.now().UTC()
@@ -148,11 +153,11 @@ func (r *Runner) Apply(ctx context.Context, sceneID string) (store.Scene, error)
 	r.register(active)
 	r.acquireDynamic(active)
 	if err := dispatchPlan(ctx, r.commander, r.bus, storedScene.Definition, plan); err != nil {
-		_ = r.Deactivate(ctx, sceneID)
+		_ = r.deactivate(ctx, sceneID)
 		return store.Scene{}, err
 	}
 	if err := r.startEffects(ctx, active, plan.EffectRuns); err != nil {
-		_ = r.Deactivate(ctx, sceneID)
+		_ = r.deactivate(ctx, sceneID)
 		return store.Scene{}, err
 	}
 	r.publishActivated(active)
@@ -165,16 +170,36 @@ func (r *Runner) Apply(ctx context.Context, sceneID string) (store.Scene, error)
 
 // Deactivate stops one Scene runtime without changing physical device state.
 func (r *Runner) Deactivate(ctx context.Context, sceneID string) error {
+	r.lifecycle.Lock()
+	defer r.lifecycle.Unlock()
+	return r.deactivate(ctx, sceneID)
+}
+
+func (r *Runner) deactivateRun(ctx context.Context, active *activeScene) error {
+	r.lifecycle.Lock()
+	defer r.lifecycle.Unlock()
+	r.mu.Lock()
+	current := r.active[active.run.SceneID] == active
+	r.mu.Unlock()
+	if !current {
+		return nil
+	}
+	return r.deactivate(ctx, active.run.SceneID)
+}
+
+func (r *Runner) deactivate(ctx context.Context, sceneID string) error {
 	r.mu.Lock()
 	active := r.active[sceneID]
-	if active != nil {
-		delete(r.active, sceneID)
-	}
 	r.mu.Unlock()
-	if active == nil {
-		_, err := r.store.StopActiveSceneRun(ctx, sceneID)
+	if _, err := r.store.StopActiveSceneRun(ctx, sceneID); err != nil {
 		return err
 	}
+	if active == nil {
+		return nil
+	}
+	r.mu.Lock()
+	delete(r.active, sceneID)
+	r.mu.Unlock()
 	active.mu.Lock()
 	active.closed = true
 	cancel := active.cancel
@@ -195,15 +220,14 @@ func (r *Runner) Deactivate(ctx context.Context, sceneID string) error {
 			r.effects.Stop(target)
 		}
 	}
-	if _, err := r.store.StopActiveSceneRun(ctx, sceneID); err != nil {
-		return err
-	}
 	r.publishDeactivated(active)
 	return nil
 }
 
 // Hydrate restores persisted Scene runs against current definitions and memberships.
 func (r *Runner) Hydrate(ctx context.Context) error {
+	r.lifecycle.Lock()
+	defer r.lifecycle.Unlock()
 	runs, err := r.store.ListActiveSceneRuns(ctx)
 	if err != nil {
 		return err
@@ -234,11 +258,11 @@ func (r *Runner) Hydrate(ctx context.Context) error {
 		r.register(active)
 		r.acquireDynamic(active)
 		if err := dispatchPlan(ctx, r.commander, r.bus, storedScene.Definition, plan); err != nil {
-			_ = r.Deactivate(ctx, run.SceneID)
+			_ = r.deactivate(ctx, run.SceneID)
 			continue
 		}
 		if err := r.startEffects(ctx, active, plan.EffectRuns); err != nil {
-			_ = r.Deactivate(ctx, run.SceneID)
+			_ = r.deactivate(ctx, run.SceneID)
 			continue
 		}
 		if dynamic := storedScene.Definition.Lighting.Dynamic; dynamic != nil && dynamic.Movement > 0 {
@@ -252,10 +276,14 @@ func (r *Runner) Hydrate(ctx context.Context) error {
 func (r *Runner) Run(ctx context.Context) {
 	defer r.bus.Unsubscribe(r.events)
 	defer r.shutdown()
+	ticker := time.NewTicker(reconcileCadence)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-ticker.C:
+			r.reconcileSettled(ctx)
 		case event, ok := <-r.events:
 			if !ok {
 				return
@@ -329,8 +357,18 @@ func (r *Runner) newActive(storedScene store.Scene, runID string, startedAt time
 		},
 		definition: storedScene.Definition, members: members, lastIntents: lastIntents,
 		effectRuns: map[string]device.DeviceID{}, effectTargets: map[device.DeviceID]effect.Target{},
-		cancel: func() {}, settleUntil: startedAt.Add(settleWindow),
+		cancel: func() {}, settleUntil: settlementDeadline(r.now(), plan),
 	}
+}
+
+func settlementDeadline(at time.Time, plan ApplyPlan) time.Time {
+	duration := settleWindow
+	for _, command := range plan.Commands {
+		if command.Transition != nil {
+			duration = max(duration, time.Duration(*command.Transition*float64(time.Second))+settleWindow)
+		}
+	}
+	return at.Add(duration)
 }
 
 func sortedMemberList(members map[device.DeviceID]store.ActiveSceneMember) []store.ActiveSceneMember {
@@ -359,7 +397,6 @@ func (r *Runner) acquireDynamic(active *activeScene) {
 		}
 	}
 	runID := active.run.RunID
-	sceneID := active.run.SceneID
 	closed := active.closed
 	active.mu.Unlock()
 	owner := sceneOwner(runID)
@@ -368,7 +405,7 @@ func (r *Runner) acquireDynamic(active *activeScene) {
 		return
 	}
 	r.owners.Acquire(owner, ids, func(outputowner.Loss) {
-		go func() { _ = r.Deactivate(context.Background(), sceneID) }()
+		go func() { _ = r.deactivateRun(context.Background(), active) }()
 	})
 }
 
@@ -585,10 +622,9 @@ func (r *Runner) handleEvent(ctx context.Context, event eventbus.Event) {
 		for _, active := range r.activeSnapshot() {
 			active.mu.Lock()
 			_, tracked := active.effectRuns[ended.RunID]
-			sceneID := active.run.SceneID
 			active.mu.Unlock()
 			if tracked {
-				_ = r.Deactivate(ctx, sceneID)
+				_ = r.deactivateRun(ctx, active)
 			}
 		}
 	default:
@@ -618,15 +654,49 @@ func (r *Runner) handleStateChanged(ctx context.Context, event eventbus.Event) {
 			active.mu.Unlock()
 			continue
 		}
-		sceneID := active.run.SceneID
 		active.mu.Unlock()
 		if memberConflictsWithChange(member, change.State) {
-			_ = r.Deactivate(ctx, sceneID)
+			_ = r.deactivateRun(ctx, active)
+		}
+	}
+}
+
+func (r *Runner) reconcileSettled(ctx context.Context) {
+	r.lifecycle.Lock()
+	defer r.lifecycle.Unlock()
+	for _, active := range r.activeSnapshot() {
+		active.mu.Lock()
+		if active.closed || r.now().Before(active.settleUntil) {
+			active.mu.Unlock()
+			continue
+		}
+		matches := true
+		for id, member := range active.members {
+			if member.Kind == store.SceneMemberEffect || member.Kind == store.SceneMemberNativeEffect {
+				continue
+			}
+			// Moving fields continuously advance their expected frame ahead of device reports.
+			if member.Kind == store.SceneMemberField && active.definition.Lighting.Dynamic != nil && active.definition.Lighting.Dynamic.Movement > 0 {
+				continue
+			}
+			current, _ := r.reader.GetDeviceState(id)
+			if !memberMatchesCurrent(member, current) {
+				matches = false
+				break
+			}
+		}
+		active.mu.Unlock()
+		if !matches {
+			if err := r.deactivate(ctx, active.run.SceneID); err != nil {
+				logger.Error("Scene state reconciliation failed", slog.String("scene_id", active.run.SceneID), slog.String("run_id", active.run.RunID), slog.Any("error", err))
+			}
 		}
 	}
 }
 
 func (r *Runner) refreshMembership(ctx context.Context, active *activeScene) error {
+	r.lifecycle.Lock()
+	defer r.lifecycle.Unlock()
 	active.mu.Lock()
 	if active.closed {
 		active.mu.Unlock()
@@ -691,7 +761,7 @@ func (r *Runner) refreshMembership(ctx context.Context, active *activeScene) err
 			active.lastIntents[id] = intent
 		}
 	}
-	active.settleUntil = at.Add(settleWindow)
+	active.settleUntil = settlementDeadline(at, plan)
 	active.mu.Unlock()
 
 	for _, target := range stoppedTargets {
@@ -749,6 +819,8 @@ func (r *Runner) activeSnapshot() []*activeScene {
 }
 
 func (r *Runner) shutdown() {
+	r.lifecycle.Lock()
+	defer r.lifecycle.Unlock()
 	r.mu.Lock()
 	activeScenes := make([]*activeScene, 0, len(r.active))
 	for _, active := range r.active {
