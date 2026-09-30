@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: saffron-hive
+  labels:
+    app.kubernetes.io/name: saffron-hive
+    app.kubernetes.io/component: home-automation
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: saffron-hive
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: saffron-hive
+        app.kubernetes.io/component: home-automation
+    spec:
+      initContainers:
+        - name: migrate
+          image: ghcr.io/saffronjam/saffron-hive:v1.31.2
+          command:
+            - saffron-hive
+            - migrate
+            - up
+          envFrom:
+            - configMapRef:
+                name: saffron-hive
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+      containers:
+        - name: saffron-hive
+          image: ghcr.io/saffronjam/saffron-hive:v1.31.2
+          command:
+            - saffron-hive
+            - serve
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: saffron-hive
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: saffron-hive-data

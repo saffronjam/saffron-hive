@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: saffron-hive
+  labels:
+    app.kubernetes.io/name: saffron-hive
+    app.kubernetes.io/component: home-automation
+data:
+  HIVE_DB_PATH: /data/saffron-hive.db
+  HIVE_DATA_DIR: /data
