@@ -43,6 +43,12 @@ type ConfigurationCommander interface {
 	CommandConfiguration(context.Context, ConfigurationRequest) error
 }
 
+// DeviceCommander submits write-only device commands through the shared
+// physical-output path.
+type DeviceCommander interface {
+	CommandDevice(context.Context, DeviceCommandRequest) error
+}
+
 // ProviderGroupCommand is a provider-addressed multicast operation. Adapters
 // consume it at the protocol boundary while ordinary device commands continue
 // to use Command.

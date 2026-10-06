@@ -62,7 +62,7 @@ func TestConfigureDeviceSkipsConfirmedValue(t *testing.T) {
 	reader := newMockStateReader()
 	reader.addDevice(configurableSensor("sensor-1"))
 	enabled := true
-	reader.setDeviceConfiguration("sensor-1", []device.ConfigurationValue{
+	reader.setDeviceConfiguration("sensor-1", []device.AttributeValue{
 		{Capability: "fall_detection", BooleanValue: &enabled},
 	})
 	store := newMockStore()

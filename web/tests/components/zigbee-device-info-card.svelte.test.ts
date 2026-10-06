@@ -37,7 +37,7 @@ describe("ZigbeeDeviceInfoCard", () => {
       seen: true,
       roles: {},
       capabilities: [],
-      configuration: [],
+      attributes: [],
       state: {},
     };
 
@@ -62,7 +62,7 @@ describe("ZigbeeDeviceInfoCard", () => {
       seen: true,
       roles: {},
       capabilities: [],
-      configuration: [],
+      attributes: [],
       state: { battery: 92, linkQuality: 180 },
     };
     const metadata: Zigbee2MqttDeviceMetadata = {
@@ -94,7 +94,7 @@ describe("ZigbeeDeviceInfoCard", () => {
       seen: true,
       roles: {},
       capabilities: [],
-      configuration: [],
+      attributes: [],
       state: { battery: 100 },
     };
     const metadata: Zigbee2MqttDeviceMetadata = {
@@ -137,7 +137,7 @@ describe("ZigbeeDeviceInfoCard", () => {
       seen: true,
       roles: {},
       capabilities: [],
-      configuration: [],
+      attributes: [],
       state: {},
     };
     const metadata: Zigbee2MqttDeviceMetadata = {
@@ -170,7 +170,7 @@ describe("ZigbeeDeviceInfoCard", () => {
       seen: true,
       roles: {},
       capabilities: [],
-      configuration: [],
+      attributes: [],
       state: {},
     };
     const metadata: Zigbee2MqttDeviceMetadata = {
@@ -210,7 +210,7 @@ describe("ZigbeeDeviceInfoCard", () => {
       seen: true,
       roles: {},
       capabilities: [],
-      configuration: [],
+      attributes: [],
       state: {},
     };
     const metadata: Zigbee2MqttDeviceMetadata = {
@@ -242,7 +242,7 @@ describe("ZigbeeDeviceInfoCard", () => {
       seen: true,
       roles: {},
       capabilities: [],
-      configuration: [],
+      attributes: [],
       state: {},
     };
     const metadata: Zigbee2MqttDeviceMetadata = {

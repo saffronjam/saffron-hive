@@ -6,48 +6,50 @@ import (
 	"sort"
 )
 
-// ConfigurationValue is one reported or requested device setting. Exactly one
-// typed value is non-nil.
-type ConfigurationValue struct {
+// AttributeValue is one reported or requested value of a generic device
+// attribute: a setting (configuration capability) or a reading Hive does not
+// model as typed state (diagnostic capability). Exactly one typed value is
+// non-nil.
+type AttributeValue struct {
 	Capability   string   `json:"capability"`
 	BooleanValue *bool    `json:"booleanValue,omitempty"`
 	NumberValue  *float64 `json:"numberValue,omitempty"`
 	StringValue  *string  `json:"stringValue,omitempty"`
 }
 
-// ConfigurationChange is a partial reported configuration update.
-type ConfigurationChange struct {
-	Values []ConfigurationValue `json:"values"`
-	Origin CommandOrigin        `json:"origin,omitzero"`
+// AttributeChange is a partial reported attribute update.
+type AttributeChange struct {
+	Values []AttributeValue `json:"values"`
+	Origin CommandOrigin    `json:"origin,omitzero"`
 }
 
 // ConfigurationRequest asks an adapter to write one device's settings.
 type ConfigurationRequest struct {
-	DeviceID DeviceID             `json:"deviceId"`
-	Values   []ConfigurationValue `json:"values"`
-	Origin   CommandOrigin        `json:"origin,omitzero"`
+	DeviceID DeviceID         `json:"deviceId"`
+	Values   []AttributeValue `json:"values"`
+	Origin   CommandOrigin    `json:"origin,omitzero"`
 }
 
-// ConfigurationReader provides read-only access to confirmed device settings.
-type ConfigurationReader interface {
-	GetDeviceConfiguration(DeviceID) []ConfigurationValue
+// AttributeReader provides read-only access to reported device attributes.
+type AttributeReader interface {
+	GetDeviceAttributes(DeviceID) []AttributeValue
 }
 
-// ConfigurationWriter merges partial confirmed device settings.
-type ConfigurationWriter interface {
-	UpdateDeviceConfiguration(DeviceID, []ConfigurationValue)
+// AttributeWriter merges partial reported device attributes.
+type AttributeWriter interface {
+	UpdateDeviceAttributes(DeviceID, []AttributeValue)
 }
 
-// SortConfigurationValues returns a stable copy ordered by capability name.
-func SortConfigurationValues(values []ConfigurationValue) []ConfigurationValue {
-	out := append([]ConfigurationValue(nil), values...)
+// SortAttributeValues returns a stable copy ordered by capability name.
+func SortAttributeValues(values []AttributeValue) []AttributeValue {
+	out := append([]AttributeValue(nil), values...)
 	sort.Slice(out, func(i, j int) bool { return out[i].Capability < out[j].Capability })
 	return out
 }
 
 // ValidateConfigurationValues validates a non-empty configuration batch
 // against one device's advertised settings.
-func ValidateConfigurationValues(d Device, values []ConfigurationValue) error {
+func ValidateConfigurationValues(d Device, values []AttributeValue) error {
 	if d.Removed {
 		return fmt.Errorf("device %q has been removed", d.DisplayName())
 	}
@@ -89,7 +91,7 @@ func ValidateConfigurationValues(d Device, values []ConfigurationValue) error {
 	return nil
 }
 
-func validateConfigurationValue(capability Capability, value ConfigurationValue) error {
+func validateConfigurationValue(capability Capability, value AttributeValue) error {
 	count := 0
 	if value.BooleanValue != nil {
 		count++
@@ -140,14 +142,21 @@ func validateConfigurationValue(capability Capability, value ConfigurationValue)
 		if value.StringValue == nil {
 			return fmt.Errorf("setting %q requires a string value", value.Capability)
 		}
+	case CapabilityTypeFlags:
+		if value.NumberValue == nil {
+			return fmt.Errorf("setting %q requires a numeric bitmask", value.Capability)
+		}
+		if !ValidFlagsMask(*value.NumberValue, len(capability.Values)) {
+			return fmt.Errorf("setting %q must be a bitmask of %d flags", value.Capability, len(capability.Values))
+		}
 	default:
 		return fmt.Errorf("setting %q has unsupported type %q", value.Capability, capability.Type)
 	}
 	return nil
 }
 
-// ConfigurationValuesEqual compares typed configuration values.
-func ConfigurationValuesEqual(a, b ConfigurationValue) bool {
+// AttributeValuesEqual compares typed attribute values.
+func AttributeValuesEqual(a, b AttributeValue) bool {
 	if a.Capability != b.Capability {
 		return false
 	}
@@ -164,17 +173,30 @@ func ConfigurationValuesEqual(a, b ConfigurationValue) bool {
 }
 
 // ConfigurationChanges removes values already confirmed by a device.
-func ConfigurationChanges(current, desired []ConfigurationValue) []ConfigurationValue {
-	confirmed := make(map[string]ConfigurationValue, len(current))
+func ConfigurationChanges(current, desired []AttributeValue) []AttributeValue {
+	confirmed := make(map[string]AttributeValue, len(current))
 	for _, value := range current {
 		confirmed[value.Capability] = value
 	}
-	out := make([]ConfigurationValue, 0, len(desired))
+	out := make([]AttributeValue, 0, len(desired))
 	for _, value := range desired {
-		if old, ok := confirmed[value.Capability]; ok && ConfigurationValuesEqual(old, value) {
+		if old, ok := confirmed[value.Capability]; ok && AttributeValuesEqual(old, value) {
 			continue
 		}
 		out = append(out, value)
 	}
 	return out
+}
+
+// MaxFlags bounds a flags capability so its bitmask stays exact in the float64
+// that AttributeValue.NumberValue and GraphQL Float carry.
+const MaxFlags = 52
+
+// ValidFlagsMask reports whether mask is a whole-number bitmask that sets no
+// bit beyond the first count flags.
+func ValidFlagsMask(mask float64, count int) bool {
+	if count <= 0 || count > MaxFlags || mask < 0 || mask != math.Trunc(mask) {
+		return false
+	}
+	return mask < math.Exp2(float64(count))
 }

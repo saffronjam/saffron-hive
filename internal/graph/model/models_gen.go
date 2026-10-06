@@ -342,10 +342,10 @@ type Device struct {
 	// False from the moment an integration discovers a device until the user opens
 	// the device list, which is what marks it as new in the UI. An adapter re-sync
 	// never resets it.
-	Seen          bool                        `json:"seen"`
-	LastSeen      *time.Time                  `json:"lastSeen,omitempty"`
-	State         *DeviceState                `json:"state,omitempty"`
-	Configuration []*DeviceConfigurationEntry `json:"configuration"`
+	Seen       bool                    `json:"seen"`
+	LastSeen   *time.Time              `json:"lastSeen,omitempty"`
+	State      *DeviceState            `json:"state,omitempty"`
+	Attributes []*DeviceAttributeValue `json:"attributes"`
 	// Zigbee2MQTT detail, available only for Zigbee2MQTT devices.
 	Zigbee2Mqtt *Zigbee2MqttDeviceMetadata `json:"zigbee2Mqtt,omitempty"`
 }
@@ -358,28 +358,31 @@ type DeviceActionEvent struct {
 	FiredAt  time.Time `json:"firedAt"`
 }
 
-type DeviceAvailabilityEvent struct {
-	DeviceID  string `json:"deviceId"`
-	Available bool   `json:"available"`
-}
-
-type DeviceConfigurationEntry struct {
+// One reported or requested value of a generic device attribute. The
+// capability's category says whether it is a setting or a diagnostic reading.
+// A flags capability carries its bitmask in numberValue.
+type DeviceAttributeValue struct {
 	Capability   string   `json:"capability"`
 	BooleanValue *bool    `json:"booleanValue,omitempty"`
 	NumberValue  *float64 `json:"numberValue,omitempty"`
 	StringValue  *string  `json:"stringValue,omitempty"`
 }
 
-type DeviceConfigurationEntryInput struct {
+type DeviceAttributeValueInput struct {
 	Capability   string                      `json:"capability"`
 	BooleanValue graphql.Omittable[*bool]    `json:"booleanValue,omitempty"`
 	NumberValue  graphql.Omittable[*float64] `json:"numberValue,omitempty"`
 	StringValue  graphql.Omittable[*string]  `json:"stringValue,omitempty"`
 }
 
-type DeviceConfigurationEvent struct {
-	DeviceID string                      `json:"deviceId"`
-	Values   []*DeviceConfigurationEntry `json:"values"`
+type DeviceAttributesEvent struct {
+	DeviceID string                  `json:"deviceId"`
+	Values   []*DeviceAttributeValue `json:"values"`
+}
+
+type DeviceAvailabilityEvent struct {
+	DeviceID  string `json:"deviceId"`
+	Available bool   `json:"available"`
 }
 
 type DeviceRoles struct {
@@ -402,6 +405,7 @@ type DeviceState struct {
 	Pressure    *float64 `json:"pressure,omitempty"`
 	Illuminance *float64 `json:"illuminance,omitempty"`
 	Occupancy   *bool    `json:"occupancy,omitempty"`
+	Presence    *bool    `json:"presence,omitempty"`
 	// True means closed; false means open.
 	Contact           *bool    `json:"contact,omitempty"`
 	Orientation       *string  `json:"orientation,omitempty"`
@@ -1663,17 +1667,20 @@ const (
 	CapabilityCategoryState         CapabilityCategory = "STATE"
 	CapabilityCategoryConfiguration CapabilityCategory = "CONFIGURATION"
 	CapabilityCategoryDiagnostic    CapabilityCategory = "DIAGNOSTIC"
+	// A write-only operation such as identify or restart, run with runDeviceCommand.
+	CapabilityCategoryCommand CapabilityCategory = "COMMAND"
 )
 
 var AllCapabilityCategory = []CapabilityCategory{
 	CapabilityCategoryState,
 	CapabilityCategoryConfiguration,
 	CapabilityCategoryDiagnostic,
+	CapabilityCategoryCommand,
 }
 
 func (e CapabilityCategory) IsValid() bool {
 	switch e {
-	case CapabilityCategoryState, CapabilityCategoryConfiguration, CapabilityCategoryDiagnostic:
+	case CapabilityCategoryState, CapabilityCategoryConfiguration, CapabilityCategoryDiagnostic, CapabilityCategoryCommand:
 		return true
 	}
 	return false

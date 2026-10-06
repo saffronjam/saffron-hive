@@ -474,6 +474,7 @@
 /** @typedef {{}} Data_Viewer_RoomsInputs */
 /** @typedef {{}} Data_Viewer_SourcesInputs */
 /** @typedef {{}} Data_Viewer_TitleInputs */
+/** @typedef {{}} Device_ActionsInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Device_Adjust_Climate_NamedInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Device_Adjust_NamedInputs */
 /** @typedef {{}} Device_ApplyInputs */
@@ -481,16 +482,27 @@
 /** @typedef {{}} Device_Back_To_DevicesInputs */
 /** @typedef {{}} Device_BrightnessInputs */
 /** @typedef {{}} Device_ColorInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Device_Command_FailedInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Device_Command_SentInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Device_Config_AboutInputs */
 /** @typedef {{}} Device_Config_Add_OneInputs */
 /** @typedef {{}} Device_Config_Add_SettingInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Device_Config_RemoveInputs */
+/** @typedef {{}} Device_Config_Section_ClimateInputs */
+/** @typedef {{}} Device_Config_Section_IndicatorInputs */
+/** @typedef {{}} Device_Config_Section_LightInputs */
+/** @typedef {{}} Device_Config_Section_OtherInputs */
+/** @typedef {{}} Device_Config_Section_PresenceInputs */
 /** @typedef {{}} Device_Configuration_FailedInputs */
 /** @typedef {{}} Device_Configuration_TimeoutInputs */
 /** @typedef {{}} Device_Controls_DisabledInputs */
 /** @typedef {{}} Device_Controls_Enable_HelpInputs */
 /** @typedef {{}} Device_Copy_IdInputs */
+/** @typedef {{}} Device_DiagnosticsInputs */
 /** @typedef {{}} Device_FanInputs */
+/** @typedef {{}} Device_Flags_AllInputs */
+/** @typedef {{}} Device_Flags_NoneInputs */
+/** @typedef {{ count: NonNullable<unknown>, total: NonNullable<unknown> }} Device_Flags_SummaryInputs */
 /** @typedef {{}} Device_GenericInputs */
 /** @typedef {{}} Device_HistoryInputs */
 /** @typedef {{}} Device_IdInputs */
@@ -738,6 +750,7 @@
 /** @typedef {{}} Field_OrientationInputs */
 /** @typedef {{}} Field_PowerInputs */
 /** @typedef {{}} Field_Power_On_BehaviorInputs */
+/** @typedef {{}} Field_PresenceInputs */
 /** @typedef {{}} Field_PressureInputs */
 /** @typedef {{}} Field_Rooms_GroupsInputs */
 /** @typedef {{}} Field_SourceInputs */
@@ -1279,8 +1292,10 @@
 /** @typedef {{}} Sensor_DoorInputs */
 /** @typedef {{}} Sensor_HumidityInputs */
 /** @typedef {{}} Sensor_IlluminanceInputs */
+/** @typedef {{}} Sensor_MotionInputs */
 /** @typedef {{}} Sensor_No_ReadingsInputs */
 /** @typedef {{}} Sensor_OrientationInputs */
+/** @typedef {{}} Sensor_PresenceInputs */
 /** @typedef {{}} Sensor_PressureInputs */
 /** @typedef {{}} Sensor_TemperatureInputs */
 /** @typedef {{}} Sensor_WindowInputs */
@@ -1416,6 +1431,7 @@
 /** @typedef {{}} Standard_Room_Walk_In_ClosetInputs */
 /** @typedef {{}} Standard_Room_WardrobeInputs */
 /** @typedef {{}} Standard_Room_WorkshopInputs */
+/** @typedef {{}} State_AbsentInputs */
 /** @typedef {{}} State_AvailableInputs */
 /** @typedef {{ percent: NonNullable<unknown> }} State_BatteryInputs */
 /** @typedef {{}} State_ClearInputs */
@@ -1430,6 +1446,7 @@
 /** @typedef {{}} State_OnInputs */
 /** @typedef {{}} State_OpenInputs */
 /** @typedef {{ state: NonNullable<unknown>, power: NonNullable<unknown> }} State_Plug_PowerInputs */
+/** @typedef {{}} State_PresentInputs */
 /** @typedef {{}} State_UnavailableInputs */
 /** @typedef {{}} State_UnknownInputs */
 /** @typedef {{}} Static_App_DescriptionInputs */
@@ -3841,6 +3858,10 @@ export const data_viewer_title = /** @type {(inputs: Data_Viewer_TitleInputs) =>
 	return /** @type {LocalizedString} */ (`Анализ данных`)
 };
 
+export const device_actions = /** @type {(inputs: Device_ActionsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Действия`)
+};
+
 export const device_adjust_climate_named = /** @type {(inputs: Device_Adjust_Climate_NamedInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`Настроить климат для ${i?.name}`)
 };
@@ -3869,6 +3890,14 @@ export const device_color = /** @type {(inputs: Device_ColorInputs) => Localized
 	return /** @type {LocalizedString} */ (`Цвет`)
 };
 
+export const device_command_failed = /** @type {(inputs: Device_Command_FailedInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Не удалось выполнить: ${i?.name}`)
+};
+
+export const device_command_sent = /** @type {(inputs: Device_Command_SentInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.name}: команда отправлена`)
+};
+
 export const device_config_about = /** @type {(inputs: Device_Config_AboutInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`О ${i?.name}`)
 };
@@ -3883,6 +3912,26 @@ export const device_config_add_setting = /** @type {(inputs: Device_Config_Add_S
 
 export const device_config_remove = /** @type {(inputs: Device_Config_RemoveInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`Удалить ${i?.name}`)
+};
+
+export const device_config_section_climate = /** @type {(inputs: Device_Config_Section_ClimateInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Температура и влажность`)
+};
+
+export const device_config_section_indicator = /** @type {(inputs: Device_Config_Section_IndicatorInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Индикатор`)
+};
+
+export const device_config_section_light = /** @type {(inputs: Device_Config_Section_LightInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Освещённость`)
+};
+
+export const device_config_section_other = /** @type {(inputs: Device_Config_Section_OtherInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Прочее`)
+};
+
+export const device_config_section_presence = /** @type {(inputs: Device_Config_Section_PresenceInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Присутствие и движение`)
 };
 
 export const device_configuration_failed = /** @type {(inputs: Device_Configuration_FailedInputs) => LocalizedString} */ () => {
@@ -3905,8 +3954,24 @@ export const device_copy_id = /** @type {(inputs: Device_Copy_IdInputs) => Local
 	return /** @type {LocalizedString} */ (`Скопировать идентификатор устройства`)
 };
 
+export const device_diagnostics = /** @type {(inputs: Device_DiagnosticsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Диагностика`)
+};
+
 export const device_fan = /** @type {(inputs: Device_FanInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Вентилятор`)
+};
+
+export const device_flags_all = /** @type {(inputs: Device_Flags_AllInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Все`)
+};
+
+export const device_flags_none = /** @type {(inputs: Device_Flags_NoneInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Нет`)
+};
+
+export const device_flags_summary = /** @type {(inputs: Device_Flags_SummaryInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Включено ${i?.count} из ${i?.total}`)
 };
 
 export const device_generic = /** @type {(inputs: Device_GenericInputs) => LocalizedString} */ () => {
@@ -4919,7 +4984,7 @@ export const field_new = /** @type {(inputs: Field_NewInputs) => LocalizedString
 };
 
 export const field_occupancy = /** @type {(inputs: Field_OccupancyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Присутствие`)
+	return /** @type {LocalizedString} */ (`Движение`)
 };
 
 export const field_on = /** @type {(inputs: Field_OnInputs) => LocalizedString} */ () => {
@@ -4936,6 +5001,10 @@ export const field_power = /** @type {(inputs: Field_PowerInputs) => LocalizedSt
 
 export const field_power_on_behavior = /** @type {(inputs: Field_Power_On_BehaviorInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Поведение при включении`)
+};
+
+export const field_presence = /** @type {(inputs: Field_PresenceInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Присутствие`)
 };
 
 export const field_pressure = /** @type {(inputs: Field_PressureInputs) => LocalizedString} */ () => {
@@ -7179,12 +7248,20 @@ export const sensor_illuminance = /** @type {(inputs: Sensor_IlluminanceInputs) 
 	return /** @type {LocalizedString} */ (`Освещённость`)
 };
 
+export const sensor_motion = /** @type {(inputs: Sensor_MotionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Движение`)
+};
+
 export const sensor_no_readings = /** @type {(inputs: Sensor_No_ReadingsInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Показания датчиков отсутствуют.`)
 };
 
 export const sensor_orientation = /** @type {(inputs: Sensor_OrientationInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Ориентация`)
+};
+
+export const sensor_presence = /** @type {(inputs: Sensor_PresenceInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Присутствие`)
 };
 
 export const sensor_pressure = /** @type {(inputs: Sensor_PressureInputs) => LocalizedString} */ () => {
@@ -7763,6 +7840,10 @@ export const standard_room_workshop = /** @type {(inputs: Standard_Room_Workshop
 	return /** @type {LocalizedString} */ (`Мастерская`)
 };
 
+export const state_absent = /** @type {(inputs: State_AbsentInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Нет присутствия`)
+};
+
 export const state_available = /** @type {(inputs: State_AvailableInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Доступно`)
 };
@@ -7817,6 +7898,10 @@ export const state_open = /** @type {(inputs: State_OpenInputs) => LocalizedStri
 
 export const state_plug_power = /** @type {(inputs: State_Plug_PowerInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`${i?.state} · ${i?.power}`)
+};
+
+export const state_present = /** @type {(inputs: State_PresentInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Присутствует`)
 };
 
 export const state_unavailable = /** @type {(inputs: State_UnavailableInputs) => LocalizedString} */ () => {

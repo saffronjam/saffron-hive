@@ -11,11 +11,11 @@ import {
   type Capability,
   type Color,
   type Device,
-  type DeviceConfigurationEntry,
+  type DeviceAttributeValue,
   type DeviceState,
 } from "$lib/gql/graphql";
 
-export type { Capability, Device, DeviceConfigurationEntry, DeviceState };
+export type { Capability, Device, DeviceAttributeValue, DeviceState };
 
 export function isHiveVisibleDevice(device: Pick<Device, "deleted">): boolean {
   return !device.deleted;
@@ -71,6 +71,7 @@ function statesEqual(
     a.pressure === b.pressure &&
     a.illuminance === b.illuminance &&
     a.occupancy === b.occupancy &&
+    a.presence === b.presence &&
     a.contact === b.contact &&
     a.orientation === b.orientation &&
     a.devicePosture === b.devicePosture &&
@@ -143,6 +144,7 @@ const DEVICES_QUERY = graphql(`
         pressure
         illuminance
         occupancy
+        presence
         contact
         orientation
         devicePosture
@@ -153,7 +155,7 @@ const DEVICES_QUERY = graphql(`
         current
         energy
       }
-      configuration {
+      attributes {
         capability
         booleanValue
         numberValue
@@ -188,6 +190,7 @@ const DEVICE_STATE_CHANGED = graphql(`
         pressure
         illuminance
         occupancy
+        presence
         contact
         orientation
         devicePosture
@@ -202,9 +205,9 @@ const DEVICE_STATE_CHANGED = graphql(`
   }
 `);
 
-const DEVICE_CONFIGURATION_CHANGED = graphql(`
-  subscription DeviceStoreConfigurationChanged {
-    deviceConfigurationChanged {
+const DEVICE_ATTRIBUTES_CHANGED = graphql(`
+  subscription DeviceStoreAttributesChanged {
+    deviceAttributesChanged {
       deviceId
       values {
         capability
@@ -277,6 +280,7 @@ const DEVICE_ADDED = graphql(`
         pressure
         illuminance
         occupancy
+        presence
         contact
         orientation
         devicePosture
@@ -287,7 +291,7 @@ const DEVICE_ADDED = graphql(`
         current
         energy
       }
-      configuration {
+      attributes {
         capability
         booleanValue
         numberValue
@@ -358,6 +362,7 @@ const DEVICE_UPDATED = graphql(`
         pressure
         illuminance
         occupancy
+        presence
         contact
         orientation
         devicePosture
@@ -368,7 +373,7 @@ const DEVICE_UPDATED = graphql(`
         current
         energy
       }
-      configuration {
+      attributes {
         capability
         booleanValue
         numberValue
@@ -478,15 +483,15 @@ export function createDeviceStore() {
     set({ ...current, [deviceId]: { ...device, available } });
   }
 
-  function updateConfiguration(deviceId: string, values: DeviceConfigurationEntry[]) {
+  function updateAttributes(deviceId: string, values: DeviceAttributeValue[]) {
     const device = current[deviceId];
     if (!device || values.length === 0) return;
-    const byCapability = new Map(device.configuration.map((value) => [value.capability, value]));
+    const byCapability = new Map(device.attributes.map((value) => [value.capability, value]));
     for (const value of values) byCapability.set(value.capability, value);
-    const configuration = [...byCapability.values()].sort((a, b) =>
+    const attributes = [...byCapability.values()].sort((a, b) =>
       a.capability.localeCompare(b.capability),
     );
-    set({ ...current, [deviceId]: { ...device, configuration } });
+    set({ ...current, [deviceId]: { ...device, attributes } });
   }
 
   /**
@@ -635,7 +640,7 @@ export function createDeviceStore() {
     hydrate,
     updateState,
     updateAvailability,
-    updateConfiguration,
+    updateAttributes,
     addDevice,
     updateName,
     updateIcon,
@@ -666,13 +671,11 @@ export function createDeviceStore() {
         const { deviceId, available } = r.data.deviceAvailabilityChanged;
         updateAvailability(deviceId, available);
       });
-      const configurationSub = client
-        .subscription(DEVICE_CONFIGURATION_CHANGED, {})
-        .subscribe((r) => {
-          if (!r.data) return;
-          const { deviceId, values } = r.data.deviceConfigurationChanged;
-          updateConfiguration(deviceId, values as DeviceConfigurationEntry[]);
-        });
+      const attributesSub = client.subscription(DEVICE_ATTRIBUTES_CHANGED, {}).subscribe((r) => {
+        if (!r.data) return;
+        const { deviceId, values } = r.data.deviceAttributesChanged;
+        updateAttributes(deviceId, values as DeviceAttributeValue[]);
+      });
       const s3 = client.subscription(DEVICE_ADDED, {}).subscribe((r) => {
         if (!r.data) return;
         const device = r.data.deviceAdded as Device;
@@ -693,7 +696,7 @@ export function createDeviceStore() {
       unsubFns = [
         s1.unsubscribe,
         s2.unsubscribe,
-        configurationSub.unsubscribe,
+        attributesSub.unsubscribe,
         s3.unsubscribe,
         s4.unsubscribe,
         s5.unsubscribe,

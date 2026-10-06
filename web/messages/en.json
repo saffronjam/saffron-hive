@@ -250,7 +250,7 @@
   "field_brightness": "Brightness",
   "field_color": "Color",
   "field_color_temperature": "Color temperature",
-  "field_occupancy": "Occupancy",
+  "field_occupancy": "Motion",
   "field_action": "Action",
   "field_effect": "Effect",
   "field_target_temperature": "Target temperature",
@@ -1795,4 +1795,21 @@
   ,"automations_manage": "Manage"
   ,"time_minutes_ago": "{count} min. ago"
   ,"time_hours_ago": "{count} hr. ago"
+  ,"field_presence": "Presence"
+  ,"state_present": "Present"
+  ,"state_absent": "No presence"
+  ,"sensor_presence": "Presence"
+  ,"sensor_motion": "Motion"
+  ,"device_actions": "Actions"
+  ,"device_command_sent": "{name} sent"
+  ,"device_command_failed": "Couldn't run {name}"
+  ,"device_diagnostics": "Diagnostics"
+  ,"device_config_section_presence": "Presence & motion"
+  ,"device_config_section_climate": "Temperature & humidity"
+  ,"device_config_section_light": "Light"
+  ,"device_config_section_indicator": "Indicator"
+  ,"device_config_section_other": "Other"
+  ,"device_flags_all": "All"
+  ,"device_flags_none": "None"
+  ,"device_flags_summary": "{count} of {total} on"
 }

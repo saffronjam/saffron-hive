@@ -73,6 +73,7 @@ func handleState(ctx context.Context, s historyStore, evt eventbus.Event) {
 		{FieldCurrent, ds.Current, nil},
 		{FieldEnergy, ds.Energy, nil},
 		{FieldOccupancy, boolToNumber(ds.Occupancy), nil},
+		{FieldPresence, boolToNumber(ds.Presence), nil},
 		{FieldContact, boolToNumber(ds.Contact), nil},
 		{FieldOrientation, nil, ds.Orientation},
 		{FieldDevicePosture, nil, ds.DevicePosture},

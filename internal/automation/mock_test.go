@@ -14,14 +14,14 @@ type mockStateReader struct {
 	mu      sync.RWMutex
 	devices []device.Device
 	states  map[device.DeviceID]*device.DeviceState
-	configs map[device.DeviceID][]device.ConfigurationValue
+	configs map[device.DeviceID][]device.AttributeValue
 	groups  map[device.GroupID][]device.DeviceID
 }
 
 func newMockStateReader() *mockStateReader {
 	return &mockStateReader{
 		states:  make(map[device.DeviceID]*device.DeviceState),
-		configs: make(map[device.DeviceID][]device.ConfigurationValue),
+		configs: make(map[device.DeviceID][]device.AttributeValue),
 		groups:  make(map[device.GroupID][]device.DeviceID),
 	}
 }
@@ -44,10 +44,10 @@ func (m *mockStateReader) GetDeviceState(id device.DeviceID) (*device.DeviceStat
 	return st, ok
 }
 
-func (m *mockStateReader) GetDeviceConfiguration(id device.DeviceID) []device.ConfigurationValue {
+func (m *mockStateReader) GetDeviceAttributes(id device.DeviceID) []device.AttributeValue {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return device.SortConfigurationValues(m.configs[id])
+	return device.SortAttributeValues(m.configs[id])
 }
 
 func (m *mockStateReader) ListDevices() []device.Device {
@@ -84,10 +84,10 @@ func (m *mockStateReader) setDeviceState(id device.DeviceID, st *device.DeviceSt
 	m.states[id] = st
 }
 
-func (m *mockStateReader) setDeviceConfiguration(id device.DeviceID, values []device.ConfigurationValue) {
+func (m *mockStateReader) setDeviceConfiguration(id device.DeviceID, values []device.AttributeValue) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.configs[id] = append([]device.ConfigurationValue(nil), values...)
+	m.configs[id] = append([]device.AttributeValue(nil), values...)
 }
 
 func (m *mockStateReader) setGroupDevices(gid device.GroupID, deviceIDs []device.DeviceID) {

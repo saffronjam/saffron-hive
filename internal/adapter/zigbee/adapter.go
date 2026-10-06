@@ -70,7 +70,7 @@ type StateReader interface {
 // OutputObserver receives device reports before they are published.
 type OutputObserver interface {
 	ObserveState(device.DeviceID, device.DeviceState) device.OutputObservation
-	ObserveConfiguration(device.DeviceID, []device.ConfigurationValue) device.CommandOrigin
+	ObserveConfiguration(device.DeviceID, []device.AttributeValue) device.CommandOrigin
 }
 
 // ZigbeeAdapter connects to zigbee2mqtt via MQTT and translates messages
@@ -82,20 +82,20 @@ type ZigbeeAdapter struct {
 	stateReader StateReader
 	observer    OutputObserver
 
-	mu                    sync.RWMutex
-	ieeeToID              map[string]device.DeviceID
-	nameToID              map[string]device.DeviceID
-	idToName              map[device.DeviceID]string
-	knownDevices          map[device.DeviceID]string
-	configurationFeatures map[device.DeviceID]map[string]z2mFeature
-	deviceAvailability    map[device.DeviceID]reportedAvailability
-	pendingAvailability   map[string]reportedAvailability
-	bridgeInfo            map[device.DeviceID]zigbeemetadata.BridgeInfo
-	mqttReady             bool
-	bridgeStateKnown      bool
-	bridgeOnline          bool
-	networkOnline         atomic.Bool
-	lastBridgeSignal      time.Time
+	mu                  sync.RWMutex
+	ieeeToID            map[string]device.DeviceID
+	nameToID            map[string]device.DeviceID
+	idToName            map[device.DeviceID]string
+	knownDevices        map[device.DeviceID]string
+	attributeFeatures   map[device.DeviceID]map[string]attributeFeature
+	deviceAvailability  map[device.DeviceID]reportedAvailability
+	pendingAvailability map[string]reportedAvailability
+	bridgeInfo          map[device.DeviceID]zigbeemetadata.BridgeInfo
+	mqttReady           bool
+	bridgeStateKnown    bool
+	bridgeOnline        bool
+	networkOnline       atomic.Bool
+	lastBridgeSignal    time.Time
 
 	// pendingOrigin holds the origin of the most recent outgoing command per
 	// device. The next inbound state echo claims (and clears) the entry so the
@@ -136,7 +136,7 @@ func NewZigbeeAdapter(mqtt MQTTClient, bus eventbus.EventBus, sw StateWriter, sr
 		nameToID:                   make(map[string]device.DeviceID),
 		idToName:                   make(map[device.DeviceID]string),
 		knownDevices:               make(map[device.DeviceID]string),
-		configurationFeatures:      make(map[device.DeviceID]map[string]z2mFeature),
+		attributeFeatures:          make(map[device.DeviceID]map[string]attributeFeature),
 		deviceAvailability:         make(map[device.DeviceID]reportedAvailability),
 		pendingAvailability:        make(map[string]reportedAvailability),
 		bridgeInfo:                 make(map[device.DeviceID]zigbeemetadata.BridgeInfo),
@@ -361,6 +361,14 @@ func (a *ZigbeeAdapter) DispatchConfiguration(_ context.Context, request device.
 	return a.handleConfigurationRequest(request)
 }
 
+// DispatchDeviceCommand writes one write-only device command through Zigbee2MQTT.
+func (a *ZigbeeAdapter) DispatchDeviceCommand(_ context.Context, request device.DeviceCommandRequest) error {
+	if !a.acceptsCommand(request.DeviceID) {
+		return fmt.Errorf("device %q is not writable through Zigbee2MQTT", request.DeviceID)
+	}
+	return a.handleDeviceCommand(request)
+}
+
 // DispatchNativeEffect starts one native effect through Zigbee2MQTT.
 func (a *ZigbeeAdapter) DispatchNativeEffect(_ context.Context, request device.NativeEffectRequest) error {
 	if !a.acceptsCommand(request.DeviceID) {
@@ -563,24 +571,24 @@ func (a *ZigbeeAdapter) handleStateMessage(topic string, payload []byte) {
 	if dev, found := a.stateReader.GetDevice(id); found {
 		state = device.FilterReportedState(state, dev)
 	}
-	configuration, err := a.mapConfiguration(id, statePayload)
+	attributes, err := a.mapAttributes(id, statePayload)
 	if err != nil {
-		logger.Error("failed to map device configuration", "device", friendlyName, "error", err)
-	} else if len(configuration) > 0 {
-		if writer, ok := a.stateWriter.(device.ConfigurationWriter); ok {
-			writer.UpdateDeviceConfiguration(id, configuration)
+		logger.Error("failed to map device attributes", "device", friendlyName, "error", err)
+	} else if len(attributes) > 0 {
+		if writer, ok := a.stateWriter.(device.AttributeWriter); ok {
+			writer.UpdateDeviceAttributes(id, attributes)
 		}
 		origin := device.CommandOrigin{}
 		if observer := a.outputObserver(); observer != nil {
-			origin = observer.ObserveConfiguration(id, configuration)
+			origin = observer.ObserveConfiguration(id, attributes)
 		} else {
 			origin = a.consumePendingConfigurationOrigin(id)
 		}
 		a.bus.Publish(eventbus.Event{
-			Type:      eventbus.EventDeviceConfigurationChanged,
+			Type:      eventbus.EventDeviceAttributesChanged,
 			DeviceID:  string(id),
 			Timestamp: now,
-			Payload:   device.ConfigurationChange{Values: configuration, Origin: origin},
+			Payload:   device.AttributeChange{Values: attributes, Origin: origin},
 		})
 	}
 	if !hasAnyField(state) {
@@ -658,7 +666,7 @@ func hasAnyField(s device.DeviceState) bool {
 	return s.On != nil || s.Brightness != nil || s.ColorTemp != nil ||
 		s.Color != nil || s.Transition != nil ||
 		s.Temperature != nil || s.Humidity != nil || s.Pressure != nil ||
-		s.Illuminance != nil || s.Occupancy != nil || s.Battery != nil ||
+		s.Illuminance != nil || s.Occupancy != nil || s.Presence != nil || s.Battery != nil ||
 		s.Contact != nil || s.Orientation != nil || s.DevicePosture != nil || s.LinkQuality != nil ||
 		s.Power != nil || s.Voltage != nil || s.Current != nil || s.Energy != nil
 }

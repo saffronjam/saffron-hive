@@ -349,6 +349,11 @@ func (a *Adapter) DispatchConfiguration(context.Context, device.ConfigurationReq
 	return errors.New("Tuya device configuration is unavailable")
 }
 
+// DispatchDeviceCommand reports that Tuya device commands are unavailable.
+func (a *Adapter) DispatchDeviceCommand(context.Context, device.DeviceCommandRequest) error {
+	return errors.New("Tuya device commands are unavailable")
+}
+
 // DispatchNativeEffect reports that Tuya native effects are unavailable.
 func (a *Adapter) DispatchNativeEffect(context.Context, device.NativeEffectRequest) error {
 	return errors.New("Tuya native effects are unavailable")

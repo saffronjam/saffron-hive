@@ -14,7 +14,7 @@ function light(id: string, on: boolean, brightness = 100): Device {
     deleted: false,
     seen: true,
     capabilities: [],
-    configuration: [],
+    attributes: [],
     roles: { controlledLoad: null, contact: null },
     state: { on, brightness },
   };

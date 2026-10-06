@@ -440,7 +440,7 @@ func TestExtractCapabilities_AqaraP100(t *testing.T) {
 		{Type: "numeric", Property: "linkquality", Label: "Link quality", Category: "diagnostic", Access: 1},
 	}
 
-	caps, configuration := extractCapabilitiesWithConfiguration(exposes)
+	caps, attributes := extractCapabilitiesWithAttributes(exposes)
 	assertCapNames(t, caps, []string{
 		device.CapContact,
 		device.CapOrientation,
@@ -454,10 +454,10 @@ func TestExtractCapabilities_AqaraP100(t *testing.T) {
 		device.CapBattery,
 		device.CapLinkQuality,
 	})
-	if len(configuration) != 5 {
-		t.Fatalf("expected five configuration features, got %d", len(configuration))
+	if len(attributes) != 5 {
+		t.Fatalf("expected five attribute features, got %d", len(attributes))
 	}
-	for name := range configurationProperties {
+	for _, name := range []string{"orientation_detection", "movement_detection", "fall_detection", "vibration_detection", "triple_tap_detection"} {
 		capability := findCap(t, caps, name)
 		if capability.Category != device.CapabilityCategoryConfiguration {
 			t.Fatalf("expected %s to be configuration, got %q", name, capability.Category)

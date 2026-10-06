@@ -59,6 +59,9 @@
 				return "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/30";
 			case "devicePosture":
 				return "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30";
+			case "occupancy":
+			case "presence":
+				return "bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/30";
 			case "linkQuality":
 				return "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30";
 			case "battery":

@@ -84,6 +84,9 @@ func FilterReportedState(state DeviceState, dev Device) DeviceState {
 	if !reports(CapOccupancy) {
 		state.Occupancy = nil
 	}
+	if !reports(CapPresence) {
+		state.Presence = nil
+	}
 	if !reports(CapContact) {
 		state.Contact = nil
 	}

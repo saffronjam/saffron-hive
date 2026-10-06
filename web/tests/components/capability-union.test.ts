@@ -55,7 +55,7 @@ function dev(id: string, caps: Device["capabilities"]): Device {
     deleted: false,
     lastSeen: null,
     capabilities: caps,
-    configuration: [],
+    attributes: [],
     state: null,
   };
 }

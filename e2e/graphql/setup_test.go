@@ -23,7 +23,7 @@ var (
 
 // Every entry in bridge_devices.json, the coordinator included — it registers
 // as a hub device.
-const expectedDeviceCount = 12
+const expectedDeviceCount = 13
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()

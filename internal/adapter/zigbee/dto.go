@@ -105,6 +105,8 @@ type z2mDeviceState struct {
 	Pressure      *float64 `json:"pressure"`
 	Illuminance   *float64 `json:"illuminance"`
 	Occupancy     *bool    `json:"occupancy"`
+	Presence      *bool    `json:"presence"`
+	PirDetection  *bool    `json:"pir_detection"`
 	Contact       *bool    `json:"contact"`
 	Orientation   *string  `json:"orientation"`
 	DevicePosture *string  `json:"device_posture"`

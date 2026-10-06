@@ -26,6 +26,7 @@ const (
 	FieldCurrent       = "current"
 	FieldEnergy        = "energy"
 	FieldOccupancy     = "occupancy"
+	FieldPresence      = "presence"
 	FieldContact       = "contact"
 	FieldOrientation   = "orientation"
 	FieldDevicePosture = "devicePosture"
@@ -50,6 +51,7 @@ var fieldKinds = map[string]ValueKind{
 	FieldCurrent:       ValueKindNumber,
 	FieldEnergy:        ValueKindNumber,
 	FieldOccupancy:     ValueKindBoolean,
+	FieldPresence:      ValueKindBoolean,
 	FieldContact:       ValueKindBoolean,
 	FieldOrientation:   ValueKindText,
 	FieldDevicePosture: ValueKindText,
@@ -74,6 +76,7 @@ var AllFields = []string{
 	FieldCurrent,
 	FieldEnergy,
 	FieldOccupancy,
+	FieldPresence,
 	FieldContact,
 	FieldOrientation,
 	FieldDevicePosture,

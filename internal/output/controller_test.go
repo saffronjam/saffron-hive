@@ -38,6 +38,7 @@ type fakeActuator struct {
 	groups         []device.ProviderGroupCommand
 	configurations []device.ConfigurationRequest
 	nativeEffects  []device.NativeEffectRequest
+	commands       []device.DeviceCommandRequest
 	err            error
 }
 
@@ -84,6 +85,13 @@ func (a *fakeActuator) DispatchNativeEffect(_ context.Context, request device.Na
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.nativeEffects = append(a.nativeEffects, request)
+	return a.err
+}
+
+func (a *fakeActuator) DispatchDeviceCommand(_ context.Context, request device.DeviceCommandRequest) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.commands = append(a.commands, request)
 	return a.err
 }
 
@@ -326,7 +334,7 @@ func TestControllerRetriesAndConfirmsConfiguration(t *testing.T) {
 	origin := device.OriginUser()
 	request := device.ConfigurationRequest{
 		DeviceID: "sensor",
-		Values:   []device.ConfigurationValue{{Capability: "led", BooleanValue: device.Ptr(true)}},
+		Values:   []device.AttributeValue{{Capability: "led", BooleanValue: device.Ptr(true)}},
 		Origin:   origin,
 	}
 	if err := controller.CommandConfiguration(context.Background(), request); err != nil {
@@ -352,6 +360,82 @@ func TestControllerRetriesAndConfirmsConfiguration(t *testing.T) {
 	}
 	if controller.dispatchOne(context.Background(), start.Add(6*time.Second)) {
 		t.Fatal("confirmed configuration retried")
+	}
+}
+
+func identifyCommand() device.Capability {
+	return device.Capability{
+		Name: "identify", Type: "enum", Values: []string{"identify"},
+		Access: device.CapabilityAccessSet, Category: device.CapabilityCategoryCommand,
+	}
+}
+
+func TestControllerDeliversDeviceCommandOnceWithoutConfirmation(t *testing.T) {
+	controller, _, _, actuator, bus, _ := newFixture(device.Device{
+		ID: "sensor", Source: device.SourceZigbee2MQTT,
+		Capabilities: []device.Capability{identifyCommand(), writableConfiguration("led")},
+	})
+	failed := bus.Subscribe(eventbus.EventCommandFailed)
+	defer bus.Unsubscribe(failed)
+	request := device.DeviceCommandRequest{DeviceID: "sensor", Capability: "identify", Value: "identify", Origin: device.OriginUser()}
+	if err := controller.CommandDevice(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Unix(600, 0)
+	if !controller.dispatchOne(context.Background(), start) {
+		t.Fatal("command did not dispatch")
+	}
+	for step := 1; step <= 10; step++ {
+		if controller.dispatchOne(context.Background(), start.Add(time.Duration(step)*time.Second)) {
+			t.Fatalf("command dispatched again after %ds", step)
+		}
+	}
+	if len(actuator.commands) != 1 || actuator.commands[0] != request {
+		t.Fatalf("command dispatches = %+v", actuator.commands)
+	}
+	select {
+	case event := <-failed:
+		t.Fatalf("unexpected failure event: %+v", event.Payload)
+	default:
+	}
+}
+
+func TestControllerDeviceCommandDoesNotSupersedePendingConfiguration(t *testing.T) {
+	controller, _, _, actuator, _, _ := newFixture(device.Device{
+		ID: "sensor", Source: device.SourceZigbee2MQTT,
+		Capabilities: []device.Capability{identifyCommand(), writableConfiguration("led")},
+	})
+	configuration := device.ConfigurationRequest{
+		DeviceID: "sensor",
+		Values:   []device.AttributeValue{{Capability: "led", BooleanValue: device.Ptr(true)}},
+		Origin:   device.OriginUser(),
+	}
+	if err := controller.CommandConfiguration(context.Background(), configuration); err != nil {
+		t.Fatal(err)
+	}
+	if err := controller.CommandDevice(context.Background(), device.DeviceCommandRequest{
+		DeviceID: "sensor", Capability: "identify", Value: "identify", Origin: device.OriginUser(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Unix(700, 0)
+	controller.dispatchOne(context.Background(), start)
+	controller.dispatchOne(context.Background(), start.Add(time.Second))
+	if len(actuator.configurations) != 1 || len(actuator.commands) != 1 {
+		t.Fatalf("configurations = %d, commands = %d; want both delivered", len(actuator.configurations), len(actuator.commands))
+	}
+}
+
+func TestControllerRejectsDeviceCommandForDisabledDevice(t *testing.T) {
+	controller, _, _, _, _, _ := newFixture(device.Device{
+		ID: "sensor", Source: device.SourceZigbee2MQTT, Disabled: true,
+		Capabilities: []device.Capability{identifyCommand()},
+	})
+	err := controller.CommandDevice(context.Background(), device.DeviceCommandRequest{
+		DeviceID: "sensor", Capability: "identify", Value: "identify", Origin: device.OriginUser(),
+	})
+	if err == nil {
+		t.Fatal("disabled device accepted a command")
 	}
 }
 

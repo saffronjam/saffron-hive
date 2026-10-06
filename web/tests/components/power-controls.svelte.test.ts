@@ -31,7 +31,7 @@ function light(id: string, brightness: number): Device {
     deleted: false,
     seen: true,
     roles: { controlledLoad: null, contact: null },
-    configuration: [],
+    attributes: [],
     capabilities: ["on_off", "brightness"].map((name) => ({
       name,
       type: "numeric",

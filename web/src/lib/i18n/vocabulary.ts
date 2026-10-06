@@ -98,6 +98,8 @@ export function historyFieldLabel(field: string, fallbackLabel?: string | null):
       return m.field_color({}, options);
     case "occupancy":
       return m.field_occupancy({}, options);
+    case "presence":
+      return m.field_presence({}, options);
     case "action":
       return m.field_action({}, options);
     case "effect":
@@ -186,6 +188,8 @@ export function chipLabel(type: string): string {
     case "orientation":
     case "devicePosture":
     case "linkQuality":
+    case "occupancy":
+    case "presence":
       return historyFieldLabel(type);
     case "new":
       return m.field_new({}, options);

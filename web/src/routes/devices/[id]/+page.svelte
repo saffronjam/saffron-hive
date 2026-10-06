@@ -18,6 +18,8 @@
 	import SensorDisplay from "$lib/components/sensor-display.svelte";
 	import ButtonDisplay from "$lib/components/button-display.svelte";
 	import DeviceConfigurationEditor from "$lib/components/device-configuration-editor.svelte";
+	import DeviceCommands from "$lib/components/device-commands.svelte";
+	import DeviceDiagnosticsCard from "$lib/components/device-diagnostics-card.svelte";
 	import StateHistoryChart from "$lib/components/state-history-chart.svelte";
 	import BucketResolutionSelect from "$lib/components/bucket-resolution-select.svelte";
 	import DateRangePicker from "$lib/components/date-range-picker.svelte";
@@ -35,6 +37,8 @@
 	import {
 		configurationContains,
 		configurationEntriesEqual,
+		configurationValues,
+		deviceCommandCapabilities,
 		writableConfigurationCapabilities,
 	} from "$lib/device-configuration";
 	import { ArrowLeft, DoorOpen, ExternalLink, Group as GroupIcon, Trash2, Undo2 } from "@lucide/svelte";
@@ -194,7 +198,7 @@
 	const SET_DEVICE_CONFIGURATION = graphql(`
 		mutation DeviceDetailSetConfiguration(
 			$deviceId: ID!
-			$settings: [DeviceConfigurationEntryInput!]!
+			$settings: [DeviceAttributeValueInput!]!
 		) {
 			setDeviceConfiguration(deviceId: $deviceId, settings: $settings)
 		}
@@ -422,13 +426,14 @@
 	const actionValues = $derived(
 		device?.capabilities.find((capability) => capability.name === "action")?.values ?? [],
 	);
+	const commandCapabilities = $derived(deviceCommandCapabilities(device?.capabilities ?? []));
 	const configurationCapabilities = $derived(
 		writableConfigurationCapabilities(device?.capabilities ?? []),
 	);
 	let configurationDeviceId = $state("");
-	let configurationBaseline = $state<Device["configuration"]>([]);
-	let configurationDraft = $state<Device["configuration"]>([]);
-	let configurationPending = $state<Device["configuration"] | null>(null);
+	let configurationBaseline = $state<Device["attributes"]>([]);
+	let configurationDraft = $state<Device["attributes"]>([]);
+	let configurationPending = $state<Device["attributes"] | null>(null);
 	let configurationSaving = $state(false);
 	let configurationTimer: ReturnType<typeof setTimeout> | null = null;
 	const configurationDirty = $derived(
@@ -650,8 +655,10 @@
 			error = m.device_configuration_failed({}, locale.messageOptions());
 			return;
 		}
-		if (configurationContains(device.configuration, changes)) {
-			configurationBaseline = device.configuration.map((entry) => ({ ...entry }));
+		if (configurationContains(device.attributes, changes)) {
+			configurationBaseline = configurationValues(device.capabilities, device.attributes).map(
+				(entry) => ({ ...entry }),
+			);
 			configurationDraft = configurationBaseline.map((entry) => ({ ...entry }));
 			configurationPending = null;
 			return;
@@ -667,7 +674,9 @@
 
 	$effect(() => {
 		const currentDeviceId = device?.id ?? "";
-		const confirmed = (device?.configuration ?? []).map((entry) => ({ ...entry }));
+		const confirmed = configurationValues(device?.capabilities ?? [], device?.attributes ?? []).map(
+			(entry) => ({ ...entry }),
+		);
 		untrack(() => {
 			if (configurationDeviceId !== currentDeviceId) {
 				configurationDeviceId = currentDeviceId;
@@ -850,34 +859,51 @@
 					</Card>
 				{/if}
 
-				{#if configurationCapabilities.length > 0}
+				{#if configurationCapabilities.length > 0 || commandCapabilities.length > 0}
 					<Card>
 						<CardHeader>
 							<div class="flex items-center justify-between gap-4">
 								<CardTitle>{m.device_settings({}, locale.messageOptions())}</CardTitle>
-								<Button
-									size="sm"
-									onclick={applyConfiguration}
-									disabled={!configurationDirty || configurationSaving || configurationPending !== null || device.disabled}
-								>
-									{configurationSaving
-										? m.device_applying({}, locale.messageOptions())
-										: configurationPending
-											? m.device_waiting({}, locale.messageOptions())
-											: m.device_apply({}, locale.messageOptions())}
-								</Button>
+								{#if configurationCapabilities.length > 0}
+									<Button
+										size="sm"
+										onclick={applyConfiguration}
+										disabled={!configurationDirty || configurationSaving || configurationPending !== null || device.disabled}
+									>
+										{configurationSaving
+											? m.device_applying({}, locale.messageOptions())
+											: configurationPending
+												? m.device_waiting({}, locale.messageOptions())
+												: m.device_apply({}, locale.messageOptions())}
+									</Button>
+								{/if}
 							</div>
 						</CardHeader>
-						<CardContent>
-							<DeviceConfigurationEditor
-								capabilities={device.capabilities}
-								values={configurationDraft}
-								onchange={(values) => (configurationDraft = values)}
-								disabled={device.disabled || configurationSaving || configurationPending !== null}
-							/>
+						<CardContent class="space-y-6">
+							{#if configurationCapabilities.length > 0}
+								<DeviceConfigurationEditor
+									capabilities={device.capabilities}
+									values={configurationDraft}
+									onchange={(values) => (configurationDraft = values)}
+									disabled={device.disabled || configurationSaving || configurationPending !== null}
+								/>
+							{/if}
+							{#if commandCapabilities.length > 0}
+								<DeviceCommands
+									deviceId={device.id}
+									commands={commandCapabilities}
+									disabled={device.disabled}
+								/>
+							{/if}
 						</CardContent>
 					</Card>
 				{/if}
+
+				<DeviceDiagnosticsCard
+					capabilities={device.capabilities}
+					attributes={device.attributes}
+					state={device.state}
+				/>
 
 				{#if !isButton}
 					<Card>

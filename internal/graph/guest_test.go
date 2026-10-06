@@ -146,7 +146,7 @@ func TestGuestSchemaAllowlist(t *testing.T) {
 	want := []string{
 		"Mutation.applyScene", "Mutation.deactivateScene", "Mutation.setTargetState", "Mutation.updateCurrentGuestLanguage",
 		"Query.currentGuest", "Query.dashboardLocalization", "Query.devices", "Query.groups", "Query.rooms", "Query.scenes",
-		"Subscription.deviceAdded", "Subscription.deviceAvailabilityChanged", "Subscription.deviceConfigurationChanged",
+		"Subscription.deviceAdded", "Subscription.deviceAttributesChanged", "Subscription.deviceAvailabilityChanged",
 		"Subscription.deviceRemoved", "Subscription.deviceStateChanged", "Subscription.deviceUpdated",
 		"Subscription.groupsChanged", "Subscription.guestChanged", "Subscription.sceneActiveChanged",
 	}

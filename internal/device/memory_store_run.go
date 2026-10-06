@@ -11,7 +11,7 @@ import (
 func (s *MemoryStore) Run(ctx context.Context, bus eventbus.EventBus) {
 	ch := bus.Subscribe(
 		eventbus.EventDeviceStateChanged,
-		eventbus.EventDeviceConfigurationChanged,
+		eventbus.EventDeviceAttributesChanged,
 		eventbus.EventDeviceAvailabilityChanged,
 		eventbus.EventDeviceAdded,
 		eventbus.EventDeviceUpdated,
@@ -34,7 +34,7 @@ func (s *MemoryStore) Run(ctx context.Context, bus eventbus.EventBus) {
 func (s *MemoryStore) RunAsync(ctx context.Context, bus eventbus.EventBus) {
 	ch := bus.Subscribe(
 		eventbus.EventDeviceStateChanged,
-		eventbus.EventDeviceConfigurationChanged,
+		eventbus.EventDeviceAttributesChanged,
 		eventbus.EventDeviceAvailabilityChanged,
 		eventbus.EventDeviceAdded,
 		eventbus.EventDeviceUpdated,
@@ -76,9 +76,9 @@ func (s *MemoryStore) handleEvent(evt eventbus.Event) {
 		if change, ok := evt.Payload.(DeviceStateChange); ok {
 			s.UpdateDeviceState(id, change.State)
 		}
-	case eventbus.EventDeviceConfigurationChanged:
-		if change, ok := evt.Payload.(ConfigurationChange); ok {
-			s.UpdateDeviceConfiguration(id, change.Values)
+	case eventbus.EventDeviceAttributesChanged:
+		if change, ok := evt.Payload.(AttributeChange); ok {
+			s.UpdateDeviceAttributes(id, change.Values)
 		}
 	}
 }

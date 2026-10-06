@@ -385,10 +385,10 @@ func mapDeviceFromReader(sr device.StateReader, d device.Device) *model.Device {
 		LastSeen:          &lastSeen,
 	}
 	md.State = resolveDeviceStateFromReader(sr, d.ID)
-	if reader, ok := sr.(device.ConfigurationReader); ok {
-		md.Configuration = mapConfigurationValues(reader.GetDeviceConfiguration(d.ID))
+	if reader, ok := sr.(device.AttributeReader); ok {
+		md.Attributes = mapAttributeValues(reader.GetDeviceAttributes(d.ID))
 	} else {
-		md.Configuration = []*model.DeviceConfigurationEntry{}
+		md.Attributes = []*model.DeviceAttributeValue{}
 	}
 	return md
 }
@@ -408,6 +408,8 @@ func mapCapabilities(caps []device.Capability) []*model.Capability {
 			category = model.CapabilityCategoryConfiguration
 		case device.CapabilityCategoryDiagnostic:
 			category = model.CapabilityCategoryDiagnostic
+		case device.CapabilityCategoryCommand:
+			category = model.CapabilityCategoryCommand
 		}
 		result[i] = &model.Capability{
 			Name:         c.Name,
@@ -434,10 +436,10 @@ func optionalString(value string) *string {
 	return &value
 }
 
-func mapConfigurationValues(values []device.ConfigurationValue) []*model.DeviceConfigurationEntry {
-	out := make([]*model.DeviceConfigurationEntry, 0, len(values))
+func mapAttributeValues(values []device.AttributeValue) []*model.DeviceAttributeValue {
+	out := make([]*model.DeviceAttributeValue, 0, len(values))
 	for _, value := range values {
-		out = append(out, &model.DeviceConfigurationEntry{
+		out = append(out, &model.DeviceAttributeValue{
 			Capability:   value.Capability,
 			BooleanValue: value.BooleanValue,
 			NumberValue:  value.NumberValue,
@@ -698,6 +700,7 @@ func resolveDeviceStateFromReader(sr device.StateReader, id device.DeviceID) *mo
 		Pressure:          ds.Pressure,
 		Illuminance:       ds.Illuminance,
 		Occupancy:         ds.Occupancy,
+		Presence:          ds.Presence,
 		Contact:           ds.Contact,
 		Orientation:       ds.Orientation,
 		DevicePosture:     ds.DevicePosture,
@@ -2094,7 +2097,7 @@ func validateConfigureDeviceActions(ctx context.Context, store GraphStore, nodes
 			return fmt.Errorf("node %s: configure_device requires a device target", n.ID)
 		}
 		var payload struct {
-			Settings []device.ConfigurationValue `json:"settings"`
+			Settings []device.AttributeValue `json:"settings"`
 		}
 		if err := json.Unmarshal([]byte(outer.Payload), &payload); err != nil {
 			return fmt.Errorf("node %s: invalid configure_device payload JSON", n.ID)

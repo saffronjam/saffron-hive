@@ -67,6 +67,10 @@ func mapDeviceState(raw json.RawMessage) (device.DeviceState, string, error) {
 	state.Pressure = dto.Pressure
 	state.Illuminance = dto.Illuminance
 	state.Occupancy = dto.Occupancy
+	if state.Occupancy == nil {
+		state.Occupancy = dto.PirDetection
+	}
+	state.Presence = dto.Presence
 	state.Contact = dto.Contact
 	state.Orientation = dto.Orientation
 	state.DevicePosture = dto.DevicePosture

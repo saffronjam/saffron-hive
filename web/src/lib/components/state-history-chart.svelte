@@ -371,7 +371,13 @@
 			return { trueLabel: m.state_closed({}, options), falseLabel: m.state_open({}, options) };
 		}
 		if (field === "occupancy") {
-			return { trueLabel: m.state_occupied({}, options), falseLabel: m.state_clear({}, options) };
+			return {
+				trueLabel: m.state_motion_detected({}, options),
+				falseLabel: m.state_no_motion({}, options),
+			};
+		}
+		if (field === "presence") {
+			return { trueLabel: m.state_present({}, options), falseLabel: m.state_absent({}, options) };
 		}
 		return { trueLabel: m.state_on({}, options), falseLabel: m.state_off({}, options) };
 	}

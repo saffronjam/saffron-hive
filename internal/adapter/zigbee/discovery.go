@@ -32,7 +32,7 @@ func detectDeviceType(exposes []z2mFeature) device.DeviceType {
 			}
 		case "action":
 			hasAction = true
-		case "temperature", "humidity", "pressure", "illuminance", "occupancy", "contact", "orientation", "device_posture":
+		case "temperature", "humidity", "pressure", "illuminance", "occupancy", "pir_detection", "presence", "contact", "orientation", "device_posture":
 			hasSensor = true
 		}
 	}
@@ -58,6 +58,8 @@ var knownCapabilities = map[string]string{
 	"pressure":       device.CapPressure,
 	"illuminance":    device.CapIlluminance,
 	"occupancy":      device.CapOccupancy,
+	"pir_detection":  device.CapOccupancy,
+	"presence":       device.CapPresence,
 	"contact":        device.CapContact,
 	"orientation":    device.CapOrientation,
 	"device_posture": device.CapDevicePosture,
@@ -71,75 +73,176 @@ var knownCapabilities = map[string]string{
 	"energy":         device.CapEnergy,
 }
 
-var configurationProperties = map[string]struct{}{
-	"orientation_detection": {},
-	"movement_detection":    {},
-	"fall_detection":        {},
-	"vibration_detection":   {},
-	"triple_tap_detection":  {},
+// flagsCompositeSuffix names the composite form of a raw bitmask exposure:
+// zigbee2mqtt publishes "<x>_composite" as named flags beside a numeric "<x>"
+// carrying the same bits, and only the named form is useful to a person.
+const flagsCompositeSuffix = "_composite"
+
+// attributeFeature is an exposure Hive surfaces as a generic attribute rather
+// than typed DeviceState: a setting, a command, or a diagnostic reading.
+type attributeFeature struct {
+	feature  z2mFeature
+	category device.CapabilityCategory
 }
 
-func featureCategory(f z2mFeature) device.CapabilityCategory {
-	switch f.Category {
-	case "config":
-		return device.CapabilityCategoryConfiguration
-	case "diagnostic":
-		return device.CapabilityCategoryDiagnostic
-	}
-	if _, ok := configurationProperties[f.Property]; ok {
-		return device.CapabilityCategoryConfiguration
-	}
-	return device.CapabilityCategoryState
-}
-
-func capabilityName(f z2mFeature) (string, bool) {
+// classifyFeature returns the Hive capability name and category of one
+// exposure, or false when Hive does not surface it.
+//
+// Properties Hive models as typed state keep zigbee2mqtt's category. Every
+// other exposure is classified by its access bits rather than its category tag,
+// which converters set inconsistently: writable and reported is a setting,
+// writable but never reported is a command, reported but read-only is a
+// diagnostic reading.
+func classifyFeature(f z2mFeature) (string, device.CapabilityCategory, bool) {
 	if name, ok := knownCapabilities[f.Property]; ok {
-		return name, true
+		switch f.Category {
+		case "config":
+			return name, device.CapabilityCategoryConfiguration, true
+		case "diagnostic":
+			return name, device.CapabilityCategoryDiagnostic, true
+		}
+		return name, device.CapabilityCategoryState, true
 	}
-	if featureCategory(f) == device.CapabilityCategoryConfiguration && f.Property != "" {
-		switch f.Type {
-		case "binary", "numeric", "enum", "text":
-			return f.Property, true
+	if f.Property == "" {
+		return "", "", false
+	}
+	access := device.CapabilityAccess(f.Access)
+	writable := access&device.CapabilityAccessSet != 0
+	reported := access&device.CapabilityAccessState != 0
+	if f.Type == "composite" {
+		if writable && reported && isFlagsComposite(f) {
+			return f.Property, device.CapabilityCategoryConfiguration, true
+		}
+		return "", "", false
+	}
+	switch {
+	case writable && !reported:
+		if f.Type == "enum" || f.Type == "binary" {
+			return f.Property, device.CapabilityCategoryCommand, true
+		}
+	case writable:
+		if isScalarFeature(f) {
+			return f.Property, device.CapabilityCategoryConfiguration, true
+		}
+	case reported:
+		if isScalarFeature(f) {
+			return f.Property, device.CapabilityCategoryDiagnostic, true
 		}
 	}
-	return "", false
+	return "", "", false
+}
+
+func isScalarFeature(f z2mFeature) bool {
+	switch f.Type {
+	case "binary", "numeric", "enum", "text":
+		return true
+	}
+	return false
+}
+
+// isFlagsComposite reports whether a composite is a set of independent on/off
+// flags, which Hive carries as one bitmask setting.
+func isFlagsComposite(f z2mFeature) bool {
+	if len(f.Features) == 0 || len(f.Features) > device.MaxFlags {
+		return false
+	}
+	for _, child := range f.Features {
+		if child.Type != "binary" || child.Property == "" {
+			return false
+		}
+	}
+	return true
 }
 
 func extractCapabilities(exposes []z2mFeature) []device.Capability {
-	capabilities, _ := extractCapabilitiesWithConfiguration(exposes)
+	capabilities, _ := extractCapabilitiesWithAttributes(exposes)
 	return capabilities
 }
 
-func extractCapabilitiesWithConfiguration(exposes []z2mFeature) ([]device.Capability, map[string]z2mFeature) {
+func extractCapabilitiesWithAttributes(exposes []z2mFeature) ([]device.Capability, map[string]attributeFeature) {
+	features := capabilityFeatures(exposes)
+	flagComposites := make(map[string]struct{})
+	byProperty := make(map[string]z2mFeature, len(features))
+	for _, f := range features {
+		byProperty[f.Property] = f
+		if _, category, ok := classifyFeature(f); ok && f.Type == "composite" && category == device.CapabilityCategoryConfiguration {
+			flagComposites[f.Property] = struct{}{}
+		}
+	}
+
 	seen := make(map[string]struct{})
 	var caps []device.Capability
-	configuration := make(map[string]z2mFeature)
-	for _, f := range flattenFeatures(exposes) {
-		capName, ok := capabilityName(f)
+	attributes := make(map[string]attributeFeature)
+	for _, f := range features {
+		capName, category, ok := classifyFeature(f)
 		if !ok {
+			continue
+		}
+		if _, raw := flagComposites[f.Property+flagsCompositeSuffix]; raw {
 			continue
 		}
 		if _, dup := seen[capName]; dup {
 			continue
 		}
 		seen[capName] = struct{}{}
-		caps = append(caps, device.Capability{
+		capability := device.Capability{
 			Name:        capName,
 			Type:        f.Type,
 			Label:       f.Label,
 			Description: f.Description,
-			Category:    featureCategory(f),
+			Category:    category,
 			Values:      f.Values,
 			ValueMin:    f.ValueMin,
 			ValueMax:    f.ValueMax,
 			Unit:        f.Unit,
 			Access:      device.CapabilityAccess(f.Access),
-		})
-		if featureCategory(f) == device.CapabilityCategoryConfiguration {
-			configuration[capName] = f
+		}
+		if f.Type == "composite" {
+			capability.Type = device.CapabilityTypeFlags
+			capability.Values = flagNames(f)
+			if raw, ok := byProperty[strings.TrimSuffix(f.Property, flagsCompositeSuffix)]; ok && raw.Property != f.Property {
+				capability.Label = raw.Label
+				capability.Description = raw.Description
+			}
+		}
+		caps = append(caps, capability)
+		if _, typed := knownCapabilities[f.Property]; !typed {
+			attributes[capName] = attributeFeature{feature: f, category: category}
 		}
 	}
-	return caps, configuration
+	return caps, attributes
+}
+
+// flagNames labels each flag of a flags composite in bit order, preferring the
+// description because converters put the meaningful text there ("0.00m -
+// 0.25m") and a generated name in the label.
+func flagNames(f z2mFeature) []string {
+	names := make([]string, len(f.Features))
+	for i, child := range f.Features {
+		switch {
+		case child.Description != "":
+			names[i] = child.Description
+		case child.Label != "":
+			names[i] = child.Label
+		default:
+			names[i] = child.Property
+		}
+	}
+	return names
+}
+
+// capabilityFeatures lists exposures that can become capabilities: grouping
+// containers such as "light" are descended into, while a composite stays one
+// exposure because its children are parts of a single value.
+func capabilityFeatures(features []z2mFeature) []z2mFeature {
+	var result []z2mFeature
+	for _, f := range features {
+		result = append(result, f)
+		if f.Type != "composite" && len(f.Features) > 0 {
+			result = append(result, capabilityFeatures(f.Features)...)
+		}
+	}
+	return result
 }
 
 func flattenFeatures(features []z2mFeature) []z2mFeature {
@@ -177,7 +280,7 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 		id := device.DeviceID(d.IEEEAddress)
 		incoming[id] = struct{}{}
 
-		capabilities, configuration := extractCapabilitiesWithConfiguration(exposes)
+		capabilities, attributes := extractCapabilitiesWithAttributes(exposes)
 		dev := device.Device{
 			ID:           id,
 			FriendlyName: d.FriendlyName,
@@ -197,7 +300,7 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 		a.nameToID[d.FriendlyName] = id
 		a.idToName[id] = d.FriendlyName
 		a.knownDevices[id] = print
-		a.configurationFeatures[id] = configuration
+		a.attributeFeatures[id] = attributes
 		a.mu.Unlock()
 
 		if pending, ok := a.pendingAvailability[d.FriendlyName]; ok {
@@ -263,7 +366,7 @@ func (a *ZigbeeAdapter) handleBridgeDevices(payload []byte) {
 	}
 	for _, id := range removed {
 		delete(a.knownDevices, id)
-		delete(a.configurationFeatures, id)
+		delete(a.attributeFeatures, id)
 		delete(a.deviceAvailability, id)
 		delete(a.bridgeInfo, id)
 	}

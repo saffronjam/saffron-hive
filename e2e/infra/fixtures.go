@@ -54,6 +54,12 @@ func LoadMotionState() ([]byte, error) {
 	return os.ReadFile(filepath.Join(fixturesDir(), "motion_state.json"))
 }
 
+// LoadFP300State returns the fp300_state.json fixture content: an Aqara FP300
+// presence sensor reporting presence, PIR motion, settings and diagnostics.
+func LoadFP300State() ([]byte, error) {
+	return os.ReadFile(filepath.Join(fixturesDir(), "fp300_state.json"))
+}
+
 // LoadMosquittoConf returns the path to the mosquitto.conf fixture.
 func LoadMosquittoConf() string {
 	return filepath.Join(fixturesDir(), "mosquitto.conf")

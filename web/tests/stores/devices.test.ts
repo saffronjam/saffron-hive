@@ -75,7 +75,7 @@ function makeDevice(
     type,
     roles: { controlledLoad: null, contact: null },
     capabilities: [],
-    configuration: [],
+    attributes: [],
     available: true,
     disabled: false,
     deleted: false,

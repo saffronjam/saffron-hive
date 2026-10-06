@@ -27,7 +27,7 @@ Events have a generic envelope (type, device ID, timestamp) with a typed payload
 
 Event types (see `internal/eventbus/eventbus.go` for the authoritative list):
 - `device.state_changed` — device reported new state (partial update, pointer fields for optional values)
-- `device.configuration_changed` — device reported confirmed settings (partial typed update)
+- `device.attributes_changed` — device reported generic attribute values: confirmed settings and diagnostic readings (partial typed update)
 - `device.action_fired` — momentary action (a button press) — distinct from a persistent state change; occupancy is persistent (true for the whole occupied window) and rides `device.state_changed`
 - `device.availability_changed` — device online/offline
 - `device.added` / `device.removed` — device registry changes

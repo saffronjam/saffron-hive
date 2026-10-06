@@ -37,7 +37,7 @@
 	import { locale } from "$lib/i18n/locale.svelte";
 	import { chipLabel } from "$lib/i18n/vocabulary";
 	import { roomLabelsByDevice } from "$lib/memberships";
-	import type { Device, DeviceConfigurationEntry } from "$lib/gql/graphql";
+	import type { Device, DeviceAttributeValue } from "$lib/gql/graphql";
 	import { writableConfigurationCapabilities } from "$lib/device-configuration";
 
 	interface ActionConfig {
@@ -254,9 +254,9 @@
 
 	const parsedPayload = $derived(safeParse(data.config.payload));
 
-	const configurationValues = $derived.by<DeviceConfigurationEntry[]>(() => {
+	const configurationValues = $derived.by<DeviceAttributeValue[]>(() => {
 		if (!Array.isArray(parsedPayload.settings)) return [];
-		const values: DeviceConfigurationEntry[] = [];
+		const values: DeviceAttributeValue[] = [];
 		for (const item of parsedPayload.settings) {
 			if (typeof item !== "object" || item === null) continue;
 			const entry = item as Record<string, unknown>;
@@ -271,7 +271,7 @@
 		return values;
 	});
 
-	function updateConfigurationValues(values: DeviceConfigurationEntry[]) {
+	function updateConfigurationValues(values: DeviceAttributeValue[]) {
 		if (!data.onConfigChange) return;
 		data.onConfigChange({
 			...data.config,
@@ -729,7 +729,7 @@
 						<DeviceConfigurationEditor
 							capabilities={selectedDevice.capabilities}
 							values={configurationValues}
-							defaults={selectedDevice.configuration}
+							defaults={selectedDevice.attributes}
 							onchange={updateConfigurationValues}
 							selectable
 							compact

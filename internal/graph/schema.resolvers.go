@@ -254,18 +254,18 @@ func (r *mutationResolver) SetTargetState(ctx context.Context, target model.Comm
 }
 
 // SetDeviceConfiguration is the resolver for the setDeviceConfiguration field.
-func (r *mutationResolver) SetDeviceConfiguration(ctx context.Context, deviceID string, settings []*model.DeviceConfigurationEntryInput) (bool, error) {
+func (r *mutationResolver) SetDeviceConfiguration(ctx context.Context, deviceID string, settings []*model.DeviceAttributeValueInput) (bool, error) {
 	id := device.DeviceID(deviceID)
 	d, ok := r.StateReader.GetDevice(id)
 	if !ok {
 		return false, fmt.Errorf("device %q not found", deviceID)
 	}
-	values := make([]device.ConfigurationValue, 0, len(settings))
+	values := make([]device.AttributeValue, 0, len(settings))
 	for _, setting := range settings {
 		if setting == nil {
 			return false, fmt.Errorf("configuration setting must not be null")
 		}
-		values = append(values, device.ConfigurationValue{
+		values = append(values, device.AttributeValue{
 			Capability:   setting.Capability,
 			BooleanValue: setting.BooleanValue.Value(),
 			NumberValue:  setting.NumberValue.Value(),
@@ -280,6 +280,27 @@ func (r *mutationResolver) SetDeviceConfiguration(ctx context.Context, deviceID 
 		return false, fmt.Errorf("configuration commander is unavailable")
 	}
 	if err := commander.CommandConfiguration(ctx, device.ConfigurationRequest{DeviceID: id, Values: values, Origin: device.OriginUser()}); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// RunDeviceCommand is the resolver for the runDeviceCommand field.
+func (r *mutationResolver) RunDeviceCommand(ctx context.Context, deviceID string, capability string, value string) (bool, error) {
+	id := device.DeviceID(deviceID)
+	d, ok := r.StateReader.GetDevice(id)
+	if !ok {
+		return false, fmt.Errorf("device %q not found", deviceID)
+	}
+	request := device.DeviceCommandRequest{DeviceID: id, Capability: capability, Value: value, Origin: device.OriginUser()}
+	if err := device.ValidateDeviceCommand(d, request); err != nil {
+		return false, err
+	}
+	commander, ok := r.TargetCommander.(device.DeviceCommander)
+	if !ok {
+		return false, fmt.Errorf("device commander is unavailable")
+	}
+	if err := commander.CommandDevice(ctx, request); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -3113,10 +3134,10 @@ func (r *subscriptionResolver) DeviceStateChanged(ctx context.Context, deviceID 
 	return out, nil
 }
 
-// DeviceConfigurationChanged is the resolver for the deviceConfigurationChanged field.
-func (r *subscriptionResolver) DeviceConfigurationChanged(ctx context.Context, deviceID *string) (<-chan *model.DeviceConfigurationEvent, error) {
-	ch := r.EventBus.Subscribe(eventbus.EventDeviceConfigurationChanged)
-	out := make(chan *model.DeviceConfigurationEvent, 1)
+// DeviceAttributesChanged is the resolver for the deviceAttributesChanged field.
+func (r *subscriptionResolver) DeviceAttributesChanged(ctx context.Context, deviceID *string) (<-chan *model.DeviceAttributesEvent, error) {
+	ch := r.EventBus.Subscribe(eventbus.EventDeviceAttributesChanged)
+	out := make(chan *model.DeviceAttributesEvent, 1)
 	go func() {
 		defer close(out)
 		defer r.EventBus.Unsubscribe(ch)
@@ -3131,12 +3152,12 @@ func (r *subscriptionResolver) DeviceConfigurationChanged(ctx context.Context, d
 				if deviceID != nil && evt.DeviceID != *deviceID {
 					continue
 				}
-				change, ok := evt.Payload.(device.ConfigurationChange)
+				change, ok := evt.Payload.(device.AttributeChange)
 				if !ok {
 					continue
 				}
 				select {
-				case out <- &model.DeviceConfigurationEvent{DeviceID: evt.DeviceID, Values: mapConfigurationValues(change.Values)}:
+				case out <- &model.DeviceAttributesEvent{DeviceID: evt.DeviceID, Values: mapAttributeValues(change.Values)}:
 				case <-ctx.Done():
 					return
 				}

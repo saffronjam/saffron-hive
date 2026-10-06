@@ -10,6 +10,8 @@ enum CapabilityCategory {
   STATE
   CONFIGURATION
   DIAGNOSTIC
+  """A write-only operation such as identify or restart, run with runDeviceCommand."""
+  COMMAND
 }
 
 type Capability {
@@ -27,7 +29,12 @@ type Capability {
   canGet: Boolean!
 }
 
-type DeviceConfigurationEntry {
+"""
+One reported or requested value of a generic device attribute. The
+capability's category says whether it is a setting or a diagnostic reading.
+A flags capability carries its bitmask in numberValue.
+"""
+type DeviceAttributeValue {
   capability: String!
   booleanValue: Boolean
   numberValue: Float
@@ -86,7 +93,7 @@ type Device {
   seen: Boolean!
   lastSeen: DateTime
   state: DeviceState
-  configuration: [DeviceConfigurationEntry!]!
+  attributes: [DeviceAttributeValue!]!
   """Zigbee2MQTT detail, available only for Zigbee2MQTT devices."""
   zigbee2Mqtt: Zigbee2MqttDeviceMetadata
 }
@@ -221,6 +228,7 @@ type DeviceState {
   pressure: Float
   illuminance: Float
   occupancy: Boolean
+  presence: Boolean
   """True means closed; false means open."""
   contact: Boolean
   orientation: String
@@ -922,9 +930,9 @@ type DeviceStateEvent {
   state: DeviceState!
 }
 
-type DeviceConfigurationEvent {
+type DeviceAttributesEvent {
   deviceId: ID!
-  values: [DeviceConfigurationEntry!]!
+  values: [DeviceAttributeValue!]!
 }
 
 type DeviceActionEvent {
@@ -1412,7 +1420,7 @@ input CommandTargetInput {
   deviceIds: [ID!]
 }
 
-input DeviceConfigurationEntryInput {
+input DeviceAttributeValueInput {
   capability: String!
   booleanValue: Boolean
   numberValue: Float
@@ -1752,7 +1760,12 @@ type Mutation {
   batchDeleteDevices(ids: [ID!]!): Int! @auth
   batchRestoreDevices(ids: [ID!]!): Int! @auth
   setTargetState(target: CommandTargetInput!, state: DeviceStateInput!): Boolean! @auth(allowGuest: true)
-  setDeviceConfiguration(deviceId: ID!, settings: [DeviceConfigurationEntryInput!]!): Boolean! @auth
+  setDeviceConfiguration(deviceId: ID!, settings: [DeviceAttributeValueInput!]!): Boolean! @auth
+  """
+  Run one write-only device command, such as identify or restart. The command
+  is delivered once; the device reports nothing back.
+  """
+  runDeviceCommand(deviceId: ID!, capability: String!, value: String!): Boolean! @auth
   """
   Simulate a device-fired action by publishing a synthetic
   EventDeviceActionFired on the in-process event bus. Automations listening
@@ -1894,7 +1907,7 @@ type Mutation {
 
 type Subscription {
   deviceStateChanged(deviceId: ID): DeviceStateEvent! @auth(allowGuest: true)
-  deviceConfigurationChanged(deviceId: ID): DeviceConfigurationEvent! @auth(allowGuest: true)
+  deviceAttributesChanged(deviceId: ID): DeviceAttributesEvent! @auth(allowGuest: true)
   deviceActionFired(deviceId: ID): DeviceActionEvent! @auth
   deviceAvailabilityChanged: DeviceAvailabilityEvent! @auth(allowGuest: true)
   deviceAdded: Device! @auth(allowGuest: true)

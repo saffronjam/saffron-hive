@@ -100,6 +100,13 @@ describe("stateSummary", () => {
       expect(stateSummary(state({ temperature: 19, occupancy: true }), "sensor")).toBe("19.0°C");
     });
 
+    it("summarizes presence ahead of motion", () => {
+      expect(stateSummary(state({ presence: true, occupancy: false }), "sensor")).toBe("Present");
+      expect(stateSummary(state({ presence: false, occupancy: true }), "sensor")).toBe(
+        "No presence",
+      );
+    });
+
     it("prefers occupancy over battery", () => {
       expect(stateSummary(state({ occupancy: false, battery: 72 }), "sensor")).toBe("No motion");
     });

@@ -8,6 +8,7 @@ import {
   BatteryCharging,
   Droplets,
   DoorOpen,
+  Footprints,
   Gauge,
   Group as GroupIcon,
   HardDrive,
@@ -17,6 +18,7 @@ import {
   MousePointerClick,
   Move3D,
   Palette,
+  PersonStanding,
   PanelTopOpen,
   Plug,
   Package,
@@ -155,6 +157,10 @@ export function semanticIcon(type: string, contactRole?: ContactRole | null): Co
       return Gauge;
     case "devicePosture":
       return Activity;
+    case "occupancy":
+      return Footprints;
+    case "presence":
+      return PersonStanding;
     case "linkQuality":
       return Router;
     case "battery":

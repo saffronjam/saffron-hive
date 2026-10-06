@@ -50,6 +50,9 @@ export function stateSummary(state: DeviceState | null | undefined, type: string
     }
     if (state.humidity != null) parts.push(`${formatPercent(state.humidity / 100)} RH`);
     if (parts.length > 0) return parts.join(" / ");
+    if (state.presence != null) {
+      return state.presence ? m.state_present({}, options) : m.state_absent({}, options);
+    }
     if (state.occupancy != null) {
       return state.occupancy
         ? m.state_motion_detected({}, options)

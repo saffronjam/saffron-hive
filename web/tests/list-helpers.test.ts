@@ -22,7 +22,7 @@ function device(id: string, name: string): Device {
     type: "light",
     roles: { controlledLoad: null, contact: null },
     capabilities: [],
-    configuration: [],
+    attributes: [],
     available: true,
     disabled: false,
     deleted: false,

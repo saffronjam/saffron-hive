@@ -9,48 +9,48 @@ import (
 // MemoryStore is an in-memory implementation of StateStore.
 // It is safe for concurrent use.
 type MemoryStore struct {
-	mu            sync.RWMutex
-	devices       map[DeviceID]Device
-	states        map[DeviceID]DeviceState
-	configuration map[DeviceID]map[string]ConfigurationValue
-	groups        map[GroupID]Group
-	members       map[GroupID][]GroupMember
+	mu         sync.RWMutex
+	devices    map[DeviceID]Device
+	states     map[DeviceID]DeviceState
+	attributes map[DeviceID]map[string]AttributeValue
+	groups     map[GroupID]Group
+	members    map[GroupID][]GroupMember
 }
 
 // NewMemoryStore creates a new empty MemoryStore.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		devices:       make(map[DeviceID]Device),
-		states:        make(map[DeviceID]DeviceState),
-		configuration: make(map[DeviceID]map[string]ConfigurationValue),
-		groups:        make(map[GroupID]Group),
-		members:       make(map[GroupID][]GroupMember),
+		devices:    make(map[DeviceID]Device),
+		states:     make(map[DeviceID]DeviceState),
+		attributes: make(map[DeviceID]map[string]AttributeValue),
+		groups:     make(map[GroupID]Group),
+		members:    make(map[GroupID][]GroupMember),
 	}
 }
 
-// GetDeviceConfiguration returns the confirmed settings reported for a device.
-func (s *MemoryStore) GetDeviceConfiguration(id DeviceID) []ConfigurationValue {
+// GetDeviceAttributes returns the attribute values reported for a device.
+func (s *MemoryStore) GetDeviceAttributes(id DeviceID) []AttributeValue {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	values := s.configuration[id]
-	out := make([]ConfigurationValue, 0, len(values))
+	values := s.attributes[id]
+	out := make([]AttributeValue, 0, len(values))
 	for _, value := range values {
 		out = append(out, value)
 	}
-	return SortConfigurationValues(out)
+	return SortAttributeValues(out)
 }
 
-// UpdateDeviceConfiguration merges a partial confirmed-settings update.
-func (s *MemoryStore) UpdateDeviceConfiguration(id DeviceID, values []ConfigurationValue) {
+// UpdateDeviceAttributes merges a partial reported-attributes update.
+func (s *MemoryStore) UpdateDeviceAttributes(id DeviceID, values []AttributeValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.devices[id]; !ok {
 		return
 	}
-	current := s.configuration[id]
+	current := s.attributes[id]
 	if current == nil {
-		current = make(map[string]ConfigurationValue)
-		s.configuration[id] = current
+		current = make(map[string]AttributeValue)
+		s.attributes[id] = current
 	}
 	for _, value := range values {
 		current[value.Capability] = value

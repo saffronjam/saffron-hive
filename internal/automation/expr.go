@@ -134,6 +134,9 @@ func lookupDeviceByName(reader device.StateReader, name string) (map[string]any,
 	if st.Occupancy != nil {
 		result["occupancy"] = *st.Occupancy
 	}
+	if st.Presence != nil {
+		result["presence"] = *st.Presence
+	}
 	if st.Contact != nil {
 		result["contact"] = *st.Contact
 	}

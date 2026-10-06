@@ -206,7 +206,7 @@ func (a *ActionExecutor) ExecuteGraphAction(cfg ActionConfig) {
 }
 
 type configureDevicePayload struct {
-	Settings []device.ConfigurationValue `json:"settings"`
+	Settings []device.AttributeValue `json:"settings"`
 }
 
 func (a *ActionExecutor) executeConfigureDevice(cfg ActionConfig) {
@@ -229,8 +229,8 @@ func (a *ActionExecutor) executeConfigureDevice(cfg ActionConfig) {
 		return
 	}
 	settings := payload.Settings
-	if reader, ok := a.reader.(device.ConfigurationReader); ok {
-		settings = device.ConfigurationChanges(reader.GetDeviceConfiguration(id), settings)
+	if reader, ok := a.reader.(device.AttributeReader); ok {
+		settings = device.ConfigurationChanges(reader.GetDeviceAttributes(id), settings)
 	}
 	if len(settings) == 0 {
 		return

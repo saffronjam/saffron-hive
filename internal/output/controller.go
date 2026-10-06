@@ -40,12 +40,13 @@ type Actuator interface {
 	DispatchGroupState(context.Context, device.ProviderGroupCommand) error
 	DispatchConfiguration(context.Context, device.ConfigurationRequest) error
 	DispatchNativeEffect(context.Context, device.NativeEffectRequest) error
+	DispatchDeviceCommand(context.Context, device.DeviceCommandRequest) error
 }
 
 // Observer attributes protocol reports to accepted output deliveries.
 type Observer interface {
 	ObserveState(device.DeviceID, device.DeviceState) device.OutputObservation
-	ObserveConfiguration(device.DeviceID, []device.ConfigurationValue) device.CommandOrigin
+	ObserveConfiguration(device.DeviceID, []device.AttributeValue) device.CommandOrigin
 }
 
 // Store is the structural target data needed by the controller.
@@ -65,6 +66,7 @@ const (
 	intentGroup
 	intentConfiguration
 	intentNativeEffect
+	intentDeviceCommand
 )
 
 type intent struct {
@@ -76,6 +78,7 @@ type intent struct {
 	group         device.ProviderGroupCommand
 	configuration device.ConfigurationRequest
 	nativeEffect  device.NativeEffectRequest
+	deviceCommand device.DeviceCommandRequest
 	members       []device.DeviceID
 	generations   map[device.DeviceID]uint64
 	attempt       int
@@ -285,6 +288,29 @@ func (c *Controller) CommandConfiguration(_ context.Context, request device.Conf
 	return nil
 }
 
+// CommandDevice accepts one validated write-only device command. A command
+// changes no reported state, so it neither supersedes pending output for the
+// device nor revokes output ownership, and it is delivered once without a
+// confirmation step.
+func (c *Controller) CommandDevice(_ context.Context, request device.DeviceCommandRequest) error {
+	dev, ok := c.reader.GetDevice(request.DeviceID)
+	if !ok || dev.RuntimeDisabled() || dev.Removed {
+		return ErrNoControllableDevices
+	}
+	if err := device.ValidateDeviceCommand(dev, request); err != nil {
+		return err
+	}
+	c.mu.Lock()
+	provider := c.providerLocked(dev.Source)
+	key := "device-command:" + string(request.DeviceID) + ":" + request.Capability
+	next := &intent{key: key, kind: intentDeviceCommand, provider: dev.Source, class: classFor(request.Origin), deviceCommand: request,
+		members: []device.DeviceID{request.DeviceID}}
+	c.enqueueLocked(provider, next)
+	c.mu.Unlock()
+	c.signal()
+	return nil
+}
+
 // RegisterContinuous installs a dynamic program sampled at provider dispatch time.
 func (c *Controller) RegisterContinuous(owner outputowner.Owner, devices []device.DeviceID, sample ContinuousSample) {
 	devices = uniqueDevices(devices)
@@ -339,7 +365,7 @@ func (c *Controller) ObserveState(id device.DeviceID, reported device.DeviceStat
 }
 
 // ObserveConfiguration attributes and confirms a reported configuration batch.
-func (c *Controller) ObserveConfiguration(id device.DeviceID, reported []device.ConfigurationValue) device.CommandOrigin {
+func (c *Controller) ObserveConfiguration(id device.DeviceID, reported []device.AttributeValue) device.CommandOrigin {
 	var confirmed *device.OutputDelivery
 	c.mu.Lock()
 	current := c.configurationDelivery[id]
@@ -503,6 +529,8 @@ func (c *Controller) dispatch(ctx context.Context, actuator Actuator, next *inte
 		err = actuator.DispatchConfiguration(dispatchCtx, next.configuration)
 	case intentNativeEffect:
 		err = actuator.DispatchNativeEffect(dispatchCtx, next.nativeEffect)
+	case intentDeviceCommand:
+		err = actuator.DispatchDeviceCommand(dispatchCtx, next.deviceCommand)
 	}
 	c.recordDispatch(next, now, err)
 }
@@ -520,6 +548,8 @@ func (c *Controller) recordDispatch(next *intent, now time.Time, dispatchErr err
 			origin = next.configuration.Origin
 		} else if next.kind == intentNativeEffect {
 			origin = next.nativeEffect.Origin
+		} else if next.kind == intentDeviceCommand {
+			origin = next.deviceCommand.Origin
 		}
 		if dispatchErr != nil {
 			failure := deliveryEvent(id, origin, next.class, attempt, now, dispatchErr.Error())
@@ -764,6 +794,7 @@ func (c *Controller) enqueueLocked(state *providerState, next *intent) {
 			existing.group = next.group
 			existing.configuration = next.configuration
 			existing.nativeEffect = next.nativeEffect
+			existing.deviceCommand = next.deviceCommand
 			existing.members = next.members
 			existing.generations = next.generations
 			existing.persistent = next.persistent
@@ -790,6 +821,9 @@ func (c *Controller) intentCurrent(next *intent) bool {
 }
 
 func (c *Controller) intentCurrentLocked(next *intent) bool {
+	if next.kind == intentDeviceCommand {
+		return true
+	}
 	currentMembers := next.members[:0]
 	for _, id := range next.members {
 		if c.generations[id] == next.generations[id] {
@@ -1058,11 +1092,11 @@ func commandMatches(command device.Command, state device.DeviceState) bool {
 	return true
 }
 
-func configurationMatches(expected, reported []device.ConfigurationValue) bool {
+func configurationMatches(expected, reported []device.AttributeValue) bool {
 	for _, wanted := range expected {
 		found := false
 		for _, actual := range reported {
-			if device.ConfigurationValuesEqual(wanted, actual) {
+			if device.AttributeValuesEqual(wanted, actual) {
 				found = true
 				break
 			}

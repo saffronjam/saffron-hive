@@ -1262,18 +1262,22 @@
 		placements.map((pl) => ({ id: placementViewKey(pl), x: pl.x, y: pl.y })),
 	);
 
-	/** Occupancy rings are a device affordance: a group marker never draws one. */
+	/**
+	 * Occupancy rings are a device affordance: a group marker never draws one.
+	 * A sensor reads as occupied while it reports either presence or motion.
+	 */
 	const occupancyMarkers = $derived(
 		placements.flatMap((pl) =>
 			pl.kind === "device" &&
 			!pl.device.disabled &&
-			deviceHasCapability(pl.device, "occupancy")
+			(deviceHasCapability(pl.device, "occupancy") || deviceHasCapability(pl.device, "presence"))
 				? [
 						{
 							id: pl.device.id,
 							x: pl.x,
 							y: pl.y,
-							occupied: pl.device.state?.occupancy === true,
+							occupied:
+								pl.device.state?.presence === true || pl.device.state?.occupancy === true,
 						},
 					]
 				: [],

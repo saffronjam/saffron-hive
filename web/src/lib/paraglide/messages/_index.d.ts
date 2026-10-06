@@ -6674,6 +6674,20 @@ export const data_viewer_title: ((inputs?: Data_Viewer_TitleInputs, options?: {
 /**
 * | output |
 * | --- |
+* | "Actions" |
+*
+* @param {Device_ActionsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_actions: ((inputs?: Device_ActionsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_ActionsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Adjust {name} climate" |
 *
 * @param {Device_Adjust_Climate_NamedInputs} inputs
@@ -6772,6 +6786,34 @@ export const device_color: ((inputs?: Device_ColorInputs, options?: {
 /**
 * | output |
 * | --- |
+* | "Couldn't run {name}" |
+*
+* @param {Device_Command_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_command_failed: ((inputs: Device_Command_FailedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_Command_FailedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "{name} sent" |
+*
+* @param {Device_Command_SentInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_command_sent: ((inputs: Device_Command_SentInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_Command_SentInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "About {name}" |
 *
 * @param {Device_Config_AboutInputs} inputs
@@ -6823,6 +6865,76 @@ export const device_config_add_setting: ((inputs?: Device_Config_Add_SettingInpu
 export const device_config_remove: ((inputs: Device_Config_RemoveInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_Config_RemoveInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Temperature & humidity" |
+*
+* @param {Device_Config_Section_ClimateInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_config_section_climate: ((inputs?: Device_Config_Section_ClimateInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_Config_Section_ClimateInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Indicator" |
+*
+* @param {Device_Config_Section_IndicatorInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_config_section_indicator: ((inputs?: Device_Config_Section_IndicatorInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_Config_Section_IndicatorInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Light" |
+*
+* @param {Device_Config_Section_LightInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_config_section_light: ((inputs?: Device_Config_Section_LightInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_Config_Section_LightInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Other" |
+*
+* @param {Device_Config_Section_OtherInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_config_section_other: ((inputs?: Device_Config_Section_OtherInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_Config_Section_OtherInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Presence & motion" |
+*
+* @param {Device_Config_Section_PresenceInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_config_section_presence: ((inputs?: Device_Config_Section_PresenceInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_Config_Section_PresenceInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -6898,6 +7010,20 @@ export const device_copy_id: ((inputs?: Device_Copy_IdInputs, options?: {
 /**
 * | output |
 * | --- |
+* | "Diagnostics" |
+*
+* @param {Device_DiagnosticsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_diagnostics: ((inputs?: Device_DiagnosticsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_DiagnosticsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Fan" |
 *
 * @param {Device_FanInputs} inputs
@@ -6907,6 +7033,48 @@ export const device_copy_id: ((inputs?: Device_Copy_IdInputs, options?: {
 export const device_fan: ((inputs?: Device_FanInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_FanInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "All" |
+*
+* @param {Device_Flags_AllInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_flags_all: ((inputs?: Device_Flags_AllInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_Flags_AllInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "None" |
+*
+* @param {Device_Flags_NoneInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_flags_none: ((inputs?: Device_Flags_NoneInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_Flags_NoneInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "{count} of {total} on" |
+*
+* @param {Device_Flags_SummaryInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_flags_summary: ((inputs: Device_Flags_SummaryInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_Flags_SummaryInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -10308,7 +10476,7 @@ export const field_new: ((inputs?: Field_NewInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "Occupancy" |
+* | "Motion" |
 *
 * @param {Field_OccupancyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -10373,6 +10541,20 @@ export const field_power: ((inputs?: Field_PowerInputs, options?: {
 export const field_power_on_behavior: ((inputs?: Field_Power_On_BehaviorInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Field_Power_On_BehaviorInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Presence" |
+*
+* @param {Field_PresenceInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const field_presence: ((inputs?: Field_PresenceInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Field_PresenceInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -17969,6 +18151,20 @@ export const sensor_illuminance: ((inputs?: Sensor_IlluminanceInputs, options?: 
 /**
 * | output |
 * | --- |
+* | "Motion" |
+*
+* @param {Sensor_MotionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const sensor_motion: ((inputs?: Sensor_MotionInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Sensor_MotionInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "No sensor readings available." |
 *
 * @param {Sensor_No_ReadingsInputs} inputs
@@ -17992,6 +18188,20 @@ export const sensor_no_readings: ((inputs?: Sensor_No_ReadingsInputs, options?: 
 export const sensor_orientation: ((inputs?: Sensor_OrientationInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Sensor_OrientationInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Presence" |
+*
+* @param {Sensor_PresenceInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const sensor_presence: ((inputs?: Sensor_PresenceInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Sensor_PresenceInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -19894,6 +20104,20 @@ export const standard_room_workshop: ((inputs?: Standard_Room_WorkshopInputs, op
 /**
 * | output |
 * | --- |
+* | "No presence" |
+*
+* @param {State_AbsentInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const state_absent: ((inputs?: State_AbsentInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<State_AbsentInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Available" |
 *
 * @param {State_AvailableInputs} inputs
@@ -20085,6 +20309,20 @@ export const state_open: ((inputs?: State_OpenInputs, options?: {
 export const state_plug_power: ((inputs: State_Plug_PowerInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<State_Plug_PowerInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Present" |
+*
+* @param {State_PresentInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const state_present: ((inputs?: State_PresentInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<State_PresentInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -25816,6 +26054,7 @@ export type Data_Viewer_Remove_SourceInputs = {
 export type Data_Viewer_RoomsInputs = {};
 export type Data_Viewer_SourcesInputs = {};
 export type Data_Viewer_TitleInputs = {};
+export type Device_ActionsInputs = {};
 export type Device_Adjust_Climate_NamedInputs = {
     name: NonNullable<unknown>;
 };
@@ -25827,6 +26066,12 @@ export type Device_ApplyingInputs = {};
 export type Device_Back_To_DevicesInputs = {};
 export type Device_BrightnessInputs = {};
 export type Device_ColorInputs = {};
+export type Device_Command_FailedInputs = {
+    name: NonNullable<unknown>;
+};
+export type Device_Command_SentInputs = {
+    name: NonNullable<unknown>;
+};
 export type Device_Config_AboutInputs = {
     name: NonNullable<unknown>;
 };
@@ -25835,12 +26080,24 @@ export type Device_Config_Add_SettingInputs = {};
 export type Device_Config_RemoveInputs = {
     name: NonNullable<unknown>;
 };
+export type Device_Config_Section_ClimateInputs = {};
+export type Device_Config_Section_IndicatorInputs = {};
+export type Device_Config_Section_LightInputs = {};
+export type Device_Config_Section_OtherInputs = {};
+export type Device_Config_Section_PresenceInputs = {};
 export type Device_Configuration_FailedInputs = {};
 export type Device_Configuration_TimeoutInputs = {};
 export type Device_Controls_DisabledInputs = {};
 export type Device_Controls_Enable_HelpInputs = {};
 export type Device_Copy_IdInputs = {};
+export type Device_DiagnosticsInputs = {};
 export type Device_FanInputs = {};
+export type Device_Flags_AllInputs = {};
+export type Device_Flags_NoneInputs = {};
+export type Device_Flags_SummaryInputs = {
+    count: NonNullable<unknown>;
+    total: NonNullable<unknown>;
+};
 export type Device_GenericInputs = {};
 export type Device_HistoryInputs = {};
 export type Device_IdInputs = {};
@@ -26150,6 +26407,7 @@ export type Field_OnInputs = {};
 export type Field_OrientationInputs = {};
 export type Field_PowerInputs = {};
 export type Field_Power_On_BehaviorInputs = {};
+export type Field_PresenceInputs = {};
 export type Field_PressureInputs = {};
 export type Field_Rooms_GroupsInputs = {};
 export type Field_SourceInputs = {};
@@ -26810,8 +27068,10 @@ export type Sensor_Device_PostureInputs = {};
 export type Sensor_DoorInputs = {};
 export type Sensor_HumidityInputs = {};
 export type Sensor_IlluminanceInputs = {};
+export type Sensor_MotionInputs = {};
 export type Sensor_No_ReadingsInputs = {};
 export type Sensor_OrientationInputs = {};
+export type Sensor_PresenceInputs = {};
 export type Sensor_PressureInputs = {};
 export type Sensor_TemperatureInputs = {};
 export type Sensor_WindowInputs = {};
@@ -26969,6 +27229,7 @@ export type Standard_Room_Waiting_RoomInputs = {};
 export type Standard_Room_Walk_In_ClosetInputs = {};
 export type Standard_Room_WardrobeInputs = {};
 export type Standard_Room_WorkshopInputs = {};
+export type State_AbsentInputs = {};
 export type State_AvailableInputs = {};
 export type State_BatteryInputs = {
     percent: NonNullable<unknown>;
@@ -26992,6 +27253,7 @@ export type State_Plug_PowerInputs = {
     state: NonNullable<unknown>;
     power: NonNullable<unknown>;
 };
+export type State_PresentInputs = {};
 export type State_UnavailableInputs = {};
 export type State_UnknownInputs = {};
 export type Static_App_DescriptionInputs = {};

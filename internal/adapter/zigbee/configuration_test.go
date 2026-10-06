@@ -10,23 +10,23 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 )
 
-func TestMapConfiguration_AqaraP100(t *testing.T) {
+func TestMapAttributes_AqaraP100(t *testing.T) {
 	adapter, _, _, _ := newTestAdapter()
 	id := device.DeviceID("0xp100")
-	adapter.configurationFeatures[id] = map[string]z2mFeature{
-		"orientation_detection": {
+	adapter.attributeFeatures[id] = map[string]attributeFeature{
+		"orientation_detection": {category: device.CapabilityCategoryConfiguration, feature: z2mFeature{
 			Type:     "binary",
 			Property: "orientation_detection",
 			ValueOn:  json.RawMessage(`"ON"`),
 			ValueOff: json.RawMessage(`"OFF"`),
-		},
-		"fall_detection": {
+		}},
+		"fall_detection": {category: device.CapabilityCategoryConfiguration, feature: z2mFeature{
 			Type:     "binary",
 			Property: "fall_detection",
-		},
+		}},
 	}
 
-	values, err := adapter.mapConfiguration(id, json.RawMessage(`{"orientation_detection":"ON","fall_detection":false}`))
+	values, err := adapter.mapAttributes(id, json.RawMessage(`{"orientation_detection":"ON","fall_detection":false}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,19 +69,19 @@ func TestConfigurationRequest_PublishesZigbeeSet(t *testing.T) {
 	adapter.mu.Lock()
 	adapter.idToName[id] = dev.FriendlyName
 	adapter.nameToID[dev.FriendlyName] = id
-	adapter.configurationFeatures[id] = map[string]z2mFeature{
-		"movement_detection": {
+	adapter.attributeFeatures[id] = map[string]attributeFeature{
+		"movement_detection": {category: device.CapabilityCategoryConfiguration, feature: z2mFeature{
 			Type:     "binary",
 			Property: "movement_detection",
 			ValueOn:  json.RawMessage(`"ON"`),
 			ValueOff: json.RawMessage(`"OFF"`),
-		},
+		}},
 	}
 	adapter.mu.Unlock()
 
 	if err := adapter.DispatchConfiguration(context.Background(), device.ConfigurationRequest{
 		DeviceID: id,
-		Values: []device.ConfigurationValue{
+		Values: []device.AttributeValue{
 			{Capability: "movement_detection", BooleanValue: device.Ptr(true)},
 		},
 	}); err != nil {
@@ -109,8 +109,8 @@ func TestConfigurationReport_PublishesTypedEvent(t *testing.T) {
 	defer adapter.Stop()
 	id := device.DeviceID("0xp100")
 	adapter.mu.Lock()
-	adapter.configurationFeatures[id] = map[string]z2mFeature{
-		"fall_detection": {Type: "binary", Property: "fall_detection"},
+	adapter.attributeFeatures[id] = map[string]attributeFeature{
+		"fall_detection": {category: device.CapabilityCategoryConfiguration, feature: z2mFeature{Type: "binary", Property: "fall_detection"}},
 	}
 	adapter.mu.Unlock()
 
@@ -118,12 +118,12 @@ func TestConfigurationReport_PublishesTypedEvent(t *testing.T) {
 
 	events := bus.getEvents()
 	for _, event := range events {
-		if event.Type != eventbus.EventDeviceConfigurationChanged {
+		if event.Type != eventbus.EventDeviceAttributesChanged {
 			continue
 		}
-		change, ok := event.Payload.(device.ConfigurationChange)
+		change, ok := event.Payload.(device.AttributeChange)
 		if !ok || len(change.Values) != 1 {
-			t.Fatalf("unexpected configuration event: %#v", event.Payload)
+			t.Fatalf("unexpected attributes event: %#v", event.Payload)
 		}
 		value := change.Values[0]
 		if value.Capability != "fall_detection" || value.BooleanValue == nil || !*value.BooleanValue {
@@ -131,5 +131,5 @@ func TestConfigurationReport_PublishesTypedEvent(t *testing.T) {
 		}
 		return
 	}
-	t.Fatal("expected device.configuration_changed event")
+	t.Fatal("expected device.attributes_changed event")
 }

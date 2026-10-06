@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
 	import { Separator } from "$lib/components/ui/separator/index.js";
-	import { Thermometer, Droplets, Gauge, Sun } from "@lucide/svelte";
+	import { Thermometer, Droplets, Gauge, Sun, PersonStanding, Footprints } from "@lucide/svelte";
 	import type { DeviceState } from "$lib/stores/devices";
 	import { ContactRole } from "$lib/gql/graphql";
 	import { formatTemperature } from "$lib/sensor-format";
@@ -42,6 +42,26 @@
 					: m.state_open({}, locale.messageOptions()),
 				unit: "",
 				icon: contactIcon(contactRole),
+			});
+		}
+		if (state.presence != null) {
+			result.push({
+				label: m.sensor_presence({}, locale.messageOptions()),
+				value: state.presence
+					? m.state_present({}, locale.messageOptions())
+					: m.state_absent({}, locale.messageOptions()),
+				unit: "",
+				icon: PersonStanding,
+			});
+		}
+		if (state.occupancy != null) {
+			result.push({
+				label: m.sensor_motion({}, locale.messageOptions()),
+				value: state.occupancy
+					? m.state_motion_detected({}, locale.messageOptions())
+					: m.state_no_motion({}, locale.messageOptions()),
+				unit: "",
+				icon: Footprints,
 			});
 		}
 		if (state.temperature != null) {

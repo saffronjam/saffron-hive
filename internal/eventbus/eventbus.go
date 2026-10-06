@@ -6,11 +6,11 @@ import "time"
 type EventType string
 
 const (
-	EventDeviceStateChanged         EventType = "device.state_changed"
-	EventDeviceConfigurationChanged EventType = "device.configuration_changed"
-	EventDeviceActionFired          EventType = "device.action_fired"
-	EventDeviceAvailabilityChanged  EventType = "device.availability_changed"
-	EventDeviceAdded                EventType = "device.added"
+	EventDeviceStateChanged        EventType = "device.state_changed"
+	EventDeviceAttributesChanged   EventType = "device.attributes_changed"
+	EventDeviceActionFired         EventType = "device.action_fired"
+	EventDeviceAvailabilityChanged EventType = "device.availability_changed"
+	EventDeviceAdded               EventType = "device.added"
 	// EventDeviceSynced signals that an adapter re-reported a device it already
 	// knew about, with at least one adapter-owned field changed (friendly name,
 	// type, capabilities). It carries the device.Device so persistence can

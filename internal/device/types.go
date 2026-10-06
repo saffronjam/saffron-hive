@@ -82,6 +82,7 @@ const (
 	CapPressure          = "pressure"
 	CapIlluminance       = "illuminance"
 	CapOccupancy         = "occupancy"
+	CapPresence          = "presence"
 	CapContact           = "contact"
 	CapOrientation       = "orientation"
 	CapDevicePosture     = "device_posture"
@@ -116,7 +117,15 @@ const (
 	CapabilityCategoryState         CapabilityCategory = "state"
 	CapabilityCategoryConfiguration CapabilityCategory = "configuration"
 	CapabilityCategoryDiagnostic    CapabilityCategory = "diagnostic"
+	// CapabilityCategoryCommand is a write-only operation such as identify or
+	// restart: the device accepts it but never reports a value back.
+	CapabilityCategoryCommand CapabilityCategory = "command"
 )
+
+// CapabilityTypeFlags is a setting made of independent named on/off flags.
+// Values names each flag in bit order and the value travels as a bitmask in
+// AttributeValue.NumberValue.
+const CapabilityTypeFlags = "flags"
 
 // Capability describes a single device capability with optional rich metadata
 // extracted from the protocol adapter (e.g. zigbee2mqtt exposes).
