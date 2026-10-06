@@ -43,13 +43,33 @@ api:
     set -a && . ./.env && set +a && go run . serve
 
 [group('dev')]
-[doc('Run the API and the web dev server together; Ctrl-C or either one exiting stops both')]
+[doc('Migrate the database, then run the API and the web dev server together; Ctrl-C or either one exiting stops both')]
 dev:
     #!/usr/bin/env bash
-    set -euo pipefail
-    trap 'trap - EXIT; kill 0' EXIT
-    {{ just_executable() }} api &
-    {{ just_executable() }} web &
+    set -uo pipefail
+    (set -a && . ./.env && set +a && go run . migrate up) || exit
+    # Each server runs in its own process group so shutdown reaches its
+    # children (go run's binary, vite under bun). A server still running five
+    # seconds after SIGTERM, such as vite holding a browser's HMR socket open,
+    # is killed.
+    groups=()
+    stop() {
+        trap - EXIT INT TERM
+        for group in "${groups[@]}"; do kill -TERM -- "-$group" 2>/dev/null; done
+        for _ in $(seq 50); do
+            alive=false
+            for group in "${groups[@]}"; do kill -0 -- "-$group" 2>/dev/null && alive=true; done
+            $alive || return
+            sleep 0.1
+        done
+        for group in "${groups[@]}"; do kill -KILL -- "-$group" 2>/dev/null; done
+    }
+    trap stop EXIT
+    trap 'exit 130' INT TERM
+    setsid {{ just_executable() }} api &
+    groups+=($!)
+    setsid {{ just_executable() }} web &
+    groups+=($!)
     wait -n
 
 [group('dev')]
