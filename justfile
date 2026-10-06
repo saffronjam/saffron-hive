@@ -43,6 +43,16 @@ api:
     set -a && . ./.env && set +a && go run . serve
 
 [group('dev')]
+[doc('Run the API and the web dev server together; Ctrl-C or either one exiting stops both')]
+dev:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    trap 'trap - EXIT; kill 0' EXIT
+    {{ just_executable() }} api &
+    {{ just_executable() }} web &
+    wait -n
+
+[group('dev')]
 [doc("Print MQTT messages for a topic, e.g. `just mqttprint 'zigbee2mqtt/#'`")]
 mqttprint topic:
     go run . mqttprint '{{ topic }}'
