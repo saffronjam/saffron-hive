@@ -35,6 +35,7 @@
 /** @typedef {{}} Activity_No_MatchInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Activity_Node_ActivatedInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Activity_Node_DeactivatedInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Activity_Node_PendingInputs */
 /** @typedef {{}} Activity_PayloadInputs */
 /** @typedef {{}} Activity_RecentInputs */
 /** @typedef {{}} Activity_Recent_EmptyInputs */
@@ -208,6 +209,10 @@
 /** @typedef {{}} Automation_Node_Grace_AboutInputs */
 /** @typedef {{}} Automation_Node_Grace_HelpInputs */
 /** @typedef {{ duration: NonNullable<unknown> }} Automation_Node_Grace_ShortInputs */
+/** @typedef {{}} Automation_Node_HoldInputs */
+/** @typedef {{}} Automation_Node_Hold_AboutInputs */
+/** @typedef {{}} Automation_Node_Hold_HelpInputs */
+/** @typedef {{ duration: NonNullable<unknown> }} Automation_Node_Hold_PendingInputs */
 /** @typedef {{}} Automation_Node_HoursInputs */
 /** @typedef {{}} Automation_Node_KindInputs */
 /** @typedef {{}} Automation_Node_MinutesInputs */
@@ -1956,6 +1961,10 @@ export const activity_node_deactivated = /** @type {(inputs: Activity_Node_Deact
 	return /** @type {LocalizedString} */ (`${i?.name}: node deactivated`)
 };
 
+export const activity_node_pending = /** @type {(inputs: Activity_Node_PendingInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.name}: waiting for condition to last`)
+};
+
 export const activity_payload = /** @type {(inputs: Activity_PayloadInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Payload`)
 };
@@ -2650,6 +2659,22 @@ export const automation_node_grace_help = /** @type {(inputs: Automation_Node_Gr
 
 export const automation_node_grace_short = /** @type {(inputs: Automation_Node_Grace_ShortInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`G: ${i?.duration}`)
+};
+
+export const automation_node_hold = /** @type {(inputs: Automation_Node_HoldInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`For`)
+};
+
+export const automation_node_hold_about = /** @type {(inputs: Automation_Node_Hold_AboutInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`About For`)
+};
+
+export const automation_node_hold_help = /** @type {(inputs: Automation_Node_Hold_HelpInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Fires once the condition has stayed true this long, based on the device's current state. Fires again only after the condition has been false.`)
+};
+
+export const automation_node_hold_pending = /** @type {(inputs: Automation_Node_Hold_PendingInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Fires in ${i?.duration}`)
 };
 
 export const automation_node_hours = /** @type {(inputs: Automation_Node_HoursInputs) => LocalizedString} */ () => {

@@ -116,6 +116,7 @@
 		positionX: number;
 		positionY: number;
 		runtimeState: string;
+		pendingUntil?: string | null;
 	}
 
 	interface AutomationEdgeData {
@@ -174,6 +175,7 @@
 			automationId: string;
 			nodeId: string;
 			active: boolean;
+			pendingUntil: string | null;
 		};
 	}
 
@@ -192,6 +194,7 @@
 					positionX
 					positionY
 					runtimeState
+					pendingUntil
 				}
 				edges {
 					fromNodeId
@@ -252,6 +255,7 @@
 				automationId
 				nodeId
 				active
+				pendingUntil
 			}
 		}
 	`);
@@ -912,7 +916,10 @@
 				id: n.id,
 				type: n.type,
 				position: { x: n.positionX, y: n.positionY },
-				data: makeNodeData(n.type, config, isEditable, activatedSet.has(n.id), n.id, n.runtimeState),
+				data: {
+					...makeNodeData(n.type, config, isEditable, activatedSet.has(n.id), n.id, n.runtimeState),
+					pendingUntil: n.pendingUntil ?? null,
+				},
 			};
 		});
 		if (!allZeroPositions) return baseNodes;
@@ -1582,15 +1589,16 @@
 			.toPromise()
 			.then((res) => {
 				if (!res.data?.automation) return;
-				const next = new Map<string, string>(
-					res.data.automation.nodes.map((n) => [n.id, n.runtimeState] as const),
-				);
+				const next = new Map(res.data.automation.nodes.map((n) => [n.id, n] as const));
 				flowNodes = flowNodes.map((n) => {
-					const v = next.get(n.id);
-					if (v === undefined) return n;
+					const fresh = next.get(n.id);
+					if (!fresh) return n;
 					const data = n.data as Record<string, unknown>;
-					if (data.runtimeState === v) return n;
-					return { ...n, data: { ...data, runtimeState: v } };
+					const pendingUntil = n.type === "trigger" ? (fresh.pendingUntil ?? null) : data.pendingUntil;
+					if (data.runtimeState === fresh.runtimeState && data.pendingUntil === pendingUntil) {
+						return n;
+					}
+					return { ...n, data: { ...data, runtimeState: fresh.runtimeState, pendingUntil } };
 				});
 			});
 	}
@@ -1630,8 +1638,13 @@
 			}
 			activatedNodes = new Map();
 			flowNodes = flowNodes.map((n) =>
-				n.data.activated ? { ...n, data: { ...n.data, activated: false } } : n
+				n.data.activated || n.data.pendingUntil
+					? { ...n, data: { ...n.data, activated: false, pendingUntil: null } }
+					: n
 			);
+		} else {
+			// Live events were ignored while editing; fetch the holds running now.
+			refreshRuntimeState();
 		}
 	}
 
@@ -1768,7 +1781,12 @@
 			.subscribe((result) => {
 				if (!result.data) return;
 				if (editMode) return;
-				const { nodeId, active } = result.data.automationNodeActivated;
+				const { nodeId, active, pendingUntil } = result.data.automationNodeActivated;
+				flowNodes = flowNodes.map((n) =>
+					n.id === nodeId && n.type === "trigger" && n.data.pendingUntil !== pendingUntil
+						? { ...n, data: { ...n.data, pendingUntil } }
+						: n
+				);
 
 				if (active) {
 					const existing = activatedNodes.get(nodeId);

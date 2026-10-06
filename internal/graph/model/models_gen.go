@@ -152,12 +152,18 @@ type AutomationNode struct {
 	PositionY float64 `json:"positionY"`
 	// JSON-encoded map of per-node runtime state (e.g. cycle_scenes index).
 	RuntimeState string `json:"runtimeState"`
+	// For a trigger with a hold duration whose condition currently holds: when it
+	// will fire if the condition stays true. Null otherwise.
+	PendingUntil *time.Time `json:"pendingUntil,omitempty"`
 }
 
 type AutomationNodeActivationEvent struct {
 	AutomationID string `json:"automationId"`
 	NodeID       string `json:"nodeId"`
 	Active       bool   `json:"active"`
+	// Set while a trigger with a hold duration waits for its condition to last:
+	// when it will fire if the condition stays true. Null otherwise.
+	PendingUntil *time.Time `json:"pendingUntil,omitempty"`
 }
 
 type AutomationNodeInput struct {

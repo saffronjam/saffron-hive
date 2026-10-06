@@ -287,6 +287,7 @@ func Run(ctx context.Context) error {
 		EventBus:            bus,
 		AutomationReloader:  engineAdapter,
 		AutomationTriggerer: engineAdapter,
+		AutomationHolds:     engineAdapter,
 		LogBuffer:           logBuffer,
 		ActivityBuffer:      activityBuffer,
 		Alarms:              alarmSvc,
@@ -993,6 +994,15 @@ func (r *engineReloader) Reload() error {
 
 func (r *engineReloader) FireTrigger(ctx context.Context, automationID, nodeID string) error {
 	return r.engine.FireTrigger(ctx, automationID, automation.NodeID(nodeID))
+}
+
+func (r *engineReloader) PendingHolds(automationID string) map[string]time.Time {
+	pending := r.engine.PendingHolds(automationID)
+	out := make(map[string]time.Time, len(pending))
+	for nodeID, deadline := range pending {
+		out[string(nodeID)] = deadline
+	}
+	return out
 }
 
 func runDevicePersister(ctx context.Context, bus eventbus.EventBus, ch <-chan eventbus.Event, s *store.DB) {

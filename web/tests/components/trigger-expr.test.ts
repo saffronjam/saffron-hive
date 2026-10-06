@@ -429,3 +429,38 @@ describe("action type validation", () => {
     });
   });
 });
+
+describe("device state trigger hold", () => {
+  const base = {
+    mode: "device_state" as const,
+    eventType: "device.state_changed",
+    deviceId: "0xsensor",
+    property: "presence",
+    comparator: "==",
+    value: "false",
+  };
+
+  it("stores the hold with the device it is about", () => {
+    const stored = JSON.parse(serializeTriggerConfig({ ...base, holdMs: 10_000 }));
+    expect(stored).toMatchObject({ hold_ms: 10_000, device_id: "0xsensor" });
+    expect(normalizeTriggerConfig(stored)).toMatchObject({ ...base, holdMs: 10_000 });
+  });
+
+  it("stores nothing for an immediate trigger", () => {
+    const stored = JSON.parse(serializeTriggerConfig({ ...base, holdMs: 0 }));
+    expect(stored.hold_ms).toBeUndefined();
+    expect(stored.device_id).toBeUndefined();
+  });
+
+  it("never stores a hold on other trigger kinds", () => {
+    const stored = JSON.parse(
+      serializeTriggerConfig({
+        mode: "device_event",
+        deviceId: "0xbutton",
+        eventValue: "single",
+        holdMs: 10_000,
+      }),
+    );
+    expect(stored.hold_ms).toBeUndefined();
+  });
+});

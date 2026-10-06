@@ -33,6 +33,7 @@ export const activity_message: (inputs: Activity_MessageInputs) => LocalizedStri
 export const activity_no_match: (inputs: Activity_No_MatchInputs) => LocalizedString;
 export const activity_node_activated: (inputs: Activity_Node_ActivatedInputs) => LocalizedString;
 export const activity_node_deactivated: (inputs: Activity_Node_DeactivatedInputs) => LocalizedString;
+export const activity_node_pending: (inputs: Activity_Node_PendingInputs) => LocalizedString;
 export const activity_payload: (inputs: Activity_PayloadInputs) => LocalizedString;
 export const activity_recent: (inputs: Activity_RecentInputs) => LocalizedString;
 export const activity_recent_empty: (inputs: Activity_Recent_EmptyInputs) => LocalizedString;
@@ -206,6 +207,10 @@ export const automation_node_grace: (inputs: Automation_Node_GraceInputs) => Loc
 export const automation_node_grace_about: (inputs: Automation_Node_Grace_AboutInputs) => LocalizedString;
 export const automation_node_grace_help: (inputs: Automation_Node_Grace_HelpInputs) => LocalizedString;
 export const automation_node_grace_short: (inputs: Automation_Node_Grace_ShortInputs) => LocalizedString;
+export const automation_node_hold: (inputs: Automation_Node_HoldInputs) => LocalizedString;
+export const automation_node_hold_about: (inputs: Automation_Node_Hold_AboutInputs) => LocalizedString;
+export const automation_node_hold_help: (inputs: Automation_Node_Hold_HelpInputs) => LocalizedString;
+export const automation_node_hold_pending: (inputs: Automation_Node_Hold_PendingInputs) => LocalizedString;
 export const automation_node_hours: (inputs: Automation_Node_HoursInputs) => LocalizedString;
 export const automation_node_kind: (inputs: Automation_Node_KindInputs) => LocalizedString;
 export const automation_node_minutes: (inputs: Automation_Node_MinutesInputs) => LocalizedString;
@@ -1872,6 +1877,9 @@ export type Activity_Node_ActivatedInputs = {
 export type Activity_Node_DeactivatedInputs = {
     name: NonNullable<unknown>;
 };
+export type Activity_Node_PendingInputs = {
+    name: NonNullable<unknown>;
+};
 export type Activity_PayloadInputs = {};
 export type Activity_RecentInputs = {};
 export type Activity_Recent_EmptyInputs = {};
@@ -2093,6 +2101,12 @@ export type Automation_Node_GraceInputs = {};
 export type Automation_Node_Grace_AboutInputs = {};
 export type Automation_Node_Grace_HelpInputs = {};
 export type Automation_Node_Grace_ShortInputs = {
+    duration: NonNullable<unknown>;
+};
+export type Automation_Node_HoldInputs = {};
+export type Automation_Node_Hold_AboutInputs = {};
+export type Automation_Node_Hold_HelpInputs = {};
+export type Automation_Node_Hold_PendingInputs = {
     duration: NonNullable<unknown>;
 };
 export type Automation_Node_HoursInputs = {};

@@ -31,6 +31,12 @@ type AutomationTriggerer interface {
 	FireTrigger(ctx context.Context, automationID, nodeID string) error
 }
 
+// AutomationHoldReader reports the hold timers running in one automation:
+// when each waiting trigger node will fire, keyed by node ID.
+type AutomationHoldReader interface {
+	PendingHolds(automationID string) map[string]time.Time
+}
+
 // Zigbee2MQTTController manages the Zigbee2MQTT integration: the MQTT broker
 // connection and the Zigbee adapter that rides on it.
 type Zigbee2MQTTController interface {
@@ -250,6 +256,7 @@ type Resolver struct {
 	EventBus            eventbus.EventBus
 	AutomationReloader  AutomationReloader
 	AutomationTriggerer AutomationTriggerer
+	AutomationHolds     AutomationHoldReader
 	LogBuffer           *logging.Buffer
 	ActivityBuffer      *activity.Buffer
 	Alarms              *alarms.Service

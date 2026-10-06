@@ -8,7 +8,7 @@ All Go application code lives here. The `internal/` directory is a Go convention
 - `adapter/` — protocol adapters that bridge external device protocols to the internal event bus. `zigbee/` (via zigbee2mqtt over MQTT) and `tuya/` (via the Tuya cloud API) are the current adapters; more protocols drop in as sibling packages. Each adapter stamps devices with the `device.Source` of the integration that owns it, which is also the provider id the GraphQL API exposes.
 - `alarms/` — alarm-raising service, live subscription buffer, and system-health monitor. Severity-tagged actionable signals shown on the `/alarms` page; grouped by `alarm_id` in the service so consumers see one logical alarm per group with a count.
 - `auth/` — JWT signing + validation, password hashing, bootstrap (initial user / JWT secret on first boot), HTTP middleware that injects the authenticated user into the request context.
-- `automation/` — rule engine: expr evaluation, action executor, cooldown tracking, graph-based triggers (event and cron-scheduled).
+- `automation/` — rule engine: expr evaluation, action executor, cooldown tracking, graph-based triggers (event and cron-scheduled), hold timers for device-state triggers (`hold.go`).
 - `avatars/` — per-user avatar image serving. Files live on the filesystem under a configurable data directory; the `users` table stores only the filename (UUID + extension), keeping GraphQL focused on structured data.
 - `config/` — `HIVE_*` environment-variable parsing.
 - `device/` — domain types (DeviceState, LightState, SensorState, etc.), target resolver contracts, and in-memory state store interfaces.

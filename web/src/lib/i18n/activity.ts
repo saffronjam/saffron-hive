@@ -61,6 +61,7 @@ export function activityMessage(event: ActivityPresentationEvent): string {
         : m.activity_automation_fired_generic({}, options);
     case "automation.node_activated": {
       const automation = event.source.name?.trim() || m.activity_generic_automation({}, options);
+      if (payload.pendingUntil) return m.activity_node_pending({ name: automation }, options);
       return payload.active === false
         ? m.activity_node_deactivated({ name: automation }, options)
         : m.activity_node_activated({ name: automation }, options);

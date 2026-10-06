@@ -107,6 +107,9 @@ func ValidateGraph(g AutomationGraph) ValidationResult {
 						})
 					}
 				}
+				if err := ValidateTriggerHold(tc); err != nil {
+					result.Errors = append(result.Errors, ValidationError{NodeID: n.ID, Message: err.Error()})
+				}
 				if tc.EventType == string(eventbus.EventWebhookReceived) {
 					if tc.EndpointID == "" {
 						result.Errors = append(result.Errors, ValidationError{NodeID: n.ID, Message: "incoming webhook trigger requires an endpoint"})

@@ -490,7 +490,7 @@ func (r *mutationResolver) CreateAutomation(ctx context.Context, input model.Cre
 	if err != nil {
 		return nil, err
 	}
-	return mapAutomationGraph(graph), nil
+	return mapAutomationGraph(graph, r.pendingHolds(graph.Automation.ID)), nil
 }
 
 // UpdateAutomation is the resolver for the updateAutomation field.
@@ -559,7 +559,7 @@ func (r *mutationResolver) UpdateAutomation(ctx context.Context, id string, inpu
 	if err != nil {
 		return nil, err
 	}
-	return mapAutomationGraph(graph), nil
+	return mapAutomationGraph(graph, r.pendingHolds(graph.Automation.ID)), nil
 }
 
 // DeleteAutomation is the resolver for the deleteAutomation field.
@@ -605,7 +605,7 @@ func (r *mutationResolver) ToggleAutomation(ctx context.Context, id string, enab
 	if err != nil {
 		return nil, err
 	}
-	return mapAutomationGraph(graph), nil
+	return mapAutomationGraph(graph, r.pendingHolds(graph.Automation.ID)), nil
 }
 
 // FireAutomationTrigger is the resolver for the fireAutomationTrigger field.
@@ -2239,7 +2239,7 @@ func (r *queryResolver) Automations(ctx context.Context) ([]*model.AutomationGra
 		if err != nil {
 			return nil, err
 		}
-		result[i] = mapAutomationGraph(graph)
+		result[i] = mapAutomationGraph(graph, r.pendingHolds(graph.Automation.ID))
 	}
 	return result, nil
 }
@@ -2250,7 +2250,7 @@ func (r *queryResolver) Automation(ctx context.Context, id string) (*model.Autom
 	if err != nil {
 		return nil, err
 	}
-	return mapAutomationGraph(graph), nil
+	return mapAutomationGraph(graph, r.pendingHolds(graph.Automation.ID)), nil
 }
 
 // WebhookEndpoints is the resolver for the webhookEndpoints field.
@@ -3435,6 +3435,7 @@ func (r *subscriptionResolver) AutomationNodeActivated(ctx context.Context, auto
 					AutomationID: na.AutomationID,
 					NodeID:       string(na.NodeID),
 					Active:       na.Active,
+					PendingUntil: na.PendingUntil,
 				}:
 				case <-ctx.Done():
 					return

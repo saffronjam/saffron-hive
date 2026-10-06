@@ -1812,4 +1812,9 @@
   ,"device_flags_all": "All"
   ,"device_flags_none": "None"
   ,"device_flags_summary": "{count} of {total} on"
+  ,"automation_node_hold": "For"
+  ,"automation_node_hold_about": "About For"
+  ,"automation_node_hold_help": "Fires once the condition has stayed true this long, based on the device's current state. Fires again only after the condition has been false."
+  ,"automation_node_hold_pending": "Fires in {duration}"
+  ,"activity_node_pending": "{name}: waiting for condition to last"
 }

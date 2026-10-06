@@ -1811,5 +1811,10 @@
   "device_config_section_other": "Övrigt",
   "device_flags_all": "Alla",
   "device_flags_none": "Inga",
-  "device_flags_summary": "{count} av {total} på"
+  "device_flags_summary": "{count} av {total} på",
+  "automation_node_hold": "Varaktighet",
+  "automation_node_hold_about": "Om varaktighet",
+  "automation_node_hold_help": "Utlöses när villkoret har varit sant så här länge, enligt enhetens aktuella tillstånd. Utlöses igen först när villkoret har varit falskt.",
+  "automation_node_hold_pending": "Utlöses om {duration}",
+  "activity_node_pending": "{name}: väntar på att villkoret ska hålla i sig"
 }

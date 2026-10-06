@@ -147,6 +147,8 @@ Actions are imperative commands ("set this device to this state"), distinct from
 
 Actions produce real-world changes, which produce events when devices report back. Automations never assume success — state updates only when the device confirms.
 
+A device-state trigger can carry a hold ("For"): it fires once its condition has stayed true against the device's current state for that long, and again only after the condition has been false. The engine keeps one timer per waiting trigger, keeps it across reloads that leave the trigger unchanged, and re-evaluates against current state on load so a condition that is already true starts counting.
+
 #### Loop prevention
 Two mechanisms protect against infinite automation loops:
 

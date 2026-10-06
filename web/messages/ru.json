@@ -1811,5 +1811,10 @@
   "device_config_section_other": "Прочее",
   "device_flags_all": "Все",
   "device_flags_none": "Нет",
-  "device_flags_summary": "Включено {count} из {total}"
+  "device_flags_summary": "Включено {count} из {total}",
+  "automation_node_hold": "В течение",
+  "automation_node_hold_about": "О длительности",
+  "automation_node_hold_help": "Срабатывает, когда условие остаётся истинным указанное время по текущему состоянию устройства. Повторно — только после того, как условие станет ложным.",
+  "automation_node_hold_pending": "Сработает через {duration}",
+  "activity_node_pending": "{name}: ожидание длительности условия"
 }

@@ -116,6 +116,7 @@ type ComplexityRoot struct {
 	AutomationNode struct {
 		Config       func(childComplexity int) int
 		ID           func(childComplexity int) int
+		PendingUntil func(childComplexity int) int
 		PositionX    func(childComplexity int) int
 		PositionY    func(childComplexity int) int
 		RuntimeState func(childComplexity int) int
@@ -126,6 +127,7 @@ type ComplexityRoot struct {
 		Active       func(childComplexity int) int
 		AutomationID func(childComplexity int) int
 		NodeID       func(childComplexity int) int
+		PendingUntil func(childComplexity int) int
 	}
 
 	Capability struct {
@@ -1448,6 +1450,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AutomationNode.ID(childComplexity), true
+	case "AutomationNode.pendingUntil":
+		if e.ComplexityRoot.AutomationNode.PendingUntil == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationNode.PendingUntil(childComplexity), true
 	case "AutomationNode.positionX":
 		if e.ComplexityRoot.AutomationNode.PositionX == nil {
 			break
@@ -1491,6 +1499,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AutomationNodeActivationEvent.NodeID(childComplexity), true
+	case "AutomationNodeActivationEvent.pendingUntil":
+		if e.ComplexityRoot.AutomationNodeActivationEvent.PendingUntil == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationNodeActivationEvent.PendingUntil(childComplexity), true
 
 	case "Capability.canGet":
 		if e.ComplexityRoot.Capability.CanGet == nil {
@@ -6555,6 +6569,11 @@ type AutomationNode {
   positionY: Float!
   "JSON-encoded map of per-node runtime state (e.g. cycle_scenes index)."
   runtimeState: String!
+  """
+  For a trigger with a hold duration whose condition currently holds: when it
+  will fire if the condition stays true. Null otherwise.
+  """
+  pendingUntil: DateTime
 }
 
 type AutomationEdge {
@@ -6822,6 +6841,11 @@ type AutomationNodeActivationEvent {
   automationId: ID!
   nodeId: ID!
   active: Boolean!
+  """
+  Set while a trigger with a hold duration waits for its condition to last:
+  when it will fire if the condition stays true. Null otherwise.
+  """
+  pendingUntil: DateTime
 }
 
 """
@@ -10504,6 +10528,8 @@ func (ec *executionContext) fieldContext_AutomationGraph_nodes(_ context.Context
 				return ec.fieldContext_AutomationNode_positionY(ctx, field)
 			case "runtimeState":
 				return ec.fieldContext_AutomationNode_runtimeState(ctx, field)
+			case "pendingUntil":
+				return ec.fieldContext_AutomationNode_pendingUntil(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AutomationNode", field.Name)
 		},
@@ -10773,6 +10799,35 @@ func (ec *executionContext) fieldContext_AutomationNode_runtimeState(_ context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _AutomationNode_pendingUntil(ctx context.Context, field graphql.CollectedField, obj *model.AutomationNode) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationNode_pendingUntil,
+		func(ctx context.Context) (any, error) {
+			return obj.PendingUntil, nil
+		},
+		nil,
+		ec.marshalODateTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationNode_pendingUntil(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationNode",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _AutomationNodeActivationEvent_automationId(ctx context.Context, field graphql.CollectedField, obj *model.AutomationNodeActivationEvent) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10855,6 +10910,35 @@ func (ec *executionContext) fieldContext_AutomationNodeActivationEvent_active(_ 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationNodeActivationEvent_pendingUntil(ctx context.Context, field graphql.CollectedField, obj *model.AutomationNodeActivationEvent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationNodeActivationEvent_pendingUntil,
+		func(ctx context.Context) (any, error) {
+			return obj.PendingUntil, nil
+		},
+		nil,
+		ec.marshalODateTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationNodeActivationEvent_pendingUntil(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationNodeActivationEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
 		},
 	}
 	return fc, nil
@@ -29575,6 +29659,8 @@ func (ec *executionContext) fieldContext_Subscription_automationNodeActivated(ct
 				return ec.fieldContext_AutomationNodeActivationEvent_nodeId(ctx, field)
 			case "active":
 				return ec.fieldContext_AutomationNodeActivationEvent_active(ctx, field)
+			case "pendingUntil":
+				return ec.fieldContext_AutomationNodeActivationEvent_pendingUntil(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AutomationNodeActivationEvent", field.Name)
 		},
@@ -40304,6 +40390,8 @@ func (ec *executionContext) _AutomationNode(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "pendingUntil":
+			out.Values[i] = ec._AutomationNode_pendingUntil(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -40353,6 +40441,8 @@ func (ec *executionContext) _AutomationNodeActivationEvent(ctx context.Context, 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "pendingUntil":
+			out.Values[i] = ec._AutomationNodeActivationEvent_pendingUntil(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

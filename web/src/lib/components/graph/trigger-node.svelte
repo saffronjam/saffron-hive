@@ -43,6 +43,7 @@
 		supportsDeviceEvents,
 		validateTriggerConfig,
 		timingPresets,
+		holdPresets,
 		weekdayLabel,
 	} from "./trigger-expr";
 
@@ -50,6 +51,8 @@
 		config: TriggerConfig;
 		readOnly: boolean;
 		activated: boolean;
+		/** When a running hold will fire (ISO time), or null when none is running. */
+		pendingUntil?: string | null;
 		devices: Device[];
 		rooms?: RoomLite[];
 		onConfigChange?: (config: TriggerConfig) => void;
@@ -248,6 +251,40 @@
 		update({ cooldownMs: next });
 	}
 
+	const holdOptions = $derived.by(() => holdPresets());
+	const holdMs = $derived(data.config.holdMs ?? 0);
+
+	function formatDuration(ms: number): string {
+		const language = locale.currentLanguage;
+		if (ms <= 0) return m.automation_timing_immediate({}, messageOptions);
+		if (ms % 3_600_000 === 0) return formatShortDuration(ms / 3_600_000, "hour", language);
+		if (ms % 60_000 === 0) return formatShortDuration(ms / 60_000, "minute", language);
+		return formatShortDuration(Math.ceil(ms / 1000), "second", language);
+	}
+
+	let clock = $state(Date.now());
+	const pendingMs = $derived(
+		data.pendingUntil ? new Date(data.pendingUntil).getTime() - clock : null,
+	);
+
+	/** Countdown text: "42 s" under a minute, "1:42" above it. */
+	function formatCountdown(ms: number): string {
+		const total = Math.ceil(ms / 1000);
+		if (total < 60) return formatShortDuration(total, "second", locale.currentLanguage);
+		const hours = Math.floor(total / 3600);
+		const minutes = Math.floor((total % 3600) / 60);
+		const seconds = String(total % 60).padStart(2, "0");
+		return hours > 0
+			? `${hours}:${String(minutes).padStart(2, "0")}:${seconds}`
+			: `${minutes}:${seconds}`;
+	}
+	$effect(() => {
+		if (!data.pendingUntil) return;
+		clock = Date.now();
+		const interval = setInterval(() => (clock = Date.now()), 250);
+		return () => clearInterval(interval);
+	});
+
 </script>
 
 <div
@@ -259,6 +296,15 @@
 	<div class="flex items-center gap-2 rounded-t-md bg-automation-trigger/15 px-3 py-2">
 		<Zap class="size-4 text-automation-trigger" />
 		<span class="text-sm font-medium text-automation-trigger">{m.automation_node_trigger({}, messageOptions)}</span>
+		{#if pendingMs !== null && pendingMs > 0}
+			<span class="ml-auto flex items-center gap-1.5 text-[10px] font-medium text-automation-trigger tabular-nums">
+				<span class="size-1.5 animate-pulse rounded-full bg-automation-trigger"></span>
+				{m.automation_node_hold_pending(
+					{ duration: formatCountdown(pendingMs) },
+					messageOptions,
+				)}
+			</span>
+		{/if}
 	</div>
 
 	<div class="min-w-0 p-3 nodrag">
@@ -447,6 +493,32 @@
 							/>
 						</div>
 					{/if}
+					<div class="flex items-center gap-2">
+						<div class="flex shrink-0 items-center gap-1">
+							<label for="trigger-{id}-hold" class="text-[10px] text-muted-foreground">{m.automation_node_hold({}, messageOptions)}</label>
+							<Tooltip>
+								<TooltipTrigger class="text-muted-foreground" aria-label={m.automation_node_hold_about({}, messageOptions)}>
+									<Info class="size-3" />
+								</TooltipTrigger>
+								<TooltipContent class="max-w-64">{m.automation_node_hold_help({}, messageOptions)}</TooltipContent>
+							</Tooltip>
+						</div>
+						<Select
+							type="single"
+							value={String(holdMs)}
+							disabled={data.readOnly}
+							onValueChange={(v) => v !== undefined && update({ holdMs: Number(v) })}
+						>
+							<SelectTrigger size="sm" id="trigger-{id}-hold" class="h-7 w-full text-xs">
+								{formatDuration(holdMs)}
+							</SelectTrigger>
+							<SelectContent>
+								{#each holdOptions as p (p.value)}
+									<SelectItem value={String(p.value)}>{p.label}</SelectItem>
+								{/each}
+							</SelectContent>
+						</Select>
+					</div>
 				{/if}
 			{/if}
 

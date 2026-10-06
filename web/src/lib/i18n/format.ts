@@ -49,7 +49,7 @@ export function formatMeasurement(
 
 export function formatShortDuration(
   value: number,
-  unit: "millisecond" | "second" | "minute",
+  unit: "millisecond" | "second" | "minute" | "hour",
   language: Language = locale.currentLanguage,
   options: Intl.NumberFormatOptions = {},
 ): string {

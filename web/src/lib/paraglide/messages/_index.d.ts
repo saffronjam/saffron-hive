@@ -491,6 +491,20 @@ export const activity_node_deactivated: ((inputs: Activity_Node_DeactivatedInput
 /**
 * | output |
 * | --- |
+* | "{name}: waiting for condition to last" |
+*
+* @param {Activity_Node_PendingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const activity_node_pending: ((inputs: Activity_Node_PendingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Activity_Node_PendingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Payload" |
 *
 * @param {Activity_PayloadInputs} inputs
@@ -2910,6 +2924,62 @@ export const automation_node_grace_help: ((inputs?: Automation_Node_Grace_HelpIn
 export const automation_node_grace_short: ((inputs: Automation_Node_Grace_ShortInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Automation_Node_Grace_ShortInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "For" |
+*
+* @param {Automation_Node_HoldInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_node_hold: ((inputs?: Automation_Node_HoldInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Automation_Node_HoldInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "About For" |
+*
+* @param {Automation_Node_Hold_AboutInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_node_hold_about: ((inputs?: Automation_Node_Hold_AboutInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Automation_Node_Hold_AboutInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Fires once the condition has stayed true this long, based on the device's current state. Fires again only after the condition has been false." |
+*
+* @param {Automation_Node_Hold_HelpInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_node_hold_help: ((inputs?: Automation_Node_Hold_HelpInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Automation_Node_Hold_HelpInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Fires in {duration}" |
+*
+* @param {Automation_Node_Hold_PendingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_node_hold_pending: ((inputs: Automation_Node_Hold_PendingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Automation_Node_Hold_PendingInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -25517,6 +25587,9 @@ export type Activity_Node_ActivatedInputs = {
 export type Activity_Node_DeactivatedInputs = {
     name: NonNullable<unknown>;
 };
+export type Activity_Node_PendingInputs = {
+    name: NonNullable<unknown>;
+};
 export type Activity_PayloadInputs = {};
 export type Activity_RecentInputs = {};
 export type Activity_Recent_EmptyInputs = {};
@@ -25738,6 +25811,12 @@ export type Automation_Node_GraceInputs = {};
 export type Automation_Node_Grace_AboutInputs = {};
 export type Automation_Node_Grace_HelpInputs = {};
 export type Automation_Node_Grace_ShortInputs = {
+    duration: NonNullable<unknown>;
+};
+export type Automation_Node_HoldInputs = {};
+export type Automation_Node_Hold_AboutInputs = {};
+export type Automation_Node_Hold_HelpInputs = {};
+export type Automation_Node_Hold_PendingInputs = {
     duration: NonNullable<unknown>;
 };
 export type Automation_Node_HoursInputs = {};

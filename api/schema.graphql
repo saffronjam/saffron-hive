@@ -683,6 +683,11 @@ type AutomationNode {
   positionY: Float!
   "JSON-encoded map of per-node runtime state (e.g. cycle_scenes index)."
   runtimeState: String!
+  """
+  For a trigger with a hold duration whose condition currently holds: when it
+  will fire if the condition stays true. Null otherwise.
+  """
+  pendingUntil: DateTime
 }
 
 type AutomationEdge {
@@ -950,6 +955,11 @@ type AutomationNodeActivationEvent {
   automationId: ID!
   nodeId: ID!
   active: Boolean!
+  """
+  Set while a trigger with a hold duration waits for its condition to last:
+  when it will fire if the condition stays true. Null otherwise.
+  """
+  pendingUntil: DateTime
 }
 
 """

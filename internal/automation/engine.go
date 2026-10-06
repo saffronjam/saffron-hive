@@ -70,6 +70,10 @@ type Engine struct {
 	triggerLastFired map[string]map[NodeID]time.Time
 	cron             *cron.Cron
 	cronByNode       map[NodeID]cron.EntryID
+	holds            map[holdKey]*holdState
+
+	// afterFunc schedules hold-trigger timers; tests replace it to control time.
+	afterFunc func(time.Duration, func()) func() bool
 
 	// cooldownSkips counts how many trigger evaluations were suppressed by
 	// an active cooldown (loop-prevention mechanism #2). Read via Stats().
@@ -110,6 +114,10 @@ func NewEngine(bus eventbus.EventBus, reader device.StateReader, s automationSto
 		graphs:           make(map[string]compiledGraph),
 		triggerLastFired: make(map[string]map[NodeID]time.Time),
 		cronByNode:       make(map[NodeID]cron.EntryID),
+		holds:            make(map[holdKey]*holdState),
+		afterFunc: func(d time.Duration, f func()) func() bool {
+			return time.AfterFunc(d, f).Stop
+		},
 	}
 	if commander, ok := resolver.(device.TargetCommander); ok {
 		engine.commander = commander
@@ -187,6 +195,7 @@ func (e *Engine) Reload(ctx context.Context) error {
 		<-stopCtx.Done()
 	}
 	newCron.Start()
+	e.reconcileHolds(triggersByEvent)
 	return nil
 }
 
@@ -201,6 +210,7 @@ func (e *Engine) Stop() {
 		stopCtx := c.Stop()
 		<-stopCtx.Done()
 	}
+	e.stopHolds()
 }
 
 // Run starts the event loop. It blocks until ctx is cancelled.
@@ -247,6 +257,9 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 		if _, ok := graphs[ct.graphID]; !ok {
 			continue
 		}
+		if isHoldTrigger(ct) {
+			continue
+		}
 
 		if e.triggerInCooldown(ct.graphID, ct.nodeID, now, ct.config.CooldownMs) {
 			e.cooldownSkips.Add(1)
@@ -285,6 +298,8 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 			e.recordAutomationFired(graphID, now)
 		}
 	}
+
+	e.updateHolds(event)
 }
 
 // FireTrigger injects a trigger node directly into its loaded automation graph.
@@ -825,6 +840,8 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			CronExpr       string               `json:"cron_expr"`
 			GraceMs        int64                `json:"grace_ms"`
 			CooldownMs     int64                `json:"cooldown_ms"`
+			HoldMs         int64                `json:"hold_ms"`
+			HoldDeviceID   string               `json:"device_id"`
 			EndpointID     string               `json:"endpoint_id"`
 			WebhookFilters []webhook.FilterRule `json:"webhook_filters"`
 		}
@@ -847,6 +864,8 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			CronExpr:       raw.CronExpr,
 			GraceMs:        raw.GraceMs,
 			CooldownMs:     raw.CooldownMs,
+			HoldMs:         raw.HoldMs,
+			HoldDeviceID:   raw.HoldDeviceID,
 			EndpointID:     raw.EndpointID,
 			WebhookFilters: raw.WebhookFilters,
 		}

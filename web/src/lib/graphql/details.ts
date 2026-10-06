@@ -21,6 +21,7 @@ export const AUTOMATION_DETAIL_QUERY = graphql(`
         positionX
         positionY
         runtimeState
+        pendingUntil
       }
       edges {
         fromNodeId

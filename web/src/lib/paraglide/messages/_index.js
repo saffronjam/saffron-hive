@@ -37,6 +37,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Activity_No_MatchInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Activity_Node_ActivatedInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Activity_Node_DeactivatedInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Activity_Node_PendingInputs */
 /** @typedef {{}} Activity_PayloadInputs */
 /** @typedef {{}} Activity_RecentInputs */
 /** @typedef {{}} Activity_Recent_EmptyInputs */
@@ -210,6 +211,10 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Automation_Node_Grace_AboutInputs */
 /** @typedef {{}} Automation_Node_Grace_HelpInputs */
 /** @typedef {{ duration: NonNullable<unknown> }} Automation_Node_Grace_ShortInputs */
+/** @typedef {{}} Automation_Node_HoldInputs */
+/** @typedef {{}} Automation_Node_Hold_AboutInputs */
+/** @typedef {{}} Automation_Node_Hold_HelpInputs */
+/** @typedef {{ duration: NonNullable<unknown> }} Automation_Node_Hold_PendingInputs */
 /** @typedef {{}} Automation_Node_HoursInputs */
 /** @typedef {{}} Automation_Node_KindInputs */
 /** @typedef {{}} Automation_Node_MinutesInputs */
@@ -2342,6 +2347,21 @@ export const activity_node_deactivated = /** @type {((inputs: Activity_Node_Deac
 	if (locale === "sv") return __sv.activity_node_deactivated(inputs)
 	if (locale === "ru") return __ru.activity_node_deactivated(inputs)
 	return __en.activity_node_deactivated(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "{name}: waiting for condition to last" |
+*
+* @param {Activity_Node_PendingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const activity_node_pending = /** @type {((inputs: Activity_Node_PendingInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Activity_Node_PendingInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.activity_node_pending(inputs)
+	if (locale === "ru") return __ru.activity_node_pending(inputs)
+	return __en.activity_node_pending(inputs)
 });
 /**
 * | output |
@@ -4939,6 +4959,66 @@ export const automation_node_grace_short = /** @type {((inputs: Automation_Node_
 	if (locale === "sv") return __sv.automation_node_grace_short(inputs)
 	if (locale === "ru") return __ru.automation_node_grace_short(inputs)
 	return __en.automation_node_grace_short(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "For" |
+*
+* @param {Automation_Node_HoldInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_node_hold = /** @type {((inputs?: Automation_Node_HoldInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Node_HoldInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_node_hold(inputs)
+	if (locale === "ru") return __ru.automation_node_hold(inputs)
+	return __en.automation_node_hold(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "About For" |
+*
+* @param {Automation_Node_Hold_AboutInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_node_hold_about = /** @type {((inputs?: Automation_Node_Hold_AboutInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Node_Hold_AboutInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_node_hold_about(inputs)
+	if (locale === "ru") return __ru.automation_node_hold_about(inputs)
+	return __en.automation_node_hold_about(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Fires once the condition has stayed true this long, based on the device's current state. Fires again only after the condition has been false." |
+*
+* @param {Automation_Node_Hold_HelpInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_node_hold_help = /** @type {((inputs?: Automation_Node_Hold_HelpInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Node_Hold_HelpInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_node_hold_help(inputs)
+	if (locale === "ru") return __ru.automation_node_hold_help(inputs)
+	return __en.automation_node_hold_help(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Fires in {duration}" |
+*
+* @param {Automation_Node_Hold_PendingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_node_hold_pending = /** @type {((inputs: Automation_Node_Hold_PendingInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Node_Hold_PendingInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_node_hold_pending(inputs)
+	if (locale === "ru") return __ru.automation_node_hold_pending(inputs)
+	return __en.automation_node_hold_pending(inputs)
 });
 /**
 * | output |

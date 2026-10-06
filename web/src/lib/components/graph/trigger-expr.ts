@@ -64,6 +64,8 @@ export interface TriggerConfig {
   // advanced timing (per-trigger), in milliseconds. 0 = immediate / no throttle.
   graceMs?: number;
   cooldownMs?: number;
+  // device-state only: fire once the condition has held this long, in ms.
+  holdMs?: number;
 }
 
 // TIMING_PRESETS feeds the Grace/Cooldown selects in the trigger node. Values
@@ -77,6 +79,23 @@ export function timingPresets(): { value: number; label: string }[] {
     { value: 10000, label: formatShortDuration(10, "second") },
     { value: 30000, label: formatShortDuration(30, "second") },
     { value: 60000, label: formatShortDuration(1, "minute") },
+  ];
+}
+
+/** Durations offered for a device-state trigger's "For" hold, in milliseconds. */
+export function holdPresets(): { value: number; label: string }[] {
+  return [
+    { value: 0, label: m.automation_timing_immediate({}, locale.messageOptions()) },
+    { value: 5_000, label: formatShortDuration(5, "second") },
+    { value: 10_000, label: formatShortDuration(10, "second") },
+    { value: 30_000, label: formatShortDuration(30, "second") },
+    { value: 60_000, label: formatShortDuration(1, "minute") },
+    { value: 120_000, label: formatShortDuration(2, "minute") },
+    { value: 300_000, label: formatShortDuration(5, "minute") },
+    { value: 600_000, label: formatShortDuration(10, "minute") },
+    { value: 900_000, label: formatShortDuration(15, "minute") },
+    { value: 1_800_000, label: formatShortDuration(30, "minute") },
+    { value: 3_600_000, label: formatShortDuration(1, "hour") },
   ];
 }
 
@@ -295,6 +314,7 @@ export function defaultTriggerConfig(): TriggerConfig {
 export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerConfig {
   const graceMs = typeof raw.grace_ms === "number" ? raw.grace_ms : undefined;
   const cooldownMs = typeof raw.cooldown_ms === "number" ? raw.cooldown_ms : undefined;
+  const holdMs = typeof raw.hold_ms === "number" ? raw.hold_ms : undefined;
 
   // If the raw object already looks like our internal TS shape (has `mode`),
   // just coerce it.
@@ -415,6 +435,7 @@ export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerCon
         value: val,
         graceMs,
         cooldownMs,
+        holdMs,
       };
     }
     const ds = filter.match(/^device\("([^"]+)"\)\.(\w+)\s*(==|!=|<=|>=|<|>)\s*(.+)$/);
@@ -469,11 +490,16 @@ export function serializeTriggerConfig(config: TriggerConfig): string {
       ...timing,
     });
   }
+  const hold =
+    config.mode === "device_state" && config.holdMs && config.holdMs > 0 && config.deviceId
+      ? { hold_ms: config.holdMs, device_id: config.deviceId }
+      : {};
   return JSON.stringify({
     kind: "event",
     event_type: config.eventType ?? eventTypeForMode(config.mode),
     filter_expr: generateFilterExpr(config),
     ...timing,
+    ...hold,
   });
 }
 

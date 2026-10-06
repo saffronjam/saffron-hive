@@ -1181,7 +1181,18 @@ func encodeNodeState(m map[string]string) string {
 	return string(encoded)
 }
 
-func mapAutomationGraph(g store.AutomationGraph) *model.AutomationGraph {
+// pendingHolds returns the running hold deadlines of one automation, or nil
+// when no engine is wired.
+func (r *Resolver) pendingHolds(automationID string) map[string]time.Time {
+	if r.AutomationHolds == nil {
+		return nil
+	}
+	return r.AutomationHolds.PendingHolds(automationID)
+}
+
+// mapAutomationGraph maps a stored graph, stamping each waiting trigger with
+// the time its hold fires from pending (keyed by node ID; nil for none).
+func mapAutomationGraph(g store.AutomationGraph, pending map[string]time.Time) *model.AutomationGraph {
 	domainGraph := automation.AutomationGraph{
 		ID:      g.Automation.ID,
 		Name:    g.Automation.Name,
@@ -1224,6 +1235,9 @@ func mapAutomationGraph(g store.AutomationGraph) *model.AutomationGraph {
 			PositionX:    n.PositionX,
 			PositionY:    n.PositionY,
 			RuntimeState: encodeNodeState(g.NodeStates[n.ID]),
+		}
+		if deadline, ok := pending[n.ID]; ok {
+			mg.Nodes[i].PendingUntil = &deadline
 		}
 	}
 	mg.Edges = make([]*model.AutomationEdge, len(g.Edges))
@@ -2360,6 +2374,8 @@ func parseAutomationNodeConfigForValidation(nodeType automation.NodeType, config
 			CronExpr       string               `json:"cron_expr"`
 			GraceMs        int64                `json:"grace_ms"`
 			CooldownMs     int64                `json:"cooldown_ms"`
+			HoldMs         int64                `json:"hold_ms"`
+			HoldDeviceID   string               `json:"device_id"`
 			EndpointID     string               `json:"endpoint_id"`
 			WebhookFilters []webhook.FilterRule `json:"webhook_filters"`
 		}
@@ -2381,6 +2397,8 @@ func parseAutomationNodeConfigForValidation(nodeType automation.NodeType, config
 			CronExpr:       raw.CronExpr,
 			GraceMs:        raw.GraceMs,
 			CooldownMs:     raw.CooldownMs,
+			HoldMs:         raw.HoldMs,
+			HoldDeviceID:   raw.HoldDeviceID,
 			EndpointID:     raw.EndpointID,
 			WebhookFilters: raw.WebhookFilters,
 		}
