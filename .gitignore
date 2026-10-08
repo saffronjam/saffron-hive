@@ -40,3 +40,4 @@ Thumbs.db
 # Local runtime data (HIVE_DATA_DIR defaults to ".")
 /avatars/
 /zigbee-device-docs/
+.claude/scheduled_tasks.lock
