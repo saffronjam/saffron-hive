@@ -43,6 +43,7 @@ type automationStore interface {
 	UpdateAutomationLastFired(ctx context.Context, id string, firedAt time.Time) error
 	ResolveGroupIDByName(ctx context.Context, name string) (string, bool, error)
 	ResolveRoomIDByName(ctx context.Context, name string) (string, bool, error)
+	ResolveSceneIDByName(ctx context.Context, name string) (string, bool, error)
 	GetScene(ctx context.Context, id string) (store.Scene, error)
 	GetAutomationNodeState(ctx context.Context, automationID, nodeID, key string) (string, bool, error)
 	SetAutomationNodeState(ctx context.Context, automationID, nodeID, key, value string) error
@@ -56,7 +57,10 @@ type Engine struct {
 	resolver  device.TargetResolver
 	commander device.TargetCommander
 	executor  *ActionExecutor
+	scenes    SceneRunner
+	changes   *changeTracker
 	now       func() time.Time
+	location  atomic.Pointer[time.Location]
 
 	// baseCtx is set by Run to the caller's context and used by the background
 	// goroutines spawned from event-driven fires (resolving targets, stamping
@@ -69,7 +73,6 @@ type Engine struct {
 	graphs           map[string]compiledGraph
 	triggerLastFired map[string]map[NodeID]time.Time
 	cron             *cron.Cron
-	cronByNode       map[NodeID]cron.EntryID
 	holds            map[holdKey]*holdState
 
 	// afterFunc schedules hold-trigger timers; tests replace it to control time.
@@ -108,12 +111,13 @@ func NewEngine(bus eventbus.EventBus, reader device.StateReader, s automationSto
 		store:            s,
 		resolver:         resolver,
 		executor:         NewActionExecutor(bus, reader, s, resolver, alarmSvc, runner, scenes),
+		scenes:           scenes,
+		changes:          newChangeTracker(time.Now()),
 		now:              time.Now,
 		baseCtx:          context.Background(),
 		triggers:         make(map[string][]compiledTrigger),
 		graphs:           make(map[string]compiledGraph),
 		triggerLastFired: make(map[string]map[NodeID]time.Time),
-		cronByNode:       make(map[NodeID]cron.EntryID),
 		holds:            make(map[holdKey]*holdState),
 		afterFunc: func(d time.Duration, f func()) func() bool {
 			return time.AfterFunc(d, f).Stop
@@ -123,6 +127,69 @@ func NewEngine(bus eventbus.EventBus, reader device.StateReader, s automationSto
 		engine.commander = commander
 	}
 	return engine
+}
+
+// TimeZoneSettingKey is the setting holding the IANA time zone automations
+// run in. Empty uses the process's local time.
+const TimeZoneSettingKey = "timezone"
+
+// LoadTimeZone resolves a time zone setting value; empty is nil.
+func LoadTimeZone(name string) (*time.Location, error) {
+	if name == "" {
+		return nil, nil
+	}
+	location, err := time.LoadLocation(name)
+	if err != nil {
+		return nil, fmt.Errorf("unknown time zone %q", name)
+	}
+	return location, nil
+}
+
+// SetLocation sets the time zone that schedules, time windows and weekdays
+// are evaluated in; nil uses the process's local time. Schedules pick it up
+// on the next Reload.
+func (e *Engine) SetLocation(location *time.Location) {
+	e.location.Store(location)
+}
+
+// inLocation converts t to the configured time zone.
+func (e *Engine) inLocation(t time.Time) time.Time {
+	if location := e.location.Load(); location != nil {
+		return t.In(location)
+	}
+	return t
+}
+
+func (e *Engine) localNow() time.Time {
+	return e.inLocation(e.now())
+}
+
+func (e *Engine) cronLocation() *time.Location {
+	if location := e.location.Load(); location != nil {
+		return location
+	}
+	return time.Local
+}
+
+func (e *Engine) exprScope() exprScope {
+	return exprScope{
+		ctx:      e.baseCtx,
+		reader:   e.reader,
+		resolver: e.resolver,
+		names:    e.store,
+		scenes:   e.scenes,
+		changes:  e.changes,
+	}
+}
+
+// seedChanges records every device's current state as its starting value.
+func (e *Engine) seedChanges() {
+	now := e.now()
+	for _, d := range e.reader.ListDevices() {
+		if st, ok := e.reader.GetDeviceState(d.ID); ok && st != nil {
+			e.changes.observe(d.ID, st, now)
+		}
+	}
 }
 
 // Reload loads enabled automation graphs from the store, replacing the current
@@ -145,7 +212,11 @@ func (e *Engine) Reload(ctx context.Context) error {
 			continue
 		}
 
-		domainGraph := mapStoreToDomain(graph)
+		domainGraph, err := mapStoreToDomain(graph)
+		if err != nil {
+			logger.Warn("skipping automation, macro error", "id", a.ID, "name", a.Name, "error", err)
+			continue
+		}
 		cg, triggers, err := compileGraph(domainGraph)
 		if err != nil {
 			logger.Warn("skipping automation, compile error", "id", a.ID, "name", a.Name, "error", err)
@@ -164,11 +235,10 @@ func (e *Engine) Reload(ctx context.Context) error {
 		}
 	}
 
-	newCron := cron.New(cron.WithSeconds())
-	cronByNode := make(map[NodeID]cron.EntryID)
+	newCron := cron.New(cron.WithSeconds(), cron.WithLocation(e.cronLocation()))
 	for _, ct := range scheduleTriggers {
 		ct := ct // capture for closure
-		entryID, err := newCron.AddFunc(ct.config.CronExpr, func() {
+		_, err := newCron.AddFunc(ct.config.CronExpr, func() {
 			e.handleScheduledTrigger(ct.graphID, ct.nodeID)
 		})
 		if err != nil {
@@ -179,7 +249,6 @@ func (e *Engine) Reload(ctx context.Context) error {
 				"error", err)
 			continue
 		}
-		cronByNode[ct.nodeID] = entryID
 	}
 
 	e.mu.Lock()
@@ -187,7 +256,6 @@ func (e *Engine) Reload(ctx context.Context) error {
 	e.triggers = triggersByEvent
 	e.graphs = graphs
 	e.cron = newCron
-	e.cronByNode = cronByNode
 	e.mu.Unlock()
 
 	if oldCron != nil {
@@ -217,6 +285,7 @@ func (e *Engine) Stop() {
 func (e *Engine) Run(ctx context.Context) error {
 	e.baseCtx = ctx
 	e.executor.SetBaseContext(ctx)
+	e.seedChanges()
 
 	if err := e.Reload(ctx); err != nil {
 		return err
@@ -248,8 +317,13 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 	graphs := e.graphs
 	e.mu.RUnlock()
 
-	now := e.now()
-	env := buildEnv(e.baseCtx, e.reader, e.resolver, e.store, event, now)
+	now := e.localNow()
+	if event.Type == eventbus.EventDeviceStateChanged {
+		if change, ok := event.Payload.(device.DeviceStateChange); ok {
+			e.changes.observe(device.DeviceID(event.DeviceID), &change.State, now)
+		}
+	}
+	env := e.exprScope().env(&event, now)
 
 	firedThisTick := make(map[string]map[NodeID]bool)
 
@@ -303,7 +377,8 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 }
 
 // FireTrigger injects a trigger node directly into its loaded automation graph.
-// Per-trigger cooldown still applies.
+// Per-trigger cooldown still applies. A trigger with a hold duration first
+// counts down its hold, as if its condition had just become true.
 func (e *Engine) FireTrigger(_ context.Context, automationID string, nodeID NodeID) error {
 	e.mu.RLock()
 	cg, ok := e.graphs[automationID]
@@ -320,14 +395,18 @@ func (e *Engine) FireTrigger(_ context.Context, automationID string, nodeID Node
 		return fmt.Errorf("node %q is not a trigger", nodeID)
 	}
 	tc, _ := node.Config.(TriggerConfig)
+	if ct, ok := e.holdTrigger(automationID, nodeID); ok {
+		e.startManualHold(ct)
+		return nil
+	}
 
-	now := e.now()
+	now := e.localNow()
 	if e.triggerInCooldown(automationID, nodeID, now, tc.CooldownMs) {
 		return nil
 	}
 	e.recordTriggerFired(automationID, nodeID, now)
 
-	env := buildScheduledEnv(e.baseCtx, e.reader, e.resolver, e.store, now)
+	env := e.exprScope().env(nil, now)
 	triggerResults := e.combineWithGrace(cg, map[NodeID]bool{nodeID: true}, now)
 	if e.evaluateGraph(cg, env, triggerResults) {
 		e.recordAutomationFired(automationID, now)
@@ -352,13 +431,13 @@ func (e *Engine) handleScheduledTrigger(automationID string, nodeID NodeID) {
 	}
 	tc, _ := node.Config.(TriggerConfig)
 
-	now := e.now()
+	now := e.localNow()
 	if e.triggerInCooldown(automationID, nodeID, now, tc.CooldownMs) {
 		return
 	}
 	e.recordTriggerFired(automationID, nodeID, now)
 
-	env := buildScheduledEnv(e.baseCtx, e.reader, e.resolver, e.store, now)
+	env := e.exprScope().env(nil, now)
 	triggerResults := e.combineWithGrace(cg, map[NodeID]bool{nodeID: true}, now)
 	if e.evaluateGraph(cg, env, triggerResults) {
 		e.recordAutomationFired(automationID, now)
@@ -800,23 +879,30 @@ func topoSort(nodes []Node, edges []Edge) ([]NodeID, error) {
 	return order, nil
 }
 
-func mapStoreToDomain(sg store.AutomationGraph) AutomationGraph {
+func mapStoreToDomain(sg store.AutomationGraph) (AutomationGraph, error) {
 	g := AutomationGraph{
 		ID:      sg.Automation.ID,
 		Name:    sg.Automation.Name,
 		Enabled: sg.Automation.Enabled,
 	}
+	defs, err := ParseDefinitions(sg.Automation.Definitions)
+	if err != nil {
+		return AutomationGraph{}, err
+	}
 
 	for _, sn := range sg.Nodes {
-		n := Node{
+		config, err := defs.ParseNodeConfig(NodeType(sn.Type), sn.Config)
+		if err != nil {
+			return AutomationGraph{}, fmt.Errorf("node %s: %w", sn.ID, err)
+		}
+		g.Nodes = append(g.Nodes, Node{
 			ID:           NodeID(sn.ID),
 			AutomationID: sn.AutomationID,
 			Type:         NodeType(sn.Type),
-			Config:       parseNodeConfig(NodeType(sn.Type), sn.Config),
+			Config:       config,
 			PositionX:    sn.PositionX,
 			PositionY:    sn.PositionY,
-		}
-		g.Nodes = append(g.Nodes, n)
+		})
 	}
 
 	for _, se := range sg.Edges {
@@ -827,7 +913,17 @@ func mapStoreToDomain(sg store.AutomationGraph) AutomationGraph {
 		})
 	}
 
-	return g
+	return g, nil
+}
+
+// ParseNodeConfig decodes a stored node config, expanding its macro
+// references first.
+func (d Definitions) ParseNodeConfig(nodeType NodeType, configJSON string) (NodeConfig, error) {
+	expanded, err := d.ExpandNodeConfig(nodeType, configJSON)
+	if err != nil {
+		return nil, err
+	}
+	return parseNodeConfig(nodeType, expanded), nil
 }
 
 func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {

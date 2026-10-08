@@ -808,6 +808,15 @@ func (r *Runner) refreshMembership(ctx context.Context, active *activeScene) err
 	return nil
 }
 
+// IsActive reports whether the scene is currently the live state of its
+// devices.
+func (r *Runner) IsActive(sceneID string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	_, ok := r.active[sceneID]
+	return ok
+}
+
 func (r *Runner) activeSnapshot() []*activeScene {
 	r.mu.Lock()
 	defer r.mu.Unlock()

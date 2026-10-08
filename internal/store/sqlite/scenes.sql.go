@@ -556,6 +556,17 @@ func (q *Queries) ParkSceneTargetPositions(ctx context.Context, sceneID string) 
 	return err
 }
 
+const resolveSceneIDByName = `-- name: ResolveSceneIDByName :one
+SELECT id FROM scenes WHERE name = ? LIMIT 1
+`
+
+func (q *Queries) ResolveSceneIDByName(ctx context.Context, name string) (string, error) {
+	row := q.db.QueryRowContext(ctx, resolveSceneIDByName, name)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
 const updateSceneIcon = `-- name: UpdateSceneIcon :exec
 UPDATE scenes SET icon = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `

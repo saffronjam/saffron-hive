@@ -8,6 +8,7 @@
 		type Connection,
 		type NodeTypes,
 		type IsValidConnection,
+		type OnConnectEnd,
 	} from "@xyflow/svelte";
 	import "@xyflow/svelte/dist/style.css";
 	import FlowBridge, { type FlowApi } from "./flow-bridge.svelte";
@@ -25,9 +26,12 @@
 		onnodeschange?: (nodes: Node[]) => void;
 		onedgeschange?: (edges: Edge[]) => void;
 		onconnect?: (connection: Connection) => void;
+		onConnectEnd?: OnConnectEnd;
 		onnodedragstop?: () => void;
 		ondelete?: () => void;
 		onPaneContextMenu?: (event: MouseEvent) => void;
+		/** A click on empty canvas; panning does not count as a click. */
+		onPaneClick?: () => void;
 		onNodeContextMenu?: (event: MouseEvent, node: Node) => void;
 		onReady?: (api: FlowApi) => void;
 		onNodesInitialized?: () => void;
@@ -39,9 +43,11 @@
 		editable,
 		nodesDraggable = editable,
 		onconnect,
+		onConnectEnd,
 		onnodedragstop,
 		ondelete,
 		onPaneContextMenu,
+		onPaneClick,
 		onNodeContextMenu,
 		onReady,
 		onNodesInitialized,
@@ -98,9 +104,11 @@
 		{nodeTypes}
 		{isValidConnection}
 		onconnect={handleConnect}
+		onconnectend={(event, connectionState) => onConnectEnd?.(event, connectionState)}
 		onnodedragstop={() => onnodedragstop?.()}
 		ondelete={() => ondelete?.()}
 		onpanecontextmenu={({ event }) => onPaneContextMenu?.(event)}
+		onpaneclick={() => onPaneClick?.()}
 		onnodecontextmenu={({ event, node }) => onNodeContextMenu?.(event, node)}
 		{nodesDraggable}
 		nodesConnectable={editable}

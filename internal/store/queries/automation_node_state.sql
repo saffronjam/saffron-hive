@@ -1,7 +1,7 @@
 -- Per-node runtime state for stateful automation nodes (e.g. cycle_scenes
 -- index). Generic key/value JSON store keyed by (automation_id, node_id, key).
--- Cascades on automation and node deletion, so graph replacement wipes state
--- automatically.
+-- Node ids are short and reused within an automation, so a graph save
+-- deletes the state of every node the new graph no longer contains.
 
 -- name: GetAutomationNodeState :one
 SELECT value FROM automation_node_state
@@ -20,3 +20,8 @@ ON CONFLICT(automation_id, node_id, key) DO UPDATE SET
 
 -- name: DeleteAutomationNodeStateByAutomation :exec
 DELETE FROM automation_node_state WHERE automation_id = ?;
+
+-- name: DeleteAutomationNodeStateExcept :exec
+DELETE FROM automation_node_state
+WHERE automation_id = sqlc.arg('automation_id')
+  AND node_id NOT IN (SELECT value FROM json_each(CAST(sqlc.arg('node_ids_json') AS TEXT)));

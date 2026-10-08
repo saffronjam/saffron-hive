@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
@@ -257,6 +258,13 @@ func Run(ctx context.Context) error {
 	}
 
 	engine := automation.NewEngine(bus, memStore, sqlStore, targetCommander, alarmSvc, effectRunner, sceneRunner)
+	if setting, err := sqlStore.GetSetting(ctx, automation.TimeZoneSettingKey); err == nil {
+		if location, err := automation.LoadTimeZone(setting.Value); err == nil {
+			engine.SetLocation(location)
+		} else {
+			serveLogger.Warn("ignoring invalid time zone setting", "value", setting.Value, "error", err)
+		}
+	}
 	spawn("automation.engine", func() {
 		if err := engine.Run(ctx); err != nil && ctx.Err() == nil {
 			serveLogger.Error("automation engine error", "error", err)
@@ -288,6 +296,7 @@ func Run(ctx context.Context) error {
 		AutomationReloader:  engineAdapter,
 		AutomationTriggerer: engineAdapter,
 		AutomationHolds:     engineAdapter,
+		AutomationClock:     engineAdapter,
 		LogBuffer:           logBuffer,
 		ActivityBuffer:      activityBuffer,
 		Alarms:              alarmSvc,
@@ -989,6 +998,11 @@ type engineReloader struct {
 }
 
 func (r *engineReloader) Reload() error {
+	return r.engine.Reload(r.ctx)
+}
+
+func (r *engineReloader) SetTimeZone(location *time.Location) error {
+	r.engine.SetLocation(location)
 	return r.engine.Reload(r.ctx)
 }
 

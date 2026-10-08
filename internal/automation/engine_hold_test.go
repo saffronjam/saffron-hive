@@ -287,6 +287,34 @@ func TestHoldTriggerCancelledWhenAutomationDisabled(t *testing.T) {
 	f.expectNoCommand(t)
 }
 
+func TestHoldTriggerManualFireCountsDownFirst(t *testing.T) {
+	f := newHoldFixture(t, 10_000, 0)
+	f.state = device.DeviceState{Presence: device.Ptr(true)}
+	f.reader.setDeviceState("sensor", &device.DeviceState{Presence: device.Ptr(true)})
+	f.reload(t)
+
+	if err := f.engine.FireTrigger(context.Background(), "auto-1", "t1"); err != nil {
+		t.Fatal(err)
+	}
+	running := f.timers.running()
+	if len(running) != 1 || running[0].d != 10*time.Second {
+		t.Fatalf("running = %+v, want a 10s countdown", running)
+	}
+	f.expectNoCommand(t)
+
+	f.report("sensor", device.DeviceState{Presence: device.Ptr(true)})
+	if len(f.timers.running()) != 1 {
+		t.Fatal("a device report cancelled the manual countdown")
+	}
+	f.timers.expire(t)
+	f.expectCommand(t)
+
+	f.report("sensor", device.DeviceState{Presence: device.Ptr(false)})
+	if len(f.timers.running()) != 1 {
+		t.Fatal("a manual fire must not latch the trigger against a real stretch")
+	}
+}
+
 func TestHoldTriggerPublishesPendingDeadline(t *testing.T) {
 	f := newHoldFixture(t, 10_000, 0)
 	activations := f.engine.bus.Subscribe(eventbus.EventAutomationNodeActivated)

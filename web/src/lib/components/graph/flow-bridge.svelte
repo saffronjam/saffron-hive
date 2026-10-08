@@ -3,8 +3,13 @@
 	import { onMount } from "svelte";
 
 	export interface FlowApi {
-		panToNode(id: string): void;
+		/**
+		 * Pans a node into view when it is not already visible. `rightInset`
+		 * reserves screen width on the right, such as an open side panel.
+		 */
+		panToNode(id: string, options?: { rightInset?: number }): void;
 		screenToFlowPosition(position: { x: number; y: number }): { x: number; y: number };
+		flowToScreenPosition(position: { x: number; y: number }): { x: number; y: number };
 	}
 
 	interface Props {
@@ -29,7 +34,7 @@
 		onNodesInitialized?.();
 	});
 
-	function panToNode(nodeId: string) {
+	function panToNode(nodeId: string, options: { rightInset?: number } = {}) {
 		const node = nodes.find((n) => n.id === nodeId);
 		if (!node) return;
 		const measured = (node as { measured?: { width?: number; height?: number } }).measured;
@@ -44,13 +49,15 @@
 		const rect = container?.getBoundingClientRect();
 		if (!rect) return;
 		const margin = 40;
+		const rightInset = options.rightInset ?? 0;
 		const inside =
 			xMin >= margin &&
 			yMin >= margin &&
-			xMax <= rect.width - margin &&
+			xMax <= rect.width - rightInset - margin &&
 			yMax <= rect.height - margin;
 		if (inside) return;
-		flow.setCenter(node.position.x + width / 2, node.position.y + height / 2, {
+		const centerX = node.position.x + width / 2 + rightInset / 2 / vp.zoom;
+		flow.setCenter(centerX, node.position.y + height / 2, {
 			duration: 400,
 			zoom: vp.zoom,
 		});
@@ -60,7 +67,11 @@
 		return flow.screenToFlowPosition(position, { snapToGrid: false });
 	}
 
+	function flowToScreenPosition(position: { x: number; y: number }) {
+		return flow.flowToScreenPosition(position);
+	}
+
 	onMount(() => {
-		onReady?.({ panToNode, screenToFlowPosition });
+		onReady?.({ panToNode, screenToFlowPosition, flowToScreenPosition });
 	});
 </script>

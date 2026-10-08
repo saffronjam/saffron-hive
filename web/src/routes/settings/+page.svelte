@@ -6,6 +6,7 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Checkbox } from "$lib/components/ui/checkbox/index.js";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
+	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
 	import {
 		Select,
 		SelectContent,
@@ -48,6 +49,26 @@
 	let origDefaultContentLanguage = $state<Language>("en");
 	let translateStandardRoomNames = $state(false);
 	let origTranslateStandardRoomNames = $state(false);
+	let timeZone = $state("");
+	let origTimeZone = $state("");
+
+	const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+	/** Picker value for the server's local time, stored as an empty setting. */
+	const SERVER_TIME = "server";
+	/** The server's local time first, then the browser's zone, then every zone. */
+	const timeZones = [
+		SERVER_TIME,
+		browserTimeZone,
+		...Intl.supportedValuesOf("timeZone").filter((zone) => zone !== browserTimeZone),
+	];
+
+	function timeZoneLabel(zone: string): string {
+		if (zone === SERVER_TIME) return m.settings_time_zone_server({}, locale.messageOptions());
+		const name = zone.replaceAll("_", " ");
+		return zone === browserTimeZone
+			? m.settings_time_zone_browser({ zone: name }, locale.messageOptions())
+			: name;
+	}
 
 	let saving = $state(false);
 	let loaded = $state(false);
@@ -60,7 +81,8 @@
 			(logLevel !== origLogLevel ||
 				historyRetentionDays !== origHistoryRetentionDays ||
 				defaultContentLanguage !== origDefaultContentLanguage ||
-				translateStandardRoomNames !== origTranslateStandardRoomNames)
+				translateStandardRoomNames !== origTranslateStandardRoomNames ||
+				timeZone !== origTimeZone)
 	);
 
 	const logLevelOptions = $derived([
@@ -87,6 +109,8 @@
 				defaultContentLanguage = origDefaultContentLanguage = s.value as Language;
 			} else if (s.key === "i18n.translate_standard_room_names") {
 				translateStandardRoomNames = origTranslateStandardRoomNames = s.value === "true";
+			} else if (s.key === "timezone") {
+				timeZone = origTimeZone = s.value;
 			}
 		}
 		// Sync the baselines for any key the server did not return, so an absent
@@ -95,6 +119,7 @@
 		origHistoryRetentionDays = historyRetentionDays ?? 365;
 		origDefaultContentLanguage = defaultContentLanguage;
 		origTranslateStandardRoomNames = translateStandardRoomNames;
+		origTimeZone = timeZone;
 		loaded = true;
 	}
 
@@ -144,6 +169,11 @@
 				origTranslateStandardRoomNames = translateStandardRoomNames;
 				localizedNamesStore.setTranslateStandardRoomNames(translateStandardRoomNames);
 			}
+			if (timeZone !== origTimeZone) {
+				const result = await client.mutation(UPDATE_SETTING, { key: "timezone", value: timeZone }).toPromise();
+				if (result.error) { console.error(result.error); return; }
+				origTimeZone = timeZone;
+			}
 		} finally {
 			saving = false;
 		}
@@ -185,6 +215,25 @@
 				<p class="text-xs text-muted-foreground">
 					{m.settings_retention_help({}, locale.messageOptions())}
 				</p>
+			</div>
+		</div>
+	</div>
+
+	<div class="rounded-lg shadow-card bg-card p-6">
+		<h2 class="text-lg font-semibold mb-4">{m.nav_automations({}, locale.messageOptions())}</h2>
+		<div class="grid gap-4 max-w-lg">
+			<div class="grid gap-1.5">
+				<span class="text-sm font-medium">{m.settings_time_zone({}, locale.messageOptions())}</span>
+				<HiveSelectAutocomplete
+					items={timeZones}
+					value={timeZone || SERVER_TIME}
+					getValue={(zone) => zone}
+					getLabel={timeZoneLabel}
+					placeholder={m.settings_time_zone_search({}, locale.messageOptions())}
+					class="w-72"
+					onchange={(zone) => (timeZone = zone === SERVER_TIME ? "" : zone)}
+				/>
+				<p class="text-xs text-muted-foreground">{m.settings_time_zone_help({}, locale.messageOptions())}</p>
 			</div>
 		</div>
 	</div>

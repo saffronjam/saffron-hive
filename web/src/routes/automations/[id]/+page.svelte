@@ -26,7 +26,19 @@
 	import dagre from "@dagrejs/dagre";
 	import AutomationFlow from "$lib/components/graph/automation-flow.svelte";
 	import type { FlowApi } from "$lib/components/graph/flow-bridge.svelte";
+	import AutomationNodePanel from "$lib/components/graph/automation-node-panel.svelte";
+	import type { SummaryLookups } from "$lib/components/graph/automation-summary";
+	import type { GraphNodeData } from "$lib/components/graph/node-data";
+	import { webhooksStore } from "$lib/stores/webhooks.svelte";
 	import JsonEditor from "$lib/components/json-editor.svelte";
+	import { autocompletion } from "@codemirror/autocomplete";
+	import { linter, type Diagnostic as LintDiagnostic } from "@codemirror/lint";
+	import { Names } from "$lib/automation-dsl/names";
+	import { formatDocument, printAutomation } from "$lib/automation-dsl/print";
+	import { parseAutomation } from "$lib/automation-dsl/parse";
+	import { automationCompletions } from "$lib/automation-dsl/complete";
+	import { locatePath } from "$lib/automation-dsl/json-paths";
+	import { NODE_PREFIX, type WireAutomation, type WireNode } from "$lib/automation-dsl/model";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import {
@@ -64,7 +76,14 @@
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
 	import { HistoryStack } from "$lib/stores/history.svelte";
-	import { type Node, type Edge, type Connection } from "@xyflow/svelte";
+	import {
+		getBezierPath,
+		Position,
+		type Node,
+		type Edge,
+		type Connection,
+		type OnConnectEnd,
+	} from "@xyflow/svelte";
 	import { deviceStore, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
@@ -130,6 +149,7 @@
 		icon?: string | null;
 		enabled: boolean;
 		compilable: boolean;
+		definitions: string;
 		nodes: AutomationNodeData[];
 		edges: AutomationEdgeData[];
 	}
@@ -187,6 +207,7 @@
 				icon
 				enabled
 				compilable
+				definitions
 				nodes {
 					id
 					type
@@ -268,6 +289,8 @@
 
 	let automationName = $state("");
 	let automationIcon = $state<string | null>(null);
+	/** The automation's macros in stored form; edited through the Code view. */
+	let automationDefinitions = $state("{}");
 
 	$effect(() => {
 		pageHeader.breadcrumbs = [
@@ -329,6 +352,22 @@
 	let effects = $state<EffectOption[]>([]);
 	const loadedGroupReferences = new Set<string>();
 
+	const summaryLookups = $derived<SummaryLookups>({
+		devices,
+		groups,
+		rooms,
+		scenes,
+		effects,
+		webhooks: webhooksStore.items,
+	});
+	const getSummaryLookups = () => summaryLookups;
+
+	/** The node open in the edit panel, or null when the panel is closed. */
+	let activeNodeId = $state<string | null>(null);
+	const activeNode = $derived(
+		activeNodeId ? (flowNodes.find((node) => node.id === activeNodeId) ?? null) : null,
+	);
+
 	function referencedGroupIDs(nodes: { config: string }[]): string[] {
 		const ids = new Set<string>();
 		function walk(value: unknown) {
@@ -380,15 +419,20 @@
 	let activatedNodes = $state<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 	let unsubscribers: (() => void)[] = [];
 
-	let nodeIdCounter = $state(0);
 	let flowApi: FlowApi | null = $state(null);
 	type AutomationNodeType = "trigger" | "condition" | "operator" | "action";
+	/** A connection dragged from a node handle and dropped on empty canvas. */
+	interface ConnectFrom {
+		nodeId: string;
+		handleType: "source" | "target";
+	}
 	type GraphContextMenuState =
 		| {
 				kind: "canvas";
 				x: number;
 				y: number;
 				position: { x: number; y: number };
+				connectFrom?: ConnectFrom;
 		  }
 		| {
 				kind: "node";
@@ -432,6 +476,7 @@
 		name: string;
 		icon: string | null;
 		enabled: boolean;
+		definitions: string;
 		nodes: Node[];
 		edges: Edge[];
 	}
@@ -490,9 +535,19 @@
 			name: automationName,
 			icon: automationIcon,
 			enabled: automationEnabled,
+			definitions: automationDefinitions,
 			nodes: cloneNodes(nodes),
 			edges: cloneEdges(flowEdges),
 		});
+	}
+
+	/**
+	 * A node's own draggable flag. Only a lock sets it; otherwise it stays
+	 * unset so the canvas-wide Free/Auto placement mode decides, since a
+	 * per-node `true` would override Auto mode.
+	 */
+	function lockedDraggable(nodeId: string, locked: Set<string> = lockedNodeIds): false | undefined {
+		return locked.has(nodeId) ? false : undefined;
 	}
 
 	function restoreSnapshot(snap: AutomationSnapshot) {
@@ -500,13 +555,13 @@
 		automationName = snap.name;
 		automationIcon = snap.icon;
 		automationEnabled = snap.enabled;
+		automationDefinitions = snap.definitions;
 		flowNodes = snap.nodes.map((n) => {
-			const nodeType = n.type ?? "trigger";
 			const config = (n.data as Record<string, unknown>).config as NodeConfig;
 			return {
 				...n,
-				draggable: !lockedNodeIds.has(n.id),
-				data: makeNodeData(nodeType, config, editMode, false, n.id),
+				draggable: lockedDraggable(n.id),
+				data: makeNodeData(config, editMode, false, n.id),
 			};
 		}) as Node[];
 		flowEdges = snap.edges;
@@ -552,15 +607,17 @@
 	function handlePaste(position?: { x: number; y: number }) {
 		if (!copyBuffer || copyBuffer.nodes.length === 0) return;
 		const idMap = new Map<string, string>();
+		const taken = new Set(flowNodes.map((node) => node.id));
 		for (const n of copyBuffer.nodes) {
-			idMap.set(n.id, `node-${crypto.randomUUID()}`);
+			const id = nextNodeId(n.type as AutomationNodeType, taken);
+			taken.add(id);
+			idMap.set(n.id, id);
 		}
 		const offset = 48;
 		const minX = Math.min(...copyBuffer.nodes.map((node) => node.position.x));
 		const minY = Math.min(...copyBuffer.nodes.map((node) => node.position.y));
 		const newNodes: Node[] = copyBuffer.nodes.map((n) => {
 			const newId = idMap.get(n.id)!;
-			const nodeType = n.type ?? "trigger";
 			const config = (n.data as Record<string, unknown>).config as NodeConfig;
 			return {
 				...n,
@@ -568,12 +625,10 @@
 				position: position
 					? { x: position.x + n.position.x - minX, y: position.y + n.position.y - minY }
 					: { x: n.position.x + offset, y: n.position.y + offset },
-				draggable: true,
+				draggable: undefined,
 				selected: true,
-				// Rebuild data so callbacks (onConfigChange etc.) close over the new
-				// nodeId. Reuse the existing makeNodeData so trigger/condition/action
-				// wiring stays consistent.
-				data: makeNodeData(nodeType, config, editMode, false, newId),
+				// Rebuild data so isActive and onActivate close over the new id.
+				data: makeNodeData(config, editMode, false, newId),
 			};
 		});
 		const newEdges: Edge[] = copyBuffer.edges.map((e) => ({
@@ -588,6 +643,7 @@
 		];
 		flowEdges = [...flowEdges, ...newEdges];
 		takeSnapshot();
+		if (newNodes.length === 1) activateNode(newNodes[0].id);
 	}
 
 	function handleUndo() {
@@ -600,8 +656,18 @@
 		if (snap) restoreSnapshot(snap);
 	}
 
+	/** Whether a DOM event started inside the node edit panel. */
+	function insideNodePanel(target: EventTarget | null): boolean {
+		return target instanceof Element && target.closest("[data-node-panel]") !== null;
+	}
+
 	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === "Escape" && activeNodeId && !e.defaultPrevented) {
+			deactivateNode();
+			return;
+		}
 		if (!editMode) return;
+		if (insideNodePanel(e.target)) return;
 		// Don't hijack native copy/paste/undo inside form fields. Graph-level
 		// shortcuts only fire when focus is on the canvas (or nothing).
 		if (isEditableTarget(e.target)) return;
@@ -639,26 +705,35 @@
 		return cfg;
 	}
 
+	/**
+	 * Resolves a device-state condition's target for the editor. The stored
+	 * expression names its target by id; expressions written by hand may use
+	 * a name instead, which is matched against devices, groups and rooms.
+	 */
 	function enrichConditionConfigWithTarget(cfg: ConditionConfig): ConditionConfig {
-		// The stored expression carries only the target name (the expr-lang
-		// `device(...)` lookup is overloaded server-side across devices,
-		// groups, and rooms). Resolve the live ID and target type so the UI
-		// dropdown pre-selects the correct row.
-		if (cfg.mode !== "device_state") return cfg;
-		if (!cfg.targetName) {
-			if (cfg.targetId && cfg.targetType === "device") {
-				const d = devices.find((x) => x.id === cfg.targetId);
-				if (d) return { ...cfg, targetName: deviceSourceName(d) };
-			}
-			return cfg;
-		}
-		const dev = devices.find((x) => deviceSourceName(x) === cfg.targetName);
-		if (dev) return { ...cfg, targetType: "device", targetId: dev.id };
-		const grp = groups.find((g) => groupSourceName(g) === cfg.targetName);
-		if (grp) return { ...cfg, targetType: "group", targetId: grp.id };
-		const room = rooms.find((r) => r.name === cfg.targetName);
-		if (room) return { ...cfg, targetType: "room", targetId: room.id };
+		if (cfg.mode !== "device_state" || !cfg.targetId) return cfg;
+		const ref = cfg.targetId;
+		const device = devices.find((d) => d.id === ref);
+		const group = groups.find((g) => g.id === ref);
+		const room = rooms.find((r) => r.id === ref);
+		if (cfg.targetType === "device" && device) return { ...cfg, targetName: deviceSourceName(device) };
+		if (cfg.targetType === "group" && group) return { ...cfg, targetName: groupSourceName(group) };
+		if (cfg.targetType === "room" && room) return { ...cfg, targetName: room.name };
+		const byName = devices.find((d) => deviceSourceName(d) === ref);
+		if (byName) return { ...cfg, targetType: "device", targetId: byName.id, targetName: ref };
+		const groupByName = groups.find((g) => groupSourceName(g) === ref);
+		if (groupByName) return { ...cfg, targetType: "group", targetId: groupByName.id, targetName: ref };
+		const roomByName = rooms.find((r) => r.name === ref);
+		if (roomByName) return { ...cfg, targetType: "room", targetId: roomByName.id, targetName: ref };
 		return cfg;
+	}
+
+	/** The next free short id for a node type: t1, c2, o1, a3. */
+	function nextNodeId(nodeType: AutomationNodeType, taken: Set<string>): string {
+		const prefix = NODE_PREFIX[nodeType];
+		let n = 1;
+		while (taken.has(`${prefix}${n}`)) n++;
+		return `${prefix}${n}`;
 	}
 
 	function parseConfig(nodeType: string, configJson: string): NodeConfig {
@@ -702,60 +777,42 @@
 	}
 
 	function makeNodeData(
-		nodeType: string,
 		config: NodeConfig,
 		isEditable: boolean,
 		isActivated: boolean,
 		nodeId: string,
 		runtimeState: string = "{}",
-	): Record<string, unknown> {
-		const onConfigChange = (newConfig: NodeConfig) => {
-			if (!editMode) return;
-			flowNodes = flowNodes.map((n) =>
-				n.id === nodeId ? { ...n, data: { ...n.data, config: newConfig } } : n
-			);
-			queueMicrotask(takeSnapshot);
-		};
-
-		const base = {
+	): GraphNodeData<NodeConfig> {
+		return {
 			config,
 			readOnly: !isEditable,
 			activated: isActivated,
-			onConfigChange,
+			runtimeState,
+			lookups: getSummaryLookups,
+			isActive: () => activeNodeId === nodeId,
+			onActivate: activateNode,
 		};
-
-		if (nodeType === "trigger") {
-			return {
-				...base,
-				devices,
-				rooms,
-				automationEnabled,
-			};
-		}
-
-		if (nodeType === "condition") {
-			return {
-				...base,
-				devices,
-				groups,
-				rooms,
-			};
-		}
-
-		if (nodeType === "action") {
-			return {
-				...base,
-				devices,
-				groups,
-				rooms,
-				scenes,
-				effects,
-				runtimeState,
-			};
-		}
-
-		return base;
 	}
+
+	/** Applies a config edited in the panel to its node, as one undo step. */
+	function updateNodeConfig(nodeId: string, config: NodeConfig) {
+		if (!editMode) return;
+		flowNodes = flowNodes.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, config } } : n));
+		queueMicrotask(takeSnapshot);
+	}
+
+	function activateNode(nodeId: string) {
+		activeNodeId = nodeId;
+		queueMicrotask(() => flowApi?.panToNode(nodeId, { rightInset: isMobile.current ? 0 : PANEL_WIDTH }));
+	}
+
+	function deactivateNode() {
+		activeNodeId = null;
+	}
+
+	$effect(() => {
+		if (activeNodeId && !flowNodes.some((node) => node.id === activeNodeId)) activeNodeId = null;
+	});
 
 	const EDGE_STYLE_IDLE = "stroke: var(--color-muted-foreground); stroke-width: 1px; opacity: 0.5;";
 	const EDGE_STYLE_SELECTED = "stroke: var(--color-foreground); stroke-width: 2px; opacity: 1;";
@@ -772,10 +829,10 @@
 	const COLUMN_ORDER = ["trigger", "condition", "operator", "action"] as const;
 	const COLUMN_WIDTH = 280;
 	const ROW_SPACING: Record<string, number> = {
-		trigger: 320,
-		condition: 320,
-		operator: 150,
-		action: 300,
+		trigger: 104,
+		condition: 104,
+		operator: 72,
+		action: 104,
 	};
 
 	// Fallback dimensions used when a node hasn't been measured by xyflow yet
@@ -783,11 +840,14 @@
 	// dagre leaves enough vertical room — a too-small height is what produced
 	// the overlapping rows in the old type-bucketed layout.
 	const NODE_FALLBACK_DIMS: Record<string, { width: number; height: number }> = {
-		trigger: { width: 256, height: 360 },
-		condition: { width: 256, height: 280 },
-		operator: { width: 176, height: 140 },
-		action: { width: 256, height: 320 },
+		trigger: { width: 240, height: 72 },
+		condition: { width: 240, height: 72 },
+		operator: { width: 112, height: 40 },
+		action: { width: 240, height: 72 },
 	};
+
+	/** Screen width the open node panel covers on the right of the canvas. */
+	const PANEL_WIDTH = 396;
 
 	// layoutGraph runs dagre's hierarchical algorithm left-to-right with
 	// per-node measured dimensions, producing a layout that respects edge
@@ -917,7 +977,7 @@
 				type: n.type,
 				position: { x: n.positionX, y: n.positionY },
 				data: {
-					...makeNodeData(n.type, config, isEditable, activatedSet.has(n.id), n.id, n.runtimeState),
+					...makeNodeData(config, isEditable, activatedSet.has(n.id), n.id, n.runtimeState),
 					pendingUntil: n.pendingUntil ?? null,
 				},
 			};
@@ -990,150 +1050,89 @@
 		return result;
 	}
 
-	interface AutomationJson {
-		name: string;
-		nodes: {
-			id: string;
-			type: string;
-			config: Record<string, unknown>;
-			positionX: number;
-			positionY: number;
-		}[];
-		edges: { from: string; to: string }[];
-	}
-
-	function flowStateToJson(): string {
-		const obj: AutomationJson = {
+	function currentWire(): WireAutomation {
+		return {
 			name: automationName,
-			nodes: flowNodes.map((n) => {
-				const nodeType = n.type ?? "trigger";
-				const config = (n.data as Record<string, unknown>).config;
-				const serialized = (() => {
-					switch (nodeType) {
-						case "trigger":
-							return JSON.parse(serializeTriggerConfig(config as TriggerConfig));
-						case "condition":
-							return JSON.parse(serializeConditionConfig(config as ConditionConfig));
-						case "operator":
-							return JSON.parse(serializeOperatorConfig(config as OperatorConfig));
-						case "action":
-							return JSON.parse(serializeActionConfig(config as ActionConfig));
-						default:
-							return config;
-					}
-				})();
-				return {
-					id: n.id,
-					type: nodeType,
-					config: serialized as Record<string, unknown>,
-					positionX: n.position?.x ?? 0,
-					positionY: n.position?.y ?? 0,
-				};
-			}),
-			edges: flowEdges.map((e) => ({
-				from: e.source,
-				to: e.target,
+			definitions: automationDefinitions,
+			nodes: flowNodesToAutomationNodes(flowNodes).map(({ id, type, config }) => ({
+				id,
+				type: type as WireNode["type"],
+				config,
 			})),
+			edges: flowEdgesToAutomationEdges(flowEdges, flowNodes),
 		};
-		return JSON.stringify(obj, null, 2);
 	}
 
-	function jsonToFlowState(jsonStr: string): { ok: true; name: string; nodes: AutomationNodeData[]; edges: AutomationEdgeData[] } | { ok: false; error: string } {
-		let parsed: unknown;
+	const languageNames = () => new Names(summaryLookups);
+
+	/** The automation in the readable language shown by the Code view. */
+	function codeText(): string {
+		return formatDocument(printAutomation(currentWire(), languageNames()));
+	}
+
+	/** Compiles Code view text, reporting the first problem as the banner text. */
+	function compileCode(text: string) {
+		let doc: unknown;
 		try {
-			parsed = JSON.parse(jsonStr);
+			doc = JSON.parse(text);
 		} catch (e) {
-			return { ok: false, error: (e as SyntaxError).message };
+			return { automation: null, diagnostics: [], syntax: (e as SyntaxError).message };
 		}
-
-		if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-			return { ok: false, error: "Root must be an object" };
-		}
-
-		const obj = parsed as Record<string, unknown>;
-
-		if (typeof obj.name !== "string") {
-			return { ok: false, error: "\"name\" must be a string" };
-		}
-
-		if (!Array.isArray(obj.nodes)) {
-			return { ok: false, error: "\"nodes\" must be an array" };
-		}
-
-		const validTypes = new Set(["trigger", "operator", "action"]);
-		const nodeIds = new Set<string>();
-
-		for (let i = 0; i < obj.nodes.length; i++) {
-			const node = obj.nodes[i] as Record<string, unknown>;
-			if (typeof node.id !== "string") {
-				return { ok: false, error: `nodes[${i}]: "id" must be a string` };
-			}
-			if (typeof node.type !== "string" || !validTypes.has(node.type)) {
-				return { ok: false, error: `nodes[${i}]: "type" must be one of trigger, operator, action` };
-			}
-			if (typeof node.config !== "object" || node.config === null || Array.isArray(node.config)) {
-				return { ok: false, error: `nodes[${i}]: "config" must be an object` };
-			}
-			nodeIds.add(node.id);
-		}
-
-		if (!Array.isArray(obj.edges)) {
-			return { ok: false, error: "\"edges\" must be an array" };
-		}
-
-		for (let i = 0; i < obj.edges.length; i++) {
-			const edge = obj.edges[i] as Record<string, unknown>;
-			if (typeof edge.from !== "string") {
-				return { ok: false, error: `edges[${i}]: "from" must be a string` };
-			}
-			if (typeof edge.to !== "string") {
-				return { ok: false, error: `edges[${i}]: "to" must be a string` };
-			}
-			if (!nodeIds.has(edge.from)) {
-				return { ok: false, error: `edges[${i}]: "from" references unknown node "${edge.from}"` };
-			}
-			if (!nodeIds.has(edge.to)) {
-				return { ok: false, error: `edges[${i}]: "to" references unknown node "${edge.to}"` };
-			}
-		}
-
-		const nodes: AutomationNodeData[] = (obj.nodes as Record<string, unknown>[]).map((n) => ({
-			id: n.id as string,
-			type: n.type as string,
-			config: JSON.stringify(n.config),
-			positionX: typeof n.positionX === "number" ? n.positionX : 0,
-			positionY: typeof n.positionY === "number" ? n.positionY : 0,
-			runtimeState: "{}",
-		}));
-
-		const edges: AutomationEdgeData[] = (obj.edges as Record<string, unknown>[]).map((e) => ({
-			fromNodeId: e.from as string,
-			toNodeId: e.to as string,
-		}));
-
-		return { ok: true, name: obj.name, nodes, edges };
+		return { ...parseAutomation(doc, languageNames()), syntax: null };
 	}
+
+	const codeExtensions = [
+		autocompletion({ override: [automationCompletions(languageNames)], icons: false }),
+		linter((view): LintDiagnostic[] => {
+			const text = view.state.doc.toString();
+			const compiled = compileCode(text);
+			return compiled.diagnostics.map((diagnostic) => {
+				const span = locatePath(text, diagnostic.path);
+				return { from: span.from, to: span.to, severity: "error", message: diagnostic.message };
+			});
+		}),
+	];
 
 	function syncJsonFromGraph() {
 		if (syncSource === "code") return;
 		syncSource = "visual";
-		jsonString = flowStateToJson();
+		jsonString = codeText();
 		syncSource = null;
 	}
 
 	function handleJsonChange(newValue: string) {
 		if (syncSource === "visual") return;
 		syncSource = "code";
-		const result = jsonToFlowState(newValue);
-		if (result.ok) {
+		const compiled = compileCode(newValue);
+		if (compiled.automation) {
 			jsonError = null;
-			automationName = result.name;
-			flowNodes = automationNodesToFlowNodes(result.nodes, result.edges, editMode, activatedNodes);
-			flowEdges = automationEdgesToFlowEdges(result.edges);
+			const wire = compiled.automation;
+			const positions = new Map(flowNodes.map((node) => [node.id, node.position]));
+			const placed: Node[] = [];
+			const nodes: AutomationNodeData[] = wire.nodes.map((node) => {
+				const position =
+					positions.get(node.id) ??
+					nextPositionForType(placed, node.type as (typeof COLUMN_ORDER)[number]);
+				placed.push({ id: node.id, type: node.type, position, data: {} });
+				return {
+					...node,
+					positionX: position.x,
+					positionY: position.y,
+					runtimeState:
+						(flowNodes.find((n) => n.id === node.id)?.data as GraphNodeData<NodeConfig> | undefined)
+							?.runtimeState ?? "{}",
+				};
+			});
+			automationName = wire.name;
+			automationDefinitions = wire.definitions;
+			flowNodes = automationNodesToFlowNodes(nodes, wire.edges, editMode, activatedNodes).map((node) => ({
+				...node,
+				draggable: lockedDraggable(node.id),
+			}));
+			flowEdges = automationEdgesToFlowEdges(wire.edges);
 			takeSnapshot();
 		} else {
-			console.error("Invalid automation JSON", result.error);
-			jsonError = m.automation_validation_json_invalid({}, messageOptions);
+			jsonError = compiled.syntax ?? compiled.diagnostics[0]?.message ?? null;
 		}
 		syncSource = null;
 	}
@@ -1151,11 +1150,12 @@
 		return { x: colIndex * COLUMN_WIDTH, y: existingOfType * spacing };
 	}
 
-	function addNode(nodeType: AutomationNodeType, position?: { x: number; y: number }) {
-		nodeIdCounter++;
-		// Use a globally unique ID so saves from different browser sessions or
-		// automations don't collide on the automation_nodes.id PRIMARY KEY.
-		const tempId = `node-${crypto.randomUUID()}`;
+	function addNode(
+		nodeType: AutomationNodeType,
+		position?: { x: number; y: number },
+		connectFrom?: ConnectFrom,
+	): string {
+		const tempId = nextNodeId(nodeType, new Set(flowNodes.map((node) => node.id)));
 
 		let config: NodeConfig;
 		switch (nodeType) {
@@ -1177,12 +1177,103 @@
 			id: tempId,
 			type: nodeType,
 			position: position ?? nextPositionForType(flowNodes, nodeType),
-			data: makeNodeData(nodeType, config, editMode, false, tempId),
+			data: makeNodeData(config, editMode, false, tempId),
 		};
 
 		flowNodes = [...flowNodes, newNode];
+		if (connectFrom) {
+			const [source, target] =
+				connectFrom.handleType === "source"
+					? [connectFrom.nodeId, tempId]
+					: [tempId, connectFrom.nodeId];
+			flowEdges = [...flowEdges, { id: `edge-${source}-${target}`, source, target, animated: true }];
+		}
 		takeSnapshot();
-		queueMicrotask(() => flowApi?.panToNode(tempId));
+		activateNode(tempId);
+		return tempId;
+	}
+
+	/**
+	 * A connection released on empty canvas, held while the add-node menu is
+	 * open: `from` is the dragged handle in flow coordinates, `to` the release
+	 * point on screen.
+	 */
+	let pendingConnection = $state<{
+		from: { x: number; y: number };
+		to: { x: number; y: number };
+		handleType: "source" | "target";
+	} | null>(null);
+
+	/** The held connection drawn as an edge from its handle to the release point. */
+	const pendingConnectionPath = $derived.by(() => {
+		const pending = pendingConnection;
+		if (!pending || !flowApi || !flowSurface) return null;
+		const bounds = flowSurface.getBoundingClientRect();
+		const start = flowApi.flowToScreenPosition(pending.from);
+		const handle = { x: start.x - bounds.left, y: start.y - bounds.top };
+		const release = { x: pending.to.x - bounds.left, y: pending.to.y - bounds.top };
+		const [source, target] = pending.handleType === "source" ? [handle, release] : [release, handle];
+		const [path] = getBezierPath({
+			sourceX: source.x,
+			sourceY: source.y,
+			sourcePosition: Position.Right,
+			targetX: target.x,
+			targetY: target.y,
+			targetPosition: Position.Left,
+		});
+		return path;
+	});
+
+	const handleConnectEnd: OnConnectEnd = (event, connection) => {
+		if (!editMode || !flowApi) return;
+		if (connection.isValid || connection.toNode || !connection.fromNode || !connection.fromHandle || !connection.from) {
+			return;
+		}
+		const point = "changedTouches" in event ? event.changedTouches[0] : event;
+		if (!point) return;
+		const to = { x: point.clientX, y: point.clientY };
+		const handleType = connection.fromHandle.type;
+		pendingConnection = { from: connection.from, to, handleType };
+		const menu: GraphContextMenuState = {
+			kind: "canvas",
+			x: to.x,
+			y: to.y,
+			position: flowApi.screenToFlowPosition(to),
+			connectFrom: { nodeId: connection.fromNode.id, handleType },
+		};
+		// The release is followed by a click, which would land outside a menu
+		// opened in the same task and dismiss it straight away.
+		setTimeout(() => void openGraphContextMenu(menu));
+	};
+
+	function clearPendingConnection() {
+		pendingConnection = null;
+	}
+
+	/**
+	 * Places a node created from a dropped connection so its handle sits where
+	 * the connection was released, once the node has been measured.
+	 */
+	function alignToDropPoint(nodeId: string, anchor: { x: number; y: number }, from: ConnectFrom) {
+		let frames = 0;
+		const align = () => {
+			const node = flowNodes.find((candidate) => candidate.id === nodeId);
+			if (!node || placementMode === "auto") return;
+			const height = node.measured?.height;
+			const width = node.measured?.width;
+			if (height === undefined || width === undefined) {
+				if (++frames < 30) requestAnimationFrame(align);
+				return;
+			}
+			const position = {
+				x: from.handleType === "source" ? anchor.x : anchor.x - width,
+				y: anchor.y - height / 2,
+			};
+			flowNodes = flowNodes.map((candidate) =>
+				candidate.id === nodeId ? { ...candidate, position } : candidate,
+			);
+		};
+		requestAnimationFrame(align);
 	}
 
 	function toolbarNodeLabel(nodeType: AutomationNodeType): string {
@@ -1216,6 +1307,7 @@
 			event.clientY < bounds.top ||
 			event.clientY > bounds.bottom
 		) return;
+		if (insideNodePanel(document.elementFromPoint(event.clientX, event.clientY))) return;
 		const point = flowApi.screenToFlowPosition({ x: event.clientX, y: event.clientY });
 		const width = NODE_FALLBACK_DIMS[drag.nodeType]?.width ?? 256;
 		addNode(drag.nodeType, { x: point.x - width / 2, y: point.y - 24 });
@@ -1232,6 +1324,7 @@
 	}
 
 	async function openGraphContextMenu(state: GraphContextMenuState) {
+		if (state.kind !== "canvas" || !state.connectFrom) clearPendingConnection();
 		const request = ++graphContextMenuRequest;
 		graphContextMenuOpen = false;
 		graphContextMenuState = state;
@@ -1272,7 +1365,31 @@
 		const state = graphContextMenuState;
 		graphContextMenuOpen = false;
 		graphContextMenuState = null;
-		if (state?.kind === "canvas") addNode(nodeType, state.position);
+		clearPendingConnection();
+		if (state?.kind !== "canvas") return;
+		const from = state.connectFrom;
+		if (!from) {
+			addNode(nodeType, state.position);
+			return;
+		}
+		const dims = NODE_FALLBACK_DIMS[nodeType] ?? { width: 256, height: 240 };
+		const id = addNode(
+			nodeType,
+			{
+				x: from.handleType === "source" ? state.position.x : state.position.x - dims.width,
+				y: state.position.y - dims.height / 2,
+			},
+			from,
+		);
+		alignToDropPoint(id, state.position, from);
+	}
+
+	/** Closing the menu without picking a node drops the held connection. */
+	function handleGraphContextMenuOpenChange(open: boolean) {
+		if (open) return;
+		setTimeout(() => {
+			if (!graphContextMenuOpen) clearPendingConnection();
+		});
 	}
 
 	function pasteFromCanvas() {
@@ -1306,6 +1423,7 @@
 
 	async function handleOpenGraphContextMenu(event: MouseEvent) {
 		if (!graphContextMenuOpen || !flowApi || !flowSurface) return;
+		if (insideNodePanel(document.elementFromPoint(event.clientX, event.clientY))) return;
 		event.preventDefault();
 		const { clientX, clientY } = event;
 		graphContextMenuOpen = false;
@@ -1358,7 +1476,7 @@
 		else next.add(state.nodeId);
 		lockedNodeIds = next;
 		flowNodes = flowNodes.map((node) =>
-			node.id === state.nodeId ? { ...node, draggable: !next.has(state.nodeId) } : node
+			node.id === state.nodeId ? { ...node, draggable: lockedDraggable(state.nodeId, next) } : node
 		);
 	}
 
@@ -1375,7 +1493,7 @@
 		}
 		lockedNodeIds = next;
 		flowNodes = flowNodes.map((node) =>
-			state.nodeIds.includes(node.id) ? { ...node, draggable: !next.has(node.id) } : node
+			state.nodeIds.includes(node.id) ? { ...node, draggable: lockedDraggable(node.id, next) } : node
 		);
 	}
 
@@ -1458,36 +1576,20 @@
 		}
 	}
 
-	// Re-attach devices / groups / rooms to every node whose UI needs them.
-	// Node data is captured at makeNodeData() time with the *current* value of
-	// these arrays, so nodes built before the queries resolve carry empty
-	// lists and never self-update — xyflow doesn't pass new props, so we
-	// rewrite data in place when the queries arrive.
-	function hydrateNodesWithLookups(
-		deviceList: Device[],
-		groupList: GroupData[],
-		roomList: RoomData[],
-		sceneList: { id: string; name: string }[],
-		effectList: EffectOption[],
-	) {
+	/**
+	 * Fills the display names stored on configs (trigger device, condition and
+	 * action targets) once the lookups that resolve them have loaded.
+	 */
+	function hydrateNodeNames(deviceList: Device[], groupList: GroupData[], roomList: RoomData[]) {
 		flowNodes = flowNodes.map((n) => {
-			const data = n.data as Record<string, unknown>;
+			const data = n.data as GraphNodeData<NodeConfig>;
 			if (n.type === "trigger") {
 				const cfg = enrichTriggerConfigWithDevice(data.config as TriggerConfig);
-				return { ...n, data: { ...data, devices: deviceList, rooms: roomList, config: cfg } };
+				return { ...n, data: { ...data, config: cfg } };
 			}
 			if (n.type === "condition") {
 				const cfg = enrichConditionConfigWithTarget(data.config as ConditionConfig);
-				return {
-					...n,
-					data: {
-						...data,
-						devices: deviceList,
-						groups: groupList,
-						rooms: roomList,
-						config: cfg,
-					},
-				};
+				return { ...n, data: { ...data, config: cfg } };
 			}
 			if (n.type === "action") {
 				const cfg = data.config as ActionConfig;
@@ -1495,23 +1597,11 @@
 				// reloaded automations don't display "device:0x001...". Prefer the
 				// existing in-memory name to avoid clobbering a value the user just
 				// picked while lookups were resolving.
-				let name = cfg.targetName;
-				if (!name) {
-					name = resolveTargetName(cfg.targetType, cfg.targetId, deviceList, groupList, roomList);
-				}
-				const nextCfg = name === cfg.targetName ? cfg : { ...cfg, targetName: name };
-				return {
-					...n,
-					data: {
-						...data,
-						devices: deviceList,
-						groups: groupList,
-						rooms: roomList,
-						scenes: sceneList,
-						effects: effectList,
-						config: nextCfg,
-					},
-				};
+				const name =
+					cfg.targetName ||
+					resolveTargetName(cfg.targetType, cfg.targetId, deviceList, groupList, roomList);
+				if (name === cfg.targetName) return n;
+				return { ...n, data: { ...data, config: { ...cfg, targetName: name } } };
 			}
 			return n;
 		});
@@ -1521,32 +1611,12 @@
 		const deviceList = devices;
 		const groupList = groups;
 		const roomList = rooms;
-		const sceneList = scenes;
-		const effectList = effects;
-		// Trigger whenever ANY lookup changes. Don't gate on .length>0; an
-		// automation editor opened on an instance with zero groups/rooms still
-		// needs the hydration pass to resolve targetName from devices.
+		// Run whenever any lookup changes, including to empty, so names resolve
+		// from devices even on an instance with no groups or rooms.
 		void deviceList.length;
 		void groupList.length;
 		void roomList.length;
-		void sceneList.length;
-		void effectList.length;
-		untrack(() => hydrateNodesWithLookups(deviceList, groupList, roomList, sceneList, effectList));
-	});
-
-	function updateTriggerNodeEnabledState(enabled: boolean) {
-		flowNodes = flowNodes.map((n) => {
-			if (n.type !== "trigger") return n;
-			return {
-				...n,
-				data: { ...n.data, automationEnabled: enabled },
-			};
-		});
-	}
-
-	$effect(() => {
-		const enabled = automationEnabled;
-		untrack(() => updateTriggerNodeEnabledState(enabled));
+		untrack(() => hydrateNodeNames(deviceList, groupList, roomList));
 	});
 
 	function edgeStyleFor(e: Edge): string {
@@ -1661,6 +1731,7 @@
 					name: automationName,
 					icon: automationIcon,
 					enabled: automationEnabled,
+					definitions: automationDefinitions,
 					nodes: flowNodesToAutomationNodes(flowNodes),
 					edges: flowEdgesToAutomationEdges(flowEdges, flowNodes),
 				},
@@ -1697,7 +1768,8 @@
 				flowNodes = automationNodesToFlowNodes(auto.nodes, auto.edges, editMode, activatedNodes);
 			}
 			flowEdges = automationEdgesToFlowEdges(auto.edges);
-			jsonString = flowStateToJson();
+			automationDefinitions = auto.definitions;
+			jsonString = codeText();
 			savedCursor = history.cursor;
 		}
 	}
@@ -1737,20 +1809,12 @@
 					automationEnabled = auto.enabled;
 					savedAutomationEnabled = auto.enabled;
 					automationCompilable = auto.compilable;
+					automationDefinitions = auto.definitions;
 					flowNodes = automationNodesToFlowNodes(auto.nodes, auto.edges, editMode, activatedNodes);
 					flowEdges = automationEdgesToFlowEdges(auto.edges);
 					initialAutoLayoutPending = placementMode === "auto" && flowNodes.length > 0;
 
-					let maxId = 0;
-					for (const n of auto.nodes) {
-						const match = n.id.match(/\d+$/);
-						if (match) {
-							const num = parseInt(match[0], 10);
-							if (num > maxId) maxId = num;
-						}
-					}
-					nodeIdCounter = maxId;
-						jsonString = flowStateToJson();
+						jsonString = codeText();
 						takeSnapshot();
 					}
 					loading = false;
@@ -1946,15 +2010,39 @@
 					editable={editMode}
 					nodesDraggable={editMode && placementMode === "free"}
 				onconnect={handleConnect}
+				onConnectEnd={handleConnectEnd}
 				onnodedragstop={takeSnapshot}
 				ondelete={takeSnapshot}
 				onPaneContextMenu={handleCanvasContextMenu}
+						onPaneClick={deactivateNode}
 						onNodeContextMenu={handleNodeContextMenu}
 						onReady={(api) => (flowApi = api)}
 						onNodesInitialized={applyInitialAutoLayout}
 					/>
 				</div>
+				{#if pendingConnectionPath}
+					<svg class="pointer-events-none absolute inset-0 size-full" aria-hidden="true">
+						<path
+							d={pendingConnectionPath}
+							fill="none"
+							stroke="var(--color-muted-foreground)"
+							stroke-width="1"
+							stroke-dasharray="5"
+							opacity="0.5"
+						/>
+					</svg>
+				{/if}
 			</div>
+			{#if activeNode}
+				<AutomationNodePanel
+					node={activeNode}
+					readOnly={!editMode}
+					lookups={summaryLookups}
+					docked={isMobile.current}
+					onConfigChange={updateNodeConfig}
+					onClose={deactivateNode}
+				/>
+			{/if}
 			<div class="absolute top-3 left-1/2 z-10 max-w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-lg bg-card/90 px-2 py-1.5 shadow-card backdrop-blur-sm">
 				<div class="no-scrollbar flex items-center gap-1 overflow-x-auto">
 				<Button variant="ghost" size="icon-sm" onclick={handleUndo} disabled={!editMode || !history.canUndo}>
@@ -2129,19 +2217,22 @@
 			</div>
 			</div>
 
-			<DropdownMenu bind:open={graphContextMenuOpen}>
+			<DropdownMenu bind:open={graphContextMenuOpen} onOpenChange={handleGraphContextMenuOpenChange}>
 				<DropdownMenuTrigger
 					class="pointer-events-none fixed size-0 opacity-0"
 					style="left: {graphContextMenuState?.x ?? 0}px; top: {graphContextMenuState?.y ?? 0}px;"
 					aria-hidden="true"
 					tabindex={-1}
 				></DropdownMenuTrigger>
-				<DropdownMenuContent align="start" class="min-w-[10rem]">
+				<DropdownMenuContent align="start" class="w-max min-w-[10rem]">
 					{#if graphContextMenuState?.kind === "canvas"}
-						<DropdownMenuItem onclick={() => addNodeFromCanvas("trigger")}>
-							<Zap class="size-3.5 text-automation-trigger" />
-							{m.automation_node_trigger({}, messageOptions)}
-						</DropdownMenuItem>
+						{@const connectFrom = graphContextMenuState.connectFrom}
+						{#if connectFrom?.handleType !== "source"}
+							<DropdownMenuItem onclick={() => addNodeFromCanvas("trigger")}>
+								<Zap class="size-3.5 text-automation-trigger" />
+								{m.automation_node_trigger({}, messageOptions)}
+							</DropdownMenuItem>
+						{/if}
 						<DropdownMenuItem onclick={() => addNodeFromCanvas("condition")}>
 							<ShieldCheck class="size-3.5 text-automation-condition" />
 							{m.automation_node_condition({}, messageOptions)}
@@ -2150,11 +2241,13 @@
 							<GitMerge class="size-3.5 text-automation-operator" />
 							{m.automation_operator_title({}, messageOptions)}
 						</DropdownMenuItem>
-						<DropdownMenuItem onclick={() => addNodeFromCanvas("action")}>
-							<Play class="size-3.5 text-automation-action" />
-							{m.automation_node_action({}, messageOptions)}
-						</DropdownMenuItem>
-						{#if copyBuffer}
+						{#if connectFrom?.handleType !== "target"}
+							<DropdownMenuItem onclick={() => addNodeFromCanvas("action")}>
+								<Play class="size-3.5 text-automation-action" />
+								{m.automation_node_action({}, messageOptions)}
+							</DropdownMenuItem>
+						{/if}
+						{#if copyBuffer && !connectFrom}
 							<DropdownMenuSeparator />
 							<DropdownMenuItem onclick={pasteFromCanvas}>
 								<ClipboardPaste class="size-3.5" />
@@ -2165,7 +2258,7 @@
 						{#if !editMode && graphContextMenuNode?.type === "trigger"}
 							<DropdownMenuItem disabled={!savedAutomationEnabled} onclick={fireTriggerFromContextMenu}>
 								<Zap class="size-3.5 text-automation-trigger" />
-								{m.automation_node_trigger({}, messageOptions)}
+								{m.automation_editor_fire_trigger({}, messageOptions)}
 							</DropdownMenuItem>
 						{:else if editMode}
 							{#if graphContextMenuNode?.type === "trigger"}
@@ -2218,6 +2311,7 @@
 				bind:error={jsonError}
 				readonly={!editMode}
 				onchange={handleJsonChange}
+				extensions={codeExtensions}
 			/>
 			{#if jsonError}
 				<div

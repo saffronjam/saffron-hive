@@ -88,6 +88,7 @@ type Querier interface {
 	DeleteAutomation(ctx context.Context, id string) error
 	DeleteAutomationEdgesByAutomation(ctx context.Context, automationID string) error
 	DeleteAutomationNodeStateByAutomation(ctx context.Context, automationID string) error
+	DeleteAutomationNodeStateExcept(ctx context.Context, arg DeleteAutomationNodeStateExceptParams) error
 	DeleteAutomationNodesByAutomation(ctx context.Context, automationID string) error
 	DeleteEffect(ctx context.Context, id string) error
 	DeleteEffectClipsByTrack(ctx context.Context, trackID string) error
@@ -135,8 +136,8 @@ type Querier interface {
 	GetAutomation(ctx context.Context, id string) (GetAutomationRow, error)
 	// Per-node runtime state for stateful automation nodes (e.g. cycle_scenes
 	// index). Generic key/value JSON store keyed by (automation_id, node_id, key).
-	// Cascades on automation and node deletion, so graph replacement wipes state
-	// automatically.
+	// Node ids are short and reused within an automation, so a graph save
+	// deletes the state of every node the new graph no longer contains.
 	GetAutomationNodeState(ctx context.Context, arg GetAutomationNodeStateParams) (string, error)
 	GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceRow, error)
 	GetEffect(ctx context.Context, id string) (GetEffectRow, error)
@@ -206,7 +207,7 @@ type Querier interface {
 	ListAllGroupTags(ctx context.Context) ([]GroupTag, error)
 	ListAutomationEdges(ctx context.Context, automationID string) ([]AutomationEdge, error)
 	ListAutomationNodeStateByAutomation(ctx context.Context, automationID string) ([]ListAutomationNodeStateByAutomationRow, error)
-	ListAutomationNodes(ctx context.Context, automationID string) ([]AutomationNode, error)
+	ListAutomationNodes(ctx context.Context, automationID string) ([]ListAutomationNodesRow, error)
 	ListAutomations(ctx context.Context) ([]ListAutomationsRow, error)
 	ListDevices(ctx context.Context) ([]ListDevicesRow, error)
 	ListDevicesBySource(ctx context.Context, source device.Source) ([]ListDevicesBySourceRow, error)
@@ -278,6 +279,7 @@ type Querier interface {
 	RemoveRoomMembersByGroup(ctx context.Context, memberID string) error
 	ResolveGroupIDByName(ctx context.Context, name *string) (string, error)
 	ResolveRoomIDByName(ctx context.Context, name string) (string, error)
+	ResolveSceneIDByName(ctx context.Context, name string) (string, error)
 	RestoreDevices(ctx context.Context, idsJson string) ([]device.DeviceID, error)
 	SetAutomationNodeState(ctx context.Context, arg SetAutomationNodeStateParams) error
 	SetDeviceDisabled(ctx context.Context, arg SetDeviceDisabledParams) error

@@ -329,7 +329,7 @@ func TestOrphanActionProducesWarning(t *testing.T) {
 		Nodes: []Node{
 			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed"}},
 			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
-			{ID: "a2", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionActivateScene, Payload: "scene-1"}},
+			{ID: "a2", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionActivateScene, Payload: `{"scene_id":"scene-1"}`}},
 		},
 		Edges: []Edge{
 			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
@@ -400,7 +400,7 @@ func TestMultipleActionsFromOperator(t *testing.T) {
 			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed"}},
 			{ID: "op1", AutomationID: "auto-1", Type: NodeOperator, Config: OperatorConfig{Kind: OperatorAnd}},
 			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": true}`}},
-			{ID: "a2", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionActivateScene, Payload: "scene-1"}},
+			{ID: "a2", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionActivateScene, Payload: `{"scene_id":"scene-1"}`}},
 		},
 		Edges: []Edge{
 			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},

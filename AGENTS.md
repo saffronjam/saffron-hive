@@ -149,6 +149,12 @@ Actions produce real-world changes, which produce events when devices report bac
 
 A device-state trigger can carry a hold ("For"): it fires once its condition has stayed true against the device's current state for that long, and again only after the condition has been false. The engine keeps one timer per waiting trigger, keeps it across reloads that leave the trigger unchanged, and re-evaluates against current state on load so a condition that is already true starts counting.
 
+Beyond device state, expressions can call `time.between` / `time.after` / `time.before`, `day.in`, `device()` / `room()` / `group()` (by id, or by name), the aggregates `any_of` / `all_of` / `count_of` / `avg_of` / `min_of` / `max_of` over a target, `since(target, field)` (seconds since the field last changed, from an in-memory tracker) and `scene_active`. Times, weekdays and schedules follow the `timezone` setting; unset means the server's local time.
+
+Each automation can define named macros (`automations.definitions`): conditions, targets and actions with parameters. Nodes refer to them by name and the engine expands them when it loads the graph, so stored nodes stay id-based. Node ids are scoped to their automation (`t1`, `c2`, `o1`, `a3`).
+
+The editor's Code view shows an automation in a readable JSON language (`web/src/lib/automation-dsl/`): `rules` of `when` / `if` / `do`, or an explicit `graph` when the automation branches, with entities written by display name and macros under `define`. It is printed from and compiled to the stored graph; the readable form is never stored.
+
 #### Loop prevention
 Two mechanisms protect against infinite automation loops:
 

@@ -1286,7 +1286,7 @@
 			aria-hidden="true"
 			tabindex={-1}
 		></DropdownMenuTrigger>
-		<DropdownMenuContent align="start" class="min-w-[12rem]">
+		<DropdownMenuContent align="start" class="w-max min-w-[12rem]">
 			{#if contextMenuState?.kind === "canvas"}
 				<DropdownMenuItem {disabled} onclick={() => {
 					closeContextMenu();

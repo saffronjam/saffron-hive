@@ -25,6 +25,12 @@ type AutomationReloader interface {
 	Reload() error
 }
 
+// AutomationClock sets the time zone automations are evaluated in and
+// reschedules them.
+type AutomationClock interface {
+	SetTimeZone(location *time.Location) error
+}
+
 // AutomationTriggerer fires a trigger node on demand. Used by the
 // fireAutomationTrigger mutation for in-editor debugging.
 type AutomationTriggerer interface {
@@ -257,6 +263,7 @@ type Resolver struct {
 	AutomationReloader  AutomationReloader
 	AutomationTriggerer AutomationTriggerer
 	AutomationHolds     AutomationHoldReader
+	AutomationClock     AutomationClock
 	LogBuffer           *logging.Buffer
 	ActivityBuffer      *activity.Buffer
 	Alarms              *alarms.Service

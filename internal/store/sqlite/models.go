@@ -92,6 +92,7 @@ type Automation struct {
 	Icon        *string
 	CreatedBy   *string
 	LastFiredAt *time.Time
+	Definitions string
 }
 
 type AutomationEdge struct {
@@ -101,8 +102,8 @@ type AutomationEdge struct {
 }
 
 type AutomationNode struct {
-	ID           string
 	AutomationID string
+	ID           string
 	Type         string
 	Config       string
 	PositionX    float64

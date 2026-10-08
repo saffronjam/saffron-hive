@@ -137,7 +137,10 @@ type AutomationGraph struct {
 	Icon    *string `json:"icon,omitempty"`
 	Enabled bool    `json:"enabled"`
 	// Whether the stored graph can be loaded by the automation engine.
-	Compilable  bool              `json:"compilable"`
+	Compilable bool `json:"compilable"`
+	// JSON object of the automation's named macros, keyed by name. Nodes refer to
+	// them by name; see automation.Definition for the shapes.
+	Definitions string            `json:"definitions"`
 	LastFiredAt *time.Time        `json:"lastFiredAt,omitempty"`
 	Nodes       []*AutomationNode `json:"nodes"`
 	Edges       []*AutomationEdge `json:"edges"`
@@ -223,10 +226,12 @@ type ConnectionTestResult struct {
 }
 
 type CreateAutomationInput struct {
-	Name    string                 `json:"name"`
-	Enabled bool                   `json:"enabled"`
-	Nodes   []*AutomationNodeInput `json:"nodes"`
-	Edges   []*AutomationEdgeInput `json:"edges"`
+	Name    string `json:"name"`
+	Enabled bool   `json:"enabled"`
+	// JSON object of named macros. Defaults to none.
+	Definitions graphql.Omittable[*string] `json:"definitions,omitempty"`
+	Nodes       []*AutomationNodeInput     `json:"nodes"`
+	Edges       []*AutomationEdgeInput     `json:"edges"`
 }
 
 type CreateEffectInput struct {
@@ -1114,11 +1119,13 @@ type TuyaConfigInput struct {
 }
 
 type UpdateAutomationInput struct {
-	Name    graphql.Omittable[*string]                `json:"name,omitempty"`
-	Icon    graphql.Omittable[*string]                `json:"icon,omitempty"`
-	Enabled graphql.Omittable[*bool]                  `json:"enabled,omitempty"`
-	Nodes   graphql.Omittable[[]*AutomationNodeInput] `json:"nodes,omitempty"`
-	Edges   graphql.Omittable[[]*AutomationEdgeInput] `json:"edges,omitempty"`
+	Name    graphql.Omittable[*string] `json:"name,omitempty"`
+	Icon    graphql.Omittable[*string] `json:"icon,omitempty"`
+	Enabled graphql.Omittable[*bool]   `json:"enabled,omitempty"`
+	// JSON object of named macros.
+	Definitions graphql.Omittable[*string]                `json:"definitions,omitempty"`
+	Nodes       graphql.Omittable[[]*AutomationNodeInput] `json:"nodes,omitempty"`
+	Edges       graphql.Omittable[[]*AutomationEdgeInput] `json:"edges,omitempty"`
 }
 
 type UpdateCurrentUserInput struct {

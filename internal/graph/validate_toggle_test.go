@@ -14,7 +14,7 @@ func TestValidateAutomationInputToggleAcceptsExpressionTarget(t *testing.T) {
 	}
 	edges := []*model.AutomationEdgeInput{{FromNodeID: "trigger", ToNodeID: "action"}}
 
-	if err := validateAutomationInput(context.Background(), newMockStore(), nodes, edges); err != nil {
+	if err := validateAutomationInput(context.Background(), newMockStore(), "", nodes, edges); err != nil {
 		t.Fatalf("valid expression toggle: %v", err)
 	}
 }

@@ -409,6 +409,11 @@ type AutomationGraph {
   enabled: Boolean!
   "Whether the stored graph can be loaded by the automation engine."
   compilable: Boolean!
+  """
+  JSON object of the automation's named macros, keyed by name. Nodes refer to
+  them by name; see automation.Definition for the shapes.
+  """
+  definitions: String!
   lastFiredAt: DateTime
   nodes: [AutomationNode!]!
   edges: [AutomationEdge!]!
@@ -1547,6 +1552,8 @@ input PreviewVibeInput {
 input CreateAutomationInput {
   name: String!
   enabled: Boolean!
+  "JSON object of named macros. Defaults to none."
+  definitions: String
   nodes: [AutomationNodeInput!]!
   edges: [AutomationEdgeInput!]!
 }
@@ -1677,6 +1684,8 @@ input UpdateAutomationInput {
   name: String
   icon: String
   enabled: Boolean
+  "JSON object of named macros."
+  definitions: String
   nodes: [AutomationNodeInput!]
   edges: [AutomationEdgeInput!]
 }

@@ -17,12 +17,15 @@ type holdKey struct {
 // holdState tracks one hold trigger. While the condition holds and the trigger
 // has not fired, a timer runs towards deadline. fired latches after the timer
 // fires so the trigger fires once per stretch of the condition being true.
+// manual marks a timer started by a manual fire, which simulates the condition
+// holding: device reports neither cancel it nor are checked when it fires.
 // generation invalidates timer callbacks that lost a race with a cancel.
 type holdState struct {
 	signature  string
 	stop       func() bool
 	deadline   time.Time
 	fired      bool
+	manual     bool
 	generation uint64
 }
 
@@ -64,7 +67,8 @@ func (e *Engine) holdEvent(ct compiledTrigger, now time.Time) eventbus.Event {
 }
 
 func (e *Engine) holdConditionMet(ct compiledTrigger, now time.Time) (bool, ExprEnv) {
-	env := buildEnv(e.baseCtx, e.reader, e.resolver, e.store, e.holdEvent(ct, now), now)
+	event := e.holdEvent(ct, now)
+	env := e.exprScope().env(&event, e.inLocation(now))
 	result, err := evalExpr(ct.program, env)
 	if err != nil {
 		logger.Error("hold trigger eval error", "automation_id", ct.graphID, "node_id", ct.nodeID, "error", err)
@@ -102,6 +106,10 @@ func (e *Engine) evaluateHold(ct compiledTrigger) {
 		state = &holdState{signature: holdSignature(ct.config)}
 		e.holds[key] = state
 	}
+	if state.manual && state.stop != nil {
+		e.mu.Unlock()
+		return
+	}
 	if !holding {
 		cancelled := state.cancel()
 		state.fired = false
@@ -136,7 +144,9 @@ func (e *Engine) fireHold(ct compiledTrigger, generation uint64) {
 		return
 	}
 	state.stop = nil
-	state.fired = true
+	manual := state.manual
+	state.manual = false
+	state.fired = !manual
 	cg, loaded := e.graphs[ct.graphID]
 	e.mu.Unlock()
 	e.publishHoldPending(ct.graphID, ct.nodeID, nil)
@@ -146,7 +156,7 @@ func (e *Engine) fireHold(ct compiledTrigger, generation uint64) {
 
 	now := e.now()
 	holding, env := e.holdConditionMet(ct, now)
-	if !holding {
+	if !holding && !manual {
 		e.mu.Lock()
 		state.fired = false
 		e.mu.Unlock()
@@ -161,6 +171,40 @@ func (e *Engine) fireHold(ct compiledTrigger, generation uint64) {
 	if e.evaluateGraph(cg, env, triggerResults) {
 		e.recordAutomationFired(ct.graphID, now)
 	}
+}
+
+// startManualHold runs a hold trigger's countdown as if its condition had just
+// become true, then fires it, whatever the device reports meanwhile.
+func (e *Engine) startManualHold(ct compiledTrigger) {
+	key := holdKey{ct.graphID, ct.nodeID}
+	e.mu.Lock()
+	state := e.holds[key]
+	if state == nil {
+		state = &holdState{signature: holdSignature(ct.config)}
+		e.holds[key] = state
+	}
+	state.cancel()
+	state.manual = true
+	state.generation++
+	generation := state.generation
+	hold := time.Duration(ct.config.HoldMs) * time.Millisecond
+	state.deadline = e.now().Add(hold)
+	deadline := state.deadline
+	state.stop = e.afterFunc(hold, func() { e.fireHold(ct, generation) })
+	e.mu.Unlock()
+	e.publishHoldPending(ct.graphID, ct.nodeID, &deadline)
+}
+
+// holdTrigger returns the loaded hold trigger for one node.
+func (e *Engine) holdTrigger(automationID string, nodeID NodeID) (compiledTrigger, bool) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	for _, ct := range e.triggers[string(eventbus.EventDeviceStateChanged)] {
+		if ct.graphID == automationID && ct.nodeID == nodeID && isHoldTrigger(ct) {
+			return ct, true
+		}
+	}
+	return compiledTrigger{}, false
 }
 
 // reconcileHolds keeps the timers of hold triggers that a reload left

@@ -99,6 +99,14 @@ export function holdPresets(): { value: number; label: string }[] {
   ];
 }
 
+/** A hold duration as text: whole hours or minutes when exact, otherwise seconds. */
+export function formatHoldDuration(ms: number): string {
+  if (ms <= 0) return m.automation_timing_immediate({}, locale.messageOptions());
+  if (ms % 3_600_000 === 0) return formatShortDuration(ms / 3_600_000, "hour");
+  if (ms % 60_000 === 0) return formatShortDuration(ms / 60_000, "minute");
+  return formatShortDuration(Math.ceil(ms / 1000), "second");
+}
+
 const capToExprProperty: Record<string, string> = {
   on_off: "on",
   color_temp: "colorTemp",
@@ -521,7 +529,46 @@ export interface NormalizedActionConfig extends ActionConfigShape {
   targetName: string;
 }
 
+/** The action type of a node that calls an action macro from the definitions. */
+export const MACRO_ACTION = "macro";
+
+/** A call of an action macro: its name and arguments in stored form. */
+export interface ActionMacroCall {
+  use: string;
+  args: unknown[];
+}
+
+function sceneIdFromPayload(payload: string): string {
+  try {
+    const parsed = JSON.parse(payload) as { scene_id?: unknown };
+    return typeof parsed.scene_id === "string" ? parsed.scene_id : "";
+  } catch {
+    return "";
+  }
+}
+
+/** The macro call stored in an action's payload, or null. */
+export function actionMacroCall(config: ActionConfigShape): ActionMacroCall | null {
+  if (config.actionType !== MACRO_ACTION) return null;
+  try {
+    const parsed = JSON.parse(config.payload) as ActionMacroCall;
+    return typeof parsed.use === "string" ? { use: parsed.use, args: parsed.args ?? [] } : null;
+  } catch {
+    return null;
+  }
+}
+
 export function normalizeActionConfig(raw: Record<string, unknown>): NormalizedActionConfig {
+  if (typeof raw.use === "string") {
+    return {
+      actionType: MACRO_ACTION,
+      targetType: "",
+      targetId: "",
+      targetName: "",
+      targetExpr: [],
+      payload: JSON.stringify({ use: raw.use, args: Array.isArray(raw.args) ? raw.args : [] }),
+    };
+  }
   const actionType = (raw.action_type as string) ?? (raw.actionType as string) ?? "";
   const targetType = (raw.target_type as string) ?? (raw.targetType as string) ?? "";
   const targetId = (raw.target_id as string) ?? (raw.targetId as string) ?? "";
@@ -530,7 +577,7 @@ export function normalizeActionConfig(raw: Record<string, unknown>): NormalizedA
   return {
     actionType,
     targetType: activatesScene ? "scene" : targetType,
-    targetId: activatesScene ? payload : targetId,
+    targetId: activatesScene ? sceneIdFromPayload(payload) : targetId,
     targetName: (raw.target_name as string) ?? (raw.targetName as string) ?? "",
     targetExpr:
       (raw.target_expr as NormalizedActionConfig["targetExpr"]) ??
@@ -541,6 +588,8 @@ export function normalizeActionConfig(raw: Record<string, unknown>): NormalizedA
 }
 
 export function serializeActionConfig(config: ActionConfigShape): string {
+  const macro = actionMacroCall(config);
+  if (macro) return JSON.stringify(macro.args.length ? macro : { use: macro.use });
   const activatesScene = config.actionType === "activate_scene";
   return JSON.stringify({
     action_type: config.actionType,
@@ -551,7 +600,7 @@ export function serializeActionConfig(config: ActionConfigShape): string {
       config.actionType === "toggle_device_state"
         ? ""
         : activatesScene
-          ? config.targetId
+          ? JSON.stringify({ scene_id: config.targetId })
           : config.payload,
   });
 }
@@ -695,6 +744,7 @@ export function validateActionConfig(
   config: ActionConfigShape,
 ): ValidationError<ActionField> | null {
   if (!config.actionType) return { field: "actionType", code: "action_required" };
+  if (config.actionType === MACRO_ACTION) return null;
   if (config.actionType === "raise_alarm" || config.actionType === "clear_alarm") {
     try {
       const parsed = JSON.parse(config.payload || "{}") as Record<string, unknown>;

@@ -142,6 +142,53 @@ export const automation_change_no_fields: (inputs: Automation_Change_No_FieldsIn
 export const automation_change_range: (inputs: Automation_Change_RangeInputs) => LocalizedString;
 export const automation_change_select_field: (inputs: Automation_Change_Select_FieldInputs) => LocalizedString;
 export const automation_change_value: (inputs: Automation_Change_ValueInputs) => LocalizedString;
+export const automation_code_ambiguous_name: (inputs: Automation_Code_Ambiguous_NameInputs) => LocalizedString;
+export const automation_code_duplicate_id: (inputs: Automation_Code_Duplicate_IdInputs) => LocalizedString;
+export const automation_code_expected_array: (inputs: Automation_Code_Expected_ArrayInputs) => LocalizedString;
+export const automation_code_expected_number: (inputs: Automation_Code_Expected_NumberInputs) => LocalizedString;
+export const automation_code_expected_object: (inputs: Automation_Code_Expected_ObjectInputs) => LocalizedString;
+export const automation_code_expected_string: (inputs: Automation_Code_Expected_StringInputs) => LocalizedString;
+export const automation_code_invalid_duration: (inputs: Automation_Code_Invalid_DurationInputs) => LocalizedString;
+export const automation_code_invalid_name: (inputs: Automation_Code_Invalid_NameInputs) => LocalizedString;
+export const automation_code_invalid_time: (inputs: Automation_Code_Invalid_TimeInputs) => LocalizedString;
+export const automation_code_invalid_value: (inputs: Automation_Code_Invalid_ValueInputs) => LocalizedString;
+export const automation_code_key_after: (inputs: Automation_Code_Key_AfterInputs) => LocalizedString;
+export const automation_code_key_all: (inputs: Automation_Code_Key_AllInputs) => LocalizedString;
+export const automation_code_key_any: (inputs: Automation_Code_Key_AnyInputs) => LocalizedString;
+export const automation_code_key_avg: (inputs: Automation_Code_Key_AvgInputs) => LocalizedString;
+export const automation_code_key_between: (inputs: Automation_Code_Key_BetweenInputs) => LocalizedString;
+export const automation_code_key_count: (inputs: Automation_Code_Key_CountInputs) => LocalizedString;
+export const automation_code_key_days: (inputs: Automation_Code_Key_DaysInputs) => LocalizedString;
+export const automation_code_key_define: (inputs: Automation_Code_Key_DefineInputs) => LocalizedString;
+export const automation_code_key_effect: (inputs: Automation_Code_Key_EffectInputs) => LocalizedString;
+export const automation_code_key_event_type: (inputs: Automation_Code_Key_Event_TypeInputs) => LocalizedString;
+export const automation_code_key_field: (inputs: Automation_Code_Key_FieldInputs) => LocalizedString;
+export const automation_code_key_filters: (inputs: Automation_Code_Key_FiltersInputs) => LocalizedString;
+export const automation_code_key_graph: (inputs: Automation_Code_Key_GraphInputs) => LocalizedString;
+export const automation_code_key_id: (inputs: Automation_Code_Key_IdInputs) => LocalizedString;
+export const automation_code_key_max: (inputs: Automation_Code_Key_MaxInputs) => LocalizedString;
+export const automation_code_key_message: (inputs: Automation_Code_Key_MessageInputs) => LocalizedString;
+export const automation_code_key_min: (inputs: Automation_Code_Key_MinInputs) => LocalizedString;
+export const automation_code_key_name: (inputs: Automation_Code_Key_NameInputs) => LocalizedString;
+export const automation_code_key_not: (inputs: Automation_Code_Key_NotInputs) => LocalizedString;
+export const automation_code_key_rules: (inputs: Automation_Code_Key_RulesInputs) => LocalizedString;
+export const automation_code_key_scene_active: (inputs: Automation_Code_Key_Scene_ActiveInputs) => LocalizedString;
+export const automation_code_key_settings: (inputs: Automation_Code_Key_SettingsInputs) => LocalizedString;
+export const automation_code_key_since: (inputs: Automation_Code_Key_SinceInputs) => LocalizedString;
+export const automation_code_key_state: (inputs: Automation_Code_Key_StateInputs) => LocalizedString;
+export const automation_code_key_target: (inputs: Automation_Code_Key_TargetInputs) => LocalizedString;
+export const automation_code_key_where: (inputs: Automation_Code_Key_WhereInputs) => LocalizedString;
+export const automation_code_kind_scene: (inputs: Automation_Code_Kind_SceneInputs) => LocalizedString;
+export const automation_code_kind_webhook: (inputs: Automation_Code_Kind_WebhookInputs) => LocalizedString;
+export const automation_code_macro_args: (inputs: Automation_Code_Macro_ArgsInputs) => LocalizedString;
+export const automation_code_missing_key: (inputs: Automation_Code_Missing_KeyInputs) => LocalizedString;
+export const automation_code_one_of: (inputs: Automation_Code_One_OfInputs) => LocalizedString;
+export const automation_code_unknown_day: (inputs: Automation_Code_Unknown_DayInputs) => LocalizedString;
+export const automation_code_unknown_id: (inputs: Automation_Code_Unknown_IdInputs) => LocalizedString;
+export const automation_code_unknown_key: (inputs: Automation_Code_Unknown_KeyInputs) => LocalizedString;
+export const automation_code_unknown_macro: (inputs: Automation_Code_Unknown_MacroInputs) => LocalizedString;
+export const automation_code_unknown_name: (inputs: Automation_Code_Unknown_NameInputs) => LocalizedString;
+export const automation_code_wrong_macro: (inputs: Automation_Code_Wrong_MacroInputs) => LocalizedString;
 export const automation_condition_custom: (inputs: Automation_Condition_CustomInputs) => LocalizedString;
 export const automation_condition_custom_description: (inputs: Automation_Condition_Custom_DescriptionInputs) => LocalizedString;
 export const automation_condition_device_state: (inputs: Automation_Condition_Device_StateInputs) => LocalizedString;
@@ -162,6 +209,7 @@ export const automation_editor_delete_title: (inputs: Automation_Editor_Delete_T
 export const automation_editor_edit: (inputs: Automation_Editor_EditInputs) => LocalizedString;
 export const automation_editor_fallback: (inputs: Automation_Editor_FallbackInputs) => LocalizedString;
 export const automation_editor_fire_failed: (inputs: Automation_Editor_Fire_FailedInputs) => LocalizedString;
+export const automation_editor_fire_trigger: (inputs: Automation_Editor_Fire_TriggerInputs) => LocalizedString;
 export const automation_editor_free: (inputs: Automation_Editor_FreeInputs) => LocalizedString;
 export const automation_editor_graph_aria: (inputs: Automation_Editor_Graph_AriaInputs) => LocalizedString;
 export const automation_editor_invalid_config: (inputs: Automation_Editor_Invalid_ConfigInputs) => LocalizedString;
@@ -253,6 +301,8 @@ export const automation_operator_delay: (inputs: Automation_Operator_DelayInputs
 export const automation_operator_not: (inputs: Automation_Operator_NotInputs) => LocalizedString;
 export const automation_operator_or: (inputs: Automation_Operator_OrInputs) => LocalizedString;
 export const automation_operator_title: (inputs: Automation_Operator_TitleInputs) => LocalizedString;
+export const automation_panel_close: (inputs: Automation_Panel_CloseInputs) => LocalizedString;
+export const automation_panel_macro_hint: (inputs: Automation_Panel_Macro_HintInputs) => LocalizedString;
 export const automation_schedule_at_days: (inputs: Automation_Schedule_At_DaysInputs) => LocalizedString;
 export const automation_schedule_every_day_at: (inputs: Automation_Schedule_Every_Day_AtInputs) => LocalizedString;
 export const automation_schedule_every_hours: (inputs: Automation_Schedule_Every_HoursInputs) => LocalizedString;
@@ -281,6 +331,19 @@ export const automation_state_swing: (inputs: Automation_State_SwingInputs) => L
 export const automation_state_target_temperature: (inputs: Automation_State_Target_TemperatureInputs) => LocalizedString;
 export const automation_state_transition: (inputs: Automation_State_TransitionInputs) => LocalizedString;
 export const automation_state_transition_seconds: (inputs: Automation_State_Transition_SecondsInputs) => LocalizedString;
+export const automation_summary_activate_scene: (inputs: Automation_Summary_Activate_SceneInputs) => LocalizedString;
+export const automation_summary_availability: (inputs: Automation_Summary_AvailabilityInputs) => LocalizedString;
+export const automation_summary_change_value: (inputs: Automation_Summary_Change_ValueInputs) => LocalizedString;
+export const automation_summary_clear_alarm: (inputs: Automation_Summary_Clear_AlarmInputs) => LocalizedString;
+export const automation_summary_configure: (inputs: Automation_Summary_ConfigureInputs) => LocalizedString;
+export const automation_summary_cycle_current: (inputs: Automation_Summary_Cycle_CurrentInputs) => LocalizedString;
+export const automation_summary_cycle_scenes: (inputs: Automation_Summary_Cycle_ScenesInputs) => LocalizedString;
+export const automation_summary_device_event: (inputs: Automation_Summary_Device_EventInputs) => LocalizedString;
+export const automation_summary_raise_alarm: (inputs: Automation_Summary_Raise_AlarmInputs) => LocalizedString;
+export const automation_summary_run_effect: (inputs: Automation_Summary_Run_EffectInputs) => LocalizedString;
+export const automation_summary_toggle: (inputs: Automation_Summary_ToggleInputs) => LocalizedString;
+export const automation_summary_uses_macro: (inputs: Automation_Summary_Uses_MacroInputs) => LocalizedString;
+export const automation_summary_webhook: (inputs: Automation_Summary_WebhookInputs) => LocalizedString;
 export const automation_timing_immediate: (inputs: Automation_Timing_ImmediateInputs) => LocalizedString;
 export const automation_trigger_availability: (inputs: Automation_Trigger_AvailabilityInputs) => LocalizedString;
 export const automation_trigger_availability_description: (inputs: Automation_Trigger_Availability_DescriptionInputs) => LocalizedString;
@@ -1312,6 +1375,11 @@ export const settings_retention_aria: (inputs: Settings_Retention_AriaInputs) =>
 export const settings_retention_days: (inputs: Settings_Retention_DaysInputs) => LocalizedString;
 export const settings_retention_help: (inputs: Settings_Retention_HelpInputs) => LocalizedString;
 export const settings_save_failed: (inputs: Settings_Save_FailedInputs) => LocalizedString;
+export const settings_time_zone: (inputs: Settings_Time_ZoneInputs) => LocalizedString;
+export const settings_time_zone_browser: (inputs: Settings_Time_Zone_BrowserInputs) => LocalizedString;
+export const settings_time_zone_help: (inputs: Settings_Time_Zone_HelpInputs) => LocalizedString;
+export const settings_time_zone_search: (inputs: Settings_Time_Zone_SearchInputs) => LocalizedString;
+export const settings_time_zone_server: (inputs: Settings_Time_Zone_ServerInputs) => LocalizedString;
 export const shared_actions: (inputs: Shared_ActionsInputs) => LocalizedString;
 export const shared_add_items: (inputs: Shared_Add_ItemsInputs) => LocalizedString;
 export const shared_batch_actions: (inputs: Shared_Batch_ActionsInputs) => LocalizedString;
@@ -2007,6 +2075,81 @@ export type Automation_Change_RangeInputs = {
 };
 export type Automation_Change_Select_FieldInputs = {};
 export type Automation_Change_ValueInputs = {};
+export type Automation_Code_Ambiguous_NameInputs = {
+    name: NonNullable<unknown>;
+};
+export type Automation_Code_Duplicate_IdInputs = {
+    id: NonNullable<unknown>;
+};
+export type Automation_Code_Expected_ArrayInputs = {};
+export type Automation_Code_Expected_NumberInputs = {};
+export type Automation_Code_Expected_ObjectInputs = {};
+export type Automation_Code_Expected_StringInputs = {};
+export type Automation_Code_Invalid_DurationInputs = {
+    value: NonNullable<unknown>;
+};
+export type Automation_Code_Invalid_NameInputs = {};
+export type Automation_Code_Invalid_TimeInputs = {
+    value: NonNullable<unknown>;
+};
+export type Automation_Code_Invalid_ValueInputs = {
+    key: NonNullable<unknown>;
+};
+export type Automation_Code_Key_AfterInputs = {};
+export type Automation_Code_Key_AllInputs = {};
+export type Automation_Code_Key_AnyInputs = {};
+export type Automation_Code_Key_AvgInputs = {};
+export type Automation_Code_Key_BetweenInputs = {};
+export type Automation_Code_Key_CountInputs = {};
+export type Automation_Code_Key_DaysInputs = {};
+export type Automation_Code_Key_DefineInputs = {};
+export type Automation_Code_Key_EffectInputs = {};
+export type Automation_Code_Key_Event_TypeInputs = {};
+export type Automation_Code_Key_FieldInputs = {};
+export type Automation_Code_Key_FiltersInputs = {};
+export type Automation_Code_Key_GraphInputs = {};
+export type Automation_Code_Key_IdInputs = {};
+export type Automation_Code_Key_MaxInputs = {};
+export type Automation_Code_Key_MessageInputs = {};
+export type Automation_Code_Key_MinInputs = {};
+export type Automation_Code_Key_NameInputs = {};
+export type Automation_Code_Key_NotInputs = {};
+export type Automation_Code_Key_RulesInputs = {};
+export type Automation_Code_Key_Scene_ActiveInputs = {};
+export type Automation_Code_Key_SettingsInputs = {};
+export type Automation_Code_Key_SinceInputs = {};
+export type Automation_Code_Key_StateInputs = {};
+export type Automation_Code_Key_TargetInputs = {};
+export type Automation_Code_Key_WhereInputs = {};
+export type Automation_Code_Kind_SceneInputs = {};
+export type Automation_Code_Kind_WebhookInputs = {};
+export type Automation_Code_Macro_ArgsInputs = {
+    name: NonNullable<unknown>;
+};
+export type Automation_Code_Missing_KeyInputs = {
+    key: NonNullable<unknown>;
+};
+export type Automation_Code_One_OfInputs = {
+    keys: NonNullable<unknown>;
+};
+export type Automation_Code_Unknown_DayInputs = {
+    value: NonNullable<unknown>;
+};
+export type Automation_Code_Unknown_IdInputs = {
+    id: NonNullable<unknown>;
+};
+export type Automation_Code_Unknown_KeyInputs = {
+    key: NonNullable<unknown>;
+};
+export type Automation_Code_Unknown_MacroInputs = {
+    name: NonNullable<unknown>;
+};
+export type Automation_Code_Unknown_NameInputs = {
+    name: NonNullable<unknown>;
+};
+export type Automation_Code_Wrong_MacroInputs = {
+    name: NonNullable<unknown>;
+};
 export type Automation_Condition_CustomInputs = {};
 export type Automation_Condition_Custom_DescriptionInputs = {};
 export type Automation_Condition_Device_StateInputs = {};
@@ -2029,6 +2172,7 @@ export type Automation_Editor_Delete_TitleInputs = {};
 export type Automation_Editor_EditInputs = {};
 export type Automation_Editor_FallbackInputs = {};
 export type Automation_Editor_Fire_FailedInputs = {};
+export type Automation_Editor_Fire_TriggerInputs = {};
 export type Automation_Editor_FreeInputs = {};
 export type Automation_Editor_Graph_AriaInputs = {};
 export type Automation_Editor_Invalid_ConfigInputs = {};
@@ -2128,6 +2272,8 @@ export type Automation_Operator_DelayInputs = {};
 export type Automation_Operator_NotInputs = {};
 export type Automation_Operator_OrInputs = {};
 export type Automation_Operator_TitleInputs = {};
+export type Automation_Panel_CloseInputs = {};
+export type Automation_Panel_Macro_HintInputs = {};
 export type Automation_Schedule_At_DaysInputs = {
     time: NonNullable<unknown>;
     days: NonNullable<unknown>;
@@ -2167,6 +2313,49 @@ export type Automation_State_SwingInputs = {};
 export type Automation_State_Target_TemperatureInputs = {};
 export type Automation_State_TransitionInputs = {};
 export type Automation_State_Transition_SecondsInputs = {};
+export type Automation_Summary_Activate_SceneInputs = {
+    scene: NonNullable<unknown>;
+};
+export type Automation_Summary_AvailabilityInputs = {
+    device: NonNullable<unknown>;
+};
+export type Automation_Summary_Change_ValueInputs = {
+    field: NonNullable<unknown>;
+    amount: NonNullable<unknown>;
+    target: NonNullable<unknown>;
+};
+export type Automation_Summary_Clear_AlarmInputs = {
+    alarm: NonNullable<unknown>;
+};
+export type Automation_Summary_ConfigureInputs = {
+    device: NonNullable<unknown>;
+};
+export type Automation_Summary_Cycle_CurrentInputs = {
+    scene: NonNullable<unknown>;
+};
+export type Automation_Summary_Cycle_ScenesInputs = {
+    count: NonNullable<unknown>;
+};
+export type Automation_Summary_Device_EventInputs = {
+    event: NonNullable<unknown>;
+    device: NonNullable<unknown>;
+};
+export type Automation_Summary_Raise_AlarmInputs = {
+    message: NonNullable<unknown>;
+};
+export type Automation_Summary_Run_EffectInputs = {
+    effect: NonNullable<unknown>;
+    target: NonNullable<unknown>;
+};
+export type Automation_Summary_ToggleInputs = {
+    target: NonNullable<unknown>;
+};
+export type Automation_Summary_Uses_MacroInputs = {
+    name: NonNullable<unknown>;
+};
+export type Automation_Summary_WebhookInputs = {
+    name: NonNullable<unknown>;
+};
 export type Automation_Timing_ImmediateInputs = {};
 export type Automation_Trigger_AvailabilityInputs = {};
 export type Automation_Trigger_Availability_DescriptionInputs = {};
@@ -3431,6 +3620,13 @@ export type Settings_Retention_AriaInputs = {};
 export type Settings_Retention_DaysInputs = {};
 export type Settings_Retention_HelpInputs = {};
 export type Settings_Save_FailedInputs = {};
+export type Settings_Time_ZoneInputs = {};
+export type Settings_Time_Zone_BrowserInputs = {
+    zone: NonNullable<unknown>;
+};
+export type Settings_Time_Zone_HelpInputs = {};
+export type Settings_Time_Zone_SearchInputs = {};
+export type Settings_Time_Zone_ServerInputs = {};
 export type Shared_ActionsInputs = {};
 export type Shared_Add_ItemsInputs = {
     count: NonNullable<unknown>;

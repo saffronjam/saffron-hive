@@ -188,6 +188,17 @@ func (m *mockStore) ResolveRoomIDByName(_ context.Context, name string) (string,
 	return "", false, nil
 }
 
+func (m *mockStore) ResolveSceneIDByName(_ context.Context, name string) (string, bool, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for id, sc := range m.scenes {
+		if sc.Name == name {
+			return id, true, nil
+		}
+	}
+	return "", false, nil
+}
+
 func (m *mockStore) setGroupName(id, name string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

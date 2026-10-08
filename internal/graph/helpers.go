@@ -20,7 +20,6 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/lightfield"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 	"github.com/saffronjam/saffron-hive/internal/store"
-	"github.com/saffronjam/saffron-hive/internal/webhook"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -1200,12 +1199,18 @@ func mapAutomationGraph(g store.AutomationGraph, pending map[string]time.Time) *
 		Nodes:   make([]automation.Node, 0, len(g.Nodes)),
 		Edges:   make([]automation.Edge, 0, len(g.Edges)),
 	}
+	defs, defsErr := automation.ParseDefinitions(g.Automation.Definitions)
+	expandable := defsErr == nil
 	for _, n := range g.Nodes {
+		config, err := defs.ParseNodeConfig(automation.NodeType(n.Type), n.Config)
+		if err != nil {
+			expandable = false
+		}
 		domainGraph.Nodes = append(domainGraph.Nodes, automation.Node{
 			ID:           automation.NodeID(n.ID),
 			AutomationID: n.AutomationID,
 			Type:         automation.NodeType(n.Type),
-			Config:       parseAutomationNodeConfigForValidation(automation.NodeType(n.Type), n.Config),
+			Config:       config,
 			PositionX:    n.PositionX,
 			PositionY:    n.PositionY,
 		})
@@ -1222,7 +1227,8 @@ func mapAutomationGraph(g store.AutomationGraph, pending map[string]time.Time) *
 		Name:        g.Automation.Name,
 		Icon:        g.Automation.Icon,
 		Enabled:     g.Automation.Enabled,
-		Compilable:  automation.Compilable(domainGraph),
+		Compilable:  expandable && automation.Compilable(domainGraph),
+		Definitions: g.Automation.Definitions,
 		LastFiredAt: g.Automation.LastFiredAt,
 		CreatedBy:   mapUserRef(g.Automation.CreatedBy),
 	}
@@ -2018,13 +2024,54 @@ func normalizeRotation(deg float64) float64 {
 // validateAutomationInput validates automation node/edge inputs before persisting.
 // Returns a user-friendly error if the graph has structural issues (no triggers,
 // invalid cron expressions, cycles, etc.).
-func validateAutomationInput(ctx context.Context, store GraphStore, inputNodes []*model.AutomationNodeInput, inputEdges []*model.AutomationEdgeInput) error {
-	domainNodes := make([]automation.Node, 0, len(inputNodes))
-	for _, n := range inputNodes {
+// automationNodeInputs returns a stored graph's nodes in input form.
+func automationNodeInputs(g store.AutomationGraph) []*model.AutomationNodeInput {
+	nodes := make([]*model.AutomationNodeInput, len(g.Nodes))
+	for i, n := range g.Nodes {
+		nodes[i] = &model.AutomationNodeInput{ID: n.ID, Type: n.Type, Config: n.Config, PositionX: n.PositionX, PositionY: n.PositionY}
+	}
+	return nodes
+}
+
+// validateAutomationMacros checks the definitions and that every macro
+// reference resolves. Saves of drafts run only this check: an incomplete
+// graph may be stored and reports itself through compilable, but a broken
+// macro is never a draft state.
+func validateAutomationMacros(definitions string, nodes []*model.AutomationNodeInput) error {
+	defs, err := automation.ParseDefinitions(definitions)
+	if err != nil {
+		return fmt.Errorf("automation validation failed: %w", err)
+	}
+	if err := defs.Validate(); err != nil {
+		return fmt.Errorf("automation validation failed: %w", err)
+	}
+	for _, n := range nodes {
+		if _, err := defs.ExpandNodeConfig(automation.NodeType(n.Type), n.Config); err != nil {
+			return fmt.Errorf("automation validation failed: node %s: %w", n.ID, err)
+		}
+	}
+	return nil
+}
+
+// validateAutomationInput checks a graph and its definitions as they would be
+// stored. Macro references are expanded first, so every check below sees the
+// configs the engine runs.
+func validateAutomationInput(ctx context.Context, store GraphStore, definitions string, rawNodes []*model.AutomationNodeInput, inputEdges []*model.AutomationEdgeInput) error {
+	if err := validateAutomationMacros(definitions, rawNodes); err != nil {
+		return err
+	}
+	defs, _ := automation.ParseDefinitions(definitions)
+	inputNodes := make([]*model.AutomationNodeInput, 0, len(rawNodes))
+	domainNodes := make([]automation.Node, 0, len(rawNodes))
+	for _, n := range rawNodes {
+		nodeType := automation.NodeType(n.Type)
+		expanded, _ := defs.ExpandNodeConfig(nodeType, n.Config)
+		inputNodes = append(inputNodes, &model.AutomationNodeInput{ID: n.ID, Type: n.Type, Config: expanded})
+		config, _ := defs.ParseNodeConfig(nodeType, n.Config)
 		domainNodes = append(domainNodes, automation.Node{
 			ID:     automation.NodeID(n.ID),
-			Type:   automation.NodeType(n.Type),
-			Config: parseAutomationNodeConfigForValidation(automation.NodeType(n.Type), n.Config),
+			Type:   nodeType,
+			Config: config,
 		})
 	}
 	domainEdges := make([]automation.Edge, 0, len(inputEdges))
@@ -2225,14 +2272,17 @@ func validateActivateSceneActions(ctx context.Context, store GraphStore, nodes [
 		if err := json.Unmarshal([]byte(n.Config), &config); err != nil || config.ActionType != automation.ActionActivateScene {
 			continue
 		}
-		if config.Payload == "" {
-			return fmt.Errorf("node %s: activate_scene requires a scene ID in payload", n.ID)
+		var payload struct {
+			SceneID string `json:"scene_id"`
+		}
+		if err := json.Unmarshal([]byte(config.Payload), &payload); err != nil || payload.SceneID == "" {
+			return fmt.Errorf("node %s: activate_scene requires a scene_id in payload", n.ID)
 		}
 		if config.TargetType != "" || config.TargetID != "" {
 			return fmt.Errorf("node %s: activate_scene target fields must be empty", n.ID)
 		}
-		if _, err := store.GetScene(ctx, config.Payload); err != nil {
-			return fmt.Errorf("node %s: activate_scene scene_id %q not found", n.ID, config.Payload)
+		if _, err := store.GetScene(ctx, payload.SceneID); err != nil {
+			return fmt.Errorf("node %s: activate_scene scene_id %q not found", n.ID, payload.SceneID)
 		}
 	}
 	return nil
@@ -2362,83 +2412,6 @@ func validateAlarmActionPayloads(nodes []*model.AutomationNodeInput) error {
 		}
 	}
 	return nil
-}
-
-func parseAutomationNodeConfigForValidation(nodeType automation.NodeType, configJSON string) automation.NodeConfig {
-	switch nodeType {
-	case automation.NodeTrigger:
-		var raw struct {
-			Kind           string               `json:"kind"`
-			EventType      string               `json:"event_type"`
-			FilterExpr     string               `json:"filter_expr"`
-			CronExpr       string               `json:"cron_expr"`
-			GraceMs        int64                `json:"grace_ms"`
-			CooldownMs     int64                `json:"cooldown_ms"`
-			HoldMs         int64                `json:"hold_ms"`
-			HoldDeviceID   string               `json:"device_id"`
-			EndpointID     string               `json:"endpoint_id"`
-			WebhookFilters []webhook.FilterRule `json:"webhook_filters"`
-		}
-		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
-			return automation.TriggerConfig{}
-		}
-		kind := automation.TriggerKind(raw.Kind)
-		if kind == "" {
-			if raw.CronExpr != "" {
-				kind = automation.TriggerSchedule
-			} else {
-				kind = automation.TriggerEvent
-			}
-		}
-		return automation.TriggerConfig{
-			Kind:           kind,
-			EventType:      raw.EventType,
-			FilterExpr:     raw.FilterExpr,
-			CronExpr:       raw.CronExpr,
-			GraceMs:        raw.GraceMs,
-			CooldownMs:     raw.CooldownMs,
-			HoldMs:         raw.HoldMs,
-			HoldDeviceID:   raw.HoldDeviceID,
-			EndpointID:     raw.EndpointID,
-			WebhookFilters: raw.WebhookFilters,
-		}
-	case automation.NodeCondition:
-		var raw struct {
-			Expr string `json:"expr"`
-		}
-		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
-			return automation.ConditionConfig{}
-		}
-		return automation.ConditionConfig{Expr: raw.Expr}
-	case automation.NodeOperator:
-		var raw struct {
-			Kind string `json:"kind"`
-		}
-		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
-			return automation.OperatorConfig{}
-		}
-		return automation.OperatorConfig{Kind: automation.OperatorKind(raw.Kind)}
-	case automation.NodeAction:
-		var raw struct {
-			ActionType string          `json:"action_type"`
-			TargetType string          `json:"target_type"`
-			TargetID   string          `json:"target_id"`
-			TargetExpr []device.Clause `json:"target_expr"`
-			Payload    string          `json:"payload"`
-		}
-		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
-			return automation.ActionConfig{}
-		}
-		return automation.ActionConfig{
-			ActionType: raw.ActionType,
-			TargetType: automation.TargetType(raw.TargetType),
-			TargetID:   raw.TargetID,
-			TargetExpr: raw.TargetExpr,
-			Payload:    raw.Payload,
-		}
-	default:
-		return nil
-	}
 }
 
 // displayBrightnessToModel narrows the stored 0-254 value to the GraphQL Int.

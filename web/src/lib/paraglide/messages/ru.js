@@ -144,6 +144,53 @@
 /** @typedef {{ minimum: NonNullable<unknown>, maximum: NonNullable<unknown> }} Automation_Change_RangeInputs */
 /** @typedef {{}} Automation_Change_Select_FieldInputs */
 /** @typedef {{}} Automation_Change_ValueInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Code_Ambiguous_NameInputs */
+/** @typedef {{ id: NonNullable<unknown> }} Automation_Code_Duplicate_IdInputs */
+/** @typedef {{}} Automation_Code_Expected_ArrayInputs */
+/** @typedef {{}} Automation_Code_Expected_NumberInputs */
+/** @typedef {{}} Automation_Code_Expected_ObjectInputs */
+/** @typedef {{}} Automation_Code_Expected_StringInputs */
+/** @typedef {{ value: NonNullable<unknown> }} Automation_Code_Invalid_DurationInputs */
+/** @typedef {{}} Automation_Code_Invalid_NameInputs */
+/** @typedef {{ value: NonNullable<unknown> }} Automation_Code_Invalid_TimeInputs */
+/** @typedef {{ key: NonNullable<unknown> }} Automation_Code_Invalid_ValueInputs */
+/** @typedef {{}} Automation_Code_Key_AfterInputs */
+/** @typedef {{}} Automation_Code_Key_AllInputs */
+/** @typedef {{}} Automation_Code_Key_AnyInputs */
+/** @typedef {{}} Automation_Code_Key_AvgInputs */
+/** @typedef {{}} Automation_Code_Key_BetweenInputs */
+/** @typedef {{}} Automation_Code_Key_CountInputs */
+/** @typedef {{}} Automation_Code_Key_DaysInputs */
+/** @typedef {{}} Automation_Code_Key_DefineInputs */
+/** @typedef {{}} Automation_Code_Key_EffectInputs */
+/** @typedef {{}} Automation_Code_Key_Event_TypeInputs */
+/** @typedef {{}} Automation_Code_Key_FieldInputs */
+/** @typedef {{}} Automation_Code_Key_FiltersInputs */
+/** @typedef {{}} Automation_Code_Key_GraphInputs */
+/** @typedef {{}} Automation_Code_Key_IdInputs */
+/** @typedef {{}} Automation_Code_Key_MaxInputs */
+/** @typedef {{}} Automation_Code_Key_MessageInputs */
+/** @typedef {{}} Automation_Code_Key_MinInputs */
+/** @typedef {{}} Automation_Code_Key_NameInputs */
+/** @typedef {{}} Automation_Code_Key_NotInputs */
+/** @typedef {{}} Automation_Code_Key_RulesInputs */
+/** @typedef {{}} Automation_Code_Key_Scene_ActiveInputs */
+/** @typedef {{}} Automation_Code_Key_SettingsInputs */
+/** @typedef {{}} Automation_Code_Key_SinceInputs */
+/** @typedef {{}} Automation_Code_Key_StateInputs */
+/** @typedef {{}} Automation_Code_Key_TargetInputs */
+/** @typedef {{}} Automation_Code_Key_WhereInputs */
+/** @typedef {{}} Automation_Code_Kind_SceneInputs */
+/** @typedef {{}} Automation_Code_Kind_WebhookInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Code_Macro_ArgsInputs */
+/** @typedef {{ key: NonNullable<unknown> }} Automation_Code_Missing_KeyInputs */
+/** @typedef {{ keys: NonNullable<unknown> }} Automation_Code_One_OfInputs */
+/** @typedef {{ value: NonNullable<unknown> }} Automation_Code_Unknown_DayInputs */
+/** @typedef {{ id: NonNullable<unknown> }} Automation_Code_Unknown_IdInputs */
+/** @typedef {{ key: NonNullable<unknown> }} Automation_Code_Unknown_KeyInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Code_Unknown_MacroInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Code_Unknown_NameInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Code_Wrong_MacroInputs */
 /** @typedef {{}} Automation_Condition_CustomInputs */
 /** @typedef {{}} Automation_Condition_Custom_DescriptionInputs */
 /** @typedef {{}} Automation_Condition_Device_StateInputs */
@@ -164,6 +211,7 @@
 /** @typedef {{}} Automation_Editor_EditInputs */
 /** @typedef {{}} Automation_Editor_FallbackInputs */
 /** @typedef {{}} Automation_Editor_Fire_FailedInputs */
+/** @typedef {{}} Automation_Editor_Fire_TriggerInputs */
 /** @typedef {{}} Automation_Editor_FreeInputs */
 /** @typedef {{}} Automation_Editor_Graph_AriaInputs */
 /** @typedef {{}} Automation_Editor_Invalid_ConfigInputs */
@@ -255,6 +303,8 @@
 /** @typedef {{}} Automation_Operator_NotInputs */
 /** @typedef {{}} Automation_Operator_OrInputs */
 /** @typedef {{}} Automation_Operator_TitleInputs */
+/** @typedef {{}} Automation_Panel_CloseInputs */
+/** @typedef {{}} Automation_Panel_Macro_HintInputs */
 /** @typedef {{ time: NonNullable<unknown>, days: NonNullable<unknown> }} Automation_Schedule_At_DaysInputs */
 /** @typedef {{ time: NonNullable<unknown> }} Automation_Schedule_Every_Day_AtInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Automation_Schedule_Every_HoursInputs */
@@ -283,6 +333,19 @@
 /** @typedef {{}} Automation_State_Target_TemperatureInputs */
 /** @typedef {{}} Automation_State_TransitionInputs */
 /** @typedef {{}} Automation_State_Transition_SecondsInputs */
+/** @typedef {{ scene: NonNullable<unknown> }} Automation_Summary_Activate_SceneInputs */
+/** @typedef {{ device: NonNullable<unknown> }} Automation_Summary_AvailabilityInputs */
+/** @typedef {{ field: NonNullable<unknown>, amount: NonNullable<unknown>, target: NonNullable<unknown> }} Automation_Summary_Change_ValueInputs */
+/** @typedef {{ alarm: NonNullable<unknown> }} Automation_Summary_Clear_AlarmInputs */
+/** @typedef {{ device: NonNullable<unknown> }} Automation_Summary_ConfigureInputs */
+/** @typedef {{ scene: NonNullable<unknown> }} Automation_Summary_Cycle_CurrentInputs */
+/** @typedef {{ count: NonNullable<unknown> }} Automation_Summary_Cycle_ScenesInputs */
+/** @typedef {{ event: NonNullable<unknown>, device: NonNullable<unknown> }} Automation_Summary_Device_EventInputs */
+/** @typedef {{ message: NonNullable<unknown> }} Automation_Summary_Raise_AlarmInputs */
+/** @typedef {{ effect: NonNullable<unknown>, target: NonNullable<unknown> }} Automation_Summary_Run_EffectInputs */
+/** @typedef {{ target: NonNullable<unknown> }} Automation_Summary_ToggleInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Summary_Uses_MacroInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Summary_WebhookInputs */
 /** @typedef {{}} Automation_Timing_ImmediateInputs */
 /** @typedef {{}} Automation_Trigger_AvailabilityInputs */
 /** @typedef {{}} Automation_Trigger_Availability_DescriptionInputs */
@@ -1314,6 +1377,11 @@
 /** @typedef {{}} Settings_Retention_DaysInputs */
 /** @typedef {{}} Settings_Retention_HelpInputs */
 /** @typedef {{}} Settings_Save_FailedInputs */
+/** @typedef {{}} Settings_Time_ZoneInputs */
+/** @typedef {{ zone: NonNullable<unknown> }} Settings_Time_Zone_BrowserInputs */
+/** @typedef {{}} Settings_Time_Zone_HelpInputs */
+/** @typedef {{}} Settings_Time_Zone_SearchInputs */
+/** @typedef {{}} Settings_Time_Zone_ServerInputs */
 /** @typedef {{}} Shared_ActionsInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Shared_Add_ItemsInputs */
 /** @typedef {{}} Shared_Batch_ActionsInputs */
@@ -2398,6 +2466,194 @@ export const automation_change_value = /** @type {(inputs: Automation_Change_Val
 	return /** @type {LocalizedString} */ (`Значение`)
 };
 
+export const automation_code_ambiguous_name = /** @type {(inputs: Automation_Code_Ambiguous_NameInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Несколько совпадений для «${i?.name}»; используйте идентификатор`)
+};
+
+export const automation_code_duplicate_id = /** @type {(inputs: Automation_Code_Duplicate_IdInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Идентификатор «${i?.id}» используется дважды`)
+};
+
+export const automation_code_expected_array = /** @type {(inputs: Automation_Code_Expected_ArrayInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Ожидался список`)
+};
+
+export const automation_code_expected_number = /** @type {(inputs: Automation_Code_Expected_NumberInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Ожидалось число`)
+};
+
+export const automation_code_expected_object = /** @type {(inputs: Automation_Code_Expected_ObjectInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Ожидался объект`)
+};
+
+export const automation_code_expected_string = /** @type {(inputs: Automation_Code_Expected_StringInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Ожидался текст`)
+};
+
+export const automation_code_invalid_duration = /** @type {(inputs: Automation_Code_Invalid_DurationInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`«${i?.value}» — не длительность вида 10s, 5m или 1h`)
+};
+
+export const automation_code_invalid_name = /** @type {(inputs: Automation_Code_Invalid_NameInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Имена определений состоят из букв, цифр и подчёркиваний`)
+};
+
+export const automation_code_invalid_time = /** @type {(inputs: Automation_Code_Invalid_TimeInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`«${i?.value}» — не время вида 07:30`)
+};
+
+export const automation_code_invalid_value = /** @type {(inputs: Automation_Code_Invalid_ValueInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Недопустимое значение для «${i?.key}»`)
+};
+
+export const automation_code_key_after = /** @type {(inputs: Automation_Code_Key_AfterInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Выполняется после`)
+};
+
+export const automation_code_key_all = /** @type {(inputs: Automation_Code_Key_AllInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Все устройства совпадают`)
+};
+
+export const automation_code_key_any = /** @type {(inputs: Automation_Code_Key_AnyInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Любое устройство совпадает`)
+};
+
+export const automation_code_key_avg = /** @type {(inputs: Automation_Code_Key_AvgInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Среднее`)
+};
+
+export const automation_code_key_between = /** @type {(inputs: Automation_Code_Key_BetweenInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Между`)
+};
+
+export const automation_code_key_count = /** @type {(inputs: Automation_Code_Key_CountInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Число совпадающих устройств`)
+};
+
+export const automation_code_key_days = /** @type {(inputs: Automation_Code_Key_DaysInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Дни`)
+};
+
+export const automation_code_key_define = /** @type {(inputs: Automation_Code_Key_DefineInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Определения`)
+};
+
+export const automation_code_key_effect = /** @type {(inputs: Automation_Code_Key_EffectInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Эффект`)
+};
+
+export const automation_code_key_event_type = /** @type {(inputs: Automation_Code_Key_Event_TypeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Тип события`)
+};
+
+export const automation_code_key_field = /** @type {(inputs: Automation_Code_Key_FieldInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Поле`)
+};
+
+export const automation_code_key_filters = /** @type {(inputs: Automation_Code_Key_FiltersInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Фильтры`)
+};
+
+export const automation_code_key_graph = /** @type {(inputs: Automation_Code_Key_GraphInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Граф`)
+};
+
+export const automation_code_key_id = /** @type {(inputs: Automation_Code_Key_IdInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Идентификатор`)
+};
+
+export const automation_code_key_max = /** @type {(inputs: Automation_Code_Key_MaxInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Максимум`)
+};
+
+export const automation_code_key_message = /** @type {(inputs: Automation_Code_Key_MessageInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Сообщение`)
+};
+
+export const automation_code_key_min = /** @type {(inputs: Automation_Code_Key_MinInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Минимум`)
+};
+
+export const automation_code_key_name = /** @type {(inputs: Automation_Code_Key_NameInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Название`)
+};
+
+export const automation_code_key_not = /** @type {(inputs: Automation_Code_Key_NotInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Не`)
+};
+
+export const automation_code_key_rules = /** @type {(inputs: Automation_Code_Key_RulesInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Правила`)
+};
+
+export const automation_code_key_scene_active = /** @type {(inputs: Automation_Code_Key_Scene_ActiveInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Сцена активна`)
+};
+
+export const automation_code_key_settings = /** @type {(inputs: Automation_Code_Key_SettingsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Настройки`)
+};
+
+export const automation_code_key_since = /** @type {(inputs: Automation_Code_Key_SinceInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Без изменений в течение`)
+};
+
+export const automation_code_key_state = /** @type {(inputs: Automation_Code_Key_StateInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Состояние`)
+};
+
+export const automation_code_key_target = /** @type {(inputs: Automation_Code_Key_TargetInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Определение`)
+};
+
+export const automation_code_key_where = /** @type {(inputs: Automation_Code_Key_WhereInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Выборка`)
+};
+
+export const automation_code_kind_scene = /** @type {(inputs: Automation_Code_Kind_SceneInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Сцена`)
+};
+
+export const automation_code_kind_webhook = /** @type {(inputs: Automation_Code_Kind_WebhookInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Вебхук`)
+};
+
+export const automation_code_macro_args = /** @type {(inputs: Automation_Code_Macro_ArgsInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Неверное число аргументов для «${i?.name}»`)
+};
+
+export const automation_code_missing_key = /** @type {(inputs: Automation_Code_Missing_KeyInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Не хватает «${i?.key}»`)
+};
+
+export const automation_code_one_of = /** @type {(inputs: Automation_Code_One_OfInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Используйте ровно один из ключей ${i?.keys}`)
+};
+
+export const automation_code_unknown_day = /** @type {(inputs: Automation_Code_Unknown_DayInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`«${i?.value}» — не день недели`)
+};
+
+export const automation_code_unknown_id = /** @type {(inputs: Automation_Code_Unknown_IdInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Нет элемента с идентификатором «${i?.id}»`)
+};
+
+export const automation_code_unknown_key = /** @type {(inputs: Automation_Code_Unknown_KeyInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Неизвестный ключ «${i?.key}»`)
+};
+
+export const automation_code_unknown_macro = /** @type {(inputs: Automation_Code_Unknown_MacroInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Нет определения с именем «${i?.name}»`)
+};
+
+export const automation_code_unknown_name = /** @type {(inputs: Automation_Code_Unknown_NameInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Нет ничего с именем «${i?.name}»`)
+};
+
+export const automation_code_wrong_macro = /** @type {(inputs: Automation_Code_Wrong_MacroInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`«${i?.name}» нельзя использовать здесь`)
+};
+
 export const automation_condition_custom = /** @type {(inputs: Automation_Condition_CustomInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Пользовательский`)
 };
@@ -2476,6 +2732,10 @@ export const automation_editor_fallback = /** @type {(inputs: Automation_Editor_
 
 export const automation_editor_fire_failed = /** @type {(inputs: Automation_Editor_Fire_FailedInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Не удалось запустить триггер.`)
+};
+
+export const automation_editor_fire_trigger = /** @type {(inputs: Automation_Editor_Fire_TriggerInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Запустить`)
 };
 
 export const automation_editor_free = /** @type {(inputs: Automation_Editor_FreeInputs) => LocalizedString} */ () => {
@@ -2842,6 +3102,14 @@ export const automation_operator_title = /** @type {(inputs: Automation_Operator
 	return /** @type {LocalizedString} */ (`Оператор`)
 };
 
+export const automation_panel_close = /** @type {(inputs: Automation_Panel_CloseInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Закрыть`)
+};
+
+export const automation_panel_macro_hint = /** @type {(inputs: Automation_Panel_Macro_HintInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Этот узел использует определение. Измените его в режиме кода.`)
+};
+
 export const automation_schedule_at_days = /** @type {(inputs: Automation_Schedule_At_DaysInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`В ${i?.time}, ${i?.days}`)
 };
@@ -2964,6 +3232,62 @@ export const automation_state_transition = /** @type {(inputs: Automation_State_
 
 export const automation_state_transition_seconds = /** @type {(inputs: Automation_State_Transition_SecondsInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Длительность перехода в секундах`)
+};
+
+export const automation_summary_activate_scene = /** @type {(inputs: Automation_Summary_Activate_SceneInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Включить ${i?.scene}`)
+};
+
+export const automation_summary_availability = /** @type {(inputs: Automation_Summary_AvailabilityInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Доступность ${i?.device}`)
+};
+
+export const automation_summary_change_value = /** @type {(inputs: Automation_Summary_Change_ValueInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.field} ${i?.amount} на ${i?.target}`)
+};
+
+export const automation_summary_clear_alarm = /** @type {(inputs: Automation_Summary_Clear_AlarmInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Сбросить тревогу ${i?.alarm}`)
+};
+
+export const automation_summary_configure = /** @type {(inputs: Automation_Summary_ConfigureInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Настроить ${i?.device}`)
+};
+
+export const automation_summary_cycle_current = /** @type {(inputs: Automation_Summary_Cycle_CurrentInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Сейчас: ${i?.scene}`)
+};
+
+export const automation_summary_cycle_scenes = /** @type {(inputs: Automation_Summary_Cycle_ScenesInputs) => LocalizedString} */ (i) => {const countPlural = registry.plural("ru", i?.count, {});
+	if (countPlural === "one") return /** @type {LocalizedString} */ (`Цикл из ${i?.count} сцены`);
+	if (countPlural === "few") return /** @type {LocalizedString} */ (`Цикл из ${i?.count} сцен`);
+	if (countPlural === "many") return /** @type {LocalizedString} */ (`Цикл из ${i?.count} сцен`);
+	return /** @type {LocalizedString} */ (`Цикл из ${i?.count} сцены`)
+	
+};
+
+export const automation_summary_device_event = /** @type {(inputs: Automation_Summary_Device_EventInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.event} на ${i?.device}`)
+};
+
+export const automation_summary_raise_alarm = /** @type {(inputs: Automation_Summary_Raise_AlarmInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Тревога: ${i?.message}`)
+};
+
+export const automation_summary_run_effect = /** @type {(inputs: Automation_Summary_Run_EffectInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.effect} на ${i?.target}`)
+};
+
+export const automation_summary_toggle = /** @type {(inputs: Automation_Summary_ToggleInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Переключить ${i?.target}`)
+};
+
+export const automation_summary_uses_macro = /** @type {(inputs: Automation_Summary_Uses_MacroInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Использует ${i?.name}`)
+};
+
+export const automation_summary_webhook = /** @type {(inputs: Automation_Summary_WebhookInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Вебхук ${i?.name}`)
 };
 
 export const automation_timing_immediate = /** @type {(inputs: Automation_Timing_ImmediateInputs) => LocalizedString} */ () => {
@@ -7316,6 +7640,26 @@ export const settings_retention_help = /** @type {(inputs: Settings_Retention_He
 
 export const settings_save_failed = /** @type {(inputs: Settings_Save_FailedInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Не удалось сохранить настройки.`)
+};
+
+export const settings_time_zone = /** @type {(inputs: Settings_Time_ZoneInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Часовой пояс`)
+};
+
+export const settings_time_zone_browser = /** @type {(inputs: Settings_Time_Zone_BrowserInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.zone} (этот браузер)`)
+};
+
+export const settings_time_zone_help = /** @type {(inputs: Settings_Time_Zone_HelpInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Расписания, временные окна и дни недели в автоматизациях следуют этому часовому поясу.`)
+};
+
+export const settings_time_zone_search = /** @type {(inputs: Settings_Time_Zone_SearchInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Поиск часовых поясов`)
+};
+
+export const settings_time_zone_server = /** @type {(inputs: Settings_Time_Zone_ServerInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Местное время сервера`)
 };
 
 export const shared_actions = /** @type {(inputs: Shared_ActionsInputs) => LocalizedString} */ () => {

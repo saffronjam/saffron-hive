@@ -144,7 +144,7 @@ func TestEngineIncomingWebhookActivatesScene(t *testing.T) {
 		store.Automation{ID: "auto-scene", Name: "Jellyfin scene", Enabled: true},
 		[]store.AutomationNode{
 			{ID: "trigger-webhook", AutomationID: "auto-scene", Type: "trigger", Config: `{"kind":"event","event_type":"webhook.received","filter_expr":"true","endpoint_id":"jellyfin","webhook_filters":[{"source":"body","path":"NotificationType","operator":"equals","value_type":"string","value":"PlaybackStart"}]}`},
-			{ID: "action-scene", AutomationID: "auto-scene", Type: "action", Config: `{"action_type":"activate_scene","target_type":"","target_id":"","target_expr":[],"payload":"scene-1"}`},
+			{ID: "action-scene", AutomationID: "auto-scene", Type: "action", Config: `{"action_type":"activate_scene","target_type":"","target_id":"","target_expr":[],"payload":"{\"scene_id\":\"scene-1\"}"}`},
 		},
 		[]store.AutomationEdge{{AutomationID: "auto-scene", FromNodeID: "trigger-webhook", ToNodeID: "action-scene"}},
 	)

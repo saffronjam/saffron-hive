@@ -45,7 +45,7 @@ func TestValidateAutomationInput_RunEffectAcceptsValidConfig(t *testing.T) {
 	seedEffect(t, st, "fireplace")
 
 	nodes := runEffectAutomation(`{"action_type":"run_effect","target_type":"device","target_id":"light-1","payload":"{\"effect_id\":\"fireplace\"}"}`)
-	if err := validateAutomationInput(context.Background(), st, nodes, runEffectEdges()); err != nil {
+	if err := validateAutomationInput(context.Background(), st, "", nodes, runEffectEdges()); err != nil {
 		t.Fatalf("expected valid, got error: %v", err)
 	}
 }
@@ -55,7 +55,7 @@ func TestValidateAutomationInput_RunEffectAcceptsExpressionTarget(t *testing.T) 
 	seedEffect(t, st, "fireplace")
 
 	nodes := runEffectAutomation(`{"action_type":"run_effect","target_type":"expression","target_expr":[{"subject":"device_type","op":"is","values":["light"]}],"payload":"{\"effect_id\":\"fireplace\"}"}`)
-	if err := validateAutomationInput(context.Background(), st, nodes, runEffectEdges()); err != nil {
+	if err := validateAutomationInput(context.Background(), st, "", nodes, runEffectEdges()); err != nil {
 		t.Fatalf("expected valid expression target, got error: %v", err)
 	}
 }
@@ -64,7 +64,7 @@ func TestValidateAutomationInput_RunEffectRejectsMissingEffectID(t *testing.T) {
 	st := newMockStore()
 
 	nodes := runEffectAutomation(`{"action_type":"run_effect","target_type":"device","target_id":"light-1","payload":"{}"}`)
-	err := validateAutomationInput(context.Background(), st, nodes, runEffectEdges())
+	err := validateAutomationInput(context.Background(), st, "", nodes, runEffectEdges())
 	if err == nil {
 		t.Fatal("expected error for missing effect_id and native_name")
 	}
@@ -77,7 +77,7 @@ func TestValidateAutomationInput_RunEffectRejectsUnknownEffectID(t *testing.T) {
 	st := newMockStore()
 
 	nodes := runEffectAutomation(`{"action_type":"run_effect","target_type":"device","target_id":"light-1","payload":"{\"effect_id\":\"missing\"}"}`)
-	err := validateAutomationInput(context.Background(), st, nodes, runEffectEdges())
+	err := validateAutomationInput(context.Background(), st, "", nodes, runEffectEdges())
 	if err == nil {
 		t.Fatal("expected error for missing effect")
 	}
@@ -91,7 +91,7 @@ func TestValidateAutomationInput_RunEffectRejectsInvalidTargetType(t *testing.T)
 	seedEffect(t, st, "fireplace")
 
 	nodes := runEffectAutomation(`{"action_type":"run_effect","target_type":"scene","target_id":"scene-1","payload":"{\"effect_id\":\"fireplace\"}"}`)
-	err := validateAutomationInput(context.Background(), st, nodes, runEffectEdges())
+	err := validateAutomationInput(context.Background(), st, "", nodes, runEffectEdges())
 	if err == nil {
 		t.Fatal("expected error for invalid target_type")
 	}
@@ -105,7 +105,7 @@ func TestValidateAutomationInput_RunEffectRejectsMissingTargetID(t *testing.T) {
 	seedEffect(t, st, "fireplace")
 
 	nodes := runEffectAutomation(`{"action_type":"run_effect","target_type":"device","target_id":"","payload":"{\"effect_id\":\"fireplace\"}"}`)
-	err := validateAutomationInput(context.Background(), st, nodes, runEffectEdges())
+	err := validateAutomationInput(context.Background(), st, "", nodes, runEffectEdges())
 	if err == nil {
 		t.Fatal("expected error for missing target_id")
 	}
@@ -118,7 +118,7 @@ func TestValidateAutomationInput_RunEffectAcceptsNativeName(t *testing.T) {
 	st := newMockStore()
 
 	nodes := runEffectAutomation(`{"action_type":"run_effect","target_type":"device","target_id":"light-1","payload":"{\"native_name\":\"fireplace\"}"}`)
-	if err := validateAutomationInput(context.Background(), st, nodes, runEffectEdges()); err != nil {
+	if err := validateAutomationInput(context.Background(), st, "", nodes, runEffectEdges()); err != nil {
 		t.Fatalf("expected valid native run_effect, got error: %v", err)
 	}
 }
@@ -128,7 +128,7 @@ func TestValidateAutomationInput_RunEffectRejectsBothEffectIDAndNativeName(t *te
 	seedEffect(t, st, "fireplace")
 
 	nodes := runEffectAutomation(`{"action_type":"run_effect","target_type":"device","target_id":"light-1","payload":"{\"effect_id\":\"fireplace\",\"native_name\":\"fireplace\"}"}`)
-	err := validateAutomationInput(context.Background(), st, nodes, runEffectEdges())
+	err := validateAutomationInput(context.Background(), st, "", nodes, runEffectEdges())
 	if err == nil {
 		t.Fatal("expected error when both effect_id and native_name are set")
 	}

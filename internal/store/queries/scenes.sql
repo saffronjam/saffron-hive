@@ -17,6 +17,9 @@ LEFT JOIN users u ON u.id = s.created_by
 LEFT JOIN active_scene_runs r ON r.scene_id = s.id
 ORDER BY s.created_at, s.id;
 
+-- name: ResolveSceneIDByName :one
+SELECT id FROM scenes WHERE name = ? LIMIT 1;
+
 -- name: UpdateSceneName :exec
 UPDATE scenes SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 

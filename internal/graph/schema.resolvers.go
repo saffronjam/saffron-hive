@@ -440,16 +440,21 @@ func (r *mutationResolver) DeleteScene(ctx context.Context, id string) (bool, er
 
 // CreateAutomation is the resolver for the createAutomation field.
 func (r *mutationResolver) CreateAutomation(ctx context.Context, input model.CreateAutomationInput) (*model.AutomationGraph, error) {
-	if err := validateAutomationInput(ctx, r.Store, input.Nodes, input.Edges); err != nil {
+	definitions := ""
+	if value, ok := input.Definitions.ValueOK(); ok && value != nil {
+		definitions = *value
+	}
+	if err := validateAutomationInput(ctx, r.Store, definitions, input.Nodes, input.Edges); err != nil {
 		return nil, err
 	}
 
 	autoID := uuid.New().String()
 	_, err := r.Store.CreateAutomation(ctx, store.CreateAutomationParams{
-		ID:        autoID,
-		Name:      input.Name,
-		Enabled:   input.Enabled,
-		CreatedBy: currentUserID(ctx),
+		ID:          autoID,
+		Name:        input.Name,
+		Enabled:     input.Enabled,
+		Definitions: definitions,
+		CreatedBy:   currentUserID(ctx),
 	})
 	if err != nil {
 		return nil, err
@@ -495,16 +500,36 @@ func (r *mutationResolver) CreateAutomation(ctx context.Context, input model.Cre
 
 // UpdateAutomation is the resolver for the updateAutomation field.
 func (r *mutationResolver) UpdateAutomation(ctx context.Context, id string, input model.UpdateAutomationInput) (*model.AutomationGraph, error) {
-	_, err := r.Store.GetAutomation(ctx, id)
+	existing, err := r.Store.GetAutomationGraph(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("automation %q not found: %w", id, err)
 	}
 
 	nodes, nodesSet := input.Nodes.ValueOK()
 	edges, _ := input.Edges.ValueOK()
+	definitions, definitionsSet := input.Definitions.ValueOK()
+	definitionsSet = definitionsSet && definitions != nil
+
+	if nodesSet || definitionsSet {
+		effectiveDefinitions := existing.Automation.Definitions
+		if definitionsSet {
+			effectiveDefinitions = *definitions
+		}
+		effectiveNodes := nodes
+		if !nodesSet {
+			effectiveNodes = automationNodeInputs(existing)
+		}
+		if err := validateAutomationMacros(effectiveDefinitions, effectiveNodes); err != nil {
+			return nil, err
+		}
+	}
 
 	aParams := store.UpdateAutomationParams{}
 	updateAutomation := false
+	if definitionsSet {
+		aParams.Definitions = definitions
+		updateAutomation = true
+	}
 	if name, ok := input.Name.ValueOK(); ok {
 		aParams.Name = name
 		updateAutomation = true
@@ -588,7 +613,7 @@ func (r *mutationResolver) ToggleAutomation(ctx context.Context, id string, enab
 
 	// Reset stateful nodes (e.g. cycle_scenes index) on disabled→enabled
 	// transition so the next fire starts from a known position. Graph saves
-	// already cascade via the FK on automation_nodes.id.
+	// drop the state of nodes the new graph no longer contains.
 	if enabled && !prior.Enabled {
 		if err := r.Store.DeleteAutomationNodeStateByAutomation(ctx, id); err != nil {
 			return nil, fmt.Errorf("reset automation node state: %w", err)
@@ -1175,8 +1200,22 @@ func (r *mutationResolver) UpdateSetting(ctx context.Context, key string, value 
 	if key == "i18n.translate_standard_room_names" && value != "true" && value != "false" {
 		return nil, fmt.Errorf("standard room-name translation must be true or false")
 	}
+	var location *time.Location
+	if key == automation.TimeZoneSettingKey {
+		loaded, err := automation.LoadTimeZone(value)
+		if err != nil {
+			return nil, err
+		}
+		location = loaded
+	}
 	if err := r.Store.UpsertSetting(ctx, key, value); err != nil {
 		return nil, err
+	}
+
+	if key == automation.TimeZoneSettingKey && r.AutomationClock != nil {
+		if err := r.AutomationClock.SetTimeZone(location); err != nil {
+			return nil, fmt.Errorf("apply time zone: %w", err)
+		}
 	}
 
 	if key == "log_level" {

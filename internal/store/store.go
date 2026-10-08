@@ -204,27 +204,32 @@ type ActiveSceneRun struct {
 
 // CreateAutomationParams holds the parameters for creating an automation.
 type CreateAutomationParams struct {
-	ID        string
-	Name      string
-	Enabled   bool
-	CreatedBy *string
+	ID          string
+	Name        string
+	Enabled     bool
+	Definitions string
+	CreatedBy   *string
 }
 
 // UpdateAutomationParams holds optional fields for updating an automation.
 // SetIcon distinguishes "leave icon alone" from "set icon to this value" (nil clears the column).
 type UpdateAutomationParams struct {
-	Name    *string
-	SetIcon bool
-	Icon    *string
-	Enabled *bool
+	Name        *string
+	SetIcon     bool
+	Icon        *string
+	Enabled     *bool
+	Definitions *string
 }
 
 // Automation represents an automation row.
 type Automation struct {
-	ID          string
-	Name        string
-	Icon        *string
-	Enabled     bool
+	ID      string
+	Name    string
+	Icon    *string
+	Enabled bool
+	// Definitions holds the automation's named macros as a JSON object in
+	// their compiled form; see automation.Definitions.
+	Definitions string
 	LastFiredAt *time.Time
 	CreatedAt   time.Time
 	UpdatedAt   time.Time

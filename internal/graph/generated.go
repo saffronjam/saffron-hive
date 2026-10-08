@@ -104,6 +104,7 @@ type ComplexityRoot struct {
 	AutomationGraph struct {
 		Compilable  func(childComplexity int) int
 		CreatedBy   func(childComplexity int) int
+		Definitions func(childComplexity int) int
 		Edges       func(childComplexity int) int
 		Enabled     func(childComplexity int) int
 		ID          func(childComplexity int) int
@@ -1360,6 +1361,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AutomationGraph.CreatedBy(childComplexity), true
+	case "AutomationGraph.definitions":
+		if e.ComplexityRoot.AutomationGraph.Definitions == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationGraph.Definitions(childComplexity), true
 	case "AutomationGraph.edges":
 		if e.ComplexityRoot.AutomationGraph.Edges == nil {
 			break
@@ -6118,6 +6125,11 @@ type AutomationGraph {
   enabled: Boolean!
   "Whether the stored graph can be loaded by the automation engine."
   compilable: Boolean!
+  """
+  JSON object of the automation's named macros, keyed by name. Nodes refer to
+  them by name; see automation.Definition for the shapes.
+  """
+  definitions: String!
   lastFiredAt: DateTime
   nodes: [AutomationNode!]!
   edges: [AutomationEdge!]!
@@ -7256,6 +7268,8 @@ input PreviewVibeInput {
 input CreateAutomationInput {
   name: String!
   enabled: Boolean!
+  "JSON object of named macros. Defaults to none."
+  definitions: String
   nodes: [AutomationNodeInput!]!
   edges: [AutomationEdgeInput!]!
 }
@@ -7386,6 +7400,8 @@ input UpdateAutomationInput {
   name: String
   icon: String
   enabled: Boolean
+  "JSON object of named macros."
+  definitions: String
   nodes: [AutomationNodeInput!]
   edges: [AutomationEdgeInput!]
 }
@@ -10246,6 +10262,35 @@ func (ec *executionContext) fieldContext_AutomationGraph_compilable(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationGraph_definitions(ctx context.Context, field graphql.CollectedField, obj *model.AutomationGraph) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationGraph_definitions,
+		func(ctx context.Context) (any, error) {
+			return obj.Definitions, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationGraph_definitions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationGraph",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -19102,6 +19147,8 @@ func (ec *executionContext) fieldContext_Mutation_createAutomation(ctx context.C
 				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
 			case "compilable":
 				return ec.fieldContext_AutomationGraph_compilable(ctx, field)
+			case "definitions":
+				return ec.fieldContext_AutomationGraph_definitions(ctx, field)
 			case "lastFiredAt":
 				return ec.fieldContext_AutomationGraph_lastFiredAt(ctx, field)
 			case "nodes":
@@ -19181,6 +19228,8 @@ func (ec *executionContext) fieldContext_Mutation_updateAutomation(ctx context.C
 				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
 			case "compilable":
 				return ec.fieldContext_AutomationGraph_compilable(ctx, field)
+			case "definitions":
+				return ec.fieldContext_AutomationGraph_definitions(ctx, field)
 			case "lastFiredAt":
 				return ec.fieldContext_AutomationGraph_lastFiredAt(ctx, field)
 			case "nodes":
@@ -19319,6 +19368,8 @@ func (ec *executionContext) fieldContext_Mutation_toggleAutomation(ctx context.C
 				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
 			case "compilable":
 				return ec.fieldContext_AutomationGraph_compilable(ctx, field)
+			case "definitions":
+				return ec.fieldContext_AutomationGraph_definitions(ctx, field)
 			case "lastFiredAt":
 				return ec.fieldContext_AutomationGraph_lastFiredAt(ctx, field)
 			case "nodes":
@@ -24782,6 +24833,8 @@ func (ec *executionContext) fieldContext_Query_automations(_ context.Context, fi
 				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
 			case "compilable":
 				return ec.fieldContext_AutomationGraph_compilable(ctx, field)
+			case "definitions":
+				return ec.fieldContext_AutomationGraph_definitions(ctx, field)
 			case "lastFiredAt":
 				return ec.fieldContext_AutomationGraph_lastFiredAt(ctx, field)
 			case "nodes":
@@ -24850,6 +24903,8 @@ func (ec *executionContext) fieldContext_Query_automation(ctx context.Context, f
 				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
 			case "compilable":
 				return ec.fieldContext_AutomationGraph_compilable(ctx, field)
+			case "definitions":
+				return ec.fieldContext_AutomationGraph_definitions(ctx, field)
 			case "lastFiredAt":
 				return ec.fieldContext_AutomationGraph_lastFiredAt(ctx, field)
 			case "nodes":
@@ -36118,7 +36173,7 @@ func (ec *executionContext) unmarshalInputCreateAutomationInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "enabled", "nodes", "edges"}
+	fieldsInOrder := [...]string{"name", "enabled", "definitions", "nodes", "edges"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -36139,6 +36194,13 @@ func (ec *executionContext) unmarshalInputCreateAutomationInput(ctx context.Cont
 				return it, err
 			}
 			it.Enabled = data
+		case "definitions":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("definitions"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Definitions = graphql.OmittableOf(data)
 		case "nodes":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nodes"))
 			data, err := ec.unmarshalNAutomationNodeInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeInputᚄ(ctx, v)
@@ -38175,7 +38237,7 @@ func (ec *executionContext) unmarshalInputUpdateAutomationInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon", "enabled", "nodes", "edges"}
+	fieldsInOrder := [...]string{"name", "icon", "enabled", "definitions", "nodes", "edges"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -38203,6 +38265,13 @@ func (ec *executionContext) unmarshalInputUpdateAutomationInput(ctx context.Cont
 				return it, err
 			}
 			it.Enabled = graphql.OmittableOf(data)
+		case "definitions":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("definitions"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Definitions = graphql.OmittableOf(data)
 		case "nodes":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nodes"))
 			data, err := ec.unmarshalOAutomationNodeInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeInputᚄ(ctx, v)
@@ -39376,6 +39445,11 @@ func (ec *executionContext) _AutomationGraph(ctx context.Context, sel ast.Select
 			}
 		case "compilable":
 			out.Values[i] = ec._AutomationGraph_compilable(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "definitions":
+			out.Values[i] = ec._AutomationGraph_definitions(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

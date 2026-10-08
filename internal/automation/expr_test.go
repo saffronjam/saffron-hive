@@ -22,7 +22,8 @@ func evalTestExprWithStore(t *testing.T, expression string, reader device.StateR
 	if err != nil {
 		return false, err
 	}
-	env := buildEnv(context.Background(), reader, s, s, event, now)
+	scope := exprScope{ctx: context.Background(), reader: reader, resolver: s, names: s, changes: newChangeTracker(now)}
+	env := scope.env(&event, now)
 	return evalExpr(prog, env)
 }
 

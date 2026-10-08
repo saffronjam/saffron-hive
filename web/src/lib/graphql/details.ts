@@ -14,6 +14,7 @@ export const AUTOMATION_DETAIL_QUERY = graphql(`
       icon
       enabled
       compilable
+      definitions
       nodes {
         id
         type

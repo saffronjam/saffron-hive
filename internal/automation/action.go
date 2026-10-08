@@ -46,6 +46,7 @@ type EffectRunner interface {
 // SceneRunner owns Scene activation for automation actions.
 type SceneRunner interface {
 	Apply(context.Context, string) (store.Scene, error)
+	IsActive(sceneID string) bool
 }
 
 // ActionExecutor resolves automation actions into shared output requests or
@@ -193,7 +194,12 @@ func (a *ActionExecutor) ExecuteGraphAction(cfg ActionConfig) {
 	case ActionConfigureDevice:
 		a.executeConfigureDevice(cfg)
 	case ActionActivateScene:
-		a.executeActivateScene(cfg.Payload)
+		var payload activateScenePayload
+		if err := json.Unmarshal([]byte(cfg.Payload), &payload); err != nil {
+			logger.Error("invalid activate_scene payload", "automation_id", cfg.AutomationID, "node_id", cfg.NodeID, "error", err)
+			return
+		}
+		a.executeActivateScene(payload.SceneID)
 	case ActionCycleScenes:
 		a.executeCycleScenes(cfg)
 	case ActionRaiseAlarm:
@@ -615,7 +621,11 @@ func toFloat(v any) (float64, bool) {
 	switch n := v.(type) {
 	case float64:
 		return n, true
+	case float32:
+		return float64(n), true
 	case int:
+		return float64(n), true
+	case int64:
 		return float64(n), true
 	case json.Number:
 		f, err := n.Float64()
@@ -753,6 +763,10 @@ func (a *ActionExecutor) stateMatches(deviceID device.DeviceID, desired map[stri
 		}
 	}
 	return true
+}
+
+type activateScenePayload struct {
+	SceneID string `json:"scene_id"`
 }
 
 func (a *ActionExecutor) executeActivateScene(sceneID string) {

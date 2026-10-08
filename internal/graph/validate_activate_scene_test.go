@@ -27,29 +27,29 @@ func TestValidateAutomationInputActivateScene(t *testing.T) {
 	}{
 		{
 			name:      "canonical scene reference",
-			config:    `{"action_type":"activate_scene","target_type":"","target_id":"","target_expr":[],"payload":"scene-1"}`,
+			config:    `{"action_type":"activate_scene","target_type":"","target_id":"","target_expr":[],"payload":"{\"scene_id\":\"scene-1\"}"}`,
 			seedScene: true,
 		},
 		{
 			name:      "missing scene payload",
 			config:    `{"action_type":"activate_scene","target_type":"","target_id":"","target_expr":[],"payload":""}`,
-			wantError: "requires a scene ID in payload",
+			wantError: "requires a scene_id in payload",
 		},
 		{
 			name:      "scene stored only in target fields",
 			config:    `{"action_type":"activate_scene","target_type":"scene","target_id":"scene-1","target_expr":[],"payload":""}`,
 			seedScene: true,
-			wantError: "requires a scene ID in payload",
+			wantError: "requires a scene_id in payload",
 		},
 		{
 			name:      "redundant target fields",
-			config:    `{"action_type":"activate_scene","target_type":"scene","target_id":"scene-1","target_expr":[],"payload":"scene-1"}`,
+			config:    `{"action_type":"activate_scene","target_type":"scene","target_id":"scene-1","target_expr":[],"payload":"{\"scene_id\":\"scene-1\"}"}`,
 			seedScene: true,
 			wantError: "target fields must be empty",
 		},
 		{
 			name:      "unknown scene",
-			config:    `{"action_type":"activate_scene","target_type":"","target_id":"","target_expr":[],"payload":"missing"}`,
+			config:    `{"action_type":"activate_scene","target_type":"","target_id":"","target_expr":[],"payload":"{\"scene_id\":\"missing\"}"}`,
 			wantError: "not found",
 		},
 	}
@@ -63,7 +63,7 @@ func TestValidateAutomationInputActivateScene(t *testing.T) {
 				}
 			}
 			nodes, edges := activateSceneAutomation(tt.config)
-			err := validateAutomationInput(ctx, st, nodes, edges)
+			err := validateAutomationInput(ctx, st, "", nodes, edges)
 			if tt.wantError == "" {
 				if err != nil {
 					t.Fatalf("validate canonical action: %v", err)

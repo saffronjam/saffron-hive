@@ -11,10 +11,11 @@ import (
 // CreateAutomation inserts a new automation and returns it.
 func (s *DB) CreateAutomation(ctx context.Context, params CreateAutomationParams) (Automation, error) {
 	if err := s.q.CreateAutomation(ctx, sqlite.CreateAutomationParams{
-		ID:        params.ID,
-		Name:      params.Name,
-		Enabled:   params.Enabled,
-		CreatedBy: params.CreatedBy,
+		ID:          params.ID,
+		Name:        params.Name,
+		Enabled:     params.Enabled,
+		Definitions: definitionsOrEmpty(params.Definitions),
+		CreatedBy:   params.CreatedBy,
 	}); err != nil {
 		return Automation{}, fmt.Errorf("create automation: %w", err)
 	}
@@ -32,6 +33,7 @@ func (s *DB) GetAutomation(ctx context.Context, id string) (Automation, error) {
 		Name:        row.Name,
 		Icon:        row.Icon,
 		Enabled:     row.Enabled,
+		Definitions: row.Definitions,
 		LastFiredAt: row.LastFiredAt,
 		CreatedAt:   row.CreatedAt,
 		UpdatedAt:   row.UpdatedAt,
@@ -52,6 +54,7 @@ func (s *DB) ListAutomations(ctx context.Context) ([]Automation, error) {
 			Name:        r.Name,
 			Icon:        r.Icon,
 			Enabled:     r.Enabled,
+			Definitions: r.Definitions,
 			LastFiredAt: r.LastFiredAt,
 			CreatedAt:   r.CreatedAt,
 			UpdatedAt:   r.UpdatedAt,
@@ -74,6 +77,7 @@ func (s *DB) ListEnabledAutomations(ctx context.Context) ([]Automation, error) {
 			Name:        r.Name,
 			Icon:        r.Icon,
 			Enabled:     r.Enabled,
+			Definitions: r.Definitions,
 			LastFiredAt: r.LastFiredAt,
 			CreatedAt:   r.CreatedAt,
 			UpdatedAt:   r.UpdatedAt,
@@ -93,6 +97,10 @@ func (s *DB) UpdateAutomation(ctx context.Context, id string, params UpdateAutom
 		Name:    params.Name,
 		Enabled: params.Enabled,
 		ID:      id,
+	}
+	if params.Definitions != nil {
+		definitions := definitionsOrEmpty(*params.Definitions)
+		args.Definitions = &definitions
 	}
 	if params.SetIcon && params.Icon != nil {
 		args.Icon = params.Icon
@@ -234,8 +242,23 @@ func (s *DB) ListAutomationEdges(ctx context.Context, automationID string) ([]Au
 // ReplaceAutomationGraph atomically replaces an automation's nodes and edges
 // with the given sets. Existing rows are deleted in a single transaction along
 // with the inserts so concurrent readers never observe a half-written graph.
+// Runtime state survives for nodes whose id the new graph keeps.
 func (s *DB) ReplaceAutomationGraph(ctx context.Context, automationID string, nodes []CreateAutomationNodeParams, edges []CreateAutomationEdgeParams) error {
+	nodeIDs := make([]string, len(nodes))
+	for i, n := range nodes {
+		nodeIDs[i] = n.ID
+	}
+	nodeIDsJSON, err := marshalStringArray(nodeIDs)
+	if err != nil {
+		return fmt.Errorf("replace automation graph: %w", err)
+	}
 	return s.execTx(ctx, func(q *sqlite.Queries) error {
+		if err := q.DeleteAutomationNodeStateExcept(ctx, sqlite.DeleteAutomationNodeStateExceptParams{
+			AutomationID: automationID,
+			NodeIdsJson:  nodeIDsJSON,
+		}); err != nil {
+			return fmt.Errorf("delete automation node state: %w", err)
+		}
 		if err := q.DeleteAutomationEdgesByAutomation(ctx, automationID); err != nil {
 			return fmt.Errorf("delete automation edges: %w", err)
 		}
@@ -300,4 +323,11 @@ func (s *DB) GetAutomationGraph(ctx context.Context, automationID string) (Autom
 		Edges:      edges,
 		NodeStates: states,
 	}, nil
+}
+
+func definitionsOrEmpty(definitions string) string {
+	if definitions == "" {
+		return "{}"
+	}
+	return definitions
 }

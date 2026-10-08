@@ -108,3 +108,13 @@ export function actionOptions(): readonly AutomationNodeOption[] {
 }
 import { m } from "$lib/i18n/messages";
 import { locale } from "$lib/i18n/locale.svelte";
+
+/** The logic operators an operator node can apply to its inputs. */
+export function operatorOptions(): readonly { value: string; label: string }[] {
+  const options = locale.messageOptions();
+  return [
+    { value: "AND", label: m.automation_operator_and({}, options) },
+    { value: "OR", label: m.automation_operator_or({}, options) },
+    { value: "NOT", label: m.automation_operator_not({}, options) },
+  ];
+}

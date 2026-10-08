@@ -144,6 +144,53 @@
 /** @typedef {{ minimum: NonNullable<unknown>, maximum: NonNullable<unknown> }} Automation_Change_RangeInputs */
 /** @typedef {{}} Automation_Change_Select_FieldInputs */
 /** @typedef {{}} Automation_Change_ValueInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Code_Ambiguous_NameInputs */
+/** @typedef {{ id: NonNullable<unknown> }} Automation_Code_Duplicate_IdInputs */
+/** @typedef {{}} Automation_Code_Expected_ArrayInputs */
+/** @typedef {{}} Automation_Code_Expected_NumberInputs */
+/** @typedef {{}} Automation_Code_Expected_ObjectInputs */
+/** @typedef {{}} Automation_Code_Expected_StringInputs */
+/** @typedef {{ value: NonNullable<unknown> }} Automation_Code_Invalid_DurationInputs */
+/** @typedef {{}} Automation_Code_Invalid_NameInputs */
+/** @typedef {{ value: NonNullable<unknown> }} Automation_Code_Invalid_TimeInputs */
+/** @typedef {{ key: NonNullable<unknown> }} Automation_Code_Invalid_ValueInputs */
+/** @typedef {{}} Automation_Code_Key_AfterInputs */
+/** @typedef {{}} Automation_Code_Key_AllInputs */
+/** @typedef {{}} Automation_Code_Key_AnyInputs */
+/** @typedef {{}} Automation_Code_Key_AvgInputs */
+/** @typedef {{}} Automation_Code_Key_BetweenInputs */
+/** @typedef {{}} Automation_Code_Key_CountInputs */
+/** @typedef {{}} Automation_Code_Key_DaysInputs */
+/** @typedef {{}} Automation_Code_Key_DefineInputs */
+/** @typedef {{}} Automation_Code_Key_EffectInputs */
+/** @typedef {{}} Automation_Code_Key_Event_TypeInputs */
+/** @typedef {{}} Automation_Code_Key_FieldInputs */
+/** @typedef {{}} Automation_Code_Key_FiltersInputs */
+/** @typedef {{}} Automation_Code_Key_GraphInputs */
+/** @typedef {{}} Automation_Code_Key_IdInputs */
+/** @typedef {{}} Automation_Code_Key_MaxInputs */
+/** @typedef {{}} Automation_Code_Key_MessageInputs */
+/** @typedef {{}} Automation_Code_Key_MinInputs */
+/** @typedef {{}} Automation_Code_Key_NameInputs */
+/** @typedef {{}} Automation_Code_Key_NotInputs */
+/** @typedef {{}} Automation_Code_Key_RulesInputs */
+/** @typedef {{}} Automation_Code_Key_Scene_ActiveInputs */
+/** @typedef {{}} Automation_Code_Key_SettingsInputs */
+/** @typedef {{}} Automation_Code_Key_SinceInputs */
+/** @typedef {{}} Automation_Code_Key_StateInputs */
+/** @typedef {{}} Automation_Code_Key_TargetInputs */
+/** @typedef {{}} Automation_Code_Key_WhereInputs */
+/** @typedef {{}} Automation_Code_Kind_SceneInputs */
+/** @typedef {{}} Automation_Code_Kind_WebhookInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Code_Macro_ArgsInputs */
+/** @typedef {{ key: NonNullable<unknown> }} Automation_Code_Missing_KeyInputs */
+/** @typedef {{ keys: NonNullable<unknown> }} Automation_Code_One_OfInputs */
+/** @typedef {{ value: NonNullable<unknown> }} Automation_Code_Unknown_DayInputs */
+/** @typedef {{ id: NonNullable<unknown> }} Automation_Code_Unknown_IdInputs */
+/** @typedef {{ key: NonNullable<unknown> }} Automation_Code_Unknown_KeyInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Code_Unknown_MacroInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Code_Unknown_NameInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Code_Wrong_MacroInputs */
 /** @typedef {{}} Automation_Condition_CustomInputs */
 /** @typedef {{}} Automation_Condition_Custom_DescriptionInputs */
 /** @typedef {{}} Automation_Condition_Device_StateInputs */
@@ -164,6 +211,7 @@
 /** @typedef {{}} Automation_Editor_EditInputs */
 /** @typedef {{}} Automation_Editor_FallbackInputs */
 /** @typedef {{}} Automation_Editor_Fire_FailedInputs */
+/** @typedef {{}} Automation_Editor_Fire_TriggerInputs */
 /** @typedef {{}} Automation_Editor_FreeInputs */
 /** @typedef {{}} Automation_Editor_Graph_AriaInputs */
 /** @typedef {{}} Automation_Editor_Invalid_ConfigInputs */
@@ -255,6 +303,8 @@
 /** @typedef {{}} Automation_Operator_NotInputs */
 /** @typedef {{}} Automation_Operator_OrInputs */
 /** @typedef {{}} Automation_Operator_TitleInputs */
+/** @typedef {{}} Automation_Panel_CloseInputs */
+/** @typedef {{}} Automation_Panel_Macro_HintInputs */
 /** @typedef {{ time: NonNullable<unknown>, days: NonNullable<unknown> }} Automation_Schedule_At_DaysInputs */
 /** @typedef {{ time: NonNullable<unknown> }} Automation_Schedule_Every_Day_AtInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Automation_Schedule_Every_HoursInputs */
@@ -283,6 +333,19 @@
 /** @typedef {{}} Automation_State_Target_TemperatureInputs */
 /** @typedef {{}} Automation_State_TransitionInputs */
 /** @typedef {{}} Automation_State_Transition_SecondsInputs */
+/** @typedef {{ scene: NonNullable<unknown> }} Automation_Summary_Activate_SceneInputs */
+/** @typedef {{ device: NonNullable<unknown> }} Automation_Summary_AvailabilityInputs */
+/** @typedef {{ field: NonNullable<unknown>, amount: NonNullable<unknown>, target: NonNullable<unknown> }} Automation_Summary_Change_ValueInputs */
+/** @typedef {{ alarm: NonNullable<unknown> }} Automation_Summary_Clear_AlarmInputs */
+/** @typedef {{ device: NonNullable<unknown> }} Automation_Summary_ConfigureInputs */
+/** @typedef {{ scene: NonNullable<unknown> }} Automation_Summary_Cycle_CurrentInputs */
+/** @typedef {{ count: NonNullable<unknown> }} Automation_Summary_Cycle_ScenesInputs */
+/** @typedef {{ event: NonNullable<unknown>, device: NonNullable<unknown> }} Automation_Summary_Device_EventInputs */
+/** @typedef {{ message: NonNullable<unknown> }} Automation_Summary_Raise_AlarmInputs */
+/** @typedef {{ effect: NonNullable<unknown>, target: NonNullable<unknown> }} Automation_Summary_Run_EffectInputs */
+/** @typedef {{ target: NonNullable<unknown> }} Automation_Summary_ToggleInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Summary_Uses_MacroInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Summary_WebhookInputs */
 /** @typedef {{}} Automation_Timing_ImmediateInputs */
 /** @typedef {{}} Automation_Trigger_AvailabilityInputs */
 /** @typedef {{}} Automation_Trigger_Availability_DescriptionInputs */
@@ -1314,6 +1377,11 @@
 /** @typedef {{}} Settings_Retention_DaysInputs */
 /** @typedef {{}} Settings_Retention_HelpInputs */
 /** @typedef {{}} Settings_Save_FailedInputs */
+/** @typedef {{}} Settings_Time_ZoneInputs */
+/** @typedef {{ zone: NonNullable<unknown> }} Settings_Time_Zone_BrowserInputs */
+/** @typedef {{}} Settings_Time_Zone_HelpInputs */
+/** @typedef {{}} Settings_Time_Zone_SearchInputs */
+/** @typedef {{}} Settings_Time_Zone_ServerInputs */
 /** @typedef {{}} Shared_ActionsInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Shared_Add_ItemsInputs */
 /** @typedef {{}} Shared_Batch_ActionsInputs */
@@ -2378,6 +2446,194 @@ export const automation_change_value = /** @type {(inputs: Automation_Change_Val
 	return /** @type {LocalizedString} */ (`Värde`)
 };
 
+export const automation_code_ambiguous_name = /** @type {(inputs: Automation_Code_Ambiguous_NameInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Fler än en träff för ”${i?.name}”; använd id:t`)
+};
+
+export const automation_code_duplicate_id = /** @type {(inputs: Automation_Code_Duplicate_IdInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Id:t ”${i?.id}” används två gånger`)
+};
+
+export const automation_code_expected_array = /** @type {(inputs: Automation_Code_Expected_ArrayInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Förväntade en lista`)
+};
+
+export const automation_code_expected_number = /** @type {(inputs: Automation_Code_Expected_NumberInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Förväntade ett tal`)
+};
+
+export const automation_code_expected_object = /** @type {(inputs: Automation_Code_Expected_ObjectInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Förväntade ett objekt`)
+};
+
+export const automation_code_expected_string = /** @type {(inputs: Automation_Code_Expected_StringInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Förväntade text`)
+};
+
+export const automation_code_invalid_duration = /** @type {(inputs: Automation_Code_Invalid_DurationInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`”${i?.value}” är ingen varaktighet som 10s, 5m eller 1h`)
+};
+
+export const automation_code_invalid_name = /** @type {(inputs: Automation_Code_Invalid_NameInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Definitionsnamn består av bokstäver, siffror och understreck`)
+};
+
+export const automation_code_invalid_time = /** @type {(inputs: Automation_Code_Invalid_TimeInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`”${i?.value}” är ingen tid som 07:30`)
+};
+
+export const automation_code_invalid_value = /** @type {(inputs: Automation_Code_Invalid_ValueInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Ogiltigt värde för ”${i?.key}”`)
+};
+
+export const automation_code_key_after = /** @type {(inputs: Automation_Code_Key_AfterInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Körs efter`)
+};
+
+export const automation_code_key_all = /** @type {(inputs: Automation_Code_Key_AllInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Alla enheter matchar`)
+};
+
+export const automation_code_key_any = /** @type {(inputs: Automation_Code_Key_AnyInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Någon enhet matchar`)
+};
+
+export const automation_code_key_avg = /** @type {(inputs: Automation_Code_Key_AvgInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Medelvärde`)
+};
+
+export const automation_code_key_between = /** @type {(inputs: Automation_Code_Key_BetweenInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Mellan`)
+};
+
+export const automation_code_key_count = /** @type {(inputs: Automation_Code_Key_CountInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Antal matchande enheter`)
+};
+
+export const automation_code_key_days = /** @type {(inputs: Automation_Code_Key_DaysInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Dagar`)
+};
+
+export const automation_code_key_define = /** @type {(inputs: Automation_Code_Key_DefineInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Definitioner`)
+};
+
+export const automation_code_key_effect = /** @type {(inputs: Automation_Code_Key_EffectInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Effekt`)
+};
+
+export const automation_code_key_event_type = /** @type {(inputs: Automation_Code_Key_Event_TypeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Händelsetyp`)
+};
+
+export const automation_code_key_field = /** @type {(inputs: Automation_Code_Key_FieldInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Fält`)
+};
+
+export const automation_code_key_filters = /** @type {(inputs: Automation_Code_Key_FiltersInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Filter`)
+};
+
+export const automation_code_key_graph = /** @type {(inputs: Automation_Code_Key_GraphInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Graf`)
+};
+
+export const automation_code_key_id = /** @type {(inputs: Automation_Code_Key_IdInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Id`)
+};
+
+export const automation_code_key_max = /** @type {(inputs: Automation_Code_Key_MaxInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Högsta`)
+};
+
+export const automation_code_key_message = /** @type {(inputs: Automation_Code_Key_MessageInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Meddelande`)
+};
+
+export const automation_code_key_min = /** @type {(inputs: Automation_Code_Key_MinInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Lägsta`)
+};
+
+export const automation_code_key_name = /** @type {(inputs: Automation_Code_Key_NameInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Namn`)
+};
+
+export const automation_code_key_not = /** @type {(inputs: Automation_Code_Key_NotInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Inte`)
+};
+
+export const automation_code_key_rules = /** @type {(inputs: Automation_Code_Key_RulesInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Regler`)
+};
+
+export const automation_code_key_scene_active = /** @type {(inputs: Automation_Code_Key_Scene_ActiveInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Scenen är aktiv`)
+};
+
+export const automation_code_key_settings = /** @type {(inputs: Automation_Code_Key_SettingsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Inställningar`)
+};
+
+export const automation_code_key_since = /** @type {(inputs: Automation_Code_Key_SinceInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Oförändrad i`)
+};
+
+export const automation_code_key_state = /** @type {(inputs: Automation_Code_Key_StateInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Tillstånd`)
+};
+
+export const automation_code_key_target = /** @type {(inputs: Automation_Code_Key_TargetInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Definition`)
+};
+
+export const automation_code_key_where = /** @type {(inputs: Automation_Code_Key_WhereInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Urval`)
+};
+
+export const automation_code_kind_scene = /** @type {(inputs: Automation_Code_Kind_SceneInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Scen`)
+};
+
+export const automation_code_kind_webhook = /** @type {(inputs: Automation_Code_Kind_WebhookInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Webhook`)
+};
+
+export const automation_code_macro_args = /** @type {(inputs: Automation_Code_Macro_ArgsInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Fel antal argument till ”${i?.name}”`)
+};
+
+export const automation_code_missing_key = /** @type {(inputs: Automation_Code_Missing_KeyInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Saknar ”${i?.key}”`)
+};
+
+export const automation_code_one_of = /** @type {(inputs: Automation_Code_One_OfInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Använd exakt en av ${i?.keys}`)
+};
+
+export const automation_code_unknown_day = /** @type {(inputs: Automation_Code_Unknown_DayInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`”${i?.value}” är ingen veckodag`)
+};
+
+export const automation_code_unknown_id = /** @type {(inputs: Automation_Code_Unknown_IdInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Inget element har id:t ”${i?.id}”`)
+};
+
+export const automation_code_unknown_key = /** @type {(inputs: Automation_Code_Unknown_KeyInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Okänd nyckel ”${i?.key}”`)
+};
+
+export const automation_code_unknown_macro = /** @type {(inputs: Automation_Code_Unknown_MacroInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Ingen definition heter ”${i?.name}”`)
+};
+
+export const automation_code_unknown_name = /** @type {(inputs: Automation_Code_Unknown_NameInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Inget heter ”${i?.name}”`)
+};
+
+export const automation_code_wrong_macro = /** @type {(inputs: Automation_Code_Wrong_MacroInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`”${i?.name}” kan inte användas här`)
+};
+
 export const automation_condition_custom = /** @type {(inputs: Automation_Condition_CustomInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Anpassad`)
 };
@@ -2456,6 +2712,10 @@ export const automation_editor_fallback = /** @type {(inputs: Automation_Editor_
 
 export const automation_editor_fire_failed = /** @type {(inputs: Automation_Editor_Fire_FailedInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Det gick inte att aktivera avtryckaren.`)
+};
+
+export const automation_editor_fire_trigger = /** @type {(inputs: Automation_Editor_Fire_TriggerInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Utlös`)
 };
 
 export const automation_editor_free = /** @type {(inputs: Automation_Editor_FreeInputs) => LocalizedString} */ () => {
@@ -2822,6 +3082,14 @@ export const automation_operator_title = /** @type {(inputs: Automation_Operator
 	return /** @type {LocalizedString} */ (`Operatör`)
 };
 
+export const automation_panel_close = /** @type {(inputs: Automation_Panel_CloseInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Stäng`)
+};
+
+export const automation_panel_macro_hint = /** @type {(inputs: Automation_Panel_Macro_HintInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Noden använder en definition. Redigera den i kodvyn.`)
+};
+
 export const automation_schedule_at_days = /** @type {(inputs: Automation_Schedule_At_DaysInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`På ${i?.time} på ${i?.days}`)
 };
@@ -2938,6 +3206,60 @@ export const automation_state_transition = /** @type {(inputs: Automation_State_
 
 export const automation_state_transition_seconds = /** @type {(inputs: Automation_State_Transition_SecondsInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Övergång sekunder`)
+};
+
+export const automation_summary_activate_scene = /** @type {(inputs: Automation_Summary_Activate_SceneInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Aktivera ${i?.scene}`)
+};
+
+export const automation_summary_availability = /** @type {(inputs: Automation_Summary_AvailabilityInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Tillgänglighet för ${i?.device}`)
+};
+
+export const automation_summary_change_value = /** @type {(inputs: Automation_Summary_Change_ValueInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.field} ${i?.amount} på ${i?.target}`)
+};
+
+export const automation_summary_clear_alarm = /** @type {(inputs: Automation_Summary_Clear_AlarmInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Rensa larm ${i?.alarm}`)
+};
+
+export const automation_summary_configure = /** @type {(inputs: Automation_Summary_ConfigureInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Konfigurera ${i?.device}`)
+};
+
+export const automation_summary_cycle_current = /** @type {(inputs: Automation_Summary_Cycle_CurrentInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Nu: ${i?.scene}`)
+};
+
+export const automation_summary_cycle_scenes = /** @type {(inputs: Automation_Summary_Cycle_ScenesInputs) => LocalizedString} */ (i) => {const countPlural = registry.plural("sv", i?.count, {});
+	if (countPlural === "one") return /** @type {LocalizedString} */ (`Växla mellan ${i?.count} scen`);
+	return /** @type {LocalizedString} */ (`Växla mellan ${i?.count} scener`)
+	
+};
+
+export const automation_summary_device_event = /** @type {(inputs: Automation_Summary_Device_EventInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.event} på ${i?.device}`)
+};
+
+export const automation_summary_raise_alarm = /** @type {(inputs: Automation_Summary_Raise_AlarmInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Larm: ${i?.message}`)
+};
+
+export const automation_summary_run_effect = /** @type {(inputs: Automation_Summary_Run_EffectInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.effect} på ${i?.target}`)
+};
+
+export const automation_summary_toggle = /** @type {(inputs: Automation_Summary_ToggleInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Växla ${i?.target}`)
+};
+
+export const automation_summary_uses_macro = /** @type {(inputs: Automation_Summary_Uses_MacroInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Använder ${i?.name}`)
+};
+
+export const automation_summary_webhook = /** @type {(inputs: Automation_Summary_WebhookInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Webhook ${i?.name}`)
 };
 
 export const automation_timing_immediate = /** @type {(inputs: Automation_Timing_ImmediateInputs) => LocalizedString} */ () => {
@@ -7153,6 +7475,26 @@ export const settings_retention_help = /** @type {(inputs: Settings_Retention_He
 
 export const settings_save_failed = /** @type {(inputs: Settings_Save_FailedInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Det gick inte att spara inställningarna.`)
+};
+
+export const settings_time_zone = /** @type {(inputs: Settings_Time_ZoneInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Tidszon`)
+};
+
+export const settings_time_zone_browser = /** @type {(inputs: Settings_Time_Zone_BrowserInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.zone} (den här webbläsaren)`)
+};
+
+export const settings_time_zone_help = /** @type {(inputs: Settings_Time_Zone_HelpInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Scheman, tidsfönster och veckodagar i automationer följer den här tidszonen.`)
+};
+
+export const settings_time_zone_search = /** @type {(inputs: Settings_Time_Zone_SearchInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Sök tidszoner`)
+};
+
+export const settings_time_zone_server = /** @type {(inputs: Settings_Time_Zone_ServerInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Serverns lokala tid`)
 };
 
 export const shared_actions = /** @type {(inputs: Shared_ActionsInputs) => LocalizedString} */ () => {

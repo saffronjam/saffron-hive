@@ -1,4 +1,13 @@
-export type ConditionMode = "" | "time_window" | "weekday" | "device_state" | "custom";
+import { parseExpr, type Clause as ExprClause } from "$lib/automation-dsl/expr";
+import {
+  DAY_CODES,
+  formatClock,
+  fullDayName,
+  parseClock,
+  parseDay,
+} from "$lib/automation-dsl/values";
+
+export type ConditionMode = "" | "time_window" | "weekday" | "device_state" | "custom" | "macro";
 export type ConditionTargetType = "device" | "group" | "room";
 
 export interface ConditionConfig {
@@ -8,10 +17,10 @@ export interface ConditionConfig {
   afterMinute?: number;
   beforeHour?: number;
   beforeMinute?: number;
-  // weekday
+  // weekday, as full English names ("Monday")
   weekdays?: string[];
-  // device_state (target may be a device, group, or room — groups/rooms only
-  // expose `on`; the wire-level expression always uses `device("Name")`).
+  // device_state: the stored expression addresses the target by id through
+  // device(), group() or room(). Groups and rooms expose only `on`.
   targetType?: ConditionTargetType;
   targetId?: string;
   targetName?: string;
@@ -20,6 +29,9 @@ export interface ConditionConfig {
   value?: string;
   // custom
   customExpr?: string;
+  // macro: a condition defined in the automation's definitions
+  macro?: string;
+  negate?: boolean;
 }
 
 function escapeExprString(s: string): string {
@@ -30,42 +42,27 @@ function isNumericString(s: string): boolean {
   return s !== "" && !isNaN(Number(s));
 }
 
-function timeToMinutes(h: number, m: number): number {
-  return h * 60 + m;
-}
-
 export function generateConditionExpr(config: ConditionConfig): string {
   switch (config.mode) {
     case "time_window": {
       const hasAfter = config.afterHour !== undefined;
       const hasBefore = config.beforeHour !== undefined;
-      if (!hasAfter && !hasBefore) return "true";
-
-      const afterMins = hasAfter ? timeToMinutes(config.afterHour!, config.afterMinute ?? 0) : 0;
-      const beforeMins = hasBefore
-        ? timeToMinutes(config.beforeHour!, config.beforeMinute ?? 0)
-        : 0;
-      const current = "(time.hour * 60 + time.minute)";
-
-      if (hasAfter && hasBefore) {
-        if (afterMins < beforeMins) {
-          return `${current} >= ${afterMins} && ${current} < ${beforeMins}`;
-        }
-        // Wraparound (e.g. 22:00 - 02:00): "after OR before"
-        return `${current} >= ${afterMins} || ${current} < ${beforeMins}`;
-      }
-      if (hasAfter) return `${current} >= ${afterMins}`;
-      return `${current} < ${beforeMins}`;
+      const after = formatClock(config.afterHour ?? 0, config.afterMinute ?? 0);
+      const before = formatClock(config.beforeHour ?? 0, config.beforeMinute ?? 0);
+      if (hasAfter && hasBefore) return `time.between("${after}", "${before}")`;
+      if (hasAfter) return `time.after("${after}")`;
+      if (hasBefore) return `time.before("${before}")`;
+      return "true";
     }
     case "weekday": {
-      const days = config.weekdays ?? [];
+      const days = (config.weekdays ?? []).map(parseDay).filter((day) => day !== null);
       if (days.length === 0) return "true";
-      const parts = days.map((d) => `time.weekday == "${d}"`);
-      return parts.length > 1 ? `(${parts.join(" || ")})` : parts[0];
+      return `day.in(${days.map((day) => `"${day}"`).join(", ")})`;
     }
     case "device_state": {
-      if (!config.targetName || !config.property) return "true";
-      const prop = `device("${escapeExprString(config.targetName)}").${config.property}`;
+      if (!config.targetId || !config.property) return "true";
+      const accessor = config.targetType ?? "device";
+      const prop = `${accessor}("${escapeExprString(config.targetId)}").${config.property}`;
       const cmp = config.comparator ?? "==";
       const val = config.value ?? "";
       if (val === "") return "true";
@@ -98,6 +95,7 @@ export function validateConditionConfig(config: ConditionConfig): ConditionValid
   switch (config.mode) {
     case "time_window":
     case "weekday":
+    case "macro":
       return null;
     case "device_state":
       if (!config.targetId) return { field: "target", code: "target_required" };
@@ -118,90 +116,123 @@ export function validateConditionConfig(config: ConditionConfig): ConditionValid
 
 export function serializeConditionConfig(config: ConditionConfig): string {
   if (config.mode === "") return JSON.stringify({ mode: "" });
+  if (config.mode === "macro") {
+    return JSON.stringify(
+      config.negate ? { use: config.macro, negate: true } : { use: config.macro },
+    );
+  }
   return JSON.stringify({ expr: generateConditionExpr(config) });
 }
 
-// normalizeConditionConfig reverse-parses a stored condition expression back
-// into its UI mode. Falls back to "custom" mode if no pattern matches. The
-// stored wire format always uses `device("Name").property`; the UI may later
-// disambiguate the target as device, group, or room from the live lookups.
+function clockParts(text: unknown): [number, number] | null {
+  if (typeof text !== "string") return null;
+  const clock = parseClock(text);
+  return clock && clock[2] === 0 ? [clock[0], clock[1]] : null;
+}
+
+function fromMinutes(minutes: number): [number, number] {
+  return [Math.floor(minutes / 60), minutes % 60];
+}
+
+/** A single-clause expression the visual editor can show as a mode. */
+function modeFromClause(clause: ExprClause): ConditionConfig | null {
+  if (clause.kind === "call") {
+    const { fn, args } = clause.call;
+    if (fn === "time.between" && args.length === 2) {
+      const after = clockParts(args[0]);
+      const before = clockParts(args[1]);
+      if (!after || !before) return null;
+      return {
+        mode: "time_window",
+        afterHour: after[0],
+        afterMinute: after[1],
+        beforeHour: before[0],
+        beforeMinute: before[1],
+      };
+    }
+    if (fn === "time.after" && args.length === 1) {
+      const after = clockParts(args[0]);
+      return after ? { mode: "time_window", afterHour: after[0], afterMinute: after[1] } : null;
+    }
+    if (fn === "time.before" && args.length === 1) {
+      const before = clockParts(args[0]);
+      return before
+        ? { mode: "time_window", beforeHour: before[0], beforeMinute: before[1] }
+        : null;
+    }
+    if (fn === "day.in" && args.length > 0) {
+      const days = args.map((arg) => (typeof arg === "string" ? parseDay(arg) : null));
+      if (days.some((day) => day === null)) return null;
+      return {
+        mode: "weekday",
+        weekdays: DAY_CODES.filter((code) => days.includes(code)).map(fullDayName),
+      };
+    }
+    return null;
+  }
+  if (clause.kind !== "compare") return null;
+  const { fn, args, member } = clause.call;
+  if (!["device", "group", "room"].includes(fn) || args.length !== 1 || !member) return null;
+  if (typeof args[0] !== "string" || !("literal" in clause.right)) return null;
+  const value = clause.right.literal;
+  if (value !== null && typeof value === "object") return null;
+  return {
+    mode: "device_state",
+    targetType: fn as ConditionTargetType,
+    targetId: args[0],
+    property: member,
+    comparator: clause.op,
+    value: String(value),
+  };
+}
+
+/** Clock-arithmetic and weekday-equality expressions the editor reads. */
+function modeFromArithmetic(expr: string): ConditionConfig | null {
+  const current = String.raw`\(time\.hour \* 60 \+ time\.minute\)`;
+  const range = new RegExp(`^${current} >= (\\d+) (&&|\\|\\|) ${current} < (\\d+)$`).exec(expr);
+  if (range) {
+    const [afterHour, afterMinute] = fromMinutes(Number(range[1]));
+    const [beforeHour, beforeMinute] = fromMinutes(Number(range[3]));
+    return { mode: "time_window", afterHour, afterMinute, beforeHour, beforeMinute };
+  }
+  const after = new RegExp(`^${current} >= (\\d+)$`).exec(expr);
+  if (after) {
+    const [afterHour, afterMinute] = fromMinutes(Number(after[1]));
+    return { mode: "time_window", afterHour, afterMinute };
+  }
+  const before = new RegExp(`^${current} < (\\d+)$`).exec(expr);
+  if (before) {
+    const [beforeHour, beforeMinute] = fromMinutes(Number(before[1]));
+    return { mode: "time_window", beforeHour, beforeMinute };
+  }
+  if (/^\(?(time\.weekday == "[A-Za-z]+"( \|\| )?)+\)?$/.test(expr)) {
+    const days = Array.from(expr.matchAll(/time\.weekday == "([A-Za-z]+)"/g)).map(
+      (match) => match[1],
+    );
+    return { mode: "weekday", weekdays: days };
+  }
+  return null;
+}
+
+/**
+ * Reads a stored condition back into its editor mode. Anything the editor
+ * cannot show as a mode opens as a custom expression.
+ */
 export function normalizeConditionConfig(raw: Record<string, unknown>): ConditionConfig {
-  // If the raw object already has a mode field (e.g. cached TS shape), coerce.
   if ("mode" in raw && typeof raw.mode === "string") {
     return raw as unknown as ConditionConfig;
   }
-  const expr = (raw.expr as string) ?? "";
-  if (!expr || expr === "true") {
-    return { mode: "time_window" };
+  if (typeof raw.use === "string") {
+    return { mode: "macro", macro: raw.use, negate: raw.negate === true };
   }
-
-  // Time window pattern: (time.hour * 60 + time.minute) >= X && ... < Y
-  const twRange = expr.match(
-    /^\(time\.hour \* 60 \+ time\.minute\) >= (\d+) && \(time\.hour \* 60 \+ time\.minute\) < (\d+)$/,
-  );
-  if (twRange) {
-    const a = Number(twRange[1]);
-    const b = Number(twRange[2]);
-    return {
-      mode: "time_window",
-      afterHour: Math.floor(a / 60),
-      afterMinute: a % 60,
-      beforeHour: Math.floor(b / 60),
-      beforeMinute: b % 60,
-    };
+  const expr = typeof raw.expr === "string" ? raw.expr : "";
+  if (!expr || expr === "true") return { mode: "time_window" };
+  const arithmetic = modeFromArithmetic(expr);
+  if (arithmetic) return arithmetic;
+  const ast = parseExpr(expr);
+  if (ast && ast.clauses.length === 1) {
+    const mode = modeFromClause(ast.clauses[0]);
+    if (mode) return mode;
   }
-  const twWrap = expr.match(
-    /^\(time\.hour \* 60 \+ time\.minute\) >= (\d+) \|\| \(time\.hour \* 60 \+ time\.minute\) < (\d+)$/,
-  );
-  if (twWrap) {
-    const a = Number(twWrap[1]);
-    const b = Number(twWrap[2]);
-    return {
-      mode: "time_window",
-      afterHour: Math.floor(a / 60),
-      afterMinute: a % 60,
-      beforeHour: Math.floor(b / 60),
-      beforeMinute: b % 60,
-    };
-  }
-  const twAfter = expr.match(/^\(time\.hour \* 60 \+ time\.minute\) >= (\d+)$/);
-  if (twAfter) {
-    const a = Number(twAfter[1]);
-    return { mode: "time_window", afterHour: Math.floor(a / 60), afterMinute: a % 60 };
-  }
-  const twBefore = expr.match(/^\(time\.hour \* 60 \+ time\.minute\) < (\d+)$/);
-  if (twBefore) {
-    const b = Number(twBefore[1]);
-    return { mode: "time_window", beforeHour: Math.floor(b / 60), beforeMinute: b % 60 };
-  }
-
-  // Weekday pattern: time.weekday == "..." ( || ... )
-  const weekdayMatch = expr.match(/^\(?((time\.weekday == "[A-Za-z]+"(?: \|\| )?)+)\)?$/);
-  if (weekdayMatch) {
-    const days = Array.from(expr.matchAll(/time\.weekday == "([A-Za-z]+)"/g)).map((m) => m[1]);
-    if (days.length > 0) return { mode: "weekday", weekdays: days };
-  }
-
-  // Device-state pattern: device("name").property CMP value. The UI fills in
-  // targetType from the live device/group/room lookups (see
-  // enrichConditionConfigWithTarget on the page side); without it we default
-  // to "device" so the picker has a sensible starting point.
-  const dev = expr.match(/^device\("([^"]+)"\)\.(\w+)\s*(==|!=|<=|>=|<|>)\s*(.+)$/);
-  if (dev) {
-    const [, name, property, comparator, rawVal] = dev;
-    let val = rawVal.trim();
-    if (val.startsWith('"') && val.endsWith('"')) {
-      val = val.slice(1, -1);
-    }
-    return {
-      mode: "device_state",
-      targetType: "device",
-      targetName: name,
-      property,
-      comparator,
-      value: val,
-    };
-  }
-
   return { mode: "custom", customExpr: expr };
 }

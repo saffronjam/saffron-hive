@@ -18,6 +18,22 @@ func (q *Queries) DeleteAutomationNodeStateByAutomation(ctx context.Context, aut
 	return err
 }
 
+const deleteAutomationNodeStateExcept = `-- name: DeleteAutomationNodeStateExcept :exec
+DELETE FROM automation_node_state
+WHERE automation_id = ?1
+  AND node_id NOT IN (SELECT value FROM json_each(CAST(?2 AS TEXT)))
+`
+
+type DeleteAutomationNodeStateExceptParams struct {
+	AutomationID string
+	NodeIdsJson  string
+}
+
+func (q *Queries) DeleteAutomationNodeStateExcept(ctx context.Context, arg DeleteAutomationNodeStateExceptParams) error {
+	_, err := q.db.ExecContext(ctx, deleteAutomationNodeStateExcept, arg.AutomationID, arg.NodeIdsJson)
+	return err
+}
+
 const getAutomationNodeState = `-- name: GetAutomationNodeState :one
 
 SELECT value FROM automation_node_state
@@ -32,8 +48,8 @@ type GetAutomationNodeStateParams struct {
 
 // Per-node runtime state for stateful automation nodes (e.g. cycle_scenes
 // index). Generic key/value JSON store keyed by (automation_id, node_id, key).
-// Cascades on automation and node deletion, so graph replacement wipes state
-// automatically.
+// Node ids are short and reused within an automation, so a graph save
+// deletes the state of every node the new graph no longer contains.
 func (q *Queries) GetAutomationNodeState(ctx context.Context, arg GetAutomationNodeStateParams) (string, error) {
 	row := q.db.QueryRowContext(ctx, getAutomationNodeState, arg.AutomationID, arg.NodeID, arg.Key)
 	var value string

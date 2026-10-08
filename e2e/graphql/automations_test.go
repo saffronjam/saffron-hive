@@ -863,11 +863,12 @@ func TestAutomations_ActivateScene(t *testing.T) {
 	})
 
 	triggerConfig, _ := json.Marshal(map[string]string{"kind": "event", "event_type": "test.fire", "filter_expr": "true"})
+	scenePayload, _ := json.Marshal(map[string]string{"scene_id": sceneID})
 	actionConfig, _ := json.Marshal(map[string]string{
 		"action_type": "activate_scene",
 		"target_type": "",
 		"target_id":   "",
-		"payload":     sceneID,
+		"payload":     string(scenePayload),
 	})
 	automationData, err := graphqlMutation(`mutation($input: CreateAutomationInput!) {
 		createAutomation(input: $input) { id nodes { id config } }
@@ -912,7 +913,7 @@ func TestAutomations_ActivateScene(t *testing.T) {
 			}
 		}
 	}
-	if persistedAction["payload"] != sceneID || persistedAction["target_id"] != "" {
+	if persistedAction["payload"] != string(scenePayload) || persistedAction["target_id"] != "" {
 		t.Fatalf("persisted action config = %#v", persistedAction)
 	}
 

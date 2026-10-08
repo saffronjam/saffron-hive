@@ -702,3 +702,15 @@ func boolInt64(value bool) int64 {
 	}
 	return 0
 }
+
+// ResolveSceneIDByName returns the ID of the scene with the given name.
+func (s *DB) ResolveSceneIDByName(ctx context.Context, name string) (string, bool, error) {
+	id, err := s.q.ResolveSceneIDByName(ctx, name)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("resolve scene id by name: %w", err)
+	}
+	return id, true, nil
+}

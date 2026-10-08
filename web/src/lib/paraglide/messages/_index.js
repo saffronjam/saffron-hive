@@ -146,6 +146,53 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{ minimum: NonNullable<unknown>, maximum: NonNullable<unknown> }} Automation_Change_RangeInputs */
 /** @typedef {{}} Automation_Change_Select_FieldInputs */
 /** @typedef {{}} Automation_Change_ValueInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Code_Ambiguous_NameInputs */
+/** @typedef {{ id: NonNullable<unknown> }} Automation_Code_Duplicate_IdInputs */
+/** @typedef {{}} Automation_Code_Expected_ArrayInputs */
+/** @typedef {{}} Automation_Code_Expected_NumberInputs */
+/** @typedef {{}} Automation_Code_Expected_ObjectInputs */
+/** @typedef {{}} Automation_Code_Expected_StringInputs */
+/** @typedef {{ value: NonNullable<unknown> }} Automation_Code_Invalid_DurationInputs */
+/** @typedef {{}} Automation_Code_Invalid_NameInputs */
+/** @typedef {{ value: NonNullable<unknown> }} Automation_Code_Invalid_TimeInputs */
+/** @typedef {{ key: NonNullable<unknown> }} Automation_Code_Invalid_ValueInputs */
+/** @typedef {{}} Automation_Code_Key_AfterInputs */
+/** @typedef {{}} Automation_Code_Key_AllInputs */
+/** @typedef {{}} Automation_Code_Key_AnyInputs */
+/** @typedef {{}} Automation_Code_Key_AvgInputs */
+/** @typedef {{}} Automation_Code_Key_BetweenInputs */
+/** @typedef {{}} Automation_Code_Key_CountInputs */
+/** @typedef {{}} Automation_Code_Key_DaysInputs */
+/** @typedef {{}} Automation_Code_Key_DefineInputs */
+/** @typedef {{}} Automation_Code_Key_EffectInputs */
+/** @typedef {{}} Automation_Code_Key_Event_TypeInputs */
+/** @typedef {{}} Automation_Code_Key_FieldInputs */
+/** @typedef {{}} Automation_Code_Key_FiltersInputs */
+/** @typedef {{}} Automation_Code_Key_GraphInputs */
+/** @typedef {{}} Automation_Code_Key_IdInputs */
+/** @typedef {{}} Automation_Code_Key_MaxInputs */
+/** @typedef {{}} Automation_Code_Key_MessageInputs */
+/** @typedef {{}} Automation_Code_Key_MinInputs */
+/** @typedef {{}} Automation_Code_Key_NameInputs */
+/** @typedef {{}} Automation_Code_Key_NotInputs */
+/** @typedef {{}} Automation_Code_Key_RulesInputs */
+/** @typedef {{}} Automation_Code_Key_Scene_ActiveInputs */
+/** @typedef {{}} Automation_Code_Key_SettingsInputs */
+/** @typedef {{}} Automation_Code_Key_SinceInputs */
+/** @typedef {{}} Automation_Code_Key_StateInputs */
+/** @typedef {{}} Automation_Code_Key_TargetInputs */
+/** @typedef {{}} Automation_Code_Key_WhereInputs */
+/** @typedef {{}} Automation_Code_Kind_SceneInputs */
+/** @typedef {{}} Automation_Code_Kind_WebhookInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Code_Macro_ArgsInputs */
+/** @typedef {{ key: NonNullable<unknown> }} Automation_Code_Missing_KeyInputs */
+/** @typedef {{ keys: NonNullable<unknown> }} Automation_Code_One_OfInputs */
+/** @typedef {{ value: NonNullable<unknown> }} Automation_Code_Unknown_DayInputs */
+/** @typedef {{ id: NonNullable<unknown> }} Automation_Code_Unknown_IdInputs */
+/** @typedef {{ key: NonNullable<unknown> }} Automation_Code_Unknown_KeyInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Code_Unknown_MacroInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Code_Unknown_NameInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Code_Wrong_MacroInputs */
 /** @typedef {{}} Automation_Condition_CustomInputs */
 /** @typedef {{}} Automation_Condition_Custom_DescriptionInputs */
 /** @typedef {{}} Automation_Condition_Device_StateInputs */
@@ -166,6 +213,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Automation_Editor_EditInputs */
 /** @typedef {{}} Automation_Editor_FallbackInputs */
 /** @typedef {{}} Automation_Editor_Fire_FailedInputs */
+/** @typedef {{}} Automation_Editor_Fire_TriggerInputs */
 /** @typedef {{}} Automation_Editor_FreeInputs */
 /** @typedef {{}} Automation_Editor_Graph_AriaInputs */
 /** @typedef {{}} Automation_Editor_Invalid_ConfigInputs */
@@ -257,6 +305,8 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Automation_Operator_NotInputs */
 /** @typedef {{}} Automation_Operator_OrInputs */
 /** @typedef {{}} Automation_Operator_TitleInputs */
+/** @typedef {{}} Automation_Panel_CloseInputs */
+/** @typedef {{}} Automation_Panel_Macro_HintInputs */
 /** @typedef {{ time: NonNullable<unknown>, days: NonNullable<unknown> }} Automation_Schedule_At_DaysInputs */
 /** @typedef {{ time: NonNullable<unknown> }} Automation_Schedule_Every_Day_AtInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Automation_Schedule_Every_HoursInputs */
@@ -285,6 +335,19 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Automation_State_Target_TemperatureInputs */
 /** @typedef {{}} Automation_State_TransitionInputs */
 /** @typedef {{}} Automation_State_Transition_SecondsInputs */
+/** @typedef {{ scene: NonNullable<unknown> }} Automation_Summary_Activate_SceneInputs */
+/** @typedef {{ device: NonNullable<unknown> }} Automation_Summary_AvailabilityInputs */
+/** @typedef {{ field: NonNullable<unknown>, amount: NonNullable<unknown>, target: NonNullable<unknown> }} Automation_Summary_Change_ValueInputs */
+/** @typedef {{ alarm: NonNullable<unknown> }} Automation_Summary_Clear_AlarmInputs */
+/** @typedef {{ device: NonNullable<unknown> }} Automation_Summary_ConfigureInputs */
+/** @typedef {{ scene: NonNullable<unknown> }} Automation_Summary_Cycle_CurrentInputs */
+/** @typedef {{ count: NonNullable<unknown> }} Automation_Summary_Cycle_ScenesInputs */
+/** @typedef {{ event: NonNullable<unknown>, device: NonNullable<unknown> }} Automation_Summary_Device_EventInputs */
+/** @typedef {{ message: NonNullable<unknown> }} Automation_Summary_Raise_AlarmInputs */
+/** @typedef {{ effect: NonNullable<unknown>, target: NonNullable<unknown> }} Automation_Summary_Run_EffectInputs */
+/** @typedef {{ target: NonNullable<unknown> }} Automation_Summary_ToggleInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Summary_Uses_MacroInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Automation_Summary_WebhookInputs */
 /** @typedef {{}} Automation_Timing_ImmediateInputs */
 /** @typedef {{}} Automation_Trigger_AvailabilityInputs */
 /** @typedef {{}} Automation_Trigger_Availability_DescriptionInputs */
@@ -1316,6 +1379,11 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Settings_Retention_DaysInputs */
 /** @typedef {{}} Settings_Retention_HelpInputs */
 /** @typedef {{}} Settings_Save_FailedInputs */
+/** @typedef {{}} Settings_Time_ZoneInputs */
+/** @typedef {{ zone: NonNullable<unknown> }} Settings_Time_Zone_BrowserInputs */
+/** @typedef {{}} Settings_Time_Zone_HelpInputs */
+/** @typedef {{}} Settings_Time_Zone_SearchInputs */
+/** @typedef {{}} Settings_Time_Zone_ServerInputs */
 /** @typedef {{}} Shared_ActionsInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Shared_Add_ItemsInputs */
 /** @typedef {{}} Shared_Batch_ActionsInputs */
@@ -3965,6 +4033,711 @@ export const automation_change_value = /** @type {((inputs?: Automation_Change_V
 /**
 * | output |
 * | --- |
+* | "More than one match for “{name}”; use the id" |
+*
+* @param {Automation_Code_Ambiguous_NameInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_ambiguous_name = /** @type {((inputs: Automation_Code_Ambiguous_NameInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Ambiguous_NameInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_ambiguous_name(inputs)
+	if (locale === "ru") return __ru.automation_code_ambiguous_name(inputs)
+	return __en.automation_code_ambiguous_name(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "The id “{id}” is used twice" |
+*
+* @param {Automation_Code_Duplicate_IdInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_duplicate_id = /** @type {((inputs: Automation_Code_Duplicate_IdInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Duplicate_IdInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_duplicate_id(inputs)
+	if (locale === "ru") return __ru.automation_code_duplicate_id(inputs)
+	return __en.automation_code_duplicate_id(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Expected a list" |
+*
+* @param {Automation_Code_Expected_ArrayInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_expected_array = /** @type {((inputs?: Automation_Code_Expected_ArrayInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Expected_ArrayInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_expected_array(inputs)
+	if (locale === "ru") return __ru.automation_code_expected_array(inputs)
+	return __en.automation_code_expected_array(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Expected a number" |
+*
+* @param {Automation_Code_Expected_NumberInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_expected_number = /** @type {((inputs?: Automation_Code_Expected_NumberInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Expected_NumberInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_expected_number(inputs)
+	if (locale === "ru") return __ru.automation_code_expected_number(inputs)
+	return __en.automation_code_expected_number(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Expected an object" |
+*
+* @param {Automation_Code_Expected_ObjectInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_expected_object = /** @type {((inputs?: Automation_Code_Expected_ObjectInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Expected_ObjectInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_expected_object(inputs)
+	if (locale === "ru") return __ru.automation_code_expected_object(inputs)
+	return __en.automation_code_expected_object(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Expected text" |
+*
+* @param {Automation_Code_Expected_StringInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_expected_string = /** @type {((inputs?: Automation_Code_Expected_StringInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Expected_StringInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_expected_string(inputs)
+	if (locale === "ru") return __ru.automation_code_expected_string(inputs)
+	return __en.automation_code_expected_string(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "“{value}” is not a duration such as 10s, 5m or 1h" |
+*
+* @param {Automation_Code_Invalid_DurationInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_invalid_duration = /** @type {((inputs: Automation_Code_Invalid_DurationInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Invalid_DurationInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_invalid_duration(inputs)
+	if (locale === "ru") return __ru.automation_code_invalid_duration(inputs)
+	return __en.automation_code_invalid_duration(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Definition names use letters, digits and underscores" |
+*
+* @param {Automation_Code_Invalid_NameInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_invalid_name = /** @type {((inputs?: Automation_Code_Invalid_NameInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Invalid_NameInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_invalid_name(inputs)
+	if (locale === "ru") return __ru.automation_code_invalid_name(inputs)
+	return __en.automation_code_invalid_name(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "“{value}” is not a time such as 07:30" |
+*
+* @param {Automation_Code_Invalid_TimeInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_invalid_time = /** @type {((inputs: Automation_Code_Invalid_TimeInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Invalid_TimeInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_invalid_time(inputs)
+	if (locale === "ru") return __ru.automation_code_invalid_time(inputs)
+	return __en.automation_code_invalid_time(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Invalid value for “{key}”" |
+*
+* @param {Automation_Code_Invalid_ValueInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_invalid_value = /** @type {((inputs: Automation_Code_Invalid_ValueInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Invalid_ValueInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_invalid_value(inputs)
+	if (locale === "ru") return __ru.automation_code_invalid_value(inputs)
+	return __en.automation_code_invalid_value(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Runs after" |
+*
+* @param {Automation_Code_Key_AfterInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_after = /** @type {((inputs?: Automation_Code_Key_AfterInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_AfterInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_after(inputs)
+	if (locale === "ru") return __ru.automation_code_key_after(inputs)
+	return __en.automation_code_key_after(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "All devices match" |
+*
+* @param {Automation_Code_Key_AllInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_all = /** @type {((inputs?: Automation_Code_Key_AllInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_AllInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_all(inputs)
+	if (locale === "ru") return __ru.automation_code_key_all(inputs)
+	return __en.automation_code_key_all(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Any device matches" |
+*
+* @param {Automation_Code_Key_AnyInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_any = /** @type {((inputs?: Automation_Code_Key_AnyInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_AnyInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_any(inputs)
+	if (locale === "ru") return __ru.automation_code_key_any(inputs)
+	return __en.automation_code_key_any(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Average" |
+*
+* @param {Automation_Code_Key_AvgInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_avg = /** @type {((inputs?: Automation_Code_Key_AvgInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_AvgInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_avg(inputs)
+	if (locale === "ru") return __ru.automation_code_key_avg(inputs)
+	return __en.automation_code_key_avg(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Between" |
+*
+* @param {Automation_Code_Key_BetweenInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_between = /** @type {((inputs?: Automation_Code_Key_BetweenInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_BetweenInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_between(inputs)
+	if (locale === "ru") return __ru.automation_code_key_between(inputs)
+	return __en.automation_code_key_between(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Number of matching devices" |
+*
+* @param {Automation_Code_Key_CountInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_count = /** @type {((inputs?: Automation_Code_Key_CountInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_CountInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_count(inputs)
+	if (locale === "ru") return __ru.automation_code_key_count(inputs)
+	return __en.automation_code_key_count(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Days" |
+*
+* @param {Automation_Code_Key_DaysInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_days = /** @type {((inputs?: Automation_Code_Key_DaysInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_DaysInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_days(inputs)
+	if (locale === "ru") return __ru.automation_code_key_days(inputs)
+	return __en.automation_code_key_days(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Definitions" |
+*
+* @param {Automation_Code_Key_DefineInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_define = /** @type {((inputs?: Automation_Code_Key_DefineInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_DefineInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_define(inputs)
+	if (locale === "ru") return __ru.automation_code_key_define(inputs)
+	return __en.automation_code_key_define(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Effect" |
+*
+* @param {Automation_Code_Key_EffectInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_effect = /** @type {((inputs?: Automation_Code_Key_EffectInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_EffectInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_effect(inputs)
+	if (locale === "ru") return __ru.automation_code_key_effect(inputs)
+	return __en.automation_code_key_effect(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Event type" |
+*
+* @param {Automation_Code_Key_Event_TypeInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_event_type = /** @type {((inputs?: Automation_Code_Key_Event_TypeInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_Event_TypeInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_event_type(inputs)
+	if (locale === "ru") return __ru.automation_code_key_event_type(inputs)
+	return __en.automation_code_key_event_type(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Field" |
+*
+* @param {Automation_Code_Key_FieldInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_field = /** @type {((inputs?: Automation_Code_Key_FieldInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_FieldInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_field(inputs)
+	if (locale === "ru") return __ru.automation_code_key_field(inputs)
+	return __en.automation_code_key_field(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Filters" |
+*
+* @param {Automation_Code_Key_FiltersInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_filters = /** @type {((inputs?: Automation_Code_Key_FiltersInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_FiltersInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_filters(inputs)
+	if (locale === "ru") return __ru.automation_code_key_filters(inputs)
+	return __en.automation_code_key_filters(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Graph" |
+*
+* @param {Automation_Code_Key_GraphInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_graph = /** @type {((inputs?: Automation_Code_Key_GraphInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_GraphInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_graph(inputs)
+	if (locale === "ru") return __ru.automation_code_key_graph(inputs)
+	return __en.automation_code_key_graph(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Id" |
+*
+* @param {Automation_Code_Key_IdInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_id = /** @type {((inputs?: Automation_Code_Key_IdInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_IdInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_id(inputs)
+	if (locale === "ru") return __ru.automation_code_key_id(inputs)
+	return __en.automation_code_key_id(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Highest" |
+*
+* @param {Automation_Code_Key_MaxInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_max = /** @type {((inputs?: Automation_Code_Key_MaxInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_MaxInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_max(inputs)
+	if (locale === "ru") return __ru.automation_code_key_max(inputs)
+	return __en.automation_code_key_max(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Message" |
+*
+* @param {Automation_Code_Key_MessageInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_message = /** @type {((inputs?: Automation_Code_Key_MessageInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_MessageInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_message(inputs)
+	if (locale === "ru") return __ru.automation_code_key_message(inputs)
+	return __en.automation_code_key_message(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Lowest" |
+*
+* @param {Automation_Code_Key_MinInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_min = /** @type {((inputs?: Automation_Code_Key_MinInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_MinInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_min(inputs)
+	if (locale === "ru") return __ru.automation_code_key_min(inputs)
+	return __en.automation_code_key_min(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Name" |
+*
+* @param {Automation_Code_Key_NameInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_name = /** @type {((inputs?: Automation_Code_Key_NameInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_NameInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_name(inputs)
+	if (locale === "ru") return __ru.automation_code_key_name(inputs)
+	return __en.automation_code_key_name(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Not" |
+*
+* @param {Automation_Code_Key_NotInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_not = /** @type {((inputs?: Automation_Code_Key_NotInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_NotInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_not(inputs)
+	if (locale === "ru") return __ru.automation_code_key_not(inputs)
+	return __en.automation_code_key_not(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Rules" |
+*
+* @param {Automation_Code_Key_RulesInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_rules = /** @type {((inputs?: Automation_Code_Key_RulesInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_RulesInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_rules(inputs)
+	if (locale === "ru") return __ru.automation_code_key_rules(inputs)
+	return __en.automation_code_key_rules(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Scene is active" |
+*
+* @param {Automation_Code_Key_Scene_ActiveInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_scene_active = /** @type {((inputs?: Automation_Code_Key_Scene_ActiveInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_Scene_ActiveInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_scene_active(inputs)
+	if (locale === "ru") return __ru.automation_code_key_scene_active(inputs)
+	return __en.automation_code_key_scene_active(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Settings" |
+*
+* @param {Automation_Code_Key_SettingsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_settings = /** @type {((inputs?: Automation_Code_Key_SettingsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_SettingsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_settings(inputs)
+	if (locale === "ru") return __ru.automation_code_key_settings(inputs)
+	return __en.automation_code_key_settings(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Unchanged for" |
+*
+* @param {Automation_Code_Key_SinceInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_since = /** @type {((inputs?: Automation_Code_Key_SinceInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_SinceInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_since(inputs)
+	if (locale === "ru") return __ru.automation_code_key_since(inputs)
+	return __en.automation_code_key_since(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "State" |
+*
+* @param {Automation_Code_Key_StateInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_state = /** @type {((inputs?: Automation_Code_Key_StateInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_StateInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_state(inputs)
+	if (locale === "ru") return __ru.automation_code_key_state(inputs)
+	return __en.automation_code_key_state(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Definition" |
+*
+* @param {Automation_Code_Key_TargetInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_target = /** @type {((inputs?: Automation_Code_Key_TargetInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_TargetInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_target(inputs)
+	if (locale === "ru") return __ru.automation_code_key_target(inputs)
+	return __en.automation_code_key_target(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Selector" |
+*
+* @param {Automation_Code_Key_WhereInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_key_where = /** @type {((inputs?: Automation_Code_Key_WhereInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Key_WhereInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_key_where(inputs)
+	if (locale === "ru") return __ru.automation_code_key_where(inputs)
+	return __en.automation_code_key_where(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Scene" |
+*
+* @param {Automation_Code_Kind_SceneInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_kind_scene = /** @type {((inputs?: Automation_Code_Kind_SceneInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Kind_SceneInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_kind_scene(inputs)
+	if (locale === "ru") return __ru.automation_code_kind_scene(inputs)
+	return __en.automation_code_kind_scene(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Webhook" |
+*
+* @param {Automation_Code_Kind_WebhookInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_kind_webhook = /** @type {((inputs?: Automation_Code_Kind_WebhookInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Kind_WebhookInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_kind_webhook(inputs)
+	if (locale === "ru") return __ru.automation_code_kind_webhook(inputs)
+	return __en.automation_code_kind_webhook(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Wrong number of arguments for “{name}”" |
+*
+* @param {Automation_Code_Macro_ArgsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_macro_args = /** @type {((inputs: Automation_Code_Macro_ArgsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Macro_ArgsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_macro_args(inputs)
+	if (locale === "ru") return __ru.automation_code_macro_args(inputs)
+	return __en.automation_code_macro_args(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Missing “{key}”" |
+*
+* @param {Automation_Code_Missing_KeyInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_missing_key = /** @type {((inputs: Automation_Code_Missing_KeyInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Missing_KeyInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_missing_key(inputs)
+	if (locale === "ru") return __ru.automation_code_missing_key(inputs)
+	return __en.automation_code_missing_key(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Use exactly one of {keys}" |
+*
+* @param {Automation_Code_One_OfInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_one_of = /** @type {((inputs: Automation_Code_One_OfInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_One_OfInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_one_of(inputs)
+	if (locale === "ru") return __ru.automation_code_one_of(inputs)
+	return __en.automation_code_one_of(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "“{value}” is not a weekday" |
+*
+* @param {Automation_Code_Unknown_DayInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_unknown_day = /** @type {((inputs: Automation_Code_Unknown_DayInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Unknown_DayInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_unknown_day(inputs)
+	if (locale === "ru") return __ru.automation_code_unknown_day(inputs)
+	return __en.automation_code_unknown_day(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "No element has the id “{id}”" |
+*
+* @param {Automation_Code_Unknown_IdInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_unknown_id = /** @type {((inputs: Automation_Code_Unknown_IdInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Unknown_IdInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_unknown_id(inputs)
+	if (locale === "ru") return __ru.automation_code_unknown_id(inputs)
+	return __en.automation_code_unknown_id(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Unknown key “{key}”" |
+*
+* @param {Automation_Code_Unknown_KeyInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_unknown_key = /** @type {((inputs: Automation_Code_Unknown_KeyInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Unknown_KeyInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_unknown_key(inputs)
+	if (locale === "ru") return __ru.automation_code_unknown_key(inputs)
+	return __en.automation_code_unknown_key(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "No definition is named “{name}”" |
+*
+* @param {Automation_Code_Unknown_MacroInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_unknown_macro = /** @type {((inputs: Automation_Code_Unknown_MacroInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Unknown_MacroInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_unknown_macro(inputs)
+	if (locale === "ru") return __ru.automation_code_unknown_macro(inputs)
+	return __en.automation_code_unknown_macro(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Nothing is named “{name}”" |
+*
+* @param {Automation_Code_Unknown_NameInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_unknown_name = /** @type {((inputs: Automation_Code_Unknown_NameInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Unknown_NameInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_unknown_name(inputs)
+	if (locale === "ru") return __ru.automation_code_unknown_name(inputs)
+	return __en.automation_code_unknown_name(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "“{name}” cannot be used here" |
+*
+* @param {Automation_Code_Wrong_MacroInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_code_wrong_macro = /** @type {((inputs: Automation_Code_Wrong_MacroInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Code_Wrong_MacroInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_code_wrong_macro(inputs)
+	if (locale === "ru") return __ru.automation_code_wrong_macro(inputs)
+	return __en.automation_code_wrong_macro(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Custom" |
 *
 * @param {Automation_Condition_CustomInputs} inputs
@@ -4261,6 +5034,21 @@ export const automation_editor_fire_failed = /** @type {((inputs?: Automation_Ed
 	if (locale === "sv") return __sv.automation_editor_fire_failed(inputs)
 	if (locale === "ru") return __ru.automation_editor_fire_failed(inputs)
 	return __en.automation_editor_fire_failed(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Fire trigger" |
+*
+* @param {Automation_Editor_Fire_TriggerInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_editor_fire_trigger = /** @type {((inputs?: Automation_Editor_Fire_TriggerInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Editor_Fire_TriggerInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_editor_fire_trigger(inputs)
+	if (locale === "ru") return __ru.automation_editor_fire_trigger(inputs)
+	return __en.automation_editor_fire_trigger(inputs)
 });
 /**
 * | output |
@@ -5630,6 +6418,36 @@ export const automation_operator_title = /** @type {((inputs?: Automation_Operat
 /**
 * | output |
 * | --- |
+* | "Close" |
+*
+* @param {Automation_Panel_CloseInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_panel_close = /** @type {((inputs?: Automation_Panel_CloseInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Panel_CloseInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_panel_close(inputs)
+	if (locale === "ru") return __ru.automation_panel_close(inputs)
+	return __en.automation_panel_close(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "This node uses a definition. Edit it in the Code view." |
+*
+* @param {Automation_Panel_Macro_HintInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_panel_macro_hint = /** @type {((inputs?: Automation_Panel_Macro_HintInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Panel_Macro_HintInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_panel_macro_hint(inputs)
+	if (locale === "ru") return __ru.automation_panel_macro_hint(inputs)
+	return __en.automation_panel_macro_hint(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "At {time} on {days}" |
 *
 * @param {Automation_Schedule_At_DaysInputs} inputs
@@ -6049,6 +6867,202 @@ export const automation_state_transition_seconds = /** @type {((inputs?: Automat
 	if (locale === "sv") return __sv.automation_state_transition_seconds(inputs)
 	if (locale === "ru") return __ru.automation_state_transition_seconds(inputs)
 	return __en.automation_state_transition_seconds(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Activate {scene}" |
+*
+* @param {Automation_Summary_Activate_SceneInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_summary_activate_scene = /** @type {((inputs: Automation_Summary_Activate_SceneInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Summary_Activate_SceneInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_summary_activate_scene(inputs)
+	if (locale === "ru") return __ru.automation_summary_activate_scene(inputs)
+	return __en.automation_summary_activate_scene(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Availability of {device}" |
+*
+* @param {Automation_Summary_AvailabilityInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_summary_availability = /** @type {((inputs: Automation_Summary_AvailabilityInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Summary_AvailabilityInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_summary_availability(inputs)
+	if (locale === "ru") return __ru.automation_summary_availability(inputs)
+	return __en.automation_summary_availability(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "{field} {amount} on {target}" |
+*
+* @param {Automation_Summary_Change_ValueInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_summary_change_value = /** @type {((inputs: Automation_Summary_Change_ValueInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Summary_Change_ValueInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_summary_change_value(inputs)
+	if (locale === "ru") return __ru.automation_summary_change_value(inputs)
+	return __en.automation_summary_change_value(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Clear alarm {alarm}" |
+*
+* @param {Automation_Summary_Clear_AlarmInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_summary_clear_alarm = /** @type {((inputs: Automation_Summary_Clear_AlarmInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Summary_Clear_AlarmInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_summary_clear_alarm(inputs)
+	if (locale === "ru") return __ru.automation_summary_clear_alarm(inputs)
+	return __en.automation_summary_clear_alarm(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Configure {device}" |
+*
+* @param {Automation_Summary_ConfigureInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_summary_configure = /** @type {((inputs: Automation_Summary_ConfigureInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Summary_ConfigureInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_summary_configure(inputs)
+	if (locale === "ru") return __ru.automation_summary_configure(inputs)
+	return __en.automation_summary_configure(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Now: {scene}" |
+*
+* @param {Automation_Summary_Cycle_CurrentInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_summary_cycle_current = /** @type {((inputs: Automation_Summary_Cycle_CurrentInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Summary_Cycle_CurrentInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_summary_cycle_current(inputs)
+	if (locale === "ru") return __ru.automation_summary_cycle_current(inputs)
+	return __en.automation_summary_cycle_current(inputs)
+});
+/**
+* | countPlural | output |
+* | --- | --- |
+* | "one" | "Cycle {count} scene" |
+* | * | "Cycle {count} scenes" |
+*
+* @param {Automation_Summary_Cycle_ScenesInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_summary_cycle_scenes = /** @type {((inputs: Automation_Summary_Cycle_ScenesInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Summary_Cycle_ScenesInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_summary_cycle_scenes(inputs)
+	if (locale === "ru") return __ru.automation_summary_cycle_scenes(inputs)
+	return __en.automation_summary_cycle_scenes(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "{event} on {device}" |
+*
+* @param {Automation_Summary_Device_EventInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_summary_device_event = /** @type {((inputs: Automation_Summary_Device_EventInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Summary_Device_EventInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_summary_device_event(inputs)
+	if (locale === "ru") return __ru.automation_summary_device_event(inputs)
+	return __en.automation_summary_device_event(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Alarm: {message}" |
+*
+* @param {Automation_Summary_Raise_AlarmInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_summary_raise_alarm = /** @type {((inputs: Automation_Summary_Raise_AlarmInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Summary_Raise_AlarmInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_summary_raise_alarm(inputs)
+	if (locale === "ru") return __ru.automation_summary_raise_alarm(inputs)
+	return __en.automation_summary_raise_alarm(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "{effect} on {target}" |
+*
+* @param {Automation_Summary_Run_EffectInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_summary_run_effect = /** @type {((inputs: Automation_Summary_Run_EffectInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Summary_Run_EffectInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_summary_run_effect(inputs)
+	if (locale === "ru") return __ru.automation_summary_run_effect(inputs)
+	return __en.automation_summary_run_effect(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Toggle {target}" |
+*
+* @param {Automation_Summary_ToggleInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_summary_toggle = /** @type {((inputs: Automation_Summary_ToggleInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Summary_ToggleInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_summary_toggle(inputs)
+	if (locale === "ru") return __ru.automation_summary_toggle(inputs)
+	return __en.automation_summary_toggle(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Uses {name}" |
+*
+* @param {Automation_Summary_Uses_MacroInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_summary_uses_macro = /** @type {((inputs: Automation_Summary_Uses_MacroInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Summary_Uses_MacroInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_summary_uses_macro(inputs)
+	if (locale === "ru") return __ru.automation_summary_uses_macro(inputs)
+	return __en.automation_summary_uses_macro(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Webhook {name}" |
+*
+* @param {Automation_Summary_WebhookInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_summary_webhook = /** @type {((inputs: Automation_Summary_WebhookInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automation_Summary_WebhookInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.automation_summary_webhook(inputs)
+	if (locale === "ru") return __ru.automation_summary_webhook(inputs)
+	return __en.automation_summary_webhook(inputs)
 });
 /**
 * | output |
@@ -21571,6 +22585,81 @@ export const settings_save_failed = /** @type {((inputs?: Settings_Save_FailedIn
 	if (locale === "sv") return __sv.settings_save_failed(inputs)
 	if (locale === "ru") return __ru.settings_save_failed(inputs)
 	return __en.settings_save_failed(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Time zone" |
+*
+* @param {Settings_Time_ZoneInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const settings_time_zone = /** @type {((inputs?: Settings_Time_ZoneInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Settings_Time_ZoneInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.settings_time_zone(inputs)
+	if (locale === "ru") return __ru.settings_time_zone(inputs)
+	return __en.settings_time_zone(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "{zone} (this browser)" |
+*
+* @param {Settings_Time_Zone_BrowserInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const settings_time_zone_browser = /** @type {((inputs: Settings_Time_Zone_BrowserInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Settings_Time_Zone_BrowserInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.settings_time_zone_browser(inputs)
+	if (locale === "ru") return __ru.settings_time_zone_browser(inputs)
+	return __en.settings_time_zone_browser(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Schedules, time windows and weekdays in automations follow this time zone." |
+*
+* @param {Settings_Time_Zone_HelpInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const settings_time_zone_help = /** @type {((inputs?: Settings_Time_Zone_HelpInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Settings_Time_Zone_HelpInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.settings_time_zone_help(inputs)
+	if (locale === "ru") return __ru.settings_time_zone_help(inputs)
+	return __en.settings_time_zone_help(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Search time zones" |
+*
+* @param {Settings_Time_Zone_SearchInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const settings_time_zone_search = /** @type {((inputs?: Settings_Time_Zone_SearchInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Settings_Time_Zone_SearchInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.settings_time_zone_search(inputs)
+	if (locale === "ru") return __ru.settings_time_zone_search(inputs)
+	return __en.settings_time_zone_search(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Server local time" |
+*
+* @param {Settings_Time_Zone_ServerInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const settings_time_zone_server = /** @type {((inputs?: Settings_Time_Zone_ServerInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Settings_Time_Zone_ServerInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.settings_time_zone_server(inputs)
+	if (locale === "ru") return __ru.settings_time_zone_server(inputs)
+	return __en.settings_time_zone_server(inputs)
 });
 /**
 * | output |

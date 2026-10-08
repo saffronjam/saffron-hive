@@ -1,0 +1,790 @@
+<script lang="ts">
+	import { deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
+	import {
+		Select,
+		SelectContent,
+		SelectItem,
+		SelectTrigger,
+	} from "$lib/components/ui/select/index.js";
+	import { Input } from "$lib/components/ui/input/index.js";
+	import { Textarea } from "$lib/components/ui/textarea/index.js";
+	import { Button } from "$lib/components/ui/button/index.js";
+	import { ArrowUp, ArrowDown, X, Clapperboard } from "@lucide/svelte";
+	import { validateActionConfig } from "./trigger-expr";
+	import DeviceStateEditor from "./device-state-editor.svelte";
+	import ChangeValueEditor from "./change-value-editor.svelte";
+	import DeviceConfigurationEditor from "$lib/components/device-configuration-editor.svelte";
+	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
+	import HiveChip from "$lib/components/hive-chip.svelte";
+	import { Badge } from "$lib/components/ui/badge/index.js";
+	import {
+		capabilityUnionForTarget,
+		capabilityUnion,
+		evaluateExpression,
+		settableNumericCapabilities,
+		type Clause,
+		type GroupLite,
+		type RoomLite,
+		type TargetKind,
+	} from "$lib/target-resolve";
+	import TargetSelectorField from "$lib/components/target-selector-field.svelte";
+	import NodeTypeSelect from "./node-type-select.svelte";
+	import DeviceOptionRow from "./device-option-row.svelte";
+	import { actionOptions } from "./automation-node-options";
+	import { activeCycleIndex as activeCycleIndexFor } from "./automation-summary";
+	import { automationValidationMessage } from "$lib/i18n/automation-validation";
+	import { m } from "$lib/i18n/messages";
+	import { locale } from "$lib/i18n/locale.svelte";
+	import { chipLabel } from "$lib/i18n/vocabulary";
+	import { roomLabelsByDevice } from "$lib/memberships";
+	import type { Device, DeviceAttributeValue } from "$lib/gql/graphql";
+	import { writableConfigurationCapabilities } from "$lib/device-configuration";
+
+	interface ActionConfig {
+		actionType: string;
+		targetType: string;
+		targetId: string;
+		targetName: string;
+		targetExpr?: Clause[];
+		payload: string;
+	}
+
+	const FANOUT_ACTIONS = ["set_device_state", "toggle_device_state", "change_value", "run_effect"];
+
+	interface SceneRef {
+		id: string;
+		name: string;
+		rooms?: { id: string; name: string }[];
+	}
+
+	type EffectRef =
+		| { kind: "timeline"; id: string; name: string }
+		| { kind: "native"; nativeName: string; name: string };
+
+	function sceneName(scene: SceneRef): string {
+		return entityDisplayName("scene", scene);
+	}
+
+	function roomName(room: { id: string; name: string }): string {
+		return entityDisplayName("room", room);
+	}
+
+	function effectName(effect: EffectRef): string {
+		return effect.kind === "timeline" ? entityDisplayName("effect", effect) : effect.name;
+	}
+
+	export interface ActionEditorData {
+		config: ActionConfig;
+		readOnly: boolean;
+		devices?: Device[];
+		groups?: GroupLite[];
+		rooms?: (RoomLite & { name: string })[];
+		scenes?: SceneRef[];
+		effects?: EffectRef[];
+		runtimeState?: string;
+		onConfigChange?: (config: ActionConfig) => void;
+	}
+
+	function effectRefKey(ref: EffectRef): string {
+		return ref.kind === "timeline" ? `timeline:${ref.id}` : `native:${ref.nativeName}`;
+	}
+
+	interface TargetItem {
+		kind: "device" | "group" | "room" | "scene";
+		id: string;
+		name: string;
+		deviceType?: string;
+		roomLabel?: string;
+		rooms?: { id: string; name: string }[];
+		removed?: boolean;
+	}
+
+	function targetKey(t: TargetItem): string {
+		return `${t.kind}:${t.id}`;
+	}
+
+	interface Props {
+		data: ActionEditorData;
+		id: string;
+	}
+
+	let { data, id }: Props = $props();
+
+	const actionTypes = $derived.by(() => actionOptions());
+	const messageOptions = $derived(locale.messageOptions());
+
+	const severities = $derived.by(() => [
+		{ value: "high", label: m.automation_node_severity_high({}, messageOptions) },
+		{ value: "medium", label: m.automation_node_severity_medium({}, messageOptions) },
+		{ value: "low", label: m.automation_node_severity_low({}, messageOptions) },
+	]);
+
+	const alarmKinds = $derived.by(() => [
+		{ value: "auto", label: m.automation_node_alarm_auto({}, messageOptions) },
+		{ value: "one_shot", label: m.automation_node_alarm_one_shot({}, messageOptions) },
+	]);
+
+	function targetKindLabel(kind: TargetItem["kind"]): string {
+		return kind === "scene" ? m.scene_generic({}, messageOptions) : chipLabel(kind);
+	}
+
+	function handleActionTypeChange(value: string | undefined) {
+		if (!value || !data.onConfigChange) return;
+		// When switching into an alarm or cycle action, seed a sensible default
+		// payload so parsing doesn't immediately throw in the panels below.
+		let payload = data.config.payload;
+		if (value === "raise_alarm" && !isRaiseAlarmPayload(payload)) {
+			payload = JSON.stringify({ alarm_id: "", severity: "medium", kind: "auto", message: "" });
+		} else if (value === "clear_alarm" && !isClearAlarmPayload(payload)) {
+			payload = JSON.stringify({ alarm_id: "" });
+		} else if (value === "run_effect" && !isRunEffectPayload(payload)) {
+			payload = JSON.stringify({});
+		} else if (value === "cycle_scenes" && !isCycleScenesPayload(payload)) {
+			payload = JSON.stringify({ scenes: [] });
+		} else if (value === "change_value" && !isChangeValuePayload(payload)) {
+			payload = JSON.stringify({ field: "", delta: 0, mode: "percent" });
+		} else if (value === "configure_device") {
+			payload = JSON.stringify({ settings: [] });
+		} else if (value === "toggle_device_state") {
+			payload = "";
+		}
+		data.onConfigChange({
+			...data.config,
+			actionType: value,
+			payload,
+			targetType: "",
+			targetId: "",
+			targetName: "",
+		});
+	}
+
+	function handlePayloadChange(e: Event) {
+		if (!data.onConfigChange) return;
+		const target = e.target as HTMLTextAreaElement;
+		data.onConfigChange({ ...data.config, payload: target.value });
+	}
+
+	function safeParse(raw: string): Record<string, unknown> {
+		try {
+			const v = JSON.parse(raw);
+			return typeof v === "object" && v !== null ? (v as Record<string, unknown>) : {};
+		} catch {
+			return {};
+		}
+	}
+
+	function isRaiseAlarmPayload(raw: string): boolean {
+		const p = safeParse(raw);
+		return typeof p.alarm_id === "string" && typeof p.severity === "string" && typeof p.kind === "string";
+	}
+
+	function isClearAlarmPayload(raw: string): boolean {
+		const p = safeParse(raw);
+		return typeof p.alarm_id === "string";
+	}
+
+	function isRunEffectPayload(raw: string): boolean {
+		const p = safeParse(raw);
+		return typeof p.effect_id === "string" || typeof p.native_name === "string";
+	}
+
+	function isCycleScenesPayload(raw: string): boolean {
+		const p = safeParse(raw);
+		return Array.isArray(p.scenes);
+	}
+
+	function isChangeValuePayload(raw: string): boolean {
+		const p = safeParse(raw);
+		return typeof p.field === "string" && typeof p.delta === "number";
+	}
+
+	function sceneFilter(s: SceneRef, query: string): boolean {
+		const q = query.toLowerCase();
+		if (sceneName(s).toLowerCase().includes(q)) return true;
+		return (s.rooms ?? []).some((r) => roomName(r).toLowerCase().includes(q));
+	}
+
+	function cycleScenesList(): string[] {
+		const arr = parsedPayload.scenes;
+		if (!Array.isArray(arr)) return [];
+		return arr.filter((s): s is string => typeof s === "string");
+	}
+
+	function emitCycleScenes(next: string[]) {
+		if (!data.onConfigChange) return;
+		data.onConfigChange({ ...data.config, payload: JSON.stringify({ scenes: next }) });
+	}
+
+	function addCycleScene(sceneId: string) {
+		const list = cycleScenesList();
+		if (list.includes(sceneId)) return;
+		emitCycleScenes([...list, sceneId]);
+	}
+
+	function removeCycleScene(index: number) {
+		const list = cycleScenesList();
+		if (index < 0 || index >= list.length) return;
+		emitCycleScenes([...list.slice(0, index), ...list.slice(index + 1)]);
+	}
+
+	function moveCycleScene(index: number, delta: number) {
+		const list = cycleScenesList();
+		const target = index + delta;
+		if (index < 0 || index >= list.length || target < 0 || target >= list.length) return;
+		const next = [...list];
+		[next[index], next[target]] = [next[target], next[index]];
+		emitCycleScenes(next);
+	}
+
+	function updateEffectSelection(key: string) {
+		if (!data.onConfigChange) return;
+		const ref = effectsList.find((e) => effectRefKey(e) === key);
+		if (!ref) return;
+		const payload =
+			ref.kind === "native"
+				? JSON.stringify({ native_name: ref.nativeName })
+				: JSON.stringify({ effect_id: ref.id });
+		data.onConfigChange({ ...data.config, payload });
+	}
+
+	const parsedPayload = $derived(safeParse(data.config.payload));
+
+	const configurationValues = $derived.by<DeviceAttributeValue[]>(() => {
+		if (!Array.isArray(parsedPayload.settings)) return [];
+		const values: DeviceAttributeValue[] = [];
+		for (const item of parsedPayload.settings) {
+			if (typeof item !== "object" || item === null) continue;
+			const entry = item as Record<string, unknown>;
+			if (typeof entry.capability !== "string") continue;
+			values.push({
+				capability: entry.capability,
+				booleanValue: typeof entry.booleanValue === "boolean" ? entry.booleanValue : null,
+				numberValue: typeof entry.numberValue === "number" ? entry.numberValue : null,
+				stringValue: typeof entry.stringValue === "string" ? entry.stringValue : null,
+			});
+		}
+		return values;
+	});
+
+	function updateConfigurationValues(values: DeviceAttributeValue[]) {
+		if (!data.onConfigChange) return;
+		data.onConfigChange({
+			...data.config,
+			payload: JSON.stringify({
+				settings: values.map((entry) => ({
+					capability: entry.capability,
+					booleanValue: entry.booleanValue,
+					numberValue: entry.numberValue,
+					stringValue: entry.stringValue,
+				})),
+			}),
+		});
+	}
+
+	function updateRaiseField(field: "alarm_id" | "severity" | "kind" | "message", value: string) {
+		if (!data.onConfigChange) return;
+		const next = { ...parsedPayload, [field]: value };
+		data.onConfigChange({ ...data.config, payload: JSON.stringify(next) });
+	}
+
+	function updateClearField(value: string) {
+		if (!data.onConfigChange) return;
+		data.onConfigChange({ ...data.config, payload: JSON.stringify({ alarm_id: value }) });
+	}
+
+	const deviceRoomLabels = $derived(roomLabelsByDevice(data.rooms ?? []));
+
+	// Inline target picker. activate_scene picks a single scene; cycle_scenes
+	// has no single target (its payload carries the ordered scene list);
+	// set_device_state, toggle_device_state, and run_effect pick across
+	// devices + groups + rooms (best-effort fan-out downstream).
+	// change_value restricts the list to targets whose capability union
+	// exposes at least one settable numeric field — picking a plug would
+	// otherwise yield an editor with no available fields.
+	const targetItemsList = $derived.by<TargetItem[]>(() => {
+		if (data.config.actionType === "activate_scene") {
+			return (data.scenes ?? []).map((s) => ({
+				kind: "scene",
+				id: s.id,
+				name: sceneName(s),
+				rooms: s.rooms ?? [],
+			}));
+		}
+		const allDevices = data.devices ?? [];
+		const allGroups = data.groups ?? [];
+		const allRooms = data.rooms ?? [];
+		const isChangeValue = data.config.actionType === "change_value";
+		const isConfigureDevice = data.config.actionType === "configure_device";
+		const supportsChangeValue = (kind: "device" | "group" | "room", id: string) =>
+			settableNumericCapabilities(
+				capabilityUnionForTarget({ type: kind, id }, allDevices, allGroups, allRooms),
+			).length > 0;
+		const items: TargetItem[] = [];
+		for (const d of allDevices) {
+			if (isChangeValue && !supportsChangeValue("device", d.id)) continue;
+			if (
+				isConfigureDevice &&
+				(d.disabled || d.deleted || writableConfigurationCapabilities(d.capabilities).length === 0)
+			)
+				continue;
+			items.push({
+				kind: "device",
+				id: d.id,
+				name: deviceDisplayName(d),
+				deviceType: d.type,
+				roomLabel: deviceRoomLabels.get(d.id),
+			});
+		}
+		if (isConfigureDevice) return items;
+		for (const g of allGroups) {
+			if (isChangeValue && !supportsChangeValue("group", g.id)) continue;
+			items.push({ kind: "group", id: g.id, name: groupDisplayName(g) });
+		}
+		for (const r of allRooms) {
+			if (isChangeValue && !supportsChangeValue("room", r.id)) continue;
+			items.push({ kind: "room", id: r.id, name: roomName(r) });
+		}
+		return items;
+	});
+
+	const effectsList = $derived(data.effects ?? []);
+	const selectedEffectKey = $derived.by(() => {
+		const eid = parsedPayload.effect_id;
+		if (typeof eid === "string" && eid !== "") return `timeline:${eid}`;
+		const nname = parsedPayload.native_name;
+		if (typeof nname === "string" && nname !== "") return `native:${nname}`;
+		return "";
+	});
+	const selectedEffectName = $derived.by(() => {
+		const ref = effectsList.find((e) => effectRefKey(e) === selectedEffectKey);
+		return ref ? effectName(ref) : "";
+	});
+
+	const selectedTargetKey = $derived(
+		data.config.targetId ? `${data.config.targetType}:${data.config.targetId}` : "",
+	);
+	const selectedTargetFallback = $derived.by<TargetItem | null>(() => {
+		if (data.config.targetType !== "group" || !data.config.targetId) return null;
+		if (targetItemsList.some((item) => targetKey(item) === selectedTargetKey)) return null;
+		return {
+			kind: "group",
+			id: data.config.targetId,
+			name: data.config.targetName || data.config.targetId,
+			removed: true,
+		};
+	});
+
+	function handleTargetChange(value: string) {
+		if (!data.onConfigChange) return;
+		if (!value) return;
+		const [kind, ...idParts] = value.split(":");
+		const id = idParts.join(":");
+		const item = targetItemsList.find((t) => t.kind === kind && t.id === id);
+		data.onConfigChange({
+			...data.config,
+			targetType: kind,
+			targetId: id,
+			targetName: item?.name ?? "",
+			payload:
+				data.config.actionType === "configure_device"
+					? JSON.stringify({ settings: [] })
+					: data.config.payload,
+		});
+	}
+
+	const selectedDevice = $derived(
+		data.config.targetType === "device"
+			? (data.devices ?? []).find((device) => device.id === data.config.targetId)
+			: undefined,
+	);
+
+	const isFanoutAction = $derived(FANOUT_ACTIONS.includes(data.config.actionType));
+	const advanced = $derived(data.config.targetType === "expression");
+	const exprDevices = $derived(
+		evaluateExpression(
+			data.config.targetExpr ?? [],
+			data.devices ?? [],
+			data.groups ?? [],
+			data.rooms ?? [],
+		),
+	);
+	const exprCaps = $derived(capabilityUnion(exprDevices));
+
+	function setTargetMode(mode: "simple" | "advanced") {
+		if (!data.onConfigChange) return;
+		if (mode === "advanced") {
+			data.onConfigChange({
+				...data.config,
+				targetType: "expression",
+				targetId: "",
+				targetName: "",
+				targetExpr: data.config.targetExpr ?? [],
+			});
+		} else {
+			data.onConfigChange({
+				...data.config,
+				targetType: "",
+				targetId: "",
+				targetName: "",
+				targetExpr: [],
+			});
+		}
+	}
+
+	const severityLabel = $derived(
+		severities.find((s) => s.value === parsedPayload.severity)?.label ?? m.automation_node_severity({}, messageOptions),
+	);
+	const kindLabel = $derived(
+		alarmKinds.find((k) => k.value === parsedPayload.kind)?.label ?? m.automation_node_kind({}, messageOptions),
+	);
+	const validationError = $derived(validateActionConfig(data.config));
+	const INVALID_CLS = "border-destructive ring-2 ring-destructive/40";
+
+	const cycleSceneIds = $derived.by<string[]>(() => {
+		if (data.config.actionType !== "cycle_scenes") return [];
+		return cycleScenesList();
+	});
+	const sceneById = $derived((id: string) => (data.scenes ?? []).find((s) => s.id === id));
+	const availableCycleScenes = $derived.by<SceneRef[]>(() => {
+		const used = new Set(cycleSceneIds);
+		return (data.scenes ?? []).filter((s) => !used.has(s.id));
+	});
+	const hasMissingCycleScene = $derived.by(() => {
+		if (data.config.actionType !== "cycle_scenes") return false;
+		return cycleSceneIds.some((id) => !sceneById(id));
+	});
+
+	const activeCycleIndex = $derived(
+		data.config.actionType === "cycle_scenes"
+			? activeCycleIndexFor(cycleSceneIds.length, data.runtimeState)
+			: -1,
+	);
+</script>
+
+<fieldset disabled={data.readOnly} class="min-w-0 space-y-2 border-0 p-0">
+		{#if hasMissingCycleScene}
+			<Badge variant="destructive" class="text-[10px]">{m.automation_node_missing_scenes({}, messageOptions)}</Badge>
+		{/if}
+			<NodeTypeSelect
+				value={data.config.actionType}
+				placeholder={m.automation_node_select_action({}, messageOptions)}
+				options={actionTypes}
+				disabled={data.readOnly}
+				invalid={validationError?.field === "actionType"}
+				onchange={handleActionTypeChange}
+			/>
+
+			{#if data.config.actionType === "raise_alarm"}
+				<Input
+					value={(parsedPayload.alarm_id as string) ?? ""}
+					oninput={(e) => updateRaiseField("alarm_id", (e.currentTarget as HTMLInputElement).value)}
+					placeholder={m.automation_node_alarm_id_placeholder({}, messageOptions)}
+					class="text-xs"
+					aria-invalid={validationError?.field === "payload" ? "true" : undefined}
+				/>
+				<Select
+					type="single"
+					value={(parsedPayload.severity as string) ?? "medium"}
+					disabled={data.readOnly}
+					onValueChange={(v) => v && updateRaiseField("severity", v)}
+				>
+					<SelectTrigger size="sm" class="w-full text-xs">{severityLabel}</SelectTrigger>
+					<SelectContent>
+						{#each severities as s (s.value)}
+							<SelectItem value={s.value}>{s.label}</SelectItem>
+						{/each}
+					</SelectContent>
+				</Select>
+				<Select
+					type="single"
+					value={(parsedPayload.kind as string) ?? "auto"}
+					disabled={data.readOnly}
+					onValueChange={(v) => v && updateRaiseField("kind", v)}
+				>
+					<SelectTrigger size="sm" class="w-full text-xs">{kindLabel}</SelectTrigger>
+					<SelectContent>
+						{#each alarmKinds as k (k.value)}
+							<SelectItem value={k.value}>{k.label}</SelectItem>
+						{/each}
+					</SelectContent>
+				</Select>
+				<Textarea
+					value={(parsedPayload.message as string) ?? ""}
+					oninput={(e) => updateRaiseField("message", (e.currentTarget as HTMLTextAreaElement).value)}
+					placeholder={m.automation_node_alarm_message_placeholder({}, messageOptions)}
+					class="min-h-[50px] text-xs"
+					rows={2}
+				/>
+			{:else if data.config.actionType === "clear_alarm"}
+				<Input
+					value={(parsedPayload.alarm_id as string) ?? ""}
+					oninput={(e) => updateClearField((e.currentTarget as HTMLInputElement).value)}
+					placeholder={m.automation_node_alarm_id_clear_placeholder({}, messageOptions)}
+					class="text-xs"
+					aria-invalid={validationError?.field === "payload" ? "true" : undefined}
+				/>
+			{:else if data.config.actionType === "cycle_scenes"}
+				<div class="space-y-1">
+					{#each cycleSceneIds as sid, i (sid + ":" + i)}
+						{@const scene = sceneById(sid)}
+						<div
+							class="-mx-1 flex items-center gap-1 rounded-sm border-l-2 px-1 text-xs transition-colors duration-200 {i ===
+							activeCycleIndex
+								? 'border-automation-action bg-automation-action/10'
+								: 'border-transparent'}"
+							aria-current={i === activeCycleIndex ? "true" : undefined}
+						>
+							<span class="flex-1 truncate {scene ? '' : 'text-destructive line-through'}">
+								{scene ? sceneName(scene) : m.automation_node_deleted_scene({ id: sid }, messageOptions)}
+							</span>
+							{#each scene?.rooms ?? [] as room (room.id)}
+								<HiveChip type="room" label={roomName(room)} class="text-[10px] py-0 shrink-0" />
+							{/each}
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-sm"
+								class="size-6"
+								disabled={i === 0}
+								onclick={() => moveCycleScene(i, -1)}
+								aria-label={m.automation_node_move_up({}, messageOptions)}
+							>
+								<ArrowUp class="size-3" />
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-sm"
+								class="size-6"
+								disabled={i === cycleSceneIds.length - 1}
+								onclick={() => moveCycleScene(i, +1)}
+								aria-label={m.automation_node_move_down({}, messageOptions)}
+							>
+								<ArrowDown class="size-3" />
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-sm"
+								class="size-6"
+								onclick={() => removeCycleScene(i)}
+								aria-label={m.common_remove({}, messageOptions)}
+							>
+								<X class="size-3" />
+							</Button>
+						</div>
+					{/each}
+					{#if availableCycleScenes.length > 0}
+						<HiveSelectAutocomplete
+							items={availableCycleScenes}
+							value=""
+							getValue={(s: SceneRef) => s.id}
+							getLabel={(s: SceneRef) => sceneName(s)}
+							filter={sceneFilter}
+							placeholder={m.automation_node_add_scene({}, messageOptions)}
+							size="sm"
+							disabled={data.readOnly}
+							class={validationError?.field === "payload" ? `text-xs ${INVALID_CLS}` : "text-xs"}
+							onchange={(v) => v && addCycleScene(v)}
+						>
+							{#snippet item(s: SceneRef)}
+								<span class="flex w-full items-center gap-1.5 overflow-hidden">
+									<Clapperboard class="size-3.5 shrink-0 text-muted-foreground" />
+									<span class="truncate">{sceneName(s)}</span>
+									{#if (s.rooms ?? []).length > 0}
+										<span class="ml-auto flex shrink-0 items-center gap-1">
+											{#each s.rooms ?? [] as room (room.id)}
+											<HiveChip type="room" label={roomName(room)} class="text-[10px] py-0" />
+											{/each}
+										</span>
+									{/if}
+								</span>
+							{/snippet}
+						</HiveSelectAutocomplete>
+					{:else if cycleSceneIds.length === 0}
+						<p class="text-[11px] text-muted-foreground">{m.automation_node_no_scenes({}, messageOptions)}</p>
+					{/if}
+				</div>
+			{:else if data.config.actionType}
+				{#if isFanoutAction}
+					<div class="flex w-full items-center rounded-md border border-border dark:border-input">
+						<Button
+							variant={!advanced ? "secondary" : "ghost"}
+							size="xs"
+							class="flex-1 rounded-r-none border-0"
+							disabled={data.readOnly}
+							onclick={() => setTargetMode("simple")}
+							aria-pressed={!advanced}
+						>
+							{m.automation_node_simple({}, messageOptions)}
+						</Button>
+						<Button
+							variant={advanced ? "secondary" : "ghost"}
+							size="xs"
+							class="flex-1 rounded-l-none border-0"
+							disabled={data.readOnly}
+							onclick={() => setTargetMode("advanced")}
+							aria-pressed={advanced}
+						>
+							{m.automation_node_advanced({}, messageOptions)}
+						</Button>
+					</div>
+				{/if}
+				{#if advanced}
+					<TargetSelectorField
+						value={data.config.targetExpr ?? []}
+						onchange={(targetExpr) => data.onConfigChange?.({ ...data.config, targetExpr })}
+						devices={data.devices ?? []}
+						groups={data.groups ?? []}
+						rooms={data.rooms ?? []}
+						disabled={data.readOnly}
+					/>
+				{:else}
+				<HiveSelectAutocomplete
+					items={targetItemsList}
+					value={selectedTargetKey}
+					selectedFallback={selectedTargetFallback}
+					getValue={targetKey}
+					getLabel={(t) => t.name}
+					placeholder={data.config.actionType === "activate_scene" ? m.automation_node_select_scene({}, messageOptions) : m.automation_node_select_target({}, messageOptions)}
+					size="sm"
+					separatedItems
+					disabled={data.readOnly}
+					class={validationError?.field === "target" ? `text-sm ${INVALID_CLS}` : "text-sm"}
+					onchange={handleTargetChange}
+				>
+					{#snippet renderSelected(t: TargetItem)}
+						<span class="truncate {t.removed ? 'text-muted-foreground' : ''}">{t.name}</span>
+						{#if t.removed}
+							<Badge variant="outline" class="text-[10px] py-0 shrink-0 text-muted-foreground">{m.automation_node_removed({}, messageOptions)}</Badge>
+						{:else if t.kind === "device" && t.deviceType}
+							<HiveChip type={t.deviceType} class="text-[10px] py-0 shrink-0" />
+						{:else if t.kind === "scene"}
+							{#each t.rooms ?? [] as room (room.id)}
+								<HiveChip type="room" label={roomName(room)} class="text-[10px] py-0 shrink-0" />
+							{/each}
+						{:else}
+							<Badge variant="secondary" class="text-[10px] py-0 shrink-0">
+								{targetKindLabel(t.kind)}
+							</Badge>
+						{/if}
+					{/snippet}
+					{#snippet item(t: TargetItem)}
+						{#if t.kind === "device" && t.deviceType}
+							<DeviceOptionRow name={t.name} deviceType={t.deviceType} roomLabel={t.roomLabel} />
+						{:else}
+							<span class="flex w-full items-center gap-1.5 overflow-hidden">
+								<span class="truncate">{t.name}</span>
+								{#if t.kind === "scene"}
+								{#if (t.rooms ?? []).length > 0}
+									<span class="ml-auto flex shrink-0 items-center gap-1">
+										{#each t.rooms ?? [] as room (room.id)}
+											<HiveChip type="room" label={roomName(room)} class="text-[10px] py-0" />
+										{/each}
+									</span>
+								{/if}
+								{:else}
+								<Badge variant="secondary" class="text-[10px] py-0 shrink-0 ml-auto">
+									{targetKindLabel(t.kind)}
+								</Badge>
+								{/if}
+							</span>
+						{/if}
+					{/snippet}
+				</HiveSelectAutocomplete>
+				{/if}
+
+				{#if data.config.actionType === "configure_device"}
+					{#if selectedDevice}
+						<DeviceConfigurationEditor
+							capabilities={selectedDevice.capabilities}
+							values={configurationValues}
+							defaults={selectedDevice.attributes}
+							onchange={updateConfigurationValues}
+							selectable
+							compact
+							disabled={data.readOnly}
+						/>
+					{:else}
+						<p class="text-[11px] text-muted-foreground">{m.automation_node_pick_device_configure({}, messageOptions)}</p>
+					{/if}
+				{:else if data.config.actionType === "set_device_state"}
+					{#if advanced}
+						<DeviceStateEditor
+							target={null}
+							capabilities={exprCaps}
+							value={data.config.payload}
+							onchange={(payload) =>
+								data.onConfigChange?.({ ...data.config, payload })}
+							devices={data.devices ?? []}
+							groups={data.groups ?? []}
+							rooms={data.rooms ?? []}
+							disabled={data.readOnly}
+						/>
+					{:else if data.config.targetType && data.config.targetId}
+						<DeviceStateEditor
+							target={{ type: data.config.targetType as TargetKind, id: data.config.targetId }}
+							value={data.config.payload}
+							onchange={(payload) =>
+								data.onConfigChange?.({ ...data.config, payload })}
+							devices={data.devices ?? []}
+							groups={data.groups ?? []}
+							rooms={data.rooms ?? []}
+							disabled={data.readOnly}
+						/>
+					{/if}
+				{:else if data.config.actionType === "change_value"}
+					{#if advanced}
+						<ChangeValueEditor
+							target={null}
+							capabilities={exprCaps}
+							value={data.config.payload}
+							onchange={(payload) =>
+								data.onConfigChange?.({ ...data.config, payload })}
+							devices={data.devices ?? []}
+							groups={data.groups ?? []}
+							rooms={data.rooms ?? []}
+							disabled={data.readOnly}
+						/>
+					{:else if data.config.targetType && data.config.targetId}
+						<ChangeValueEditor
+							target={{ type: data.config.targetType as TargetKind, id: data.config.targetId }}
+							value={data.config.payload}
+							onchange={(payload) =>
+								data.onConfigChange?.({ ...data.config, payload })}
+							devices={data.devices ?? []}
+							groups={data.groups ?? []}
+							rooms={data.rooms ?? []}
+							disabled={data.readOnly}
+						/>
+					{/if}
+				{:else if data.config.actionType === "run_effect"}
+					<Select
+						type="single"
+						value={selectedEffectKey}
+						disabled={data.readOnly}
+						onValueChange={(v) => v && updateEffectSelection(v)}
+					>
+						<SelectTrigger size="sm" class="w-full text-xs">
+							{selectedEffectName || m.automation_node_select_effect({}, messageOptions)}
+						</SelectTrigger>
+						<SelectContent>
+							{#each effectsList as eff (effectRefKey(eff))}
+								<SelectItem value={effectRefKey(eff)}>{effectName(eff)}</SelectItem>
+							{/each}
+						</SelectContent>
+					</Select>
+				{:else if data.config.actionType !== "activate_scene" && data.config.actionType !== "toggle_device_state"}
+					<Textarea
+						value={data.config.payload}
+						oninput={handlePayloadChange}
+						placeholder={'{"on": true, "brightness": 254}'}
+						class="min-h-[60px] text-xs font-mono"
+						rows={2}
+					/>
+				{/if}
+			{/if}
+		{#if validationError && !data.readOnly}
+			<p class="text-xs text-destructive">{automationValidationMessage(validationError.code)}</p>
+		{/if}
+	</fieldset>

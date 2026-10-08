@@ -64,16 +64,17 @@ export function referencedDeviceIds(node: AutomationNodeLike): string[] {
 }
 
 /**
- * Scene IDs referenced by an action node. `activate_scene` stores a single
- * scene ID directly in the `payload` field; `cycle_scenes` stores an ordered
- * list under `payload.scenes`.
+ * Scene IDs referenced by an action node. `activate_scene` stores its scene
+ * under `payload.scene_id`; `cycle_scenes` stores an ordered list under
+ * `payload.scenes`.
  */
 export function referencedSceneIds(node: AutomationNodeLike): string[] {
   if (node.type !== "action") return [];
   const raw = safeParseJSON(node.config);
   if (!isRecord(raw)) return [];
   if (raw.action_type === "activate_scene") {
-    const id = raw.payload;
+    const payload = typeof raw.payload === "string" ? safeParseJSON(raw.payload) : null;
+    const id = isRecord(payload) ? payload.scene_id : null;
     return typeof id === "string" && id !== "" ? [id] : [];
   }
   if (raw.action_type === "cycle_scenes") {

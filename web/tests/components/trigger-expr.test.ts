@@ -385,7 +385,7 @@ describe("action type validation", () => {
       target_type: "",
       target_id: "",
       target_expr: [],
-      payload: "scene-1",
+      payload: '{"scene_id":"scene-1"}',
     });
   });
 
@@ -396,7 +396,7 @@ describe("action type validation", () => {
         target_type: "",
         target_id: "",
         target_expr: [],
-        payload: "scene-1",
+        payload: '{"scene_id":"scene-1"}',
       }),
     ).toEqual({
       actionType: "activate_scene",

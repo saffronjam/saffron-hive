@@ -143,6 +143,8 @@ type mockSceneRunner struct {
 	deactivated []string
 }
 
+func (m *mockSceneRunner) IsActive(string) bool { return false }
+
 func (m *mockSceneRunner) Apply(ctx context.Context, sceneID string) (store.Scene, error) {
 	m.mu.Lock()
 	m.applied = append(m.applied, sceneID)

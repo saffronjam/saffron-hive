@@ -4,7 +4,7 @@
 	import { json, jsonParseLinter } from "@codemirror/lang-json";
 	import { linter, lintGutter } from "@codemirror/lint";
 	import { oneDark } from "@codemirror/theme-one-dark";
-	import { Compartment, EditorState } from "@codemirror/state";
+	import { Compartment, EditorState, type Extension } from "@codemirror/state";
 	import { theme } from "$lib/stores/theme";
 
 	interface Props {
@@ -12,6 +12,8 @@
 		error?: string | null;
 		readonly?: boolean;
 		onchange?: (value: string) => void;
+		/** Editor features layered on JSON editing, such as completion and linting. */
+		extensions?: Extension[];
 	}
 
 	let {
@@ -19,6 +21,7 @@
 		error = $bindable(null),
 		readonly = false,
 		onchange,
+		extensions = [],
 	}: Props = $props();
 
 	let container: HTMLDivElement = $state(null!);
@@ -47,6 +50,7 @@
 				lintGutter(),
 				themeCompartment.of(getThemeExtension(currentTheme)),
 				readonlyCompartment.of(EditorState.readOnly.of(readonly)),
+				extensions,
 				EditorView.updateListener.of((update) => {
 					if (!update.docChanged || suppressUpdate) return;
 					const doc = update.state.doc.toString();
@@ -65,6 +69,39 @@
 					".cm-content": { fontFamily: "monospace" },
 					"&.cm-editor": { backgroundColor: "var(--background)" },
 					".cm-gutters": { backgroundColor: "var(--background)" },
+					".cm-tooltip.cm-tooltip-autocomplete": {
+						backgroundColor: "var(--popover)",
+						color: "var(--popover-foreground)",
+						border: "none",
+						borderRadius: "var(--radius-md)",
+						boxShadow: "var(--shadow-card)",
+						padding: "4px",
+						fontFamily: "var(--font-sans)",
+					},
+					".cm-tooltip.cm-tooltip-autocomplete > ul": { maxHeight: "16rem", fontFamily: "inherit" },
+					".cm-tooltip.cm-tooltip-autocomplete > ul > li": {
+						borderRadius: "calc(var(--radius-md) - 2px)",
+						padding: "4px 8px",
+						lineHeight: "1.4",
+					},
+					".cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": {
+						backgroundColor: "var(--accent)",
+						color: "var(--accent-foreground)",
+					},
+					".cm-completionDetail": {
+						marginLeft: "0.75em",
+						fontStyle: "normal",
+						fontFamily: "var(--font-mono, monospace)",
+						fontSize: "11px",
+						opacity: "0.6",
+					},
+					".cm-tooltip-lint": {
+						backgroundColor: "var(--popover)",
+						color: "var(--popover-foreground)",
+						border: "none",
+						borderRadius: "var(--radius-md)",
+						boxShadow: "var(--shadow-card)",
+					},
 				}),
 			],
 			parent: container,
