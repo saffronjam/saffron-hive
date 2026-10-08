@@ -67,8 +67,6 @@ describe("ZigbeeDeviceInfoCard", () => {
     };
     const metadata: Zigbee2MqttDeviceMetadata = {
       imageCandidate: false,
-      endpoints: [],
-      groups: [],
       ota: {},
     };
 
@@ -99,8 +97,6 @@ describe("ZigbeeDeviceInfoCard", () => {
     };
     const metadata: Zigbee2MqttDeviceMetadata = {
       imageCandidate: false,
-      endpoints: [],
-      groups: [],
       supported: true,
       interviewState: "SUCCESSFUL",
       definition: { supportsOta: true },
@@ -121,7 +117,7 @@ describe("ZigbeeDeviceInfoCard", () => {
       "Support",
     );
     expect(host.textContent).not.toContain("100%");
-    expect(host.textContent).toContain("Details");
+    expect(host.textContent).not.toContain("Details");
   });
 
   it("identifies unsupported Zigbee devices", () => {
@@ -142,8 +138,6 @@ describe("ZigbeeDeviceInfoCard", () => {
     };
     const metadata: Zigbee2MqttDeviceMetadata = {
       imageCandidate: false,
-      endpoints: [],
-      groups: [],
       supported: false,
       ota: {},
     };
@@ -176,8 +170,6 @@ describe("ZigbeeDeviceInfoCard", () => {
     const metadata: Zigbee2MqttDeviceMetadata = {
       imageCandidate: false,
       powerSource: "Battery",
-      endpoints: [],
-      groups: [],
       ota: {},
     };
 
@@ -216,8 +208,6 @@ describe("ZigbeeDeviceInfoCard", () => {
     const metadata: Zigbee2MqttDeviceMetadata = {
       imageCandidate: false,
       powerSource: "Battery",
-      endpoints: [],
-      groups: [],
       ota: {},
     };
 
@@ -247,8 +237,6 @@ describe("ZigbeeDeviceInfoCard", () => {
     };
     const metadata: Zigbee2MqttDeviceMetadata = {
       imageCandidate: false,
-      endpoints: [],
-      groups: [],
       ota: {},
       bridgeInfo: {
         adapterType: "ZStack3x0",

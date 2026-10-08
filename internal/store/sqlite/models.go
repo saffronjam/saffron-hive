@@ -515,7 +515,6 @@ type ZigbeeDeviceMetadatum struct {
 	DefinitionSource         *string
 	DefinitionIcon           *string
 	DefinitionSupportsOta    *bool
-	Endpoints                string
 	OtaState                 *string
 	OtaInstalledVersion      *int64
 	OtaLatestVersion         *int64

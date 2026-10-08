@@ -1306,14 +1306,6 @@ type WebhookSecretResult struct {
 	SecretPath string           `json:"secretPath"`
 }
 
-type Zigbee2MqttBinding struct {
-	Cluster           string  `json:"cluster"`
-	TargetType        string  `json:"targetType"`
-	TargetIeeeAddress *string `json:"targetIeeeAddress,omitempty"`
-	TargetEndpoint    *int    `json:"targetEndpoint,omitempty"`
-	TargetGroupID     *int    `json:"targetGroupId,omitempty"`
-}
-
 type Zigbee2MqttBridgeInfo struct {
 	AdapterType                     *string `json:"adapterType,omitempty"`
 	FirmwareVersion                 *string `json:"firmwareVersion,omitempty"`
@@ -1406,26 +1398,7 @@ type Zigbee2MqttDeviceMetadata struct {
 	DefinitionURL      *string                         `json:"definitionUrl,omitempty"`
 	Documentation      *Zigbee2MqttDeviceDocumentation `json:"documentation,omitempty"`
 	Ota                *Zigbee2MqttOtaStatus           `json:"ota"`
-	Endpoints          []*Zigbee2MqttEndpoint          `json:"endpoints"`
-	Groups             []*Zigbee2MqttGroupReference    `json:"groups"`
 	BridgeInfo         *Zigbee2MqttBridgeInfo          `json:"bridgeInfo,omitempty"`
-}
-
-type Zigbee2MqttEndpoint struct {
-	ID             int                     `json:"id"`
-	ProfileID      *int                    `json:"profileId,omitempty"`
-	DeviceID       *int                    `json:"deviceId,omitempty"`
-	InputClusters  []string                `json:"inputClusters"`
-	OutputClusters []string                `json:"outputClusters"`
-	Bindings       []*Zigbee2MqttBinding   `json:"bindings"`
-	Reportings     []*Zigbee2MqttReporting `json:"reportings"`
-}
-
-type Zigbee2MqttGroupReference struct {
-	ID              string `json:"id"`
-	ProviderGroupID string `json:"providerGroupId"`
-	Name            string `json:"name"`
-	Endpoint        int    `json:"endpoint"`
 }
 
 type Zigbee2MqttOtaStatus struct {
@@ -1433,14 +1406,6 @@ type Zigbee2MqttOtaStatus struct {
 	InstalledVersion *string  `json:"installedVersion,omitempty"`
 	LatestVersion    *string  `json:"latestVersion,omitempty"`
 	Progress         *float64 `json:"progress,omitempty"`
-}
-
-type Zigbee2MqttReporting struct {
-	Cluster               string   `json:"cluster"`
-	Attribute             string   `json:"attribute"`
-	MinimumReportInterval *int     `json:"minimumReportInterval,omitempty"`
-	MaximumReportInterval *int     `json:"maximumReportInterval,omitempty"`
-	ReportableChange      *float64 `json:"reportableChange,omitempty"`
 }
 
 type AggregatedHistoryTargetType string

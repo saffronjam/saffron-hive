@@ -2,8 +2,6 @@ package zigbee
 
 import (
 	"encoding/json"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -398,7 +396,6 @@ func mapBridgeMetadata(d z2mBridgeDevice) zigbeemetadata.Metadata {
 		PowerSource:        d.PowerSource,
 		SoftwareBuildID:    d.SoftwareBuildID,
 		DateCode:           d.DateCode,
-		Endpoints:          make([]zigbeemetadata.Endpoint, 0, len(d.Endpoints)),
 	}
 	if d.Definition != nil {
 		metadata.Definition = &zigbeemetadata.Definition{
@@ -409,48 +406,6 @@ func mapBridgeMetadata(d z2mBridgeDevice) zigbeemetadata.Metadata {
 			Icon:        d.Definition.Icon,
 			SupportsOTA: d.Definition.SupportsOTA,
 		}
-	}
-	endpointIDs := make([]int, 0, len(d.Endpoints))
-	byID := make(map[int]z2mEndpoint, len(d.Endpoints))
-	for rawID, endpoint := range d.Endpoints {
-		id, err := strconv.Atoi(rawID)
-		if err != nil {
-			continue
-		}
-		endpointIDs = append(endpointIDs, id)
-		byID[id] = endpoint
-	}
-	sort.Ints(endpointIDs)
-	for _, id := range endpointIDs {
-		raw := byID[id]
-		endpoint := zigbeemetadata.Endpoint{
-			ID:             id,
-			ProfileID:      raw.ProfileID,
-			DeviceID:       raw.DeviceID,
-			InputClusters:  raw.Clusters.Input,
-			OutputClusters: raw.Clusters.Output,
-			Bindings:       make([]zigbeemetadata.Binding, 0, len(raw.Bindings)),
-			Reportings:     make([]zigbeemetadata.Reporting, 0, len(raw.ConfiguredReportings)),
-		}
-		for _, binding := range raw.Bindings {
-			endpoint.Bindings = append(endpoint.Bindings, zigbeemetadata.Binding{
-				Cluster:           binding.Cluster,
-				TargetType:        binding.Target.Type,
-				TargetIEEEAddress: binding.Target.IEEEAddress,
-				TargetEndpoint:    binding.Target.Endpoint,
-				TargetGroupID:     binding.Target.ID,
-			})
-		}
-		for _, reporting := range raw.ConfiguredReportings {
-			endpoint.Reportings = append(endpoint.Reportings, zigbeemetadata.Reporting{
-				Cluster:               reporting.Cluster,
-				Attribute:             reporting.Attribute,
-				MinimumReportInterval: reporting.MinimumReportInterval,
-				MaximumReportInterval: reporting.MaximumReportInterval,
-				ReportableChange:      reporting.ReportableChange,
-			})
-		}
-		metadata.Endpoints = append(metadata.Endpoints, endpoint)
 	}
 	return zigbeemetadata.Normalize(metadata)
 }

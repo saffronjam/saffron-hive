@@ -82,33 +82,6 @@ const ZIGBEE_METADATA_QUERY = graphql(`
           latestVersion
           progress
         }
-        endpoints {
-          id
-          profileId
-          deviceId
-          inputClusters
-          outputClusters
-          bindings {
-            cluster
-            targetType
-            targetIeeeAddress
-            targetEndpoint
-            targetGroupId
-          }
-          reportings {
-            cluster
-            attribute
-            minimumReportInterval
-            maximumReportInterval
-            reportableChange
-          }
-        }
-        groups {
-          id
-          providerGroupId
-          name
-          endpoint
-        }
         bridgeInfo {
           adapterType
           firmwareVersion
@@ -258,7 +231,6 @@ describe("devices", () => {
         supportsOta: false,
       },
     });
-    expect(t1.data?.device?.zigbee2Mqtt?.endpoints).toHaveLength(1);
     expect(t1.data?.device?.zigbee2Mqtt?.imageCandidate).toBe(true);
     expect(t1.data?.device?.zigbee2Mqtt?.imageVersion).toMatch(/^[a-f0-9]{64}$/);
     expect(t1.data?.device?.zigbee2Mqtt?.definitionUrl).toBe(
@@ -270,9 +242,6 @@ describe("devices", () => {
       .toPromise();
     expect(p100.error).toBeUndefined();
     expect(p100.data?.device?.zigbee2Mqtt?.softwareBuildId).toBeNull();
-    expect(p100.data?.device?.zigbee2Mqtt?.endpoints).toHaveLength(2);
-    expect(p100.data?.device?.zigbee2Mqtt?.endpoints[0].bindings).toHaveLength(2);
-    expect(p100.data?.device?.zigbee2Mqtt?.endpoints[0].reportings).toHaveLength(1);
 
     await expect
       .poll(
@@ -296,7 +265,6 @@ describe("devices", () => {
     expect(unsupported.error).toBeUndefined();
     expect(unsupported.data?.device?.zigbee2Mqtt?.supported).toBe(false);
     expect(unsupported.data?.device?.zigbee2Mqtt?.definition).toBeNull();
-    expect(unsupported.data?.device?.zigbee2Mqtt?.endpoints).toEqual([]);
 
     const coordinator = await graphqlClient
       .query(ZIGBEE_METADATA_QUERY, { id: "0x00124b0000000000" }, { requestPolicy: "network-only" })

@@ -47,10 +47,6 @@ func TestDeviceZigbeeMetadataDetailAndSourceGate(t *testing.T) {
 		DeviceID: zigbeeDevice.ID, IEEEAddress: string(zigbeeDevice.ID),
 		NetworkAddress: &networkAddress, Supported: &supported, SoftwareBuildID: &software,
 		Definition: &zigbeemetadata.Definition{Model: &model, Vendor: &vendor, Description: &description},
-		Endpoints: []zigbeemetadata.Endpoint{{
-			ID: 1, InputClusters: []string{"genBasic"}, OutputClusters: []string{"genOta"},
-			Bindings: []zigbeemetadata.Binding{}, Reportings: []zigbeemetadata.Reporting{},
-		}},
 	})
 
 	response := env.query(t, `{
@@ -59,8 +55,6 @@ func TestDeviceZigbeeMetadataDetailAndSourceGate(t *testing.T) {
 				ieeeAddress addressVendor networkAddress supported softwareBuildId definitionUrl
 				definition { model vendor description }
 				ota { state installedVersion latestVersion progress }
-				endpoints { id inputClusters outputClusters bindings { cluster } reportings { cluster } }
-				groups { id }
 			}
 		}
 	}`, nil)
@@ -74,10 +68,6 @@ func TestDeviceZigbeeMetadataDetailAndSourceGate(t *testing.T) {
 				NetworkAddress                                             int
 				Supported                                                  bool
 				Definition                                                 struct{ Model, Vendor, Description string }
-				Endpoints                                                  []struct {
-					ID                            int
-					InputClusters, OutputClusters []string
-				}
 			} `json:"zigbee2Mqtt"`
 		} `json:"device"`
 	}
@@ -90,9 +80,6 @@ func TestDeviceZigbeeMetadataDetailAndSourceGate(t *testing.T) {
 	}
 	if metadata.DefinitionURL != "https://www.zigbee2mqtt.io/devices/MCCGQ12LM.html" {
 		t.Fatalf("definition URL = %q", metadata.DefinitionURL)
-	}
-	if len(metadata.Endpoints) != 1 || len(metadata.Endpoints[0].InputClusters) != 1 {
-		t.Fatalf("endpoints = %+v", metadata.Endpoints)
 	}
 
 	tuyaDevice := device.Device{ID: "tuya-1", FriendlyName: "Switch", Source: device.SourceTuya, Type: device.Plug}
@@ -226,8 +213,8 @@ func TestDeviceZigbeeMetadataAllowsUnsupportedWithoutDefinition(t *testing.T) {
 	env.store.zigbeeMetadata[d.ID] = zigbeemetadata.Normalize(zigbeemetadata.Metadata{
 		DeviceID: d.ID, IEEEAddress: string(d.ID), Supported: &supported,
 	})
-	response := env.query(t, `{ device(id: "0xunsupported") { zigbee2Mqtt { supported definition { model } endpoints { id } } } }`, nil)
-	if len(response.Errors) != 0 || string(response.Data) != `{"device":{"zigbee2Mqtt":{"supported":false,"definition":null,"endpoints":[]}}}` {
+	response := env.query(t, `{ device(id: "0xunsupported") { zigbee2Mqtt { supported definition { model } } } }`, nil)
+	if len(response.Errors) != 0 || string(response.Data) != `{"device":{"zigbee2Mqtt":{"supported":false,"definition":null}}}` {
 		t.Fatalf("unsupported response = %s, %+v", response.Data, response.Errors)
 	}
 }

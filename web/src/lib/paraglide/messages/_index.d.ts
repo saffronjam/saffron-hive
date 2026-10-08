@@ -5961,20 +5961,6 @@ export const common_no: ((inputs?: Common_NoInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "None" |
-*
-* @param {Common_NoneInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const common_none: ((inputs?: Common_NoneInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Common_NoneInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
 * | "Paste" |
 *
 * @param {Common_PasteInputs} inputs
@@ -24199,20 +24185,6 @@ export const zigbee_address_vendor: ((inputs?: Zigbee_Address_VendorInputs, opti
 /**
 * | output |
 * | --- |
-* | "Attribute" |
-*
-* @param {Zigbee_AttributeInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_attribute: ((inputs?: Zigbee_AttributeInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_AttributeInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
 * | "Battery type" |
 *
 * @param {Zigbee_Battery_TypeInputs} inputs
@@ -24227,20 +24199,6 @@ export const zigbee_battery_type: ((inputs?: Zigbee_Battery_TypeInputs, options?
 /**
 * | output |
 * | --- |
-* | "Bindings" |
-*
-* @param {Zigbee_BindingsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_bindings: ((inputs?: Zigbee_BindingsInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_BindingsInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
 * | "Broker address" |
 *
 * @param {Zigbee_Broker_AddressInputs} inputs
@@ -24250,20 +24208,6 @@ export const zigbee_bindings: ((inputs?: Zigbee_BindingsInputs, options?: {
 export const zigbee_broker_address: ((inputs?: Zigbee_Broker_AddressInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_Broker_AddressInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Change" |
-*
-* @param {Zigbee_ChangeInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_change: ((inputs?: Zigbee_ChangeInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_ChangeInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -24292,20 +24236,6 @@ export const zigbee_channel: ((inputs?: Zigbee_ChannelInputs, options?: {
 export const zigbee_check_connection: ((inputs?: Zigbee_Check_ConnectionInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_Check_ConnectionInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Cluster" |
-*
-* @param {Zigbee_ClusterInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_cluster: ((inputs?: Zigbee_ClusterInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_ClusterInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -24549,20 +24479,6 @@ export const zigbee_description: ((inputs?: Zigbee_DescriptionInputs, options?: 
 /**
 * | output |
 * | --- |
-* | "Details" |
-*
-* @param {Zigbee_DetailsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_details: ((inputs?: Zigbee_DetailsInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_DetailsInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
 * | "Device" |
 *
 * @param {Zigbee_DeviceInputs} inputs
@@ -24586,48 +24502,6 @@ export const zigbee_device: ((inputs?: Zigbee_DeviceInputs, options?: {
 export const zigbee_enabled: ((inputs?: Zigbee_EnabledInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_EnabledInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Endpoint" |
-*
-* @param {Zigbee_EndpointInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_endpoint: ((inputs?: Zigbee_EndpointInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_EndpointInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Endpoint {id}" |
-*
-* @param {Zigbee_Endpoint_NamedInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_endpoint_named: ((inputs: Zigbee_Endpoint_NamedInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_Endpoint_NamedInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Endpoints" |
-*
-* @param {Zigbee_EndpointsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_endpoints: ((inputs?: Zigbee_EndpointsInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_EndpointsInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -24717,48 +24591,6 @@ export const zigbee_frontend_url_restricted: ((inputs?: Zigbee_Frontend_Url_Rest
 /**
 * | output |
 * | --- |
-* | "Group ID" |
-*
-* @param {Zigbee_Group_IdInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_group_id: ((inputs?: Zigbee_Group_IdInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_Group_IdInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Group {id}" |
-*
-* @param {Zigbee_Group_NamedInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_group_named: ((inputs: Zigbee_Group_NamedInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_Group_NamedInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Groups" |
-*
-* @param {Zigbee_GroupsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_groups: ((inputs?: Zigbee_GroupsInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_GroupsInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
 * | "IEEE address" |
 *
 * @param {Zigbee_Ieee_AddressInputs} inputs
@@ -24768,20 +24600,6 @@ export const zigbee_groups: ((inputs?: Zigbee_GroupsInputs, options?: {
 export const zigbee_ieee_address: ((inputs?: Zigbee_Ieee_AddressInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_Ieee_AddressInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Input clusters" |
-*
-* @param {Zigbee_Input_ClustersInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_input_clusters: ((inputs?: Zigbee_Input_ClustersInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_Input_ClustersInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -24885,34 +24703,6 @@ export const zigbee_manufacturer: ((inputs?: Zigbee_ManufacturerInputs, options?
 /**
 * | output |
 * | --- |
-* | "Max" |
-*
-* @param {Zigbee_MaxInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_max: ((inputs?: Zigbee_MaxInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_MaxInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Min" |
-*
-* @param {Zigbee_MinInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_min: ((inputs?: Zigbee_MinInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_MinInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
 * | "Model" |
 *
 * @param {Zigbee_ModelInputs} inputs
@@ -25011,62 +24801,6 @@ export const zigbee_never_scanned: ((inputs?: Zigbee_Never_ScannedInputs, option
 /**
 * | output |
 * | --- |
-* | "No bindings configured." |
-*
-* @param {Zigbee_No_BindingsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_no_bindings: ((inputs?: Zigbee_No_BindingsInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_No_BindingsInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "No endpoints reported." |
-*
-* @param {Zigbee_No_EndpointsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_no_endpoints: ((inputs?: Zigbee_No_EndpointsInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_No_EndpointsInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "No reporting configured." |
-*
-* @param {Zigbee_No_ReportingInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_no_reporting: ((inputs?: Zigbee_No_ReportingInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_No_ReportingInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Not in a Zigbee group." |
-*
-* @param {Zigbee_Not_In_GroupInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_not_in_group: ((inputs?: Zigbee_Not_In_GroupInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_Not_In_GroupInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
 * | "Optional" |
 *
 * @param {Zigbee_OptionalInputs} inputs
@@ -25118,20 +24852,6 @@ export const zigbee_ota_version: ((inputs: Zigbee_Ota_VersionInputs, options?: {
 export const zigbee_ota_version_progress: ((inputs: Zigbee_Ota_Version_ProgressInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_Ota_Version_ProgressInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Output clusters" |
-*
-* @param {Zigbee_Output_ClustersInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_output_clusters: ((inputs?: Zigbee_Output_ClustersInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_Output_ClustersInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -25193,20 +24913,6 @@ export const zigbee_power_source: ((inputs?: Zigbee_Power_SourceInputs, options?
 /**
 * | output |
 * | --- |
-* | "Profile ID" |
-*
-* @param {Zigbee_Profile_IdInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_profile_id: ((inputs?: Zigbee_Profile_IdInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_Profile_IdInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
 * | "Continuous rate must be between 1 and 10 commands per second." |
 *
 * @param {Zigbee_Rate_Continuous_InvalidInputs} inputs
@@ -25258,20 +24964,6 @@ export const zigbee_rate_order_invalid: ((inputs?: Zigbee_Rate_Order_InvalidInpu
 export const zigbee_reconnect_help: ((inputs?: Zigbee_Reconnect_HelpInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_Reconnect_HelpInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Reporting" |
-*
-* @param {Zigbee_ReportingInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_reporting: ((inputs?: Zigbee_ReportingInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_ReportingInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -25412,20 +25104,6 @@ export const zigbee_software_build: ((inputs?: Zigbee_Software_BuildInputs, opti
 export const zigbee_support: ((inputs?: Zigbee_SupportInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_SupportInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Target" |
-*
-* @param {Zigbee_TargetInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_target: ((inputs?: Zigbee_TargetInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Zigbee_TargetInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -26066,7 +25744,6 @@ export type Common_Error_Try_AgainInputs = {};
 export type Common_In_ProgressInputs = {};
 export type Common_LoadingInputs = {};
 export type Common_NoInputs = {};
-export type Common_NoneInputs = {};
 export type Common_PasteInputs = {};
 export type Common_RemoveInputs = {};
 export type Common_SaveInputs = {};
@@ -27656,14 +27333,10 @@ export type Webhooks_View_BodyInputs = {};
 export type Webhooks_Window_MsInputs = {};
 export type Zigbee_AdapterInputs = {};
 export type Zigbee_Address_VendorInputs = {};
-export type Zigbee_AttributeInputs = {};
 export type Zigbee_Battery_TypeInputs = {};
-export type Zigbee_BindingsInputs = {};
 export type Zigbee_Broker_AddressInputs = {};
-export type Zigbee_ChangeInputs = {};
 export type Zigbee_ChannelInputs = {};
 export type Zigbee_Check_ConnectionInputs = {};
-export type Zigbee_ClusterInputs = {};
 export type Zigbee_Command_TrafficInputs = {};
 export type Zigbee_Command_Traffic_AboutInputs = {};
 export type Zigbee_Command_Traffic_HelpInputs = {};
@@ -27681,27 +27354,15 @@ export type Zigbee_CoordinatorInputs = {};
 export type Zigbee_Date_CodeInputs = {};
 export type Zigbee_DefinitionInputs = {};
 export type Zigbee_DescriptionInputs = {};
-export type Zigbee_DetailsInputs = {};
 export type Zigbee_DeviceInputs = {};
 export type Zigbee_EnabledInputs = {};
-export type Zigbee_EndpointInputs = {};
-export type Zigbee_Endpoint_NamedInputs = {
-    id: NonNullable<unknown>;
-};
-export type Zigbee_EndpointsInputs = {};
 export type Zigbee_Extended_Pan_IdInputs = {};
 export type Zigbee_FirmwareInputs = {};
 export type Zigbee_Frontend_UrlInputs = {};
 export type Zigbee_Frontend_Url_HelpInputs = {};
 export type Zigbee_Frontend_Url_InvalidInputs = {};
 export type Zigbee_Frontend_Url_RestrictedInputs = {};
-export type Zigbee_Group_IdInputs = {};
-export type Zigbee_Group_NamedInputs = {
-    id: NonNullable<unknown>;
-};
-export type Zigbee_GroupsInputs = {};
 export type Zigbee_Ieee_AddressInputs = {};
-export type Zigbee_Input_ClustersInputs = {};
 export type Zigbee_IntegrationInputs = {};
 export type Zigbee_Interactive_RateInputs = {};
 export type Zigbee_Interactive_Rate_AboutInputs = {};
@@ -27711,8 +27372,6 @@ export type Zigbee_Last_ScannedInputs = {
     time: NonNullable<unknown>;
 };
 export type Zigbee_ManufacturerInputs = {};
-export type Zigbee_MaxInputs = {};
-export type Zigbee_MinInputs = {};
 export type Zigbee_ModelInputs = {};
 export type Zigbee_Model_IdInputs = {};
 export type Zigbee_Mqtt_TopicInputs = {};
@@ -27720,10 +27379,6 @@ export type Zigbee_NetworkInputs = {};
 export type Zigbee_Network_AddressInputs = {};
 export type Zigbee_Network_RoleInputs = {};
 export type Zigbee_Never_ScannedInputs = {};
-export type Zigbee_No_BindingsInputs = {};
-export type Zigbee_No_EndpointsInputs = {};
-export type Zigbee_No_ReportingInputs = {};
-export type Zigbee_Not_In_GroupInputs = {};
 export type Zigbee_OptionalInputs = {};
 export type Zigbee_Ota_ProgressInputs = {
     state: NonNullable<unknown>;
@@ -27738,17 +27393,14 @@ export type Zigbee_Ota_Version_ProgressInputs = {
     version: NonNullable<unknown>;
     progress: NonNullable<unknown>;
 };
-export type Zigbee_Output_ClustersInputs = {};
 export type Zigbee_Pan_IdInputs = {};
 export type Zigbee_PasswordInputs = {};
 export type Zigbee_Password_KeepInputs = {};
 export type Zigbee_Power_SourceInputs = {};
-export type Zigbee_Profile_IdInputs = {};
 export type Zigbee_Rate_Continuous_InvalidInputs = {};
 export type Zigbee_Rate_Interactive_InvalidInputs = {};
 export type Zigbee_Rate_Order_InvalidInputs = {};
 export type Zigbee_Reconnect_HelpInputs = {};
-export type Zigbee_ReportingInputs = {};
 export type Zigbee_Runs_Daily_AtInputs = {};
 export type Zigbee_Scan_CompleteInputs = {};
 export type Zigbee_Scan_HourInputs = {};
@@ -27761,7 +27413,6 @@ export type Zigbee_ScanningInputs = {
 export type Zigbee_Scheduled_ScanInputs = {};
 export type Zigbee_Software_BuildInputs = {};
 export type Zigbee_SupportInputs = {};
-export type Zigbee_TargetInputs = {};
 export type Zigbee_TopologyInputs = {};
 export type Zigbee_Topology_AboutInputs = {};
 export type Zigbee_Topology_HelpInputs = {};

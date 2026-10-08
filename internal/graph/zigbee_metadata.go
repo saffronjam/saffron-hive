@@ -23,8 +23,6 @@ func mapZigbeeDeviceMetadata(metadata zigbeemetadata.Metadata, vendors AddressVe
 			State: metadata.OTA.State, InstalledVersion: versionString(metadata.OTA.InstalledVersion),
 			LatestVersion: versionString(metadata.OTA.LatestVersion), Progress: metadata.OTA.Progress,
 		},
-		Endpoints: make([]*model.Zigbee2MqttEndpoint, 0, len(metadata.Endpoints)),
-		Groups:    make([]*model.Zigbee2MqttGroupReference, 0, len(metadata.Groups)),
 	}
 	if imageSource.Fingerprint != "" {
 		out.ImageVersion = &imageSource.Fingerprint
@@ -60,37 +58,6 @@ func mapZigbeeDeviceMetadata(metadata zigbeemetadata.Metadata, vendors AddressVe
 			ZigbeeHerdsmanVersion:           info.ZigbeeHerdsmanVersion,
 			ZigbeeHerdsmanConvertersVersion: info.ZigbeeHerdsmanConvertersVersion,
 		}
-	}
-	for _, endpoint := range metadata.Endpoints {
-		mapped := &model.Zigbee2MqttEndpoint{
-			ID: endpoint.ID, ProfileID: endpoint.ProfileID, DeviceID: endpoint.DeviceID,
-			InputClusters:  append([]string(nil), endpoint.InputClusters...),
-			OutputClusters: append([]string(nil), endpoint.OutputClusters...),
-			Bindings:       make([]*model.Zigbee2MqttBinding, 0, len(endpoint.Bindings)),
-			Reportings:     make([]*model.Zigbee2MqttReporting, 0, len(endpoint.Reportings)),
-		}
-		for _, binding := range endpoint.Bindings {
-			mapped.Bindings = append(mapped.Bindings, &model.Zigbee2MqttBinding{
-				Cluster: binding.Cluster, TargetType: binding.TargetType,
-				TargetIeeeAddress: binding.TargetIEEEAddress,
-				TargetEndpoint:    binding.TargetEndpoint, TargetGroupID: binding.TargetGroupID,
-			})
-		}
-		for _, reporting := range endpoint.Reportings {
-			mapped.Reportings = append(mapped.Reportings, &model.Zigbee2MqttReporting{
-				Cluster: reporting.Cluster, Attribute: reporting.Attribute,
-				MinimumReportInterval: reporting.MinimumReportInterval,
-				MaximumReportInterval: reporting.MaximumReportInterval,
-				ReportableChange:      reporting.ReportableChange,
-			})
-		}
-		out.Endpoints = append(out.Endpoints, mapped)
-	}
-	for _, group := range metadata.Groups {
-		out.Groups = append(out.Groups, &model.Zigbee2MqttGroupReference{
-			ID: group.ID, ProviderGroupID: group.ProviderGroupID,
-			Name: group.Name, Endpoint: group.Endpoint,
-		})
 	}
 	return out
 }

@@ -30,11 +30,6 @@ func TestZigbeeDeviceMetadataMergeAndIdempotency(t *testing.T) {
 		Definition: &zigbeemetadata.Definition{
 			Model: &model, Vendor: &vendor, Description: &description, SupportsOTA: &otaSupport,
 		},
-		Endpoints: []zigbeemetadata.Endpoint{{
-			ID: 1, InputClusters: []string{"ssIasZone", "genBasic"},
-			OutputClusters: []string{"genOta"}, Bindings: []zigbeemetadata.Binding{},
-			Reportings: []zigbeemetadata.Reporting{},
-		}},
 	}
 	changed, err := s.UpsertZigbeeBridgeMetadata(ctx, metadata)
 	if err != nil || !changed {
@@ -85,9 +80,6 @@ func TestZigbeeDeviceMetadataMergeAndIdempotency(t *testing.T) {
 	if loaded.BridgeInfo == nil || loaded.BridgeInfo.AdapterType == nil || *loaded.BridgeInfo.AdapterType != adapterType {
 		t.Fatalf("bridge info = %+v", loaded.BridgeInfo)
 	}
-	if len(loaded.Endpoints) != 1 || loaded.Endpoints[0].InputClusters[0] != "genBasic" {
-		t.Fatalf("canonical endpoints = %+v", loaded.Endpoints)
-	}
 
 	metadata.Manufacturer = stringPtr("LUMI")
 	changed, err = s.UpsertZigbeeBridgeMetadata(ctx, metadata)
@@ -116,7 +108,7 @@ func TestZigbeeDeviceMetadataMergeAndIdempotency(t *testing.T) {
 	}
 }
 
-func TestZigbeeDeviceMetadataProviderGroupsAndCascade(t *testing.T) {
+func TestZigbeeDeviceMetadataDeletedWithDevice(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	_, err := s.CreateDevice(ctx, CreateDeviceParams{
@@ -128,19 +120,9 @@ func TestZigbeeDeviceMetadataProviderGroupsAndCascade(t *testing.T) {
 	if _, err := s.UpsertZigbeeBridgeMetadata(ctx, zigbeemetadata.Metadata{DeviceID: "0xabc", IEEEAddress: "0xabc"}); err != nil {
 		t.Fatal(err)
 	}
-	_, err = s.SyncProviderGroups(ctx, device.ProviderGroupsSnapshot{
-		Provider: GroupProviderZigbee2MQTT,
-		Groups: []device.ProviderGroup{{
-			ProviderGroupID: "7", Name: "Hall",
-			Members: []device.ProviderGroupMember{{DeviceID: "0xabc", Endpoint: 2}},
-		}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
 	metadata, err := s.GetZigbeeDeviceMetadata(ctx, "0xabc")
-	if err != nil || metadata == nil || len(metadata.Groups) != 1 || metadata.Groups[0].Endpoint != 2 {
-		t.Fatalf("provider groups = %+v, %v", metadata, err)
+	if err != nil || metadata == nil {
+		t.Fatalf("metadata before device delete = %+v, %v", metadata, err)
 	}
 	if err := s.PurgeDevice(ctx, "0xabc"); err != nil {
 		t.Fatal(err)

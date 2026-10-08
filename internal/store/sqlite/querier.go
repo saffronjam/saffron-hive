@@ -250,7 +250,6 @@ type Querier interface {
 	ListWebhookEndpointAutomationReferences(ctx context.Context, config string) ([]ListWebhookEndpointAutomationReferencesRow, error)
 	ListWebhookEndpoints(ctx context.Context) ([]ListWebhookEndpointsRow, error)
 	ListZigbeeFirmwareCandidates(ctx context.Context) ([]ZigbeeDeviceMetadatum, error)
-	ListZigbeeProviderGroupsForDevice(ctx context.Context, memberID string) ([]ListZigbeeProviderGroupsForDeviceRow, error)
 	MarkDevicesDeleted(ctx context.Context, idsJson string) ([]device.DeviceID, error)
 	MarkDevicesSeen(ctx context.Context, idsJson string) (int64, error)
 	MarkProviderGroupsRemovedExcept(ctx context.Context, arg MarkProviderGroupsRemovedExceptParams) error

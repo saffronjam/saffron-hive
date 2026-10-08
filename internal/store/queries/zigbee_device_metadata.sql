@@ -4,7 +4,7 @@ SELECT device_id, network_type, ieee_address, network_address, supported,
        manufacturer, model_id, power_source, software_build_id, date_code,
        definition_model, definition_vendor, definition_description,
        definition_source, definition_icon, definition_supports_ota,
-       endpoints, ota_state, ota_installed_version, ota_latest_version,
+       ota_state, ota_installed_version, ota_latest_version,
        ota_progress, bridge_fingerprint, ota_fingerprint, updated_at,
        bridge_adapter_type, bridge_firmware_version, bridge_channel,
        bridge_pan_id, bridge_extended_pan_id, bridge_zigbee2mqtt_version,
@@ -20,7 +20,7 @@ INSERT INTO zigbee_device_metadata (
     manufacturer, model_id, power_source, software_build_id, date_code,
     definition_model, definition_vendor, definition_description,
     definition_source, definition_icon, definition_supports_ota,
-    endpoints, bridge_fingerprint
+    bridge_fingerprint
 ) VALUES (
     sqlc.arg('device_id'), sqlc.arg('network_type'), sqlc.arg('ieee_address'),
     sqlc.arg('network_address'), sqlc.arg('supported'), sqlc.arg('interview_state'),
@@ -29,8 +29,7 @@ INSERT INTO zigbee_device_metadata (
     sqlc.arg('software_build_id'), sqlc.arg('date_code'), sqlc.arg('definition_model'),
     sqlc.arg('definition_vendor'), sqlc.arg('definition_description'),
     sqlc.arg('definition_source'), sqlc.arg('definition_icon'),
-    sqlc.arg('definition_supports_ota'), sqlc.arg('endpoints'),
-    sqlc.arg('bridge_fingerprint')
+    sqlc.arg('definition_supports_ota'), sqlc.arg('bridge_fingerprint')
 )
 ON CONFLICT(device_id) DO UPDATE SET
     network_type = excluded.network_type,
@@ -52,7 +51,6 @@ ON CONFLICT(device_id) DO UPDATE SET
     definition_source = excluded.definition_source,
     definition_icon = excluded.definition_icon,
     definition_supports_ota = excluded.definition_supports_ota,
-    endpoints = excluded.endpoints,
     bridge_fingerprint = excluded.bridge_fingerprint,
     updated_at = CURRENT_TIMESTAMP
 WHERE zigbee_device_metadata.bridge_fingerprint != excluded.bridge_fingerprint
@@ -111,7 +109,7 @@ SELECT device_id, network_type, ieee_address, network_address, supported,
        manufacturer, model_id, power_source, software_build_id, date_code,
        definition_model, definition_vendor, definition_description,
        definition_source, definition_icon, definition_supports_ota,
-       endpoints, ota_state, ota_installed_version, ota_latest_version,
+       ota_state, ota_installed_version, ota_latest_version,
        ota_progress, bridge_fingerprint, ota_fingerprint, updated_at,
        bridge_adapter_type, bridge_firmware_version, bridge_channel,
        bridge_pan_id, bridge_extended_pan_id, bridge_zigbee2mqtt_version,
@@ -123,18 +121,6 @@ WHERE definition_supports_ota = true
   AND ota_latest_version IS NOT NULL
   AND ota_latest_version != -1
 ORDER BY device_id;
-
--- name: ListZigbeeProviderGroupsForDevice :many
-SELECT g.id, g.provider_group_id,
-       COALESCE(NULLIF(g.name, ''), NULLIF(g.friendly_name, ''), g.id) AS display_name,
-       gm.provider_endpoint
-FROM groups g
-JOIN group_members gm ON gm.group_id = g.id
-WHERE g.provider = 'zigbee2mqtt'
-  AND g.removed = false
-  AND gm.member_type = 'device'
-  AND gm.member_id = ?
-ORDER BY g.id, gm.provider_endpoint;
 
 -- name: DeleteZigbeeDeviceMetadata :exec
 DELETE FROM zigbee_device_metadata WHERE device_id = ?;

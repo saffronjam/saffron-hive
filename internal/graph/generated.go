@@ -874,14 +874,6 @@ type ComplexityRoot struct {
 		SecretPath func(childComplexity int) int
 	}
 
-	Zigbee2MqttBinding struct {
-		Cluster           func(childComplexity int) int
-		TargetEndpoint    func(childComplexity int) int
-		TargetGroupID     func(childComplexity int) int
-		TargetIeeeAddress func(childComplexity int) int
-		TargetType        func(childComplexity int) int
-	}
-
 	Zigbee2MqttBridgeInfo struct {
 		AdapterType                     func(childComplexity int) int
 		Channel                         func(childComplexity int) int
@@ -937,8 +929,6 @@ type ComplexityRoot struct {
 		DefinitionURL      func(childComplexity int) int
 		Description        func(childComplexity int) int
 		Documentation      func(childComplexity int) int
-		Endpoints          func(childComplexity int) int
-		Groups             func(childComplexity int) int
 		IeeeAddress        func(childComplexity int) int
 		ImageCandidate     func(childComplexity int) int
 		ImageVersion       func(childComplexity int) int
@@ -955,36 +945,11 @@ type ComplexityRoot struct {
 		Supported          func(childComplexity int) int
 	}
 
-	Zigbee2MqttEndpoint struct {
-		Bindings       func(childComplexity int) int
-		DeviceID       func(childComplexity int) int
-		ID             func(childComplexity int) int
-		InputClusters  func(childComplexity int) int
-		OutputClusters func(childComplexity int) int
-		ProfileID      func(childComplexity int) int
-		Reportings     func(childComplexity int) int
-	}
-
-	Zigbee2MqttGroupReference struct {
-		Endpoint        func(childComplexity int) int
-		ID              func(childComplexity int) int
-		Name            func(childComplexity int) int
-		ProviderGroupID func(childComplexity int) int
-	}
-
 	Zigbee2MqttOtaStatus struct {
 		InstalledVersion func(childComplexity int) int
 		LatestVersion    func(childComplexity int) int
 		Progress         func(childComplexity int) int
 		State            func(childComplexity int) int
-	}
-
-	Zigbee2MqttReporting struct {
-		Attribute             func(childComplexity int) int
-		Cluster               func(childComplexity int) int
-		MaximumReportInterval func(childComplexity int) int
-		MinimumReportInterval func(childComplexity int) int
-		ReportableChange      func(childComplexity int) int
 	}
 }
 
@@ -5213,37 +5178,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.WebhookSecretResult.SecretPath(childComplexity), true
 
-	case "Zigbee2MqttBinding.cluster":
-		if e.ComplexityRoot.Zigbee2MqttBinding.Cluster == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttBinding.Cluster(childComplexity), true
-	case "Zigbee2MqttBinding.targetEndpoint":
-		if e.ComplexityRoot.Zigbee2MqttBinding.TargetEndpoint == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttBinding.TargetEndpoint(childComplexity), true
-	case "Zigbee2MqttBinding.targetGroupId":
-		if e.ComplexityRoot.Zigbee2MqttBinding.TargetGroupID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttBinding.TargetGroupID(childComplexity), true
-	case "Zigbee2MqttBinding.targetIeeeAddress":
-		if e.ComplexityRoot.Zigbee2MqttBinding.TargetIeeeAddress == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttBinding.TargetIeeeAddress(childComplexity), true
-	case "Zigbee2MqttBinding.targetType":
-		if e.ComplexityRoot.Zigbee2MqttBinding.TargetType == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttBinding.TargetType(childComplexity), true
-
 	case "Zigbee2MqttBridgeInfo.adapterType":
 		if e.ComplexityRoot.Zigbee2MqttBridgeInfo.AdapterType == nil {
 			break
@@ -5500,18 +5434,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Zigbee2MqttDeviceMetadata.Documentation(childComplexity), true
-	case "Zigbee2MqttDeviceMetadata.endpoints":
-		if e.ComplexityRoot.Zigbee2MqttDeviceMetadata.Endpoints == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttDeviceMetadata.Endpoints(childComplexity), true
-	case "Zigbee2MqttDeviceMetadata.groups":
-		if e.ComplexityRoot.Zigbee2MqttDeviceMetadata.Groups == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttDeviceMetadata.Groups(childComplexity), true
 	case "Zigbee2MqttDeviceMetadata.ieeeAddress":
 		if e.ComplexityRoot.Zigbee2MqttDeviceMetadata.IeeeAddress == nil {
 			break
@@ -5597,74 +5519,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Zigbee2MqttDeviceMetadata.Supported(childComplexity), true
 
-	case "Zigbee2MqttEndpoint.bindings":
-		if e.ComplexityRoot.Zigbee2MqttEndpoint.Bindings == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttEndpoint.Bindings(childComplexity), true
-	case "Zigbee2MqttEndpoint.deviceId":
-		if e.ComplexityRoot.Zigbee2MqttEndpoint.DeviceID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttEndpoint.DeviceID(childComplexity), true
-	case "Zigbee2MqttEndpoint.id":
-		if e.ComplexityRoot.Zigbee2MqttEndpoint.ID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttEndpoint.ID(childComplexity), true
-	case "Zigbee2MqttEndpoint.inputClusters":
-		if e.ComplexityRoot.Zigbee2MqttEndpoint.InputClusters == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttEndpoint.InputClusters(childComplexity), true
-	case "Zigbee2MqttEndpoint.outputClusters":
-		if e.ComplexityRoot.Zigbee2MqttEndpoint.OutputClusters == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttEndpoint.OutputClusters(childComplexity), true
-	case "Zigbee2MqttEndpoint.profileId":
-		if e.ComplexityRoot.Zigbee2MqttEndpoint.ProfileID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttEndpoint.ProfileID(childComplexity), true
-	case "Zigbee2MqttEndpoint.reportings":
-		if e.ComplexityRoot.Zigbee2MqttEndpoint.Reportings == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttEndpoint.Reportings(childComplexity), true
-
-	case "Zigbee2MqttGroupReference.endpoint":
-		if e.ComplexityRoot.Zigbee2MqttGroupReference.Endpoint == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttGroupReference.Endpoint(childComplexity), true
-	case "Zigbee2MqttGroupReference.id":
-		if e.ComplexityRoot.Zigbee2MqttGroupReference.ID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttGroupReference.ID(childComplexity), true
-	case "Zigbee2MqttGroupReference.name":
-		if e.ComplexityRoot.Zigbee2MqttGroupReference.Name == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttGroupReference.Name(childComplexity), true
-	case "Zigbee2MqttGroupReference.providerGroupId":
-		if e.ComplexityRoot.Zigbee2MqttGroupReference.ProviderGroupID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttGroupReference.ProviderGroupID(childComplexity), true
-
 	case "Zigbee2MqttOtaStatus.installedVersion":
 		if e.ComplexityRoot.Zigbee2MqttOtaStatus.InstalledVersion == nil {
 			break
@@ -5689,37 +5543,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Zigbee2MqttOtaStatus.State(childComplexity), true
-
-	case "Zigbee2MqttReporting.attribute":
-		if e.ComplexityRoot.Zigbee2MqttReporting.Attribute == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttReporting.Attribute(childComplexity), true
-	case "Zigbee2MqttReporting.cluster":
-		if e.ComplexityRoot.Zigbee2MqttReporting.Cluster == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttReporting.Cluster(childComplexity), true
-	case "Zigbee2MqttReporting.maximumReportInterval":
-		if e.ComplexityRoot.Zigbee2MqttReporting.MaximumReportInterval == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttReporting.MaximumReportInterval(childComplexity), true
-	case "Zigbee2MqttReporting.minimumReportInterval":
-		if e.ComplexityRoot.Zigbee2MqttReporting.MinimumReportInterval == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttReporting.MinimumReportInterval(childComplexity), true
-	case "Zigbee2MqttReporting.reportableChange":
-		if e.ComplexityRoot.Zigbee2MqttReporting.ReportableChange == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttReporting.ReportableChange(childComplexity), true
 
 	}
 	return 0, false
@@ -6005,8 +5828,6 @@ type Zigbee2MqttDeviceMetadata {
   definitionUrl: String
   documentation: Zigbee2MqttDeviceDocumentation
   ota: Zigbee2MqttOtaStatus!
-  endpoints: [Zigbee2MqttEndpoint!]!
-  groups: [Zigbee2MqttGroupReference!]!
   bridgeInfo: Zigbee2MqttBridgeInfo
 }
 
@@ -6046,39 +5867,6 @@ type Zigbee2MqttOtaStatus {
   installedVersion: String
   latestVersion: String
   progress: Float
-}
-
-type Zigbee2MqttEndpoint {
-  id: Int!
-  profileId: Int
-  deviceId: Int
-  inputClusters: [String!]!
-  outputClusters: [String!]!
-  bindings: [Zigbee2MqttBinding!]!
-  reportings: [Zigbee2MqttReporting!]!
-}
-
-type Zigbee2MqttBinding {
-  cluster: String!
-  targetType: String!
-  targetIeeeAddress: String
-  targetEndpoint: Int
-  targetGroupId: Int
-}
-
-type Zigbee2MqttReporting {
-  cluster: String!
-  attribute: String!
-  minimumReportInterval: Int
-  maximumReportInterval: Int
-  reportableChange: Float
-}
-
-type Zigbee2MqttGroupReference {
-  id: ID!
-  providerGroupId: String!
-  name: String!
-  endpoint: Int!
 }
 
 enum ControlledLoadRole {
@@ -12543,10 +12331,6 @@ func (ec *executionContext) fieldContext_Device_zigbee2Mqtt(_ context.Context, f
 				return ec.fieldContext_Zigbee2MqttDeviceMetadata_documentation(ctx, field)
 			case "ota":
 				return ec.fieldContext_Zigbee2MqttDeviceMetadata_ota(ctx, field)
-			case "endpoints":
-				return ec.fieldContext_Zigbee2MqttDeviceMetadata_endpoints(ctx, field)
-			case "groups":
-				return ec.fieldContext_Zigbee2MqttDeviceMetadata_groups(ctx, field)
 			case "bridgeInfo":
 				return ec.fieldContext_Zigbee2MqttDeviceMetadata_bridgeInfo(ctx, field)
 			}
@@ -32530,151 +32314,6 @@ func (ec *executionContext) fieldContext_WebhookSecretResult_secretPath(_ contex
 	return fc, nil
 }
 
-func (ec *executionContext) _Zigbee2MqttBinding_cluster(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttBinding) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttBinding_cluster,
-		func(ctx context.Context) (any, error) {
-			return obj.Cluster, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttBinding_cluster(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttBinding",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttBinding_targetType(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttBinding) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttBinding_targetType,
-		func(ctx context.Context) (any, error) {
-			return obj.TargetType, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttBinding_targetType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttBinding",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttBinding_targetIeeeAddress(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttBinding) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttBinding_targetIeeeAddress,
-		func(ctx context.Context) (any, error) {
-			return obj.TargetIeeeAddress, nil
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttBinding_targetIeeeAddress(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttBinding",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttBinding_targetEndpoint(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttBinding) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttBinding_targetEndpoint,
-		func(ctx context.Context) (any, error) {
-			return obj.TargetEndpoint, nil
-		},
-		nil,
-		ec.marshalOInt2ᚖint,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttBinding_targetEndpoint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttBinding",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttBinding_targetGroupId(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttBinding) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttBinding_targetGroupId,
-		func(ctx context.Context) (any, error) {
-			return obj.TargetGroupID, nil
-		},
-		nil,
-		ec.marshalOInt2ᚖint,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttBinding_targetGroupId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttBinding",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Zigbee2MqttBridgeInfo_adapterType(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttBridgeInfo) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -34310,90 +33949,6 @@ func (ec *executionContext) fieldContext_Zigbee2MqttDeviceMetadata_ota(_ context
 	return fc, nil
 }
 
-func (ec *executionContext) _Zigbee2MqttDeviceMetadata_endpoints(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceMetadata) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttDeviceMetadata_endpoints,
-		func(ctx context.Context) (any, error) {
-			return obj.Endpoints, nil
-		},
-		nil,
-		ec.marshalNZigbee2MqttEndpoint2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttEndpointᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttDeviceMetadata_endpoints(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttDeviceMetadata",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Zigbee2MqttEndpoint_id(ctx, field)
-			case "profileId":
-				return ec.fieldContext_Zigbee2MqttEndpoint_profileId(ctx, field)
-			case "deviceId":
-				return ec.fieldContext_Zigbee2MqttEndpoint_deviceId(ctx, field)
-			case "inputClusters":
-				return ec.fieldContext_Zigbee2MqttEndpoint_inputClusters(ctx, field)
-			case "outputClusters":
-				return ec.fieldContext_Zigbee2MqttEndpoint_outputClusters(ctx, field)
-			case "bindings":
-				return ec.fieldContext_Zigbee2MqttEndpoint_bindings(ctx, field)
-			case "reportings":
-				return ec.fieldContext_Zigbee2MqttEndpoint_reportings(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttEndpoint", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttDeviceMetadata_groups(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceMetadata) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttDeviceMetadata_groups,
-		func(ctx context.Context) (any, error) {
-			return obj.Groups, nil
-		},
-		nil,
-		ec.marshalNZigbee2MqttGroupReference2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttGroupReferenceᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttDeviceMetadata_groups(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttDeviceMetadata",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Zigbee2MqttGroupReference_id(ctx, field)
-			case "providerGroupId":
-				return ec.fieldContext_Zigbee2MqttGroupReference_providerGroupId(ctx, field)
-			case "name":
-				return ec.fieldContext_Zigbee2MqttGroupReference_name(ctx, field)
-			case "endpoint":
-				return ec.fieldContext_Zigbee2MqttGroupReference_endpoint(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttGroupReference", field.Name)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Zigbee2MqttDeviceMetadata_bridgeInfo(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceMetadata) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -34438,349 +33993,6 @@ func (ec *executionContext) fieldContext_Zigbee2MqttDeviceMetadata_bridgeInfo(_ 
 				return ec.fieldContext_Zigbee2MqttBridgeInfo_zigbeeHerdsmanConvertersVersion(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttBridgeInfo", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttEndpoint_id(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttEndpoint) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttEndpoint_id,
-		func(ctx context.Context) (any, error) {
-			return obj.ID, nil
-		},
-		nil,
-		ec.marshalNInt2int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttEndpoint_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttEndpoint",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttEndpoint_profileId(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttEndpoint) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttEndpoint_profileId,
-		func(ctx context.Context) (any, error) {
-			return obj.ProfileID, nil
-		},
-		nil,
-		ec.marshalOInt2ᚖint,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttEndpoint_profileId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttEndpoint",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttEndpoint_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttEndpoint) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttEndpoint_deviceId,
-		func(ctx context.Context) (any, error) {
-			return obj.DeviceID, nil
-		},
-		nil,
-		ec.marshalOInt2ᚖint,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttEndpoint_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttEndpoint",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttEndpoint_inputClusters(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttEndpoint) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttEndpoint_inputClusters,
-		func(ctx context.Context) (any, error) {
-			return obj.InputClusters, nil
-		},
-		nil,
-		ec.marshalNString2ᚕstringᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttEndpoint_inputClusters(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttEndpoint",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttEndpoint_outputClusters(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttEndpoint) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttEndpoint_outputClusters,
-		func(ctx context.Context) (any, error) {
-			return obj.OutputClusters, nil
-		},
-		nil,
-		ec.marshalNString2ᚕstringᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttEndpoint_outputClusters(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttEndpoint",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttEndpoint_bindings(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttEndpoint) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttEndpoint_bindings,
-		func(ctx context.Context) (any, error) {
-			return obj.Bindings, nil
-		},
-		nil,
-		ec.marshalNZigbee2MqttBinding2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttBindingᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttEndpoint_bindings(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttEndpoint",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "cluster":
-				return ec.fieldContext_Zigbee2MqttBinding_cluster(ctx, field)
-			case "targetType":
-				return ec.fieldContext_Zigbee2MqttBinding_targetType(ctx, field)
-			case "targetIeeeAddress":
-				return ec.fieldContext_Zigbee2MqttBinding_targetIeeeAddress(ctx, field)
-			case "targetEndpoint":
-				return ec.fieldContext_Zigbee2MqttBinding_targetEndpoint(ctx, field)
-			case "targetGroupId":
-				return ec.fieldContext_Zigbee2MqttBinding_targetGroupId(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttBinding", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttEndpoint_reportings(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttEndpoint) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttEndpoint_reportings,
-		func(ctx context.Context) (any, error) {
-			return obj.Reportings, nil
-		},
-		nil,
-		ec.marshalNZigbee2MqttReporting2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttReportingᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttEndpoint_reportings(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttEndpoint",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "cluster":
-				return ec.fieldContext_Zigbee2MqttReporting_cluster(ctx, field)
-			case "attribute":
-				return ec.fieldContext_Zigbee2MqttReporting_attribute(ctx, field)
-			case "minimumReportInterval":
-				return ec.fieldContext_Zigbee2MqttReporting_minimumReportInterval(ctx, field)
-			case "maximumReportInterval":
-				return ec.fieldContext_Zigbee2MqttReporting_maximumReportInterval(ctx, field)
-			case "reportableChange":
-				return ec.fieldContext_Zigbee2MqttReporting_reportableChange(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttReporting", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttGroupReference_id(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttGroupReference) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttGroupReference_id,
-		func(ctx context.Context) (any, error) {
-			return obj.ID, nil
-		},
-		nil,
-		ec.marshalNID2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttGroupReference_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttGroupReference",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttGroupReference_providerGroupId(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttGroupReference) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttGroupReference_providerGroupId,
-		func(ctx context.Context) (any, error) {
-			return obj.ProviderGroupID, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttGroupReference_providerGroupId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttGroupReference",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttGroupReference_name(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttGroupReference) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttGroupReference_name,
-		func(ctx context.Context) (any, error) {
-			return obj.Name, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttGroupReference_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttGroupReference",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttGroupReference_endpoint(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttGroupReference) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttGroupReference_endpoint,
-		func(ctx context.Context) (any, error) {
-			return obj.Endpoint, nil
-		},
-		nil,
-		ec.marshalNInt2int,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttGroupReference_endpoint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttGroupReference",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -34892,151 +34104,6 @@ func (ec *executionContext) _Zigbee2MqttOtaStatus_progress(ctx context.Context, 
 func (ec *executionContext) fieldContext_Zigbee2MqttOtaStatus_progress(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Zigbee2MqttOtaStatus",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Float does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttReporting_cluster(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttReporting) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttReporting_cluster,
-		func(ctx context.Context) (any, error) {
-			return obj.Cluster, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttReporting_cluster(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttReporting",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttReporting_attribute(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttReporting) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttReporting_attribute,
-		func(ctx context.Context) (any, error) {
-			return obj.Attribute, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttReporting_attribute(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttReporting",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttReporting_minimumReportInterval(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttReporting) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttReporting_minimumReportInterval,
-		func(ctx context.Context) (any, error) {
-			return obj.MinimumReportInterval, nil
-		},
-		nil,
-		ec.marshalOInt2ᚖint,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttReporting_minimumReportInterval(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttReporting",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttReporting_maximumReportInterval(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttReporting) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttReporting_maximumReportInterval,
-		func(ctx context.Context) (any, error) {
-			return obj.MaximumReportInterval, nil
-		},
-		nil,
-		ec.marshalOInt2ᚖint,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttReporting_maximumReportInterval(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttReporting",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttReporting_reportableChange(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttReporting) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttReporting_reportableChange,
-		func(ctx context.Context) (any, error) {
-			return obj.ReportableChange, nil
-		},
-		nil,
-		ec.marshalOFloat2ᚖfloat64,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttReporting_reportableChange(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttReporting",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -46064,56 +45131,6 @@ func (ec *executionContext) _WebhookSecretResult(ctx context.Context, sel ast.Se
 	return out
 }
 
-var zigbee2MqttBindingImplementors = []string{"Zigbee2MqttBinding"}
-
-func (ec *executionContext) _Zigbee2MqttBinding(ctx context.Context, sel ast.SelectionSet, obj *model.Zigbee2MqttBinding) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, zigbee2MqttBindingImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("Zigbee2MqttBinding")
-		case "cluster":
-			out.Values[i] = ec._Zigbee2MqttBinding_cluster(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "targetType":
-			out.Values[i] = ec._Zigbee2MqttBinding_targetType(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "targetIeeeAddress":
-			out.Values[i] = ec._Zigbee2MqttBinding_targetIeeeAddress(ctx, field, obj)
-		case "targetEndpoint":
-			out.Values[i] = ec._Zigbee2MqttBinding_targetEndpoint(ctx, field, obj)
-		case "targetGroupId":
-			out.Values[i] = ec._Zigbee2MqttBinding_targetGroupId(ctx, field, obj)
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var zigbee2MqttBridgeInfoImplementors = []string{"Zigbee2MqttBridgeInfo"}
 
 func (ec *executionContext) _Zigbee2MqttBridgeInfo(ctx context.Context, sel ast.SelectionSet, obj *model.Zigbee2MqttBridgeInfo) graphql.Marshaler {
@@ -46444,135 +45461,8 @@ func (ec *executionContext) _Zigbee2MqttDeviceMetadata(ctx context.Context, sel 
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "endpoints":
-			out.Values[i] = ec._Zigbee2MqttDeviceMetadata_endpoints(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "groups":
-			out.Values[i] = ec._Zigbee2MqttDeviceMetadata_groups(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
 		case "bridgeInfo":
 			out.Values[i] = ec._Zigbee2MqttDeviceMetadata_bridgeInfo(ctx, field, obj)
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var zigbee2MqttEndpointImplementors = []string{"Zigbee2MqttEndpoint"}
-
-func (ec *executionContext) _Zigbee2MqttEndpoint(ctx context.Context, sel ast.SelectionSet, obj *model.Zigbee2MqttEndpoint) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, zigbee2MqttEndpointImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("Zigbee2MqttEndpoint")
-		case "id":
-			out.Values[i] = ec._Zigbee2MqttEndpoint_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "profileId":
-			out.Values[i] = ec._Zigbee2MqttEndpoint_profileId(ctx, field, obj)
-		case "deviceId":
-			out.Values[i] = ec._Zigbee2MqttEndpoint_deviceId(ctx, field, obj)
-		case "inputClusters":
-			out.Values[i] = ec._Zigbee2MqttEndpoint_inputClusters(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "outputClusters":
-			out.Values[i] = ec._Zigbee2MqttEndpoint_outputClusters(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "bindings":
-			out.Values[i] = ec._Zigbee2MqttEndpoint_bindings(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "reportings":
-			out.Values[i] = ec._Zigbee2MqttEndpoint_reportings(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var zigbee2MqttGroupReferenceImplementors = []string{"Zigbee2MqttGroupReference"}
-
-func (ec *executionContext) _Zigbee2MqttGroupReference(ctx context.Context, sel ast.SelectionSet, obj *model.Zigbee2MqttGroupReference) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, zigbee2MqttGroupReferenceImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("Zigbee2MqttGroupReference")
-		case "id":
-			out.Values[i] = ec._Zigbee2MqttGroupReference_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "providerGroupId":
-			out.Values[i] = ec._Zigbee2MqttGroupReference_providerGroupId(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "name":
-			out.Values[i] = ec._Zigbee2MqttGroupReference_name(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "endpoint":
-			out.Values[i] = ec._Zigbee2MqttGroupReference_endpoint(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -46615,56 +45505,6 @@ func (ec *executionContext) _Zigbee2MqttOtaStatus(ctx context.Context, sel ast.S
 			out.Values[i] = ec._Zigbee2MqttOtaStatus_latestVersion(ctx, field, obj)
 		case "progress":
 			out.Values[i] = ec._Zigbee2MqttOtaStatus_progress(ctx, field, obj)
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var zigbee2MqttReportingImplementors = []string{"Zigbee2MqttReporting"}
-
-func (ec *executionContext) _Zigbee2MqttReporting(ctx context.Context, sel ast.SelectionSet, obj *model.Zigbee2MqttReporting) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, zigbee2MqttReportingImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("Zigbee2MqttReporting")
-		case "cluster":
-			out.Values[i] = ec._Zigbee2MqttReporting_cluster(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "attribute":
-			out.Values[i] = ec._Zigbee2MqttReporting_attribute(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "minimumReportInterval":
-			out.Values[i] = ec._Zigbee2MqttReporting_minimumReportInterval(ctx, field, obj)
-		case "maximumReportInterval":
-			out.Values[i] = ec._Zigbee2MqttReporting_maximumReportInterval(ctx, field, obj)
-		case "reportableChange":
-			out.Values[i] = ec._Zigbee2MqttReporting_reportableChange(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -49803,32 +48643,6 @@ func (ec *executionContext) marshalNWebhookSecretResult2ᚖgithubᚗcomᚋsaffro
 	return ec._WebhookSecretResult(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNZigbee2MqttBinding2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttBindingᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Zigbee2MqttBinding) graphql.Marshaler {
-	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
-		fc := graphql.GetFieldContext(ctx)
-		fc.Result = &v[i]
-		return ec.marshalNZigbee2MqttBinding2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttBinding(ctx, sel, v[i])
-	})
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNZigbee2MqttBinding2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttBinding(ctx context.Context, sel ast.SelectionSet, v *model.Zigbee2MqttBinding) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._Zigbee2MqttBinding(ctx, sel, v)
-}
-
 func (ec *executionContext) marshalNZigbee2MqttConfig2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfig(ctx context.Context, sel ast.SelectionSet, v model.Zigbee2MqttConfig) graphql.Marshaler {
 	return ec._Zigbee2MqttConfig(ctx, sel, &v)
 }
@@ -49848,58 +48662,6 @@ func (ec *executionContext) unmarshalNZigbee2MqttConfigInput2githubᚗcomᚋsaff
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNZigbee2MqttEndpoint2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttEndpointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Zigbee2MqttEndpoint) graphql.Marshaler {
-	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
-		fc := graphql.GetFieldContext(ctx)
-		fc.Result = &v[i]
-		return ec.marshalNZigbee2MqttEndpoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttEndpoint(ctx, sel, v[i])
-	})
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNZigbee2MqttEndpoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttEndpoint(ctx context.Context, sel ast.SelectionSet, v *model.Zigbee2MqttEndpoint) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._Zigbee2MqttEndpoint(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNZigbee2MqttGroupReference2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttGroupReferenceᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Zigbee2MqttGroupReference) graphql.Marshaler {
-	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
-		fc := graphql.GetFieldContext(ctx)
-		fc.Result = &v[i]
-		return ec.marshalNZigbee2MqttGroupReference2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttGroupReference(ctx, sel, v[i])
-	})
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNZigbee2MqttGroupReference2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttGroupReference(ctx context.Context, sel ast.SelectionSet, v *model.Zigbee2MqttGroupReference) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._Zigbee2MqttGroupReference(ctx, sel, v)
-}
-
 func (ec *executionContext) marshalNZigbee2MqttOtaStatus2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttOtaStatus(ctx context.Context, sel ast.SelectionSet, v *model.Zigbee2MqttOtaStatus) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -49908,32 +48670,6 @@ func (ec *executionContext) marshalNZigbee2MqttOtaStatus2ᚖgithubᚗcomᚋsaffr
 		return graphql.Null
 	}
 	return ec._Zigbee2MqttOtaStatus(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNZigbee2MqttReporting2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttReportingᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Zigbee2MqttReporting) graphql.Marshaler {
-	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
-		fc := graphql.GetFieldContext(ctx)
-		fc.Result = &v[i]
-		return ec.marshalNZigbee2MqttReporting2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttReporting(ctx, sel, v[i])
-	})
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNZigbee2MqttReporting2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttReporting(ctx context.Context, sel ast.SelectionSet, v *model.Zigbee2MqttReporting) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._Zigbee2MqttReporting(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {

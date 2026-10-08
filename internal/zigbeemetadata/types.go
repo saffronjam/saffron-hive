@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -14,7 +13,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
-// Metadata is the Zigbee-specific identity and endpoint description for one
+// Metadata is the Zigbee-specific identity and network description for one
 // generic device. OTA fields are merged independently from bridge metadata.
 type Metadata struct {
 	DeviceID           device.DeviceID
@@ -33,9 +32,7 @@ type Metadata struct {
 	DateCode           *string
 	Definition         *Definition
 	BridgeInfo         *BridgeInfo
-	Endpoints          []Endpoint
 	OTA                OTAStatus
-	Groups             []GroupReference
 	BridgeFingerprint  string
 	OTAFingerprint     string
 	UpdatedAt          time.Time
@@ -66,50 +63,12 @@ type Definition struct {
 	SupportsOTA *bool   `json:"supportsOta,omitempty"`
 }
 
-// Endpoint is one Zigbee endpoint and its configured cluster relationships.
-type Endpoint struct {
-	ID             int         `json:"id"`
-	ProfileID      *int        `json:"profileId,omitempty"`
-	DeviceID       *int        `json:"deviceId,omitempty"`
-	InputClusters  []string    `json:"inputClusters"`
-	OutputClusters []string    `json:"outputClusters"`
-	Bindings       []Binding   `json:"bindings"`
-	Reportings     []Reporting `json:"reportings"`
-}
-
-// Binding is a cluster binding from one endpoint to another endpoint or group.
-type Binding struct {
-	Cluster           string  `json:"cluster"`
-	TargetType        string  `json:"targetType"`
-	TargetIEEEAddress *string `json:"targetIeeeAddress,omitempty"`
-	TargetEndpoint    *int    `json:"targetEndpoint,omitempty"`
-	TargetGroupID     *int    `json:"targetGroupId,omitempty"`
-}
-
-// Reporting is one configured Zigbee attribute-reporting rule.
-type Reporting struct {
-	Cluster               string   `json:"cluster"`
-	Attribute             string   `json:"attribute"`
-	MinimumReportInterval *int     `json:"minimumReportInterval,omitempty"`
-	MaximumReportInterval *int     `json:"maximumReportInterval,omitempty"`
-	ReportableChange      *float64 `json:"reportableChange,omitempty"`
-}
-
 // OTAStatus is the firmware status reported in a device state payload.
 type OTAStatus struct {
 	State            *string
 	InstalledVersion *int64
 	LatestVersion    *int64
 	Progress         *float64
-}
-
-// GroupReference describes a provider-owned Zigbee group containing a device
-// endpoint.
-type GroupReference struct {
-	ID              string
-	ProviderGroupID string
-	Name            string
-	Endpoint        int
 }
 
 type bridgeFingerprintShape struct {
@@ -128,7 +87,6 @@ type bridgeFingerprintShape struct {
 	SoftwareBuildID    *string         `json:"softwareBuildId,omitempty"`
 	DateCode           *string         `json:"dateCode,omitempty"`
 	Definition         *Definition     `json:"definition,omitempty"`
-	Endpoints          []Endpoint      `json:"endpoints"`
 }
 
 // Normalize returns a deterministic, display-safe metadata value.
@@ -169,41 +127,6 @@ func Normalize(in Metadata) Metadata {
 		out.BridgeInfo = &info
 	}
 	out.OTA.State = cleanStringPtr(in.OTA.State)
-	out.Endpoints = append([]Endpoint{}, in.Endpoints...)
-	for i := range out.Endpoints {
-		ep := &out.Endpoints[i]
-		ep.InputClusters = cleanSortedStrings(ep.InputClusters)
-		ep.OutputClusters = cleanSortedStrings(ep.OutputClusters)
-		ep.Bindings = append([]Binding{}, ep.Bindings...)
-		for j := range ep.Bindings {
-			ep.Bindings[j].Cluster = cleanString(ep.Bindings[j].Cluster)
-			ep.Bindings[j].TargetType = cleanString(ep.Bindings[j].TargetType)
-			ep.Bindings[j].TargetIEEEAddress = cleanStringPtr(ep.Bindings[j].TargetIEEEAddress)
-		}
-		sort.Slice(ep.Bindings, func(a, b int) bool {
-			left, _ := json.Marshal(ep.Bindings[a])
-			right, _ := json.Marshal(ep.Bindings[b])
-			return string(left) < string(right)
-		})
-		ep.Reportings = append([]Reporting{}, ep.Reportings...)
-		for j := range ep.Reportings {
-			ep.Reportings[j].Cluster = cleanString(ep.Reportings[j].Cluster)
-			ep.Reportings[j].Attribute = cleanString(ep.Reportings[j].Attribute)
-		}
-		sort.Slice(ep.Reportings, func(a, b int) bool {
-			left, _ := json.Marshal(ep.Reportings[a])
-			right, _ := json.Marshal(ep.Reportings[b])
-			return string(left) < string(right)
-		})
-	}
-	sort.Slice(out.Endpoints, func(i, j int) bool { return out.Endpoints[i].ID < out.Endpoints[j].ID })
-	out.Groups = append([]GroupReference{}, in.Groups...)
-	sort.Slice(out.Groups, func(i, j int) bool {
-		if out.Groups[i].ID == out.Groups[j].ID {
-			return out.Groups[i].Endpoint < out.Groups[j].Endpoint
-		}
-		return out.Groups[i].ID < out.Groups[j].ID
-	})
 	out.BridgeFingerprint = out.ComputeBridgeFingerprint()
 	out.OTAFingerprint = ComputeOTAFingerprint(out.OTA)
 	return out
@@ -227,7 +150,7 @@ func (m Metadata) ComputeBridgeFingerprint() string {
 		Interviewing: m.Interviewing, Description: m.Description,
 		Manufacturer: m.Manufacturer, ModelID: m.ModelID, PowerSource: m.PowerSource,
 		SoftwareBuildID: m.SoftwareBuildID, DateCode: m.DateCode,
-		Definition: m.Definition, Endpoints: m.Endpoints,
+		Definition: m.Definition,
 	}
 	b, _ := json.Marshal(shape)
 	return hashBytes(b)
@@ -242,20 +165,6 @@ func ComputeOTAFingerprint(status OTAStatus) string {
 func hashBytes(b []byte) string {
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])
-}
-
-func cleanSortedStrings(values []string) []string {
-	if len(values) == 0 {
-		return []string{}
-	}
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		if value = cleanString(value); value != "" {
-			out = append(out, value)
-		}
-	}
-	sort.Strings(out)
-	return out
 }
 
 func cleanStringPtr(value *string) *string {

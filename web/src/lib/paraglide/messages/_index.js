@@ -427,7 +427,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Common_In_ProgressInputs */
 /** @typedef {{}} Common_LoadingInputs */
 /** @typedef {{}} Common_NoInputs */
-/** @typedef {{}} Common_NoneInputs */
 /** @typedef {{}} Common_PasteInputs */
 /** @typedef {{}} Common_RemoveInputs */
 /** @typedef {{}} Common_SaveInputs */
@@ -1725,14 +1724,10 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Webhooks_Window_MsInputs */
 /** @typedef {{}} Zigbee_AdapterInputs */
 /** @typedef {{}} Zigbee_Address_VendorInputs */
-/** @typedef {{}} Zigbee_AttributeInputs */
 /** @typedef {{}} Zigbee_Battery_TypeInputs */
-/** @typedef {{}} Zigbee_BindingsInputs */
 /** @typedef {{}} Zigbee_Broker_AddressInputs */
-/** @typedef {{}} Zigbee_ChangeInputs */
 /** @typedef {{}} Zigbee_ChannelInputs */
 /** @typedef {{}} Zigbee_Check_ConnectionInputs */
-/** @typedef {{}} Zigbee_ClusterInputs */
 /** @typedef {{}} Zigbee_Command_TrafficInputs */
 /** @typedef {{}} Zigbee_Command_Traffic_AboutInputs */
 /** @typedef {{}} Zigbee_Command_Traffic_HelpInputs */
@@ -1750,23 +1745,15 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Zigbee_Date_CodeInputs */
 /** @typedef {{}} Zigbee_DefinitionInputs */
 /** @typedef {{}} Zigbee_DescriptionInputs */
-/** @typedef {{}} Zigbee_DetailsInputs */
 /** @typedef {{}} Zigbee_DeviceInputs */
 /** @typedef {{}} Zigbee_EnabledInputs */
-/** @typedef {{}} Zigbee_EndpointInputs */
-/** @typedef {{ id: NonNullable<unknown> }} Zigbee_Endpoint_NamedInputs */
-/** @typedef {{}} Zigbee_EndpointsInputs */
 /** @typedef {{}} Zigbee_Extended_Pan_IdInputs */
 /** @typedef {{}} Zigbee_FirmwareInputs */
 /** @typedef {{}} Zigbee_Frontend_UrlInputs */
 /** @typedef {{}} Zigbee_Frontend_Url_HelpInputs */
 /** @typedef {{}} Zigbee_Frontend_Url_InvalidInputs */
 /** @typedef {{}} Zigbee_Frontend_Url_RestrictedInputs */
-/** @typedef {{}} Zigbee_Group_IdInputs */
-/** @typedef {{ id: NonNullable<unknown> }} Zigbee_Group_NamedInputs */
-/** @typedef {{}} Zigbee_GroupsInputs */
 /** @typedef {{}} Zigbee_Ieee_AddressInputs */
-/** @typedef {{}} Zigbee_Input_ClustersInputs */
 /** @typedef {{}} Zigbee_IntegrationInputs */
 /** @typedef {{}} Zigbee_Interactive_RateInputs */
 /** @typedef {{}} Zigbee_Interactive_Rate_AboutInputs */
@@ -1774,8 +1761,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Zigbee_InterviewInputs */
 /** @typedef {{ time: NonNullable<unknown> }} Zigbee_Last_ScannedInputs */
 /** @typedef {{}} Zigbee_ManufacturerInputs */
-/** @typedef {{}} Zigbee_MaxInputs */
-/** @typedef {{}} Zigbee_MinInputs */
 /** @typedef {{}} Zigbee_ModelInputs */
 /** @typedef {{}} Zigbee_Model_IdInputs */
 /** @typedef {{}} Zigbee_Mqtt_TopicInputs */
@@ -1783,25 +1768,18 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Zigbee_Network_AddressInputs */
 /** @typedef {{}} Zigbee_Network_RoleInputs */
 /** @typedef {{}} Zigbee_Never_ScannedInputs */
-/** @typedef {{}} Zigbee_No_BindingsInputs */
-/** @typedef {{}} Zigbee_No_EndpointsInputs */
-/** @typedef {{}} Zigbee_No_ReportingInputs */
-/** @typedef {{}} Zigbee_Not_In_GroupInputs */
 /** @typedef {{}} Zigbee_OptionalInputs */
 /** @typedef {{ state: NonNullable<unknown>, progress: NonNullable<unknown> }} Zigbee_Ota_ProgressInputs */
 /** @typedef {{ state: NonNullable<unknown>, version: NonNullable<unknown> }} Zigbee_Ota_VersionInputs */
 /** @typedef {{ state: NonNullable<unknown>, version: NonNullable<unknown>, progress: NonNullable<unknown> }} Zigbee_Ota_Version_ProgressInputs */
-/** @typedef {{}} Zigbee_Output_ClustersInputs */
 /** @typedef {{}} Zigbee_Pan_IdInputs */
 /** @typedef {{}} Zigbee_PasswordInputs */
 /** @typedef {{}} Zigbee_Password_KeepInputs */
 /** @typedef {{}} Zigbee_Power_SourceInputs */
-/** @typedef {{}} Zigbee_Profile_IdInputs */
 /** @typedef {{}} Zigbee_Rate_Continuous_InvalidInputs */
 /** @typedef {{}} Zigbee_Rate_Interactive_InvalidInputs */
 /** @typedef {{}} Zigbee_Rate_Order_InvalidInputs */
 /** @typedef {{}} Zigbee_Reconnect_HelpInputs */
-/** @typedef {{}} Zigbee_ReportingInputs */
 /** @typedef {{}} Zigbee_Runs_Daily_AtInputs */
 /** @typedef {{}} Zigbee_Scan_CompleteInputs */
 /** @typedef {{}} Zigbee_Scan_HourInputs */
@@ -1812,7 +1790,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Zigbee_Scheduled_ScanInputs */
 /** @typedef {{}} Zigbee_Software_BuildInputs */
 /** @typedef {{}} Zigbee_SupportInputs */
-/** @typedef {{}} Zigbee_TargetInputs */
 /** @typedef {{}} Zigbee_TopologyInputs */
 /** @typedef {{}} Zigbee_Topology_AboutInputs */
 /** @typedef {{}} Zigbee_Topology_HelpInputs */
@@ -8207,21 +8184,6 @@ export const common_no = /** @type {((inputs?: Common_NoInputs, options?: { loca
 	if (locale === "sv") return __sv.common_no(inputs)
 	if (locale === "ru") return __ru.common_no(inputs)
 	return __en.common_no(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "None" |
-*
-* @param {Common_NoneInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const common_none = /** @type {((inputs?: Common_NoneInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Common_NoneInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.common_none(inputs)
-	if (locale === "ru") return __ru.common_none(inputs)
-	return __en.common_none(inputs)
 });
 /**
 * | output |
@@ -27747,21 +27709,6 @@ export const zigbee_address_vendor = /** @type {((inputs?: Zigbee_Address_Vendor
 /**
 * | output |
 * | --- |
-* | "Attribute" |
-*
-* @param {Zigbee_AttributeInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_attribute = /** @type {((inputs?: Zigbee_AttributeInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_AttributeInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_attribute(inputs)
-	if (locale === "ru") return __ru.zigbee_attribute(inputs)
-	return __en.zigbee_attribute(inputs)
-});
-/**
-* | output |
-* | --- |
 * | "Battery type" |
 *
 * @param {Zigbee_Battery_TypeInputs} inputs
@@ -27777,21 +27724,6 @@ export const zigbee_battery_type = /** @type {((inputs?: Zigbee_Battery_TypeInpu
 /**
 * | output |
 * | --- |
-* | "Bindings" |
-*
-* @param {Zigbee_BindingsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_bindings = /** @type {((inputs?: Zigbee_BindingsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_BindingsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_bindings(inputs)
-	if (locale === "ru") return __ru.zigbee_bindings(inputs)
-	return __en.zigbee_bindings(inputs)
-});
-/**
-* | output |
-* | --- |
 * | "Broker address" |
 *
 * @param {Zigbee_Broker_AddressInputs} inputs
@@ -27803,21 +27735,6 @@ export const zigbee_broker_address = /** @type {((inputs?: Zigbee_Broker_Address
 	if (locale === "sv") return __sv.zigbee_broker_address(inputs)
 	if (locale === "ru") return __ru.zigbee_broker_address(inputs)
 	return __en.zigbee_broker_address(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Change" |
-*
-* @param {Zigbee_ChangeInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_change = /** @type {((inputs?: Zigbee_ChangeInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_ChangeInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_change(inputs)
-	if (locale === "ru") return __ru.zigbee_change(inputs)
-	return __en.zigbee_change(inputs)
 });
 /**
 * | output |
@@ -27848,21 +27765,6 @@ export const zigbee_check_connection = /** @type {((inputs?: Zigbee_Check_Connec
 	if (locale === "sv") return __sv.zigbee_check_connection(inputs)
 	if (locale === "ru") return __ru.zigbee_check_connection(inputs)
 	return __en.zigbee_check_connection(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Cluster" |
-*
-* @param {Zigbee_ClusterInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_cluster = /** @type {((inputs?: Zigbee_ClusterInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_ClusterInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_cluster(inputs)
-	if (locale === "ru") return __ru.zigbee_cluster(inputs)
-	return __en.zigbee_cluster(inputs)
 });
 /**
 * | output |
@@ -28122,21 +28024,6 @@ export const zigbee_description = /** @type {((inputs?: Zigbee_DescriptionInputs
 /**
 * | output |
 * | --- |
-* | "Details" |
-*
-* @param {Zigbee_DetailsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_details = /** @type {((inputs?: Zigbee_DetailsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_DetailsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_details(inputs)
-	if (locale === "ru") return __ru.zigbee_details(inputs)
-	return __en.zigbee_details(inputs)
-});
-/**
-* | output |
-* | --- |
 * | "Device" |
 *
 * @param {Zigbee_DeviceInputs} inputs
@@ -28163,51 +28050,6 @@ export const zigbee_enabled = /** @type {((inputs?: Zigbee_EnabledInputs, option
 	if (locale === "sv") return __sv.zigbee_enabled(inputs)
 	if (locale === "ru") return __ru.zigbee_enabled(inputs)
 	return __en.zigbee_enabled(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Endpoint" |
-*
-* @param {Zigbee_EndpointInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_endpoint = /** @type {((inputs?: Zigbee_EndpointInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_EndpointInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_endpoint(inputs)
-	if (locale === "ru") return __ru.zigbee_endpoint(inputs)
-	return __en.zigbee_endpoint(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Endpoint {id}" |
-*
-* @param {Zigbee_Endpoint_NamedInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_endpoint_named = /** @type {((inputs: Zigbee_Endpoint_NamedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_Endpoint_NamedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_endpoint_named(inputs)
-	if (locale === "ru") return __ru.zigbee_endpoint_named(inputs)
-	return __en.zigbee_endpoint_named(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Endpoints" |
-*
-* @param {Zigbee_EndpointsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_endpoints = /** @type {((inputs?: Zigbee_EndpointsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_EndpointsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_endpoints(inputs)
-	if (locale === "ru") return __ru.zigbee_endpoints(inputs)
-	return __en.zigbee_endpoints(inputs)
 });
 /**
 * | output |
@@ -28302,51 +28144,6 @@ export const zigbee_frontend_url_restricted = /** @type {((inputs?: Zigbee_Front
 /**
 * | output |
 * | --- |
-* | "Group ID" |
-*
-* @param {Zigbee_Group_IdInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_group_id = /** @type {((inputs?: Zigbee_Group_IdInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_Group_IdInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_group_id(inputs)
-	if (locale === "ru") return __ru.zigbee_group_id(inputs)
-	return __en.zigbee_group_id(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Group {id}" |
-*
-* @param {Zigbee_Group_NamedInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_group_named = /** @type {((inputs: Zigbee_Group_NamedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_Group_NamedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_group_named(inputs)
-	if (locale === "ru") return __ru.zigbee_group_named(inputs)
-	return __en.zigbee_group_named(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Groups" |
-*
-* @param {Zigbee_GroupsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_groups = /** @type {((inputs?: Zigbee_GroupsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_GroupsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_groups(inputs)
-	if (locale === "ru") return __ru.zigbee_groups(inputs)
-	return __en.zigbee_groups(inputs)
-});
-/**
-* | output |
-* | --- |
 * | "IEEE address" |
 *
 * @param {Zigbee_Ieee_AddressInputs} inputs
@@ -28358,21 +28155,6 @@ export const zigbee_ieee_address = /** @type {((inputs?: Zigbee_Ieee_AddressInpu
 	if (locale === "sv") return __sv.zigbee_ieee_address(inputs)
 	if (locale === "ru") return __ru.zigbee_ieee_address(inputs)
 	return __en.zigbee_ieee_address(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Input clusters" |
-*
-* @param {Zigbee_Input_ClustersInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_input_clusters = /** @type {((inputs?: Zigbee_Input_ClustersInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_Input_ClustersInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_input_clusters(inputs)
-	if (locale === "ru") return __ru.zigbee_input_clusters(inputs)
-	return __en.zigbee_input_clusters(inputs)
 });
 /**
 * | output |
@@ -28482,36 +28264,6 @@ export const zigbee_manufacturer = /** @type {((inputs?: Zigbee_ManufacturerInpu
 /**
 * | output |
 * | --- |
-* | "Max" |
-*
-* @param {Zigbee_MaxInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_max = /** @type {((inputs?: Zigbee_MaxInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_MaxInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_max(inputs)
-	if (locale === "ru") return __ru.zigbee_max(inputs)
-	return __en.zigbee_max(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Min" |
-*
-* @param {Zigbee_MinInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_min = /** @type {((inputs?: Zigbee_MinInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_MinInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_min(inputs)
-	if (locale === "ru") return __ru.zigbee_min(inputs)
-	return __en.zigbee_min(inputs)
-});
-/**
-* | output |
-* | --- |
 * | "Model" |
 *
 * @param {Zigbee_ModelInputs} inputs
@@ -28617,66 +28369,6 @@ export const zigbee_never_scanned = /** @type {((inputs?: Zigbee_Never_ScannedIn
 /**
 * | output |
 * | --- |
-* | "No bindings configured." |
-*
-* @param {Zigbee_No_BindingsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_no_bindings = /** @type {((inputs?: Zigbee_No_BindingsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_No_BindingsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_no_bindings(inputs)
-	if (locale === "ru") return __ru.zigbee_no_bindings(inputs)
-	return __en.zigbee_no_bindings(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "No endpoints reported." |
-*
-* @param {Zigbee_No_EndpointsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_no_endpoints = /** @type {((inputs?: Zigbee_No_EndpointsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_No_EndpointsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_no_endpoints(inputs)
-	if (locale === "ru") return __ru.zigbee_no_endpoints(inputs)
-	return __en.zigbee_no_endpoints(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "No reporting configured." |
-*
-* @param {Zigbee_No_ReportingInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_no_reporting = /** @type {((inputs?: Zigbee_No_ReportingInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_No_ReportingInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_no_reporting(inputs)
-	if (locale === "ru") return __ru.zigbee_no_reporting(inputs)
-	return __en.zigbee_no_reporting(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Not in a Zigbee group." |
-*
-* @param {Zigbee_Not_In_GroupInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_not_in_group = /** @type {((inputs?: Zigbee_Not_In_GroupInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_Not_In_GroupInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_not_in_group(inputs)
-	if (locale === "ru") return __ru.zigbee_not_in_group(inputs)
-	return __en.zigbee_not_in_group(inputs)
-});
-/**
-* | output |
-* | --- |
 * | "Optional" |
 *
 * @param {Zigbee_OptionalInputs} inputs
@@ -28733,21 +28425,6 @@ export const zigbee_ota_version_progress = /** @type {((inputs: Zigbee_Ota_Versi
 	if (locale === "sv") return __sv.zigbee_ota_version_progress(inputs)
 	if (locale === "ru") return __ru.zigbee_ota_version_progress(inputs)
 	return __en.zigbee_ota_version_progress(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Output clusters" |
-*
-* @param {Zigbee_Output_ClustersInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_output_clusters = /** @type {((inputs?: Zigbee_Output_ClustersInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_Output_ClustersInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_output_clusters(inputs)
-	if (locale === "ru") return __ru.zigbee_output_clusters(inputs)
-	return __en.zigbee_output_clusters(inputs)
 });
 /**
 * | output |
@@ -28812,21 +28489,6 @@ export const zigbee_power_source = /** @type {((inputs?: Zigbee_Power_SourceInpu
 /**
 * | output |
 * | --- |
-* | "Profile ID" |
-*
-* @param {Zigbee_Profile_IdInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_profile_id = /** @type {((inputs?: Zigbee_Profile_IdInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_Profile_IdInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_profile_id(inputs)
-	if (locale === "ru") return __ru.zigbee_profile_id(inputs)
-	return __en.zigbee_profile_id(inputs)
-});
-/**
-* | output |
-* | --- |
 * | "Continuous rate must be between 1 and 10 commands per second." |
 *
 * @param {Zigbee_Rate_Continuous_InvalidInputs} inputs
@@ -28883,21 +28545,6 @@ export const zigbee_reconnect_help = /** @type {((inputs?: Zigbee_Reconnect_Help
 	if (locale === "sv") return __sv.zigbee_reconnect_help(inputs)
 	if (locale === "ru") return __ru.zigbee_reconnect_help(inputs)
 	return __en.zigbee_reconnect_help(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Reporting" |
-*
-* @param {Zigbee_ReportingInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_reporting = /** @type {((inputs?: Zigbee_ReportingInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_ReportingInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_reporting(inputs)
-	if (locale === "ru") return __ru.zigbee_reporting(inputs)
-	return __en.zigbee_reporting(inputs)
 });
 /**
 * | output |
@@ -29048,21 +28695,6 @@ export const zigbee_support = /** @type {((inputs?: Zigbee_SupportInputs, option
 	if (locale === "sv") return __sv.zigbee_support(inputs)
 	if (locale === "ru") return __ru.zigbee_support(inputs)
 	return __en.zigbee_support(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Target" |
-*
-* @param {Zigbee_TargetInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const zigbee_target = /** @type {((inputs?: Zigbee_TargetInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Zigbee_TargetInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.zigbee_target(inputs)
-	if (locale === "ru") return __ru.zigbee_target(inputs)
-	return __en.zigbee_target(inputs)
 });
 /**
 * | output |

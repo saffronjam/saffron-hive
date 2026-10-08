@@ -92,20 +92,7 @@ describe("Zigbee device metadata", () => {
     await expect
       .poll(() => page.getByText("Zigbee", { exact: true }).count(), { timeout: UI_TIMEOUT })
       .toBe(1);
-    await page.getByRole("button", { name: "Bindings" }).click();
-    await expect
-      .poll(() => page.getByText("genGroups", { exact: true }).count(), { timeout: UI_TIMEOUT })
-      .toBe(1);
-    await page.getByRole("button", { name: "Reporting" }).click();
-    await expect
-      .poll(() => page.getByText("onOff", { exact: true }).count(), { timeout: UI_TIMEOUT })
-      .toBe(1);
-    await page.getByRole("button", { name: "Groups" }).click();
-    await expect
-      .poll(() => page.getByText("Not in a Zigbee group.", { exact: true }).count(), {
-        timeout: UI_TIMEOUT,
-      })
-      .toBe(1);
+    expect(await page.getByRole("button", { name: "Bindings" }).count()).toBe(0);
     const hasViewportOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
     );
@@ -116,10 +103,5 @@ describe("Zigbee device metadata", () => {
     await expect
       .poll(() => page.getByText("Unsupported", { exact: true }).count(), { timeout: UI_TIMEOUT })
       .toBeGreaterThan(0);
-    await expect
-      .poll(() => page.getByText("No endpoints reported.", { exact: true }).count(), {
-        timeout: UI_TIMEOUT,
-      })
-      .toBe(1);
   }, 120_000);
 });

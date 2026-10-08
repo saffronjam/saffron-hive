@@ -119,8 +119,6 @@ type Zigbee2MqttDeviceMetadata {
   definitionUrl: String
   documentation: Zigbee2MqttDeviceDocumentation
   ota: Zigbee2MqttOtaStatus!
-  endpoints: [Zigbee2MqttEndpoint!]!
-  groups: [Zigbee2MqttGroupReference!]!
   bridgeInfo: Zigbee2MqttBridgeInfo
 }
 
@@ -160,39 +158,6 @@ type Zigbee2MqttOtaStatus {
   installedVersion: String
   latestVersion: String
   progress: Float
-}
-
-type Zigbee2MqttEndpoint {
-  id: Int!
-  profileId: Int
-  deviceId: Int
-  inputClusters: [String!]!
-  outputClusters: [String!]!
-  bindings: [Zigbee2MqttBinding!]!
-  reportings: [Zigbee2MqttReporting!]!
-}
-
-type Zigbee2MqttBinding {
-  cluster: String!
-  targetType: String!
-  targetIeeeAddress: String
-  targetEndpoint: Int
-  targetGroupId: Int
-}
-
-type Zigbee2MqttReporting {
-  cluster: String!
-  attribute: String!
-  minimumReportInterval: Int
-  maximumReportInterval: Int
-  reportableChange: Float
-}
-
-type Zigbee2MqttGroupReference {
-  id: ID!
-  providerGroupId: String!
-  name: String!
-  endpoint: Int!
 }
 
 enum ControlledLoadRole {

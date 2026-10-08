@@ -3,22 +3,21 @@ package zigbee
 import "encoding/json"
 
 type z2mBridgeDevice struct {
-	IEEEAddress        string                 `json:"ieee_address"`
-	FriendlyName       string                 `json:"friendly_name"`
-	Type               string                 `json:"type"`
-	NetworkAddress     *int64                 `json:"network_address"`
-	Supported          *bool                  `json:"supported"`
-	InterviewState     *string                `json:"interview_state"`
-	InterviewCompleted *bool                  `json:"interview_completed"`
-	Interviewing       *bool                  `json:"interviewing"`
-	Description        *string                `json:"description"`
-	Manufacturer       *string                `json:"manufacturer"`
-	ModelID            *string                `json:"model_id"`
-	PowerSource        *string                `json:"power_source"`
-	SoftwareBuildID    *string                `json:"software_build_id"`
-	DateCode           *string                `json:"date_code"`
-	Definition         *z2mDefinition         `json:"definition"`
-	Endpoints          map[string]z2mEndpoint `json:"endpoints"`
+	IEEEAddress        string         `json:"ieee_address"`
+	FriendlyName       string         `json:"friendly_name"`
+	Type               string         `json:"type"`
+	NetworkAddress     *int64         `json:"network_address"`
+	Supported          *bool          `json:"supported"`
+	InterviewState     *string        `json:"interview_state"`
+	InterviewCompleted *bool          `json:"interview_completed"`
+	Interviewing       *bool          `json:"interviewing"`
+	Description        *string        `json:"description"`
+	Manufacturer       *string        `json:"manufacturer"`
+	ModelID            *string        `json:"model_id"`
+	PowerSource        *string        `json:"power_source"`
+	SoftwareBuildID    *string        `json:"software_build_id"`
+	DateCode           *string        `json:"date_code"`
+	Definition         *z2mDefinition `json:"definition"`
 }
 
 type z2mDefinition struct {
@@ -29,39 +28,6 @@ type z2mDefinition struct {
 	Icon        *string      `json:"icon"`
 	SupportsOTA *bool        `json:"supports_ota"`
 	Exposes     []z2mFeature `json:"exposes"`
-}
-
-type z2mEndpoint struct {
-	ProfileID            *int           `json:"profile_id"`
-	DeviceID             *int           `json:"device_id"`
-	Bindings             []z2mBinding   `json:"bindings"`
-	Clusters             z2mClusters    `json:"clusters"`
-	ConfiguredReportings []z2mReporting `json:"configured_reportings"`
-}
-
-type z2mClusters struct {
-	Input  []string `json:"input"`
-	Output []string `json:"output"`
-}
-
-type z2mBinding struct {
-	Cluster string           `json:"cluster"`
-	Target  z2mBindingTarget `json:"target"`
-}
-
-type z2mBindingTarget struct {
-	Type        string  `json:"type"`
-	IEEEAddress *string `json:"ieee_address"`
-	Endpoint    *int    `json:"endpoint"`
-	ID          *int    `json:"id"`
-}
-
-type z2mReporting struct {
-	Cluster               string   `json:"cluster"`
-	Attribute             string   `json:"attribute"`
-	MinimumReportInterval *int     `json:"minimum_report_interval"`
-	MaximumReportInterval *int     `json:"maximum_report_interval"`
-	ReportableChange      *float64 `json:"reportable_change"`
 }
 
 type z2mBridgeGroup struct {

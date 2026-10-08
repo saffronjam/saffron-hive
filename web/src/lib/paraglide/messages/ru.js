@@ -425,7 +425,6 @@
 /** @typedef {{}} Common_In_ProgressInputs */
 /** @typedef {{}} Common_LoadingInputs */
 /** @typedef {{}} Common_NoInputs */
-/** @typedef {{}} Common_NoneInputs */
 /** @typedef {{}} Common_PasteInputs */
 /** @typedef {{}} Common_RemoveInputs */
 /** @typedef {{}} Common_SaveInputs */
@@ -1723,14 +1722,10 @@
 /** @typedef {{}} Webhooks_Window_MsInputs */
 /** @typedef {{}} Zigbee_AdapterInputs */
 /** @typedef {{}} Zigbee_Address_VendorInputs */
-/** @typedef {{}} Zigbee_AttributeInputs */
 /** @typedef {{}} Zigbee_Battery_TypeInputs */
-/** @typedef {{}} Zigbee_BindingsInputs */
 /** @typedef {{}} Zigbee_Broker_AddressInputs */
-/** @typedef {{}} Zigbee_ChangeInputs */
 /** @typedef {{}} Zigbee_ChannelInputs */
 /** @typedef {{}} Zigbee_Check_ConnectionInputs */
-/** @typedef {{}} Zigbee_ClusterInputs */
 /** @typedef {{}} Zigbee_Command_TrafficInputs */
 /** @typedef {{}} Zigbee_Command_Traffic_AboutInputs */
 /** @typedef {{}} Zigbee_Command_Traffic_HelpInputs */
@@ -1748,23 +1743,15 @@
 /** @typedef {{}} Zigbee_Date_CodeInputs */
 /** @typedef {{}} Zigbee_DefinitionInputs */
 /** @typedef {{}} Zigbee_DescriptionInputs */
-/** @typedef {{}} Zigbee_DetailsInputs */
 /** @typedef {{}} Zigbee_DeviceInputs */
 /** @typedef {{}} Zigbee_EnabledInputs */
-/** @typedef {{}} Zigbee_EndpointInputs */
-/** @typedef {{ id: NonNullable<unknown> }} Zigbee_Endpoint_NamedInputs */
-/** @typedef {{}} Zigbee_EndpointsInputs */
 /** @typedef {{}} Zigbee_Extended_Pan_IdInputs */
 /** @typedef {{}} Zigbee_FirmwareInputs */
 /** @typedef {{}} Zigbee_Frontend_UrlInputs */
 /** @typedef {{}} Zigbee_Frontend_Url_HelpInputs */
 /** @typedef {{}} Zigbee_Frontend_Url_InvalidInputs */
 /** @typedef {{}} Zigbee_Frontend_Url_RestrictedInputs */
-/** @typedef {{}} Zigbee_Group_IdInputs */
-/** @typedef {{ id: NonNullable<unknown> }} Zigbee_Group_NamedInputs */
-/** @typedef {{}} Zigbee_GroupsInputs */
 /** @typedef {{}} Zigbee_Ieee_AddressInputs */
-/** @typedef {{}} Zigbee_Input_ClustersInputs */
 /** @typedef {{}} Zigbee_IntegrationInputs */
 /** @typedef {{}} Zigbee_Interactive_RateInputs */
 /** @typedef {{}} Zigbee_Interactive_Rate_AboutInputs */
@@ -1772,8 +1759,6 @@
 /** @typedef {{}} Zigbee_InterviewInputs */
 /** @typedef {{ time: NonNullable<unknown> }} Zigbee_Last_ScannedInputs */
 /** @typedef {{}} Zigbee_ManufacturerInputs */
-/** @typedef {{}} Zigbee_MaxInputs */
-/** @typedef {{}} Zigbee_MinInputs */
 /** @typedef {{}} Zigbee_ModelInputs */
 /** @typedef {{}} Zigbee_Model_IdInputs */
 /** @typedef {{}} Zigbee_Mqtt_TopicInputs */
@@ -1781,25 +1766,18 @@
 /** @typedef {{}} Zigbee_Network_AddressInputs */
 /** @typedef {{}} Zigbee_Network_RoleInputs */
 /** @typedef {{}} Zigbee_Never_ScannedInputs */
-/** @typedef {{}} Zigbee_No_BindingsInputs */
-/** @typedef {{}} Zigbee_No_EndpointsInputs */
-/** @typedef {{}} Zigbee_No_ReportingInputs */
-/** @typedef {{}} Zigbee_Not_In_GroupInputs */
 /** @typedef {{}} Zigbee_OptionalInputs */
 /** @typedef {{ state: NonNullable<unknown>, progress: NonNullable<unknown> }} Zigbee_Ota_ProgressInputs */
 /** @typedef {{ state: NonNullable<unknown>, version: NonNullable<unknown> }} Zigbee_Ota_VersionInputs */
 /** @typedef {{ state: NonNullable<unknown>, version: NonNullable<unknown>, progress: NonNullable<unknown> }} Zigbee_Ota_Version_ProgressInputs */
-/** @typedef {{}} Zigbee_Output_ClustersInputs */
 /** @typedef {{}} Zigbee_Pan_IdInputs */
 /** @typedef {{}} Zigbee_PasswordInputs */
 /** @typedef {{}} Zigbee_Password_KeepInputs */
 /** @typedef {{}} Zigbee_Power_SourceInputs */
-/** @typedef {{}} Zigbee_Profile_IdInputs */
 /** @typedef {{}} Zigbee_Rate_Continuous_InvalidInputs */
 /** @typedef {{}} Zigbee_Rate_Interactive_InvalidInputs */
 /** @typedef {{}} Zigbee_Rate_Order_InvalidInputs */
 /** @typedef {{}} Zigbee_Reconnect_HelpInputs */
-/** @typedef {{}} Zigbee_ReportingInputs */
 /** @typedef {{}} Zigbee_Runs_Daily_AtInputs */
 /** @typedef {{}} Zigbee_Scan_CompleteInputs */
 /** @typedef {{}} Zigbee_Scan_HourInputs */
@@ -1810,7 +1788,6 @@
 /** @typedef {{}} Zigbee_Scheduled_ScanInputs */
 /** @typedef {{}} Zigbee_Software_BuildInputs */
 /** @typedef {{}} Zigbee_SupportInputs */
-/** @typedef {{}} Zigbee_TargetInputs */
 /** @typedef {{}} Zigbee_TopologyInputs */
 /** @typedef {{}} Zigbee_Topology_AboutInputs */
 /** @typedef {{}} Zigbee_Topology_HelpInputs */
@@ -3574,10 +3551,6 @@ export const common_loading = /** @type {(inputs: Common_LoadingInputs) => Local
 };
 
 export const common_no = /** @type {(inputs: Common_NoInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Нет`)
-};
-
-export const common_none = /** @type {(inputs: Common_NoneInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Нет`)
 };
 
@@ -9041,24 +9014,12 @@ export const zigbee_address_vendor = /** @type {(inputs: Zigbee_Address_VendorIn
 	return /** @type {LocalizedString} */ (`Производитель по адресу`)
 };
 
-export const zigbee_attribute = /** @type {(inputs: Zigbee_AttributeInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Атрибут`)
-};
-
 export const zigbee_battery_type = /** @type {(inputs: Zigbee_Battery_TypeInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Тип батареи`)
 };
 
-export const zigbee_bindings = /** @type {(inputs: Zigbee_BindingsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Привязки`)
-};
-
 export const zigbee_broker_address = /** @type {(inputs: Zigbee_Broker_AddressInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Адрес брокера`)
-};
-
-export const zigbee_change = /** @type {(inputs: Zigbee_ChangeInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Изменение`)
 };
 
 export const zigbee_channel = /** @type {(inputs: Zigbee_ChannelInputs) => LocalizedString} */ () => {
@@ -9067,10 +9028,6 @@ export const zigbee_channel = /** @type {(inputs: Zigbee_ChannelInputs) => Local
 
 export const zigbee_check_connection = /** @type {(inputs: Zigbee_Check_ConnectionInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Проверить соединение`)
-};
-
-export const zigbee_cluster = /** @type {(inputs: Zigbee_ClusterInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Кластер`)
 };
 
 export const zigbee_command_traffic = /** @type {(inputs: Zigbee_Command_TrafficInputs) => LocalizedString} */ () => {
@@ -9141,28 +9098,12 @@ export const zigbee_description = /** @type {(inputs: Zigbee_DescriptionInputs) 
 	return /** @type {LocalizedString} */ (`Описание`)
 };
 
-export const zigbee_details = /** @type {(inputs: Zigbee_DetailsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Подробности`)
-};
-
 export const zigbee_device = /** @type {(inputs: Zigbee_DeviceInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Устройство`)
 };
 
 export const zigbee_enabled = /** @type {(inputs: Zigbee_EnabledInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Включено`)
-};
-
-export const zigbee_endpoint = /** @type {(inputs: Zigbee_EndpointInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Конечная точка`)
-};
-
-export const zigbee_endpoint_named = /** @type {(inputs: Zigbee_Endpoint_NamedInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Конечная точка ${i?.id}`)
-};
-
-export const zigbee_endpoints = /** @type {(inputs: Zigbee_EndpointsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Конечные точки`)
 };
 
 export const zigbee_extended_pan_id = /** @type {(inputs: Zigbee_Extended_Pan_IdInputs) => LocalizedString} */ () => {
@@ -9189,24 +9130,8 @@ export const zigbee_frontend_url_restricted = /** @type {(inputs: Zigbee_Fronten
 	return /** @type {LocalizedString} */ (`Используйте URL HTTP или HTTPS без учётных данных, строки запроса и фрагмента.`)
 };
 
-export const zigbee_group_id = /** @type {(inputs: Zigbee_Group_IdInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Идентификатор группы`)
-};
-
-export const zigbee_group_named = /** @type {(inputs: Zigbee_Group_NamedInputs) => LocalizedString} */ (i) => {
-	return /** @type {LocalizedString} */ (`Группа ${i?.id}`)
-};
-
-export const zigbee_groups = /** @type {(inputs: Zigbee_GroupsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Группы`)
-};
-
 export const zigbee_ieee_address = /** @type {(inputs: Zigbee_Ieee_AddressInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`IEEE-адрес`)
-};
-
-export const zigbee_input_clusters = /** @type {(inputs: Zigbee_Input_ClustersInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Входные кластеры`)
 };
 
 export const zigbee_integration = /** @type {(inputs: Zigbee_IntegrationInputs) => LocalizedString} */ () => {
@@ -9237,14 +9162,6 @@ export const zigbee_manufacturer = /** @type {(inputs: Zigbee_ManufacturerInputs
 	return /** @type {LocalizedString} */ (`Производитель`)
 };
 
-export const zigbee_max = /** @type {(inputs: Zigbee_MaxInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Макс`)
-};
-
-export const zigbee_min = /** @type {(inputs: Zigbee_MinInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Мин`)
-};
-
 export const zigbee_model = /** @type {(inputs: Zigbee_ModelInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Модель`)
 };
@@ -9273,22 +9190,6 @@ export const zigbee_never_scanned = /** @type {(inputs: Zigbee_Never_ScannedInpu
 	return /** @type {LocalizedString} */ (`Сканирование ещё не выполнялось`)
 };
 
-export const zigbee_no_bindings = /** @type {(inputs: Zigbee_No_BindingsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Привязки не настроены.`)
-};
-
-export const zigbee_no_endpoints = /** @type {(inputs: Zigbee_No_EndpointsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Конечные точки не указаны.`)
-};
-
-export const zigbee_no_reporting = /** @type {(inputs: Zigbee_No_ReportingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Отчеты не настроены.`)
-};
-
-export const zigbee_not_in_group = /** @type {(inputs: Zigbee_Not_In_GroupInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Не в группе Zigbee.`)
-};
-
 export const zigbee_optional = /** @type {(inputs: Zigbee_OptionalInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Необязательно`)
 };
@@ -9303,10 +9204,6 @@ export const zigbee_ota_version = /** @type {(inputs: Zigbee_Ota_VersionInputs) 
 
 export const zigbee_ota_version_progress = /** @type {(inputs: Zigbee_Ota_Version_ProgressInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`${i?.state} · ${i?.version} · ${i?.progress}`)
-};
-
-export const zigbee_output_clusters = /** @type {(inputs: Zigbee_Output_ClustersInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Выходные кластеры`)
 };
 
 export const zigbee_pan_id = /** @type {(inputs: Zigbee_Pan_IdInputs) => LocalizedString} */ () => {
@@ -9325,10 +9222,6 @@ export const zigbee_power_source = /** @type {(inputs: Zigbee_Power_SourceInputs
 	return /** @type {LocalizedString} */ (`Источник питания`)
 };
 
-export const zigbee_profile_id = /** @type {(inputs: Zigbee_Profile_IdInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Идентификатор профиля`)
-};
-
 export const zigbee_rate_continuous_invalid = /** @type {(inputs: Zigbee_Rate_Continuous_InvalidInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Непрерывная скорость должна составлять от 1 до 10 команд в секунду.`)
 };
@@ -9343,10 +9236,6 @@ export const zigbee_rate_order_invalid = /** @type {(inputs: Zigbee_Rate_Order_I
 
 export const zigbee_reconnect_help = /** @type {(inputs: Zigbee_Reconnect_HelpInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Изменение параметров подключения или расписания сканирования приводит к повторному подключению к брокеру. Частота команд меняется без прерывания подписок устройств.`)
-};
-
-export const zigbee_reporting = /** @type {(inputs: Zigbee_ReportingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Отчётность`)
 };
 
 export const zigbee_runs_daily_at = /** @type {(inputs: Zigbee_Runs_Daily_AtInputs) => LocalizedString} */ () => {
@@ -9387,10 +9276,6 @@ export const zigbee_software_build = /** @type {(inputs: Zigbee_Software_BuildIn
 
 export const zigbee_support = /** @type {(inputs: Zigbee_SupportInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Поддержка`)
-};
-
-export const zigbee_target = /** @type {(inputs: Zigbee_TargetInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Назначение`)
 };
 
 export const zigbee_topology = /** @type {(inputs: Zigbee_TopologyInputs) => LocalizedString} */ () => {

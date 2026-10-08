@@ -1,19 +1,9 @@
 <script lang="ts">
-	import type { Zigbee2MqttBinding, Zigbee2MqttDeviceMetadata } from "$lib/gql/graphql";
+	import type { Zigbee2MqttDeviceMetadata } from "$lib/gql/graphql";
 	import type { Device } from "$lib/stores/devices";
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import { Separator } from "$lib/components/ui/separator/index.js";
-	import { Tabs, TabsContent } from "$lib/components/ui/tabs/index.js";
-	import SegmentedControl from "$lib/components/segmented-control.svelte";
-	import {
-		Table,
-		TableBody,
-		TableCell,
-		TableHead,
-		TableHeader,
-		TableRow,
-	} from "$lib/components/ui/table/index.js";
 	import { ExternalLink } from "@lucide/svelte";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
@@ -27,8 +17,6 @@
 	}
 
 	let { device, metadata, batteryType = null }: Props = $props();
-	type DetailTab = "endpoints" | "bindings" | "reporting" | "groups";
-	let detailTab = $state<DetailTab>("endpoints");
 
 	const networkAddress = $derived.by(() => {
 		if (metadata.networkAddress == null) return null;
@@ -119,28 +107,6 @@
 			!!metadata.bridgeInfo?.zigbeeHerdsmanVersion ||
 			!!metadata.bridgeInfo?.zigbeeHerdsmanConvertersVersion,
 	);
-
-	const bindings = $derived(
-		metadata.endpoints.flatMap((endpoint) =>
-			endpoint.bindings.map((binding) => ({ endpoint: endpoint.id, binding })),
-		),
-	);
-	const reportings = $derived(
-		metadata.endpoints.flatMap((endpoint) =>
-			endpoint.reportings.map((reporting) => ({ endpoint: endpoint.id, reporting })),
-		),
-	);
-
-	function bindingTarget(binding: Zigbee2MqttBinding): string {
-		if (binding.targetType === "group") {
-			return binding.targetGroupId == null
-				? m.nav_groups({}, locale.messageOptions())
-				: m.zigbee_group_named({ id: binding.targetGroupId }, locale.messageOptions());
-		}
-		const address =
-			binding.targetIeeeAddress ?? m.zigbee_endpoint({}, locale.messageOptions());
-		return binding.targetEndpoint == null ? address : `${address} · ${binding.targetEndpoint}`;
-	}
 </script>
 
 <Card>
@@ -197,99 +163,5 @@
 				{#if device.friendlyName}<div class="flex items-center justify-between gap-4"><dt class="text-sm text-muted-foreground">{m.zigbee_mqtt_topic({}, locale.messageOptions())}</dt><dd class="max-w-md truncate font-mono text-xs">zigbee2mqtt/{device.friendlyName}</dd></div>{/if}
 			{/if}
 		</dl>
-
-		<Separator class="my-6" />
-		<h3 class="mb-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">{m.zigbee_details({}, locale.messageOptions())}</h3>
-		<Tabs bind:value={detailTab}>
-			<div class="max-w-full overflow-x-auto pb-1">
-				<SegmentedControl
-					value={detailTab}
-					onchange={(value) => (detailTab = value)}
-					options={[
-						{ value: "endpoints", label: m.zigbee_endpoints({}, locale.messageOptions()) },
-						{ value: "bindings", label: m.zigbee_bindings({}, locale.messageOptions()) },
-						{ value: "reporting", label: m.zigbee_reporting({}, locale.messageOptions()) },
-						{ value: "groups", label: m.zigbee_groups({}, locale.messageOptions()) },
-					]}
-				/>
-			</div>
-
-			<TabsContent value="endpoints">
-				{#if metadata.endpoints.length === 0}
-					<p class="py-8 text-center text-sm text-muted-foreground">{m.zigbee_no_endpoints({}, locale.messageOptions())}</p>
-				{:else}
-					<div class="space-y-4">
-						{#each metadata.endpoints as endpoint (endpoint.id)}
-							<div class="overflow-x-auto">
-								<p class="mb-2 text-sm font-medium">{m.zigbee_endpoint_named({ id: endpoint.id }, locale.messageOptions())}</p>
-								<Table>
-									<TableBody>
-										{#if endpoint.profileId != null}
-											<TableRow><TableCell class="text-muted-foreground">{m.zigbee_profile_id({}, locale.messageOptions())}</TableCell><TableCell>{endpoint.profileId}</TableCell></TableRow>
-										{/if}
-										{#if endpoint.deviceId != null}
-											<TableRow><TableCell class="text-muted-foreground">{m.device_id({}, locale.messageOptions())}</TableCell><TableCell>{endpoint.deviceId}</TableCell></TableRow>
-										{/if}
-										<TableRow><TableCell class="text-muted-foreground">{m.zigbee_input_clusters({}, locale.messageOptions())}</TableCell><TableCell class="whitespace-normal">{endpoint.inputClusters.join(", ") || m.common_none({}, locale.messageOptions())}</TableCell></TableRow>
-										<TableRow><TableCell class="text-muted-foreground">{m.zigbee_output_clusters({}, locale.messageOptions())}</TableCell><TableCell class="whitespace-normal">{endpoint.outputClusters.join(", ") || m.common_none({}, locale.messageOptions())}</TableCell></TableRow>
-									</TableBody>
-								</Table>
-							</div>
-						{/each}
-					</div>
-				{/if}
-			</TabsContent>
-
-			<TabsContent value="bindings">
-				{#if bindings.length === 0}
-					<p class="py-8 text-center text-sm text-muted-foreground">{m.zigbee_no_bindings({}, locale.messageOptions())}</p>
-				{:else}
-					<div class="overflow-x-auto">
-						<Table>
-							<TableHeader><TableRow><TableHead>{m.zigbee_endpoint({}, locale.messageOptions())}</TableHead><TableHead>{m.zigbee_cluster({}, locale.messageOptions())}</TableHead><TableHead>{m.zigbee_target({}, locale.messageOptions())}</TableHead></TableRow></TableHeader>
-							<TableBody>
-								{#each bindings as row, index (`${row.endpoint}-${row.binding.cluster}-${index}`)}
-									<TableRow><TableCell>{row.endpoint}</TableCell><TableCell>{row.binding.cluster}</TableCell><TableCell>{bindingTarget(row.binding)}</TableCell></TableRow>
-								{/each}
-							</TableBody>
-						</Table>
-					</div>
-				{/if}
-			</TabsContent>
-
-			<TabsContent value="reporting">
-				{#if reportings.length === 0}
-					<p class="py-8 text-center text-sm text-muted-foreground">{m.zigbee_no_reporting({}, locale.messageOptions())}</p>
-				{:else}
-					<div class="overflow-x-auto">
-						<Table>
-							<TableHeader><TableRow><TableHead>{m.zigbee_endpoint({}, locale.messageOptions())}</TableHead><TableHead>{m.zigbee_cluster({}, locale.messageOptions())}</TableHead><TableHead>{m.zigbee_attribute({}, locale.messageOptions())}</TableHead><TableHead>{m.zigbee_min({}, locale.messageOptions())}</TableHead><TableHead>{m.zigbee_max({}, locale.messageOptions())}</TableHead><TableHead>{m.zigbee_change({}, locale.messageOptions())}</TableHead></TableRow></TableHeader>
-							<TableBody>
-								{#each reportings as row, index (`${row.endpoint}-${row.reporting.cluster}-${row.reporting.attribute}-${index}`)}
-									<TableRow><TableCell>{row.endpoint}</TableCell><TableCell>{row.reporting.cluster}</TableCell><TableCell>{row.reporting.attribute}</TableCell><TableCell>{row.reporting.minimumReportInterval ?? "—"}</TableCell><TableCell>{row.reporting.maximumReportInterval ?? "—"}</TableCell><TableCell>{row.reporting.reportableChange ?? "—"}</TableCell></TableRow>
-								{/each}
-							</TableBody>
-						</Table>
-					</div>
-				{/if}
-			</TabsContent>
-
-			<TabsContent value="groups">
-				{#if metadata.groups.length === 0}
-					<p class="py-8 text-center text-sm text-muted-foreground">{m.zigbee_not_in_group({}, locale.messageOptions())}</p>
-				{:else}
-					<div class="overflow-x-auto">
-						<Table>
-							<TableHeader><TableRow><TableHead>{m.field_name({}, locale.messageOptions())}</TableHead><TableHead>{m.zigbee_group_id({}, locale.messageOptions())}</TableHead><TableHead>{m.zigbee_endpoint({}, locale.messageOptions())}</TableHead></TableRow></TableHeader>
-							<TableBody>
-								{#each metadata.groups as group (`${group.id}-${group.endpoint}`)}
-									<TableRow><TableCell>{group.name}</TableCell><TableCell>{group.providerGroupId}</TableCell><TableCell>{group.endpoint}</TableCell></TableRow>
-								{/each}
-							</TableBody>
-						</Table>
-					</div>
-				{/if}
-			</TabsContent>
-		</Tabs>
 	</CardContent>
 </Card>

@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -21,27 +20,7 @@ func (s *DB) GetZigbeeDeviceMetadata(ctx context.Context, id device.DeviceID) (*
 	if err != nil {
 		return nil, fmt.Errorf("get zigbee device metadata: %w", err)
 	}
-	metadata, err := zigbeeMetadataFromRow(row)
-	if err != nil {
-		return nil, err
-	}
-	groups, err := s.q.ListZigbeeProviderGroupsForDevice(ctx, string(id))
-	if err != nil {
-		return nil, fmt.Errorf("list zigbee device groups: %w", err)
-	}
-	metadata.Groups = make([]zigbeemetadata.GroupReference, 0, len(groups))
-	for _, group := range groups {
-		if group.ProviderGroupID == nil || group.ProviderEndpoint == nil {
-			continue
-		}
-		metadata.Groups = append(metadata.Groups, zigbeemetadata.GroupReference{
-			ID:              group.ID,
-			ProviderGroupID: *group.ProviderGroupID,
-			Name:            group.DisplayName,
-			Endpoint:        int(*group.ProviderEndpoint),
-		})
-	}
-	normalized := zigbeemetadata.Normalize(metadata)
+	normalized := zigbeemetadata.Normalize(zigbeeMetadataFromRow(row))
 	return &normalized, nil
 }
 
@@ -49,16 +28,12 @@ func (s *DB) GetZigbeeDeviceMetadata(ctx context.Context, id device.DeviceID) (*
 // state. It reports whether the stored value changed.
 func (s *DB) UpsertZigbeeBridgeMetadata(ctx context.Context, metadata zigbeemetadata.Metadata) (bool, error) {
 	metadata = zigbeemetadata.Normalize(metadata)
-	endpoints, err := json.Marshal(metadata.Endpoints)
-	if err != nil {
-		return false, fmt.Errorf("encode zigbee endpoints: %w", err)
-	}
 	var definition zigbeemetadata.Definition
 	if metadata.Definition != nil {
 		definition = *metadata.Definition
 	}
 	ieeeAddress := optionalNonEmptyString(metadata.IEEEAddress)
-	_, err = s.q.UpsertZigbeeBridgeMetadata(ctx, sqlite.UpsertZigbeeBridgeMetadataParams{
+	_, err := s.q.UpsertZigbeeBridgeMetadata(ctx, sqlite.UpsertZigbeeBridgeMetadataParams{
 		DeviceID: metadata.DeviceID, NetworkType: metadata.NetworkType,
 		IeeeAddress: ieeeAddress, NetworkAddress: metadata.NetworkAddress,
 		Supported: metadata.Supported, InterviewState: metadata.InterviewState,
@@ -69,7 +44,7 @@ func (s *DB) UpsertZigbeeBridgeMetadata(ctx context.Context, metadata zigbeemeta
 		DefinitionModel: definition.Model, DefinitionVendor: definition.Vendor,
 		DefinitionDescription: definition.Description, DefinitionSource: definition.Source,
 		DefinitionIcon: definition.Icon, DefinitionSupportsOta: definition.SupportsOTA,
-		Endpoints: string(endpoints), BridgeFingerprint: metadata.BridgeFingerprint,
+		BridgeFingerprint: metadata.BridgeFingerprint,
 	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
@@ -134,11 +109,7 @@ func (s *DB) ListZigbeeFirmwareCandidates(ctx context.Context) ([]zigbeemetadata
 	}
 	out := make([]zigbeemetadata.Metadata, 0, len(rows))
 	for _, row := range rows {
-		metadata, err := zigbeeMetadataFromRow(row)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, metadata)
+		out = append(out, zigbeeMetadataFromRow(row))
 	}
 	return out, nil
 }
@@ -151,11 +122,7 @@ func (s *DB) DeleteZigbeeDeviceMetadata(ctx context.Context, id device.DeviceID)
 	return nil
 }
 
-func zigbeeMetadataFromRow(row sqlite.ZigbeeDeviceMetadatum) (zigbeemetadata.Metadata, error) {
-	endpoints := []zigbeemetadata.Endpoint{}
-	if err := json.Unmarshal([]byte(row.Endpoints), &endpoints); err != nil {
-		return zigbeemetadata.Metadata{}, fmt.Errorf("decode zigbee endpoints for %s: %w", row.DeviceID, err)
-	}
+func zigbeeMetadataFromRow(row sqlite.ZigbeeDeviceMetadatum) zigbeemetadata.Metadata {
 	metadata := zigbeemetadata.Metadata{
 		DeviceID: row.DeviceID, NetworkType: row.NetworkType,
 		NetworkAddress: row.NetworkAddress, Supported: row.Supported,
@@ -163,7 +130,7 @@ func zigbeeMetadataFromRow(row sqlite.ZigbeeDeviceMetadatum) (zigbeemetadata.Met
 		Interviewing: row.Interviewing, Description: row.Description,
 		Manufacturer: row.Manufacturer, ModelID: row.ModelID,
 		PowerSource: row.PowerSource, SoftwareBuildID: row.SoftwareBuildID,
-		DateCode: row.DateCode, Endpoints: endpoints,
+		DateCode: row.DateCode,
 		OTA: zigbeemetadata.OTAStatus{
 			State: row.OtaState, InstalledVersion: row.OtaInstalledVersion,
 			LatestVersion: row.OtaLatestVersion, Progress: row.OtaProgress,
@@ -198,7 +165,7 @@ func zigbeeMetadataFromRow(row sqlite.ZigbeeDeviceMetadatum) (zigbeemetadata.Met
 			Icon: row.DefinitionIcon, SupportsOTA: row.DefinitionSupportsOta,
 		}
 	}
-	return metadata, nil
+	return metadata
 }
 
 func optionalNonEmptyString(value string) *string {

@@ -281,33 +281,6 @@
 						latestVersion
 						progress
 					}
-					endpoints {
-						id
-						profileId
-						deviceId
-						inputClusters
-						outputClusters
-						bindings {
-							cluster
-							targetType
-							targetIeeeAddress
-							targetEndpoint
-							targetGroupId
-						}
-						reportings {
-							cluster
-							attribute
-							minimumReportInterval
-							maximumReportInterval
-							reportableChange
-						}
-					}
-					groups {
-						id
-						providerGroupId
-						name
-						endpoint
-					}
 					bridgeInfo {
 						adapterType
 						firmwareVersion

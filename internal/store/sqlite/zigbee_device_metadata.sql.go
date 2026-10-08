@@ -26,7 +26,7 @@ SELECT device_id, network_type, ieee_address, network_address, supported,
        manufacturer, model_id, power_source, software_build_id, date_code,
        definition_model, definition_vendor, definition_description,
        definition_source, definition_icon, definition_supports_ota,
-       endpoints, ota_state, ota_installed_version, ota_latest_version,
+       ota_state, ota_installed_version, ota_latest_version,
        ota_progress, bridge_fingerprint, ota_fingerprint, updated_at,
        bridge_adapter_type, bridge_firmware_version, bridge_channel,
        bridge_pan_id, bridge_extended_pan_id, bridge_zigbee2mqtt_version,
@@ -60,7 +60,6 @@ func (q *Queries) GetZigbeeDeviceMetadata(ctx context.Context, deviceID device.D
 		&i.DefinitionSource,
 		&i.DefinitionIcon,
 		&i.DefinitionSupportsOta,
-		&i.Endpoints,
 		&i.OtaState,
 		&i.OtaInstalledVersion,
 		&i.OtaLatestVersion,
@@ -88,7 +87,7 @@ SELECT device_id, network_type, ieee_address, network_address, supported,
        manufacturer, model_id, power_source, software_build_id, date_code,
        definition_model, definition_vendor, definition_description,
        definition_source, definition_icon, definition_supports_ota,
-       endpoints, ota_state, ota_installed_version, ota_latest_version,
+       ota_state, ota_installed_version, ota_latest_version,
        ota_progress, bridge_fingerprint, ota_fingerprint, updated_at,
        bridge_adapter_type, bridge_firmware_version, bridge_channel,
        bridge_pan_id, bridge_extended_pan_id, bridge_zigbee2mqtt_version,
@@ -132,7 +131,6 @@ func (q *Queries) ListZigbeeFirmwareCandidates(ctx context.Context) ([]ZigbeeDev
 			&i.DefinitionSource,
 			&i.DefinitionIcon,
 			&i.DefinitionSupportsOta,
-			&i.Endpoints,
 			&i.OtaState,
 			&i.OtaInstalledVersion,
 			&i.OtaLatestVersion,
@@ -150,54 +148,6 @@ func (q *Queries) ListZigbeeFirmwareCandidates(ctx context.Context) ([]ZigbeeDev
 			&i.BridgeHerdsmanVersion,
 			&i.BridgeConvertersVersion,
 			&i.BridgeInfoFingerprint,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listZigbeeProviderGroupsForDevice = `-- name: ListZigbeeProviderGroupsForDevice :many
-SELECT g.id, g.provider_group_id,
-       COALESCE(NULLIF(g.name, ''), NULLIF(g.friendly_name, ''), g.id) AS display_name,
-       gm.provider_endpoint
-FROM groups g
-JOIN group_members gm ON gm.group_id = g.id
-WHERE g.provider = 'zigbee2mqtt'
-  AND g.removed = false
-  AND gm.member_type = 'device'
-  AND gm.member_id = ?
-ORDER BY g.id, gm.provider_endpoint
-`
-
-type ListZigbeeProviderGroupsForDeviceRow struct {
-	ID               string
-	ProviderGroupID  *string
-	DisplayName      string
-	ProviderEndpoint *int64
-}
-
-func (q *Queries) ListZigbeeProviderGroupsForDevice(ctx context.Context, memberID string) ([]ListZigbeeProviderGroupsForDeviceRow, error) {
-	rows, err := q.db.QueryContext(ctx, listZigbeeProviderGroupsForDevice, memberID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListZigbeeProviderGroupsForDeviceRow
-	for rows.Next() {
-		var i ListZigbeeProviderGroupsForDeviceRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.ProviderGroupID,
-			&i.DisplayName,
-			&i.ProviderEndpoint,
 		); err != nil {
 			return nil, err
 		}
@@ -324,7 +274,7 @@ INSERT INTO zigbee_device_metadata (
     manufacturer, model_id, power_source, software_build_id, date_code,
     definition_model, definition_vendor, definition_description,
     definition_source, definition_icon, definition_supports_ota,
-    endpoints, bridge_fingerprint
+    bridge_fingerprint
 ) VALUES (
     ?1, ?2, ?3,
     ?4, ?5, ?6,
@@ -333,8 +283,7 @@ INSERT INTO zigbee_device_metadata (
     ?13, ?14, ?15,
     ?16, ?17,
     ?18, ?19,
-    ?20, ?21,
-    ?22
+    ?20, ?21
 )
 ON CONFLICT(device_id) DO UPDATE SET
     network_type = excluded.network_type,
@@ -356,7 +305,6 @@ ON CONFLICT(device_id) DO UPDATE SET
     definition_source = excluded.definition_source,
     definition_icon = excluded.definition_icon,
     definition_supports_ota = excluded.definition_supports_ota,
-    endpoints = excluded.endpoints,
     bridge_fingerprint = excluded.bridge_fingerprint,
     updated_at = CURRENT_TIMESTAMP
 WHERE zigbee_device_metadata.bridge_fingerprint != excluded.bridge_fingerprint
@@ -384,7 +332,6 @@ type UpsertZigbeeBridgeMetadataParams struct {
 	DefinitionSource      *string
 	DefinitionIcon        *string
 	DefinitionSupportsOta *bool
-	Endpoints             string
 	BridgeFingerprint     string
 }
 
@@ -410,7 +357,6 @@ func (q *Queries) UpsertZigbeeBridgeMetadata(ctx context.Context, arg UpsertZigb
 		arg.DefinitionSource,
 		arg.DefinitionIcon,
 		arg.DefinitionSupportsOta,
-		arg.Endpoints,
 		arg.BridgeFingerprint,
 	)
 	var device_id device.DeviceID

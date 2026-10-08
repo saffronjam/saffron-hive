@@ -29,15 +29,12 @@ func TestMapBridgeMetadataDoorSensorT1(t *testing.T) {
 	if metadata.Definition == nil || metadata.Definition.Model == nil || *metadata.Definition.Model != "MCCGQ12LM" {
 		t.Fatalf("definition = %+v", metadata.Definition)
 	}
-	if len(metadata.Endpoints) != 1 || metadata.Endpoints[0].InputClusters[0] != "genBasic" {
-		t.Fatalf("endpoints = %+v", metadata.Endpoints)
-	}
 	if metadata.BridgeFingerprint == "" {
 		t.Fatal("bridge fingerprint is empty")
 	}
 }
 
-func TestMapBridgeMetadataP100AndRelationships(t *testing.T) {
+func TestMapBridgeMetadataP100(t *testing.T) {
 	raw := []byte(`{
 		"friendly_name":"Multi-state sensor 1","ieee_address":"0x54ef4410015e4b68",
 		"type":"EndDevice","network_address":173,"supported":true,
@@ -57,23 +54,6 @@ func TestMapBridgeMetadataP100AndRelationships(t *testing.T) {
 	if metadata.SoftwareBuildID != nil {
 		t.Fatalf("absent software build = %v", metadata.SoftwareBuildID)
 	}
-	if len(metadata.Endpoints) != 2 || metadata.Endpoints[0].ID != 1 || metadata.Endpoints[1].ID != 2 {
-		t.Fatalf("endpoint ordering = %+v", metadata.Endpoints)
-	}
-	if len(metadata.Endpoints[0].Bindings) != 2 {
-		t.Fatalf("bindings = %+v", metadata.Endpoints[0].Bindings)
-	}
-	var endpointBinding, groupBinding bool
-	for _, binding := range metadata.Endpoints[0].Bindings {
-		endpointBinding = endpointBinding || binding.TargetType == "endpoint"
-		groupBinding = groupBinding || binding.TargetType == "group"
-	}
-	if !endpointBinding || !groupBinding {
-		t.Fatalf("binding targets = %+v", metadata.Endpoints[0].Bindings)
-	}
-	if len(metadata.Endpoints[0].Reportings) != 1 || *metadata.Endpoints[0].Reportings[0].ReportableChange != 1 {
-		t.Fatalf("reportings = %+v", metadata.Endpoints[0].Reportings)
-	}
 	if metadata.Definition == nil || metadata.Definition.SupportsOTA == nil || !*metadata.Definition.SupportsOTA {
 		t.Fatalf("OTA support = %+v", metadata.Definition)
 	}
@@ -92,9 +72,6 @@ func TestMapBridgeMetadataUnsupportedAndNullDefinition(t *testing.T) {
 	metadata := mapBridgeMetadata(dto)
 	if metadata.Supported == nil || *metadata.Supported || metadata.Definition != nil {
 		t.Fatalf("unsupported metadata = %+v", metadata)
-	}
-	if metadata.Endpoints == nil || len(metadata.Endpoints) != 0 {
-		t.Fatalf("empty endpoints = %#v", metadata.Endpoints)
 	}
 }
 
