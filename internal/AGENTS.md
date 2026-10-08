@@ -27,6 +27,27 @@ All Go application code lives here. The `internal/` directory is a Go convention
 - `store/` — database layer. `queries/*.sql` (sqlc input) → `sqlite/` (sqlc-generated Go, committed). Domain-facing wrapper methods on `*store.DB` live in `users.go`, `scenes.go`, etc. `migrations/` holds the golang-migrate schema migrations (unchanged by the sqlc pipeline). See `store/CLAUDE.md` for the query gate patterns.
 - `version/` — build-time version string (single const injected via ldflags at build).
 
+## Domain behavior
+
+- Give each rule one authoritative owner. Define what each scope resolves locally and
+  what it delegates; shared or nested membership must not duplicate effects on the
+  same physical device.
+- Keep explicit choices, inherited defaults, calculated state, desired output, and
+  confirmed state distinct. Defaults must follow domain meaning, not incidental
+  iteration order. Request acceptance is not device confirmation.
+- Treat creation, editing, removal, restoration, and restart as one lifecycle. Update
+  affected dependents and invalidate derived views while preserving stable identity
+  and references required by the domain's retention rules. Remove obsolete derived
+  work without deleting still-shared dependencies.
+- Separate presentation metadata from runtime behavior. A display-only change should
+  not restart work or alter ownership; changes that affect execution must reach every
+  affected consumer through the established lifecycle.
+- Diagnostics should identify violated constraints or unmet obligations. Expected
+  inactivity, deliberate exclusion, or external ownership is not inherently an error.
+- Test observable outcomes at relevant boundaries: defaults and overrides, overlapping
+  targets, repeated operations, out-of-order updates, cancellation, partial failure,
+  and persistence/restart. Cover cleanup as well as the successful start path.
+
 ## Dependency direction
 
 Every package depends inward toward `device/` (domain types) and `eventbus/` (the interface). Nothing else is universally depended on.

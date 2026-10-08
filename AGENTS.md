@@ -186,6 +186,33 @@ Domain types are the authoritative representation. Everything else maps to/from 
 - `resources/` — project brand assets (`brand.md`, `icon.svg`).
 - `deploy/kubernetes/` — portable Kustomize base; local routing, namespace, storage bindings and host networking belong to the environment overlay.
 
+## Scope and completion
+
+- Start with the intended user-visible behavior. For substantial changes, identify ownership,
+  defaults, overrides, dependencies, and the create/edit/delete/reopen lifecycle before choosing
+  an implementation. Existing code explains how the app works; it does not limit an explicitly
+  requested redesign.
+- Deliver the complete requested workflow. Internal implementation steps are fine; essential
+  behavior deferred to an unsolicited "first version" is unfinished work.
+- Anticipate ordinary interactions and related states within the requested scope. Do not add
+  extra settings, recovery systems, confirmation steps, or new workflows merely because they
+  might be useful. Existing persistence, reconnect, and edit guards have their own purposes;
+  neither duplicate nor remove them without examining the affected behavior.
+- Resolve routine choices from the request and established conventions. Ask when an unresolved
+  choice materially changes behavior or scope, not for every implementation detail. State
+  consequential assumptions early so the user can correct them.
+- When feedback exposes a shared problem, inspect related variants and fix the common cause
+  within scope. Distinguish defects from newly expressed preferences; a local preference does
+  not automatically become a universal rule.
+- Agents own verification. Exercise realistic journeys with representative data and relevant
+  empty, failed, shared, or nested states. Test observable behavior rather than duplicating the
+  implementation in assertions, and scale checks to the change.
+- For UI changes, inspect the rendered result and exercise affected interactions when tooling
+  permits. Passing compilation and unit tests alone does not verify usability or appearance.
+- Before calling work complete, check the whole current request, including follow-up corrections.
+  Report what was verified, distinguish mocked checks from live integration, and state any
+  remaining gaps. Do not leave ordinary verification for the user to discover manually.
+
 ## Code style
 
 ### Rewrite, don't wrap
@@ -195,7 +222,7 @@ Domain types are the authoritative representation. Everything else maps to/from 
 - Corollary: if a rewrite leaves unused code anywhere in the tree, that code gets deleted in the same change.
 
 ### No data backfills in Go code
-- **Schema or stored-data evolution lives in `internal/store/migrations/*.sql`. Never in Go.** golang-migrate runs the SQL files at startup; that is the only mechanism for transforming persisted data.
+- **Schema or stored-data evolution lives in `internal/store/migrations/*.sql`. Never in Go.** The `saffron-hive migrate` subcommand runs these files through golang-migrate; that is the only mechanism for transforming persisted data.
 - Forbidden: Go-side "one-shot" startup migrators that read legacy tables and rewrite rows, helper packages named `migrate.go`/`Migrate*`, accessors like `RawDB()` that exist solely to let such migrators bypass sqlc, version-detection branches in resolvers, or "if old shape, convert" code paths anywhere in `internal/`.
 - When the persisted shape changes: write the up/down migration SQL, update every Go/TS caller to the new shape in the same change, and delete the old shape from the codebase. There is no in-between state for the code to handle.
 - If a transform genuinely cannot be expressed in SQL, raise it before writing any code — do not invent a Go-side workaround.
@@ -221,7 +248,7 @@ Domain types are the authoritative representation. Everything else maps to/from 
 
 ### Design language
 - Stick to existing tokens: `rounded-lg shadow-card bg-card` for content cards (no `border`), `transition-colors duration-200` for state-driven properties, shadcn `Button` variants (`ghost`, `outline`, `default` with sizes like `sm`, `xs`, `icon-sm`), lucide icons for iconography.
-- Don't introduce **any** visual or interactive behaviour the codebase does not already have — not a colour ramp, a button shape, a layout primitive, a hover response, an icon, or an entrance animation. Find where the repo already does the thing and match it; if there is no existing instance, the pattern does not exist here and adding it is a proposal to put to the user, not something to implement and mention afterwards. New ideas land as deliberate user decisions, not drift. See `web/AGENTS.md` → "This is not a generic web app", which names the failure mode and lists what the app actually does.
+- Reuse the established visual and interaction vocabulary; see `web/AGENTS.md` → "Design decisions". Avoid decorative changes unrelated to the request. When the requested behavior needs a pattern without an existing example, compose the app's primitives and make routine choices independently. Ask only when the choice materially changes the product behavior or design direction and the request does not resolve it.
 - For interactive editor surfaces with copy/paste/undo/redo, mirror the toolbar layout used in the automations editor: undo · redo · copy · paste, then domain-specific controls (zoom, etc.). Same shadcn `variant="ghost" size="icon-sm"` icon buttons, same keyboard map: `mod+z`, `mod+shift+z` / `mod+y`, `mod+c`, `mod+v`, all guarded by `isEditableTarget`.
 
 ### Type safety
@@ -297,10 +324,13 @@ If you find yourself wanting a third spelling for the same concept, you're on th
 ## Formatting and linting
 
 ### Gate
-Run `just prepare-for-commit` once a feature or change is complete, and fix
+Run `just prepare-for-commit` once an executable-code or generator-input change is complete, and fix
 anything it reports before considering the work done. It runs deps,
 `sqlc-check`, `gqlgen-check`, `codegen-check`, `format`, `lint`, `typecheck`,
 `errcheck`, and `test`.
+
+For documentation-only changes, review accuracy, references, and the diff, and run
+`git diff --check`; the application build and test suites are not required.
 
 **It is not the whole of CI.** CI additionally runs both end-to-end suites,
 which `prepare-for-commit` leaves out because each needs a container runtime

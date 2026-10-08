@@ -31,7 +31,7 @@ The codebase has matured patterns for the things people repeatedly need to build
 | Editor keyboard guard | `isEditableTarget` (skip global shortcuts when typing). |
 | Snapshot-based undo/redo | `HistoryStack`. |
 
-When in doubt, grep first: `grep -rln "<thing-you-want>" src/lib/`. The first hit usually beats writing it again.
+When in doubt, search first with `rg -n "<thing-you-want>" src/lib/` and inspect the matching implementation before adding another.
 
 
 
@@ -55,7 +55,7 @@ The built output (`web/dist/`) is embedded into the Go binary via `go:embed`. Th
 - `src/lib/gql/gql.ts` + `index.ts` — the `graphql()` helper that takes a query string and returns a `TypedDocumentNode<Data, Variables>`.
 - `src/lib/gql/fragment-masking.ts` — fragment plumbing. Masking is off (`presetConfig.fragmentMasking: false` in `codegen.ts`), so a spread inlines into the parent type and reads like a hand-written selection.
 
-Regenerate with `just codegen` (or `cd web && bun run codegen`). `just codegen-check` fails when the committed output drifts from the SQL; it runs in `prepare-for-commit` and CI.
+Regenerate with `just codegen` (or `cd web && bun run codegen`). `just codegen-check` fails when the committed output drifts from the GraphQL schema or documents; it runs in `prepare-for-commit` and CI.
 
 **Do not import from `$lib/gql/graphql` directly for schema types unless you need them; prefer letting urql infer operation result/variable types from the `TypedDocumentNode` returned by `graphql()`.**
 
@@ -188,28 +188,19 @@ Where the invalid state is obvious without prose, prefer disabling submit over
 showing a message. The create dialogs do this: the button stays disabled while
 the name is empty, so no error is ever needed.
 
-## This is not a generic web app
+## Design decisions
 
-**Copy this project, not the web.** Before adding any visual or interactive
-behaviour, find where the codebase already does that thing and match it. If you
-cannot find one, the pattern does not exist here, and adding it is a proposal to
-put to the user — not something to implement and mention afterwards.
+Use this project's components, tokens, and interaction patterns. Inspect comparable
+surfaces before adding or changing a control; apply shared behavior consistently
+across affected variants. Avoid unrelated decoration or speculative workflows.
 
-The failure this prevents: reaching for what most apps do. Cards get hover
-states. Badges get icons. Empty states get illustrations. New things fade in.
-None of that is reasoning about *this* app; it is autocomplete with a stylesheet.
-A repo with an established vocabulary is the one place that instinct is most
-likely to be wrong, because everything it suggests will look plausible and
-none of it will match.
+An absent example is not automatically an approval requirement. If the requested
+behavior needs a new composition, build it from existing primitives and make routine
+choices independently. Ask when an unresolved choice materially changes product
+behavior or design direction. An explicit redesign request authorizes changing the
+affected pattern; carry it through consistently.
 
-The trap is subtle when you are already editing. Needing to write new code for
-something is not licence to design it. `.ring-new` could not reuse
-`hover:shadow-card-hover` because both write `box-shadow`, so a `:hover` rule had
-to be written by hand — and "I am writing this rule anyway" is exactly the moment
-a generic instinct slips in as though it were a translation. Port the behaviour
-that was there. Nothing more.
-
-What this app actually does, so there is something to check against:
+The established visual vocabulary:
 
 - **Cards do not visibly respond to the pointer.** They carry
   `hover:shadow-card-hover`, which swaps one near-black shadow for another. On
@@ -222,10 +213,34 @@ What this app actually does, so there is something to check against:
   deliberate, user-triggered movement. Decorative entrance animation is not a
   house style.
 
-If you do add something that is not already here, say so plainly in your summary
-and name it as new. Burying it in a feature description ("hover strengthens the
-ring from 45% to 60%") reads as a considered detail and denies the user the
-chance to say no.
+Explain consequential design decisions and verification limits in the completion
+summary; routine details do not need a separate approval loop.
+
+## Interaction completeness
+
+- Expose meaningful choices, not every data-model field. Use shared selectors and
+  pickers with clear affordances and search for large option sets. Preserve accessible
+  labels, keyboard navigation, focus, and selection feedback.
+- Put frequent actions and settings before secondary details. Keep destructive actions
+  distinct, labels concise, and secondary metadata visually subordinate. Check long
+  names, truncation, alignment, and contrast in both themes and supported layouts.
+- Preserve the distinction between inherited defaults and explicit overrides when it
+  affects behavior. Omit options that cannot change anything or are inapplicable.
+- Keep confirmed device state authoritative. Pending commands and local edits are
+  separate interaction state; reconcile confirmations, failures, and timeouts without
+  treating a request as success or overwriting newer user intent.
+- Background saves, refreshes, and subscription updates must preserve active edits,
+  selection, focus, and navigation context unless the underlying operation invalidates
+  them. Dragging and typing should remain responsive while requests run.
+- Warnings describe actionable problems. Expected inactivity, deliberate exclusions,
+  and normal external dependencies are not failures by themselves. Use the existing
+  error and save-feedback patterns; do not invent additional recovery UI by default.
+- Layout, highlighting, and animation should agree on the object and scope affected
+  by an action. Check shared and nested views for consistent status and interaction.
+- Verify the actual workflow with representative content, relevant loading/empty/error
+  states, and compact and desktop layouts when affected. Include editing during updates
+  and reopening saved data when the change involves persistence. A mocked browser check
+  verifies UI behavior, not physical device delivery.
 
 ## Card styling
 
@@ -252,14 +267,17 @@ hover and focus feedback.
 
 ## Transitions
 
-Visual state changes should animate, not snap. Color, background, border, opacity, height, width, and transform should all ease between states so the UI feels continuous. A property that flips instantly on click, hover, or data update reads as broken.
+Use motion to clarify a state change or preserve spatial context. It must not delay
+input, obscure live feedback, or introduce unrelated decorative behavior.
 
-- **Default for state-driven properties:** `transition-colors duration-200` for color/background/border swaps; `transition-all duration-200` when several properties change together (e.g. a chip toggling between filled and outlined). 200ms is the baseline — snappy, not sluggish.
-- **Height / width changes from content swaps:** prefer holding the container's dimension constant so the swap doesn't resize the layout. If the dimension must change, either animate it (CSS `transition` + explicit height, or Svelte `transition:slide`) or fade the swapped subtree so it doesn't pop.
-- **Larger motions** (modals opening, drawers sliding in) can use `duration-300`–`duration-500`. Reserve anything longer for deliberate, user-triggered choreography.
-- **Exception:** layout changes that must be instant for correctness (focus scroll, keyboard navigation) are fine. Everything else gets a transition.
-
-When you write a class that changes appearance on a state change, ask whether it should transition. Default answer: yes.
+- Use `transition-colors duration-200` for colour/background/border changes that benefit
+  from continuity. Name the properties when more need animating; avoid `transition-all`
+  capturing unrelated layout or interaction changes.
+- Keep container dimensions stable through content swaps where practical. Animate a
+  necessary expansion or collapse briefly when it helps users follow the change.
+- Modals and drawers may use the established `duration-300`–`duration-500` movement.
+  Keyboard focus, pointer tracking, and other immediate feedback must remain immediate.
+- Respect reduced-motion preferences, including custom CSS and Svelte transitions.
 
 ## Number inputs
 
