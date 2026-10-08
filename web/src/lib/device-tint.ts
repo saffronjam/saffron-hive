@@ -715,6 +715,15 @@ export function aggregateSensorReadings(
   return result;
 }
 
+/**
+ * Readings shown on the dashboard's apartment and room cards. Contact state
+ * has its own summary there, and illuminance is left out to keep the cards
+ * compact.
+ */
+export function isDashboardCardReading(reading: AggregatedReading): boolean {
+  return reading.field !== "contact" && reading.field !== "illuminance";
+}
+
 function dedupe(colors: RGB[]): RGB[] {
   const seen = new Set<string>();
   const out: RGB[] = [];

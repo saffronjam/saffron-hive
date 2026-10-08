@@ -7,6 +7,7 @@
 	import {
 		aggregateLightAppearance,
 		aggregateSensorReadings,
+		isDashboardCardReading,
 		lightTintTransitionSeconds,
 		rememberedLightPalette,
 	} from "$lib/device-tint";
@@ -61,7 +62,7 @@
 	const sensors = $derived(roomDevices.filter((d) => d.type === "sensor"));
 	const sensorReadings = $derived(
 		aggregateSensorReadings(sensors, me.user?.temperatureUnit ?? "celsius").filter(
-			(reading) => reading.field !== "contact",
+			isDashboardCardReading,
 		),
 	);
 	const hasSensors = $derived(sensorReadings.length > 0);

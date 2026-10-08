@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { aggregateSensorReadings } from "$lib/device-tint";
+import { aggregateSensorReadings, isDashboardCardReading } from "$lib/device-tint";
 import type { Device, DeviceState } from "$lib/stores/devices";
 import { ContactRole } from "$lib/gql/graphql";
 import { DoorOpen, Magnet, PanelTopOpen } from "@lucide/svelte";
@@ -177,5 +177,25 @@ describe("aggregateSensorReadings", () => {
       sensor({ contact: true }, "b", true, ContactRole.Door),
     ])[0];
     expect(allClosed.value).toBe("No open door");
+  });
+});
+
+describe("isDashboardCardReading", () => {
+  it("keeps climate readings and leaves out contact and illuminance", () => {
+    const readings = aggregateSensorReadings(
+      [
+        sensor(
+          { temperature: 23.4, humidity: 38, illuminance: 1, contact: false },
+          "s",
+          true,
+          ContactRole.Door,
+        ),
+      ],
+      "celsius",
+    );
+    expect(readings.filter(isDashboardCardReading).map((r) => r.field)).toEqual([
+      "temperature",
+      "humidity",
+    ]);
   });
 });
