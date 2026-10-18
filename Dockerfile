@@ -21,6 +21,12 @@ ARG HIVE_VERSION=localbuild
 RUN CGO_ENABLED=1 go build -ldflags "-X github.com/saffronjam/saffron-hive/internal/version.Version=${HIVE_VERSION}" -o saffron-hive .
 
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates bash curl libgcc libstdc++ ripgrep
+ARG CLAUDE_VERSION=2.1.296
+RUN curl -fsSL https://claude.ai/install.sh -o /tmp/install-claude.sh \
+    && bash /tmp/install-claude.sh "$CLAUDE_VERSION" \
+    && cp -L /root/.local/bin/claude /usr/local/bin/claude \
+    && rm -rf /root/.local /root/.claude /tmp/install-claude.sh
+ENV DISABLE_AUTOUPDATER=1
 COPY --from=backend --chmod=755 /app/saffron-hive /usr/local/bin/saffron-hive
 ENTRYPOINT ["saffron-hive"]
