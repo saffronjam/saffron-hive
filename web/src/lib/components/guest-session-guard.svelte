@@ -41,7 +41,7 @@
 	}
 
 	$effect(() => {
-		if ($current.error || (!$current.fetching && $current.data && !$current.data.currentGuest)) {
+		if (!$current.fetching && !$current.error && $current.data && !$current.data.currentGuest) {
 			endGuestSession();
 		}
 	});
