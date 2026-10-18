@@ -122,3 +122,20 @@ describe("parseSince", () => {
     expect(parseSince("garbage")).toBeNull();
   });
 });
+
+it("keeps chat ages relative across minutes, hours and days in each locale", () => {
+  const now = new Date("2026-10-18T12:00:00Z");
+  setLanguage("en");
+  expect(formatRelative(new Date(now.getTime() - 60_000), now, "relative")).toBe("1 min. ago");
+  expect(formatRelative(new Date(now.getTime() - 5 * 86_400_000), now, "relative")).toBe(
+    "5 days ago",
+  );
+  setLanguage("sv");
+  expect(
+    formatRelative(new Date(now.getTime() - 5 * 86_400_000), now, "relative").replace(/\s/g, " "),
+  ).toBe("för 5 d sedan");
+  setLanguage("ru");
+  expect(formatRelative(new Date(now.getTime() - 5 * 86_400_000), now, "relative")).toBe(
+    new Intl.RelativeTimeFormat("ru", { numeric: "always", style: "short" }).format(-5, "day"),
+  );
+});

@@ -202,10 +202,10 @@ func TestGetUserAvatarPathsByIDs(t *testing.T) {
 	}
 	avatar1 := "u-1.png"
 	avatar3 := "u-3.jpg"
-	if _, err := s.UpdateUserProfile(ctx, UpdateUserProfileParams{ID: "u-1", AvatarPath: &avatar1}); err != nil {
+	if err := s.SetUserAvatar(ctx, "u-1", avatar1); err != nil {
 		t.Fatalf("set avatar u-1: %v", err)
 	}
-	if _, err := s.UpdateUserProfile(ctx, UpdateUserProfileParams{ID: "u-3", AvatarPath: &avatar3}); err != nil {
+	if err := s.SetUserAvatar(ctx, "u-3", avatar3); err != nil {
 		t.Fatalf("set avatar u-3: %v", err)
 	}
 
@@ -227,6 +227,11 @@ func TestGetUserAvatarPathsByIDs(t *testing.T) {
 func TestBatchAddRoomMembersIgnoresDuplicates(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
+	for _, id := range []string{"d-1", "d-2", "d-3", "d-4"} {
+		if _, err := s.CreateDevice(ctx, CreateDeviceParams{ID: device.DeviceID(id), FriendlyName: id, Type: device.Light, Source: device.SourceZigbee2MQTT}); err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	if _, err := s.CreateRoom(ctx, CreateRoomParams{ID: "r-1", Name: "Room 1"}); err != nil {
 		t.Fatalf("create room: %v", err)
@@ -268,6 +273,11 @@ func TestBatchAddRoomMembersIgnoresDuplicates(t *testing.T) {
 func TestBatchAddGroupDevicesIgnoresDuplicates(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
+	for _, id := range []string{"d-1", "d-2", "d-3", "d-4"} {
+		if _, err := s.CreateDevice(ctx, CreateDeviceParams{ID: device.DeviceID(id), FriendlyName: id, Type: device.Light, Source: device.SourceZigbee2MQTT}); err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	if _, err := s.CreateGroup(ctx, CreateGroupParams{ID: "g-1", Name: "Group 1"}); err != nil {
 		t.Fatalf("create group: %v", err)

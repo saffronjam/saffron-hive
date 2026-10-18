@@ -29,6 +29,7 @@ func (s *DB) GetUserByID(ctx context.Context, id string) (User, error) {
 	}
 	return User{
 		ID:                 row.ID,
+		Revision:           row.Revision,
 		Username:           row.Username,
 		Name:               row.Name,
 		PasswordHash:       row.PasswordHash,
@@ -52,6 +53,7 @@ func (s *DB) GetUserByUsername(ctx context.Context, username string) (User, erro
 	}
 	return User{
 		ID:                 row.ID,
+		Revision:           row.Revision,
 		Username:           row.Username,
 		Name:               row.Name,
 		PasswordHash:       row.PasswordHash,
@@ -77,6 +79,7 @@ func (s *DB) ListUsers(ctx context.Context) ([]User, error) {
 	for _, row := range rows {
 		users = append(users, User{
 			ID:                 row.ID,
+			Revision:           row.Revision,
 			Username:           row.Username,
 			Name:               row.Name,
 			PasswordHash:       row.PasswordHash,
@@ -117,17 +120,21 @@ func (s *DB) CountUsers(ctx context.Context) (int, error) {
 // Nil fields leave their column untouched. AvatarPath cannot clear to NULL
 // here; use ClearUserAvatar for that.
 func (s *DB) UpdateUserProfile(ctx context.Context, params UpdateUserProfileParams) (User, error) {
-	if err := s.q.UpdateUserProfile(ctx, sqlite.UpdateUserProfileParams{
-		ID:              params.ID,
-		Name:            params.Name,
-		Theme:           params.Theme,
-		AvatarPath:      params.AvatarPath,
-		TimeFormat:      params.TimeFormat,
-		TemperatureUnit: params.TemperatureUnit,
-		HapticsEnabled:  params.HapticsEnabled,
-		Language:        params.Language,
-	}); err != nil {
+	n, err := s.q.UpdateUserProfile(ctx, sqlite.UpdateUserProfileParams{
+		ExpectedRevision: params.ExpectedRevision,
+		ID:               params.ID,
+		Name:             params.Name,
+		Theme:            params.Theme,
+		TimeFormat:       params.TimeFormat,
+		TemperatureUnit:  params.TemperatureUnit,
+		HapticsEnabled:   params.HapticsEnabled,
+		Language:         params.Language,
+	})
+	if err != nil {
 		return User{}, fmt.Errorf("update user profile: %w", err)
+	}
+	if n != 1 {
+		return User{}, ErrRevisionConflict
 	}
 	return s.GetUserByID(ctx, params.ID)
 }
@@ -237,4 +244,9 @@ func (s *DB) GetUserAvatarPathsByIDs(ctx context.Context, ids []string) (map[str
 		}
 	}
 	return out, nil
+}
+
+// SetUserAvatar assigns the uploaded avatar without modifying profile preferences.
+func (s *DB) SetUserAvatar(ctx context.Context, id, path string) error {
+	return s.q.SetUserAvatar(ctx, sqlite.SetUserAvatarParams{ID: id, AvatarPath: &path})
 }

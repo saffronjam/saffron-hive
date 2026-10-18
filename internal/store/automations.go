@@ -9,17 +9,38 @@ import (
 )
 
 // CreateAutomation inserts a new automation and returns it.
-func (s *DB) CreateAutomation(ctx context.Context, params CreateAutomationParams) (Automation, error) {
-	if err := s.q.CreateAutomation(ctx, sqlite.CreateAutomationParams{
-		ID:          params.ID,
-		Name:        params.Name,
-		Enabled:     params.Enabled,
-		Definitions: definitionsOrEmpty(params.Definitions),
-		CreatedBy:   params.CreatedBy,
-	}); err != nil {
-		return Automation{}, fmt.Errorf("create automation: %w", err)
-	}
-	return s.GetAutomation(ctx, params.ID)
+func (s *DB) CreateAutomation(ctx context.Context, params CreateAutomationParams) (result Automation, err error) {
+	err = s.atomic(ctx, func(s *DB) error {
+		var writeErr error
+		result, writeErr = func() (Automation, error) {
+			if err := s.q.CreateAutomation(ctx, sqlite.CreateAutomationParams{
+				ID:          params.ID,
+				Name:        params.Name,
+				Enabled:     params.Enabled,
+				Definitions: definitionsOrEmpty(params.Definitions),
+				CreatedBy:   params.CreatedBy,
+			}); err != nil {
+				return Automation{}, fmt.Errorf("create automation: %w", err)
+			}
+			for _, n := range params.Nodes {
+				n.AutomationID = params.ID
+				if _, err := s.createAutomationNode(ctx, n); err != nil {
+					return Automation{}, err
+				}
+			}
+			for _, e := range params.Edges {
+				e.AutomationID = params.ID
+				if _, err := s.createAutomationEdge(ctx, e); err != nil {
+					return Automation{}, err
+				}
+			}
+
+			return s.GetAutomation(ctx, params.ID)
+
+		}()
+		return writeErr
+	})
+	return result, err
 }
 
 // GetAutomation retrieves an automation by its ID.
@@ -30,6 +51,7 @@ func (s *DB) GetAutomation(ctx context.Context, id string) (Automation, error) {
 	}
 	return Automation{
 		ID:          row.ID,
+		Revision:    row.Revision,
 		Name:        row.Name,
 		Icon:        row.Icon,
 		Enabled:     row.Enabled,
@@ -51,6 +73,7 @@ func (s *DB) ListAutomations(ctx context.Context) ([]Automation, error) {
 	for _, r := range rows {
 		automations = append(automations, Automation{
 			ID:          r.ID,
+			Revision:    r.Revision,
 			Name:        r.Name,
 			Icon:        r.Icon,
 			Enabled:     r.Enabled,
@@ -74,6 +97,7 @@ func (s *DB) ListEnabledAutomations(ctx context.Context) ([]Automation, error) {
 	for _, r := range rows {
 		automations = append(automations, Automation{
 			ID:          r.ID,
+			Revision:    r.Revision,
 			Name:        r.Name,
 			Icon:        r.Icon,
 			Enabled:     r.Enabled,
@@ -90,41 +114,69 @@ func (s *DB) ListEnabledAutomations(ctx context.Context) ([]Automation, error) {
 // UpdateAutomation updates optional fields on an automation. Nil fields are left
 // unchanged. SetIcon=true with Icon=nil clears the icon column; SetIcon=false
 // leaves icon alone regardless of the Icon pointer.
-func (s *DB) UpdateAutomation(ctx context.Context, id string, params UpdateAutomationParams) (Automation, error) {
-	clearIcon := params.SetIcon && params.Icon == nil
-
-	args := sqlite.UpdateAutomationFieldsParams{
-		Name:    params.Name,
-		Enabled: params.Enabled,
-		ID:      id,
-	}
-	if params.Definitions != nil {
-		definitions := definitionsOrEmpty(*params.Definitions)
-		args.Definitions = &definitions
-	}
-	if params.SetIcon && params.Icon != nil {
-		args.Icon = params.Icon
-	}
-	if err := s.q.UpdateAutomationFields(ctx, args); err != nil {
-		return Automation{}, fmt.Errorf("update automation: %w", err)
-	}
-	if clearIcon {
-		if err := s.q.ClearAutomationIcon(ctx, id); err != nil {
-			return Automation{}, fmt.Errorf("clear automation icon: %w", err)
+func (s *DB) UpdateAutomation(ctx context.Context, id string, params UpdateAutomationParams) (result Automation, err error) {
+	err = s.atomic(ctx, func(s *DB) error {
+		changed, err := s.q.ClaimAutomationRevision(ctx, sqlite.ClaimAutomationRevisionParams{ID: id, ExpectedRevision: params.ExpectedRevision})
+		if err != nil {
+			return err
 		}
-	}
-	return s.GetAutomation(ctx, id)
-}
+		if changed != 1 {
+			return ErrRevisionConflict
+		}
+		var writeErr error
+		result, writeErr = func() (Automation, error) {
+			clearIcon := params.SetIcon && params.Icon == nil
 
-// UpdateAutomationEnabled sets the enabled field of an automation.
-func (s *DB) UpdateAutomationEnabled(ctx context.Context, id string, enabled bool) error {
-	if err := s.q.UpdateAutomationEnabled(ctx, sqlite.UpdateAutomationEnabledParams{
-		Enabled: enabled,
-		ID:      id,
-	}); err != nil {
-		return fmt.Errorf("update automation enabled: %w", err)
-	}
-	return nil
+			args := sqlite.UpdateAutomationFieldsParams{
+				Name:    params.Name,
+				Enabled: params.Enabled,
+				ID:      id,
+			}
+			if params.Definitions != nil {
+				definitions := definitionsOrEmpty(*params.Definitions)
+				args.Definitions = &definitions
+			}
+			if params.SetIcon && params.Icon != nil {
+				args.Icon = params.Icon
+			}
+			if err := s.q.UpdateAutomationFields(ctx, args); err != nil {
+				return Automation{}, fmt.Errorf("update automation: %w", err)
+			}
+			if clearIcon {
+				if err := s.q.ClearAutomationIcon(ctx, id); err != nil {
+					return Automation{}, fmt.Errorf("clear automation icon: %w", err)
+				}
+			}
+			if params.Nodes != nil || params.Edges != nil {
+				graph, err := s.GetAutomationGraph(ctx, id)
+				if err != nil {
+					return Automation{}, err
+				}
+				nodes := make([]CreateAutomationNodeParams, 0, len(graph.Nodes))
+				edges := make([]CreateAutomationEdgeParams, 0, len(graph.Edges))
+				for _, n := range graph.Nodes {
+					nodes = append(nodes, CreateAutomationNodeParams{ID: n.ID, AutomationID: id, Type: n.Type, Config: n.Config, PositionX: n.PositionX, PositionY: n.PositionY})
+				}
+				for _, e := range graph.Edges {
+					edges = append(edges, CreateAutomationEdgeParams{AutomationID: id, FromNodeID: e.FromNodeID, ToNodeID: e.ToNodeID})
+				}
+				if params.Nodes != nil {
+					nodes = *params.Nodes
+				}
+				if params.Edges != nil {
+					edges = *params.Edges
+				}
+				if err := s.replaceAutomationGraph(ctx, id, nodes, edges); err != nil {
+					return Automation{}, err
+				}
+			}
+
+			return s.GetAutomation(ctx, id)
+
+		}()
+		return writeErr
+	})
+	return result, err
 }
 
 // UpdateAutomationLastFired stamps last_fired_at on the given automation.
@@ -165,7 +217,7 @@ func (s *DB) BatchDeleteAutomations(ctx context.Context, ids []string) (int64, e
 }
 
 // CreateAutomationNode inserts a new automation node.
-func (s *DB) CreateAutomationNode(ctx context.Context, params CreateAutomationNodeParams) (AutomationNode, error) {
+func (s *DB) createAutomationNode(ctx context.Context, params CreateAutomationNodeParams) (AutomationNode, error) {
 	if err := s.q.CreateAutomationNode(ctx, sqlite.CreateAutomationNodeParams{
 		ID:           params.ID,
 		AutomationID: params.AutomationID,
@@ -207,7 +259,7 @@ func (s *DB) ListAutomationNodes(ctx context.Context, automationID string) ([]Au
 }
 
 // CreateAutomationEdge inserts a new automation edge.
-func (s *DB) CreateAutomationEdge(ctx context.Context, params CreateAutomationEdgeParams) (AutomationEdge, error) {
+func (s *DB) createAutomationEdge(ctx context.Context, params CreateAutomationEdgeParams) (AutomationEdge, error) {
 	if err := s.q.CreateAutomationEdge(ctx, sqlite.CreateAutomationEdgeParams{
 		AutomationID: params.AutomationID,
 		FromNodeID:   params.FromNodeID,
@@ -239,11 +291,11 @@ func (s *DB) ListAutomationEdges(ctx context.Context, automationID string) ([]Au
 	return edges, nil
 }
 
-// ReplaceAutomationGraph atomically replaces an automation's nodes and edges
+// replaceAutomationGraph atomically replaces an automation's nodes and edges
 // with the given sets. Existing rows are deleted in a single transaction along
 // with the inserts so concurrent readers never observe a half-written graph.
 // Runtime state survives for nodes whose id the new graph keeps.
-func (s *DB) ReplaceAutomationGraph(ctx context.Context, automationID string, nodes []CreateAutomationNodeParams, edges []CreateAutomationEdgeParams) error {
+func (s *DB) replaceAutomationGraph(ctx context.Context, automationID string, nodes []CreateAutomationNodeParams, edges []CreateAutomationEdgeParams) error {
 	nodeIDs := make([]string, len(nodes))
 	for i, n := range nodes {
 		nodeIDs[i] = n.ID

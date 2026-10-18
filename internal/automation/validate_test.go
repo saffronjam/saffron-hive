@@ -14,7 +14,7 @@ func TestValidGraph(t *testing.T) {
 		Nodes: []Node{
 			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed", FilterExpr: "true"}},
 			{ID: "op1", AutomationID: "auto-1", Type: NodeOperator, Config: OperatorConfig{Kind: OperatorAnd}},
-			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
 			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
@@ -36,7 +36,7 @@ func TestValidGraphMultipleTriggers(t *testing.T) {
 			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed"}},
 			{ID: "t2", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.availability_changed"}},
 			{ID: "op1", AutomationID: "auto-1", Type: NodeOperator, Config: OperatorConfig{Kind: OperatorOr}},
-			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
 			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
@@ -57,7 +57,7 @@ func TestValidGraphDirectTriggerToAction(t *testing.T) {
 		Name: "direct",
 		Nodes: []Node{
 			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed"}},
-			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
 			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
@@ -70,15 +70,15 @@ func TestValidGraphDirectTriggerToAction(t *testing.T) {
 	}
 }
 
-func TestEmptyGraphIsValid(t *testing.T) {
+func TestEmptyGraphRequiresTrigger(t *testing.T) {
 	g := AutomationGraph{
 		ID:   "auto-1",
 		Name: "empty",
 	}
 
 	result := ValidateGraph(g)
-	if !result.Valid() {
-		t.Fatalf("expected empty graph to be valid, got errors: %v", result.Errors)
+	if result.Valid() {
+		t.Fatalf("expected empty graph to require a trigger: %v", result.Errors)
 	}
 }
 
@@ -139,7 +139,7 @@ func TestTriggerWithIncomingEdge(t *testing.T) {
 		Nodes: []Node{
 			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed"}},
 			{ID: "op1", AutomationID: "auto-1", Type: NodeOperator, Config: OperatorConfig{Kind: OperatorAnd}},
-			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
 			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "t1"},
@@ -169,8 +169,8 @@ func TestActionWithOutgoingEdge(t *testing.T) {
 		Name: "bad-action",
 		Nodes: []Node{
 			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed"}},
-			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
-			{ID: "a2", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": false}`}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": true}`}},
+			{ID: "a2", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": false}`}},
 		},
 		Edges: []Edge{
 			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
@@ -194,14 +194,14 @@ func TestActionWithOutgoingEdge(t *testing.T) {
 	}
 }
 
-func TestOperatorWithNoIncomingProducesWarning(t *testing.T) {
+func TestOperatorWithoutInputIsInvalid(t *testing.T) {
 	g := AutomationGraph{
 		ID:   "auto-1",
 		Name: "floating-op",
 		Nodes: []Node{
 			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed"}},
 			{ID: "op1", AutomationID: "auto-1", Type: NodeOperator, Config: OperatorConfig{Kind: OperatorAnd}},
-			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
 			{AutomationID: "auto-1", FromNodeID: "op1", ToNodeID: "a1"},
@@ -209,18 +209,8 @@ func TestOperatorWithNoIncomingProducesWarning(t *testing.T) {
 	}
 
 	result := ValidateGraph(g)
-	if !result.Valid() {
-		t.Fatalf("expected operator with no incoming edges to remain compilable, got: %v", result.Errors)
-	}
-
-	found := false
-	for _, warning := range result.Warnings {
-		if warning.NodeID == "op1" && warning.Message == "operator node has no incoming edges" {
-			found = true
-		}
-	}
-	if !found {
-		t.Fatalf("expected operator incoming-edge warning, got: %v", result.Warnings)
+	if result.Valid() {
+		t.Fatal("disconnected execution node must be invalid")
 	}
 }
 
@@ -276,7 +266,7 @@ func TestEdgeReferencesNonExistentSourceNode(t *testing.T) {
 		ID:   "auto-1",
 		Name: "bad-source-edge",
 		Nodes: []Node{
-			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
 			{AutomationID: "auto-1", FromNodeID: "nonexistent", ToNodeID: "a1"},
@@ -296,7 +286,7 @@ func TestOrphanNodeProducesWarning(t *testing.T) {
 		Nodes: []Node{
 			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed"}},
 			{ID: "t2", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.availability_changed"}},
-			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
 			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
@@ -322,13 +312,13 @@ func TestOrphanNodeProducesWarning(t *testing.T) {
 	}
 }
 
-func TestOrphanActionProducesWarning(t *testing.T) {
+func TestOrphanActionIsInvalid(t *testing.T) {
 	g := AutomationGraph{
 		ID:   "auto-1",
 		Name: "orphan-action",
 		Nodes: []Node{
 			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed"}},
-			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": true}`}},
 			{ID: "a2", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionActivateScene, Payload: `{"scene_id":"scene-1"}`}},
 		},
 		Edges: []Edge{
@@ -337,18 +327,8 @@ func TestOrphanActionProducesWarning(t *testing.T) {
 	}
 
 	result := ValidateGraph(g)
-	if !result.Valid() {
-		t.Fatalf("expected orphan action to be valid (warning only), got errors: %v", result.Errors)
-	}
-
-	found := false
-	for _, w := range result.Warnings {
-		if w.NodeID == "a2" {
-			found = true
-		}
-	}
-	if !found {
-		t.Fatalf("expected warning for orphan action a2, got: %v", result.Warnings)
+	if result.Valid() {
+		t.Fatal("disconnected execution node must be invalid")
 	}
 }
 
@@ -375,8 +355,8 @@ func TestChainedOperators(t *testing.T) {
 			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed"}},
 			{ID: "t2", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.availability_changed"}},
 			{ID: "op1", AutomationID: "auto-1", Type: NodeOperator, Config: OperatorConfig{Kind: OperatorAnd}},
-			{ID: "op2", AutomationID: "auto-1", Type: NodeOperator, Config: OperatorConfig{Kind: OperatorNot}},
-			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
+			{ID: "op2", AutomationID: "auto-1", Type: NodeOperator, Config: OperatorConfig{Kind: OperatorOr}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
 			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op1"},
@@ -415,19 +395,19 @@ func TestMultipleActionsFromOperator(t *testing.T) {
 	}
 }
 
-func TestNodesOnlyNoEdgesIsValid(t *testing.T) {
+func TestDisconnectedExecutionNodesAreInvalid(t *testing.T) {
 	g := AutomationGraph{
 		ID:   "auto-1",
 		Name: "nodes-only",
 		Nodes: []Node{
 			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed"}},
-			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": true}`}},
 		},
 	}
 
 	result := ValidateGraph(g)
-	if !result.Valid() {
-		t.Fatalf("expected graph with nodes but no edges to be valid, got errors: %v", result.Errors)
+	if result.Valid() {
+		t.Fatal("disconnected execution node must be invalid")
 	}
 }
 
@@ -487,7 +467,7 @@ func TestInvalidTriggerFilterExpressionIsRejected(t *testing.T) {
 				EventType:  "device.state_changed",
 				FilterExpr: "trigger.device_id == ", // syntax error
 			}},
-			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
 			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
@@ -517,7 +497,7 @@ func TestInvalidConditionExpressionIsRejected(t *testing.T) {
 		Nodes: []Node{
 			{ID: "t1", AutomationID: "auto-1", Type: NodeTrigger, Config: TriggerConfig{EventType: "device.state_changed"}},
 			{ID: "c1", AutomationID: "auto-1", Type: NodeCondition, Config: ConditionConfig{Expr: "1 +"}},
-			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
 			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
@@ -551,10 +531,10 @@ func TestValidExpressionsAreAccepted(t *testing.T) {
 				FilterExpr: `trigger.device_id == "sensor-1"`,
 			}},
 			{ID: "c1", AutomationID: "auto-1", Type: NodeCondition, Config: ConditionConfig{Expr: `time.hour >= 18`}},
-			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, Payload: `{"on": true}`}},
+			{ID: "a1", AutomationID: "auto-1", Type: NodeAction, Config: ActionConfig{ActionType: ActionSetDeviceState, TargetType: TargetDevice, TargetID: "light-1", Payload: `{"on": true}`}},
 		},
 		Edges: []Edge{
-			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
+			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "c1"},
 			{AutomationID: "auto-1", FromNodeID: "c1", ToNodeID: "a1"},
 		},
 	}

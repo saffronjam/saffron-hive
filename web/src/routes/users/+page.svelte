@@ -1,4 +1,6 @@
 <script lang="ts">
+ import { onExternalChanges } from "$lib/external-changes";
+ onExternalChanges(() => { void loadUsers(); });
 	import { getContextClient } from "@urql/svelte";
 	import { page } from "$app/state";
 	import FieldError from "$lib/components/field-error.svelte";

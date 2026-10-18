@@ -7,6 +7,7 @@ export type Floorplan = NonNullable<FloorplanStoreQuery["floorplan"]>;
 
 graphql(`
   fragment FloorplanFields on Floorplan {
+    revision
     id
     name
     vertices {
@@ -80,7 +81,7 @@ const UPDATE_FLOORPLAN = graphql(`
 // same snapshot, refresh and teardown as every other shared store.
 const base = createEntityStore<Floorplan, FloorplanStoreQuery>({
   name: "floorplan",
-  version: 1,
+  version: 2,
   query: FLOORPLAN_QUERY,
   select: (data) => (data.floorplan ? [data.floorplan] : []),
 });

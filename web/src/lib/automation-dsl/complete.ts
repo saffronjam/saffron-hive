@@ -242,6 +242,7 @@ class Suggester {
       keyOption("schedule", labels.schedule),
       keyOption("webhook", labels.webhook),
       keyOption("where", m.automation_code_key_filters({}, this.options), "array"),
+      keyOption("guard", m.automation_trigger_custom({}, this.options)),
       keyOption("for", m.automation_node_hold({}, this.options)),
       keyOption("grace", m.automation_node_grace({}, this.options)),
       keyOption("cooldown", m.automation_node_cooldown({}, this.options)),

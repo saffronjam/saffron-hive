@@ -19,7 +19,7 @@ func TestUpdateTimeZoneSettingAppliesToAutomations(t *testing.T) {
 	env := newTestEnv(t)
 	clock := &recordingClock{}
 	env.resolver.AutomationClock = clock
-	mutation := `mutation($value: String!) { updateSetting(key: "timezone", value: $value) { key value } }`
+	mutation := `mutation($value: String!) { updateSetting(key: "timezone", value: $value, expectedRevision:0) { key value } }`
 
 	resp := env.query(t, mutation, map[string]any{"value": "Mars/Olympus"})
 	if len(resp.Errors) == 0 || !strings.Contains(resp.Errors[0].Message, "unknown time zone") {

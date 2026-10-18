@@ -1,145 +1,47 @@
+import type { AutomationConfigInput } from "$lib/gql/graphql";
+
 export interface AutomationNodeLike {
   type: string;
-  config: string;
+  config: AutomationConfigInput;
 }
 
-function safeParseJSON(raw: string): unknown {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
-/**
- * For a trigger node, return "event" or "schedule" based on its stored
- * `kind`. Returns null for non-trigger nodes or when the config can't be
- * parsed.
- */
 export function triggerKind(node: AutomationNodeLike): "event" | "schedule" | null {
-  if (node.type !== "trigger") return null;
-  const raw = safeParseJSON(node.config);
-  if (!isRecord(raw)) return null;
-  const kind = raw.kind;
-  if (kind === "event" || kind === "schedule") return kind;
-  if (typeof raw.cron_expr === "string" && raw.cron_expr !== "") return "schedule";
-  return "event";
+  return node.type === "trigger"
+    ? node.config.trigger?.mode === "schedule"
+      ? "schedule"
+      : "event"
+    : null;
 }
-
-/**
- * For an action node, return its `action_type` (e.g. "set_device_state",
- * "activate_scene"). Returns null for non-action nodes or when unavailable.
- */
 export function actionKind(node: AutomationNodeLike): string | null {
-  if (node.type !== "action") return null;
-  const raw = safeParseJSON(node.config);
-  if (!isRecord(raw)) return null;
-  const kind = raw.action_type;
-  return typeof kind === "string" ? kind : null;
+  return node.type === "action" ? (node.config.action?.actionType ?? null) : null;
 }
-
-/**
- * Device IDs referenced by an action node. State, value, and configuration
- * actions with a device-targeted config contribute. Trigger
- * nodes reference devices via expression strings (filter_expr) which are not
- * deterministically parseable — they return no IDs here.
- */
 export function referencedDeviceIds(node: AutomationNodeLike): string[] {
-  if (node.type !== "action") return [];
-  const raw = safeParseJSON(node.config);
-  if (!isRecord(raw)) return [];
-  if (
-    raw.action_type !== "set_device_state" &&
-    raw.action_type !== "change_value" &&
-    raw.action_type !== "configure_device"
-  )
-    return [];
-  if (raw.target_type !== "device") return [];
-  const id = raw.target_id;
-  return typeof id === "string" && id !== "" ? [id] : [];
+  const a = node.config.action;
+  return node.type === "action" && a?.targetType === "device" && a.targetId ? [a.targetId] : [];
 }
-
-/**
- * Scene IDs referenced by an action node. `activate_scene` stores its scene
- * under `payload.scene_id`; `cycle_scenes` stores an ordered list under
- * `payload.scenes`.
- */
 export function referencedSceneIds(node: AutomationNodeLike): string[] {
-  if (node.type !== "action") return [];
-  const raw = safeParseJSON(node.config);
-  if (!isRecord(raw)) return [];
-  if (raw.action_type === "activate_scene") {
-    const payload = typeof raw.payload === "string" ? safeParseJSON(raw.payload) : null;
-    const id = isRecord(payload) ? payload.scene_id : null;
-    return typeof id === "string" && id !== "" ? [id] : [];
-  }
-  if (raw.action_type === "cycle_scenes") {
-    const payload = typeof raw.payload === "string" ? safeParseJSON(raw.payload) : null;
-    if (!isRecord(payload)) return [];
-    const scenes = payload.scenes;
-    if (!Array.isArray(scenes)) return [];
-    return scenes.filter((s): s is string => typeof s === "string" && s !== "");
-  }
-  return [];
+  const a = node.config.action;
+  if (a?.actionType === "activate_scene" && a.payload?.sceneId) return [a.payload.sceneId];
+  return a?.actionType === "cycle_scenes" ? (a.payload?.scenes ?? []) : [];
 }
-
-/** Webhook endpoint IDs referenced by webhook trigger nodes. */
 export function referencedWebhookEndpointIds(node: AutomationNodeLike): string[] {
-  if (node.type !== "trigger") return [];
-  const raw = safeParseJSON(node.config);
-  if (!isRecord(raw) || raw.event_type !== "webhook.received") return [];
-  const id = raw.endpoint_id;
-  return typeof id === "string" && id !== "" ? [id] : [];
+  const t = node.config.trigger;
+  return t?.mode === "webhook" && t.endpointId ? [t.endpointId] : [];
 }
-
-/** Build a distinct automation list for every referenced webhook endpoint. */
 export function automationsByWebhookEndpoint<A extends { id: string; nodes: AutomationNodeLike[] }>(
   automations: A[],
 ): Map<string, A[]> {
   const result = new Map<string, A[]>();
-  for (const automation of automations) {
-    const endpointIds = new Set(automation.nodes.flatMap(referencedWebhookEndpointIds));
-    for (const endpointId of endpointIds) {
-      const references = result.get(endpointId);
-      if (references) references.push(automation);
-      else result.set(endpointId, [automation]);
-    }
-  }
+  for (const automation of automations)
+    for (const id of new Set(automation.nodes.flatMap(referencedWebhookEndpointIds)))
+      result.set(id, [...(result.get(id) ?? []), automation]);
   return result;
 }
-
-/**
- * Effect IDs referenced by an action node. Only `run_effect` actions with a
- * stored timeline/native effect (`effect_id`) contribute; native-effect
- * references via `native_name` are reported by `referencedNativeEffectNames`
- * instead.
- */
 export function referencedEffectIds(node: AutomationNodeLike): string[] {
-  if (node.type !== "action") return [];
-  const raw = safeParseJSON(node.config);
-  if (!isRecord(raw)) return [];
-  if (raw.action_type !== "run_effect") return [];
-  const payload = typeof raw.payload === "string" ? safeParseJSON(raw.payload) : null;
-  if (!isRecord(payload)) return [];
-  const id = payload.effect_id;
-  return typeof id === "string" && id !== "" ? [id] : [];
+  const a = node.config.action;
+  return a?.actionType === "run_effect" && a.payload?.effectId ? [a.payload.effectId] : [];
 }
-
-/**
- * Native effect names referenced by an action node. Only `run_effect`
- * actions with a `native_name` payload field contribute.
- */
 export function referencedNativeEffectNames(node: AutomationNodeLike): string[] {
-  if (node.type !== "action") return [];
-  const raw = safeParseJSON(node.config);
-  if (!isRecord(raw)) return [];
-  if (raw.action_type !== "run_effect") return [];
-  const payload = typeof raw.payload === "string" ? safeParseJSON(raw.payload) : null;
-  if (!isRecord(payload)) return [];
-  const name = payload.native_name;
-  return typeof name === "string" && name !== "" ? [name] : [];
+  const a = node.config.action;
+  return a?.actionType === "run_effect" && a.payload?.nativeName ? [a.payload.nativeName] : [];
 }

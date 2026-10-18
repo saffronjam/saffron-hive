@@ -12,6 +12,23 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
 
+const claimDeviceRevision = `-- name: ClaimDeviceRevision :execrows
+UPDATE devices SET revision = revision + 1 WHERE id = ?1 AND revision = ?2
+`
+
+type ClaimDeviceRevisionParams struct {
+	ID               device.DeviceID
+	ExpectedRevision int64
+}
+
+func (q *Queries) ClaimDeviceRevision(ctx context.Context, arg ClaimDeviceRevisionParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, claimDeviceRevision, arg.ID, arg.ExpectedRevision)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const clearDeviceDisplayBrightness = `-- name: ClearDeviceDisplayBrightness :exec
 UPDATE devices SET display_brightness = NULL WHERE id = ?
 `
@@ -78,12 +95,13 @@ func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) erro
 }
 
 const getDevice = `-- name: GetDevice :one
-SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
+SELECT revision, id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
 FROM devices
 WHERE id = ?
 `
 
 type GetDeviceRow struct {
+	Revision           int64
 	ID                 device.DeviceID
 	Name               *string
 	FriendlyName       string
@@ -107,6 +125,7 @@ func (q *Queries) GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceR
 	row := q.db.QueryRowContext(ctx, getDevice, id)
 	var i GetDeviceRow
 	err := row.Scan(
+		&i.Revision,
 		&i.ID,
 		&i.Name,
 		&i.FriendlyName,
@@ -129,11 +148,12 @@ func (q *Queries) GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceR
 }
 
 const listDevices = `-- name: ListDevices :many
-SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
+SELECT revision, id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
 FROM devices
 `
 
 type ListDevicesRow struct {
+	Revision           int64
 	ID                 device.DeviceID
 	Name               *string
 	FriendlyName       string
@@ -163,6 +183,7 @@ func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
 	for rows.Next() {
 		var i ListDevicesRow
 		if err := rows.Scan(
+			&i.Revision,
 			&i.ID,
 			&i.Name,
 			&i.FriendlyName,
@@ -195,12 +216,13 @@ func (q *Queries) ListDevices(ctx context.Context) ([]ListDevicesRow, error) {
 }
 
 const listDevicesBySource = `-- name: ListDevicesBySource :many
-SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
+SELECT revision, id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
 FROM devices
 WHERE source = ?
 `
 
 type ListDevicesBySourceRow struct {
+	Revision           int64
 	ID                 device.DeviceID
 	Name               *string
 	FriendlyName       string
@@ -230,6 +252,7 @@ func (q *Queries) ListDevicesBySource(ctx context.Context, source device.Source)
 	for rows.Next() {
 		var i ListDevicesBySourceRow
 		if err := rows.Scan(
+			&i.Revision,
 			&i.ID,
 			&i.Name,
 			&i.FriendlyName,

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/saffronjam/saffron-hive/internal/alarms"
@@ -177,6 +178,7 @@ func mapActivitySource(row store.ActivityEvent) *model.ActivitySource {
 
 func mapWebhookEndpoint(row store.WebhookEndpoint) *model.WebhookEndpoint {
 	return &model.WebhookEndpoint{
+		Revision:          int(row.Revision),
 		ID:                row.ID,
 		Name:              row.Name,
 		Enabled:           row.Enabled,
@@ -367,6 +369,7 @@ func mapDeviceFromReader(sr device.StateReader, d device.Device) *model.Device {
 		lastSeen = live.LastSeen
 	}
 	md := &model.Device{
+		Revision:          int(d.Revision),
 		ID:                string(d.ID),
 		Name:              d.Name,
 		FriendlyName:      d.FriendlyName,
@@ -593,6 +596,7 @@ func mapZigbee2MQTTConfig(cfg store.Zigbee2MQTTConfig, scanStartedAt *time.Time,
 		activeIDs[index] = string(id)
 	}
 	return &model.Zigbee2MqttConfig{
+		Revision:                     int(cfg.Revision),
 		Broker:                       cfg.Broker,
 		FrontendURL:                  cfg.FrontendURL,
 		Username:                     cfg.Username,
@@ -674,6 +678,7 @@ func mapTuyaConfig(cfg store.TuyaConfig) *model.TuyaConfig {
 		secret = redactedPasswordSentinel
 	}
 	return &model.TuyaConfig{
+		Revision:     int(cfg.Revision),
 		AccessID:     cfg.AccessID,
 		AccessSecret: secret,
 		Region:       cfg.Region,
@@ -729,6 +734,7 @@ func resolveDeviceStateFromReader(sr device.StateReader, id device.DeviceID) *mo
 func mapScene(ctx context.Context, sr device.StateReader, tr device.TargetResolver, s GraphStore, scene store.Scene) *model.Scene {
 	mapped := &model.Scene{
 		ID:               scene.ID,
+		Revision:         int(scene.Revision),
 		Name:             scene.Name,
 		Icon:             scene.Icon,
 		CreatedBy:        mapUserRef(scene.CreatedBy),
@@ -871,23 +877,19 @@ func mapPreview(preview lightfield.PreviewData) *model.ScenePreview {
 	return mapped
 }
 
-// mapUserRef converts a store.UserRef into the GraphQL User type. Returns nil
-// when the creator is unknown (unmigrated row or user deleted).
-func mapUserRef(ref *store.UserRef) *model.User {
+// mapUserRef returns attribution when its user exists.
+func mapUserRef(ref *store.UserRef) *model.UserRef {
 	if ref == nil {
 		return nil
 	}
-	return &model.User{
+	return &model.UserRef{
 		ID:       ref.ID,
 		Username: ref.Username,
 		Name:     ref.Name,
 	}
 }
 
-// mapUser converts a full store.User into the public GraphQL User type. The
-// password hash is intentionally not exposed. Theme and CreatedAt are returned
-// as pointers because the GraphQL User type is also used for attribution
-// references (e.g. scene.createdBy) which only populate id/username/name.
+// mapUser converts a stored user into the public profile without its password hash.
 func mapUser(u store.User) *model.User {
 	theme := themeFromStore(u.Theme)
 	createdAt := u.CreatedAt
@@ -896,6 +898,7 @@ func mapUser(u store.User) *model.User {
 	tempUnit := temperatureUnitFromStore(u.TemperatureUnit)
 	language := languageFromStore(u.Language)
 	return &model.User{
+		Revision:           int(u.Revision),
 		ID:                 u.ID,
 		Username:           u.Username,
 		Name:               u.Name,
@@ -1081,7 +1084,7 @@ const redactedPasswordSentinel = "********"
 // enough to defeat dictionary attacks once the login rate-limiter is in place,
 // while still typeable by a non-expert family member.
 func validatePassword(pw string) error {
-	if len(pw) < MinPasswordLen {
+	if utf8.RuneCountInString(pw) < MinPasswordLen {
 		return fmt.Errorf("password must be at least %d characters", MinPasswordLen)
 	}
 	var hasUpper, hasLower, hasDigit bool
@@ -1130,6 +1133,7 @@ func resolveSceneTarget(ctx context.Context, sr device.StateReader, s GraphStore
 
 func mapGroupToSceneTarget(ctx context.Context, sr device.StateReader, s GraphStore, g store.Group, members []store.GroupMember) *model.Group {
 	mg := &model.Group{
+		Revision:     int(g.Revision),
 		ID:           g.ID,
 		Name:         g.Name,
 		FriendlyName: g.FriendlyName,
@@ -1191,43 +1195,14 @@ func (r *Resolver) pendingHolds(automationID string) map[string]time.Time {
 
 // mapAutomationGraph maps a stored graph, stamping each waiting trigger with
 // the time its hold fires from pending (keyed by node ID; nil for none).
-func mapAutomationGraph(g store.AutomationGraph, pending map[string]time.Time) *model.AutomationGraph {
-	domainGraph := automation.AutomationGraph{
-		ID:      g.Automation.ID,
-		Name:    g.Automation.Name,
-		Enabled: g.Automation.Enabled,
-		Nodes:   make([]automation.Node, 0, len(g.Nodes)),
-		Edges:   make([]automation.Edge, 0, len(g.Edges)),
-	}
-	defs, defsErr := automation.ParseDefinitions(g.Automation.Definitions)
-	expandable := defsErr == nil
-	for _, n := range g.Nodes {
-		config, err := defs.ParseNodeConfig(automation.NodeType(n.Type), n.Config)
-		if err != nil {
-			expandable = false
-		}
-		domainGraph.Nodes = append(domainGraph.Nodes, automation.Node{
-			ID:           automation.NodeID(n.ID),
-			AutomationID: n.AutomationID,
-			Type:         automation.NodeType(n.Type),
-			Config:       config,
-			PositionX:    n.PositionX,
-			PositionY:    n.PositionY,
-		})
-	}
-	for _, e := range g.Edges {
-		domainGraph.Edges = append(domainGraph.Edges, automation.Edge{
-			AutomationID: e.AutomationID,
-			FromNodeID:   automation.NodeID(e.FromNodeID),
-			ToNodeID:     automation.NodeID(e.ToNodeID),
-		})
-	}
+func (r *Resolver) mapAutomationGraph(ctx context.Context, g store.AutomationGraph, pending map[string]time.Time) *model.AutomationGraph {
 	mg := &model.AutomationGraph{
 		ID:          g.Automation.ID,
+		Revision:    int(g.Automation.Revision),
 		Name:        g.Automation.Name,
 		Icon:        g.Automation.Icon,
 		Enabled:     g.Automation.Enabled,
-		Compilable:  expandable && automation.Compilable(domainGraph),
+		Validation:  automationValidation(ctx, r.Store, g.Automation.Definitions, storedAutomationNodes(g), automationEdgeInputs(g)),
 		Definitions: g.Automation.Definitions,
 		LastFiredAt: g.Automation.LastFiredAt,
 		CreatedBy:   mapUserRef(g.Automation.CreatedBy),
@@ -1237,7 +1212,7 @@ func mapAutomationGraph(g store.AutomationGraph, pending map[string]time.Time) *
 		mg.Nodes[i] = &model.AutomationNode{
 			ID:           n.ID,
 			Type:         n.Type,
-			Config:       n.Config,
+			Config:       nodeAuthoring(automation.NodeType(n.Type), n.Config),
 			PositionX:    n.PositionX,
 			PositionY:    n.PositionY,
 			RuntimeState: encodeNodeState(g.NodeStates[n.ID]),
@@ -1258,8 +1233,9 @@ func mapAutomationGraph(g store.AutomationGraph, pending map[string]time.Time) *
 
 func mapFloorplan(fp *store.Floorplan) *model.Floorplan {
 	mf := &model.Floorplan{
-		ID:   fp.ID,
-		Name: fp.Name,
+		Revision: int(fp.Revision),
+		ID:       fp.ID,
+		Name:     fp.Name,
 	}
 	mf.Vertices = make([]*model.FloorplanVertex, len(fp.Vertices))
 	for i, v := range fp.Vertices {
@@ -1379,6 +1355,7 @@ func doorSwingSideFromModel(side model.FloorplanDoorSwingSide) store.FloorplanDo
 
 func mapGroup(ctx context.Context, sr device.StateReader, s GraphStore, g store.Group, members []store.GroupMember) *model.Group {
 	mg := &model.Group{
+		Revision:     int(g.Revision),
 		ID:           g.ID,
 		Name:         g.Name,
 		FriendlyName: g.FriendlyName,
@@ -1665,76 +1642,6 @@ func loadAndMapScene(ctx context.Context, r *mutationResolver, id string) (*mode
 	return mapScene(ctx, r.StateReader, r.TargetResolver, r.Store, s), nil
 }
 
-// entityRef identifies a container in the membership graph for cycle detection.
-// kind is "group" or "room"; devices are leaves and never appear here.
-type entityRef struct {
-	kind string
-	id   string
-}
-
-// checkCircularDependency reports an error when adding `child` as a member of
-// `parent` would form a cycle. Walks the descendants of `child` (through both
-// group and room membership edges) to see whether `parent` is reachable.
-//
-// `parent` and `child` are both container kinds (group or room). Adding a
-// device to anything is always safe and should not call this function.
-func (r *mutationResolver) checkCircularDependency(ctx context.Context, parent, child entityRef) error {
-	if parent == child {
-		return device.ErrCircularDependency
-	}
-	return r.walkDescendants(ctx, child, parent, map[entityRef]struct{}{})
-}
-
-func (r *mutationResolver) walkDescendants(ctx context.Context, current, target entityRef, visited map[entityRef]struct{}) error {
-	if _, ok := visited[current]; ok {
-		return nil
-	}
-	visited[current] = struct{}{}
-
-	switch current.kind {
-	case "group":
-		members, err := r.Store.ListGroupMembers(ctx, current.id)
-		if err != nil {
-			return err
-		}
-		for _, m := range members {
-			var next entityRef
-			switch m.MemberType {
-			case device.GroupMemberGroup:
-				next = entityRef{kind: "group", id: m.MemberID}
-			case device.GroupMemberRoom:
-				next = entityRef{kind: "room", id: m.MemberID}
-			default:
-				continue
-			}
-			if next == target {
-				return device.ErrCircularDependency
-			}
-			if err := r.walkDescendants(ctx, next, target, visited); err != nil {
-				return err
-			}
-		}
-	case "room":
-		members, err := r.Store.ListRoomMembers(ctx, current.id)
-		if err != nil {
-			return err
-		}
-		for _, m := range members {
-			if m.MemberType != device.RoomMemberGroup {
-				continue
-			}
-			next := entityRef{kind: "group", id: m.MemberID}
-			if next == target {
-				return device.ErrCircularDependency
-			}
-			if err := r.walkDescendants(ctx, next, target, visited); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 // computeScenePresentRooms returns the rooms whose resolved-device set
 // overlaps the scene's resolved-device set. The intersection resolves actions
 // exactly as scene-apply does, expression targets included, so a scene whose
@@ -1785,6 +1692,7 @@ func computeScenePresentRooms(ctx context.Context, sr device.StateReader, tr dev
 			continue
 		}
 		out = append(out, &model.Room{
+			Revision:        int(r.Revision),
 			ID:              r.ID,
 			Name:            r.Name,
 			Icon:            r.Icon,
@@ -1798,6 +1706,7 @@ func computeScenePresentRooms(ctx context.Context, sr device.StateReader, tr dev
 
 func mapRoom(ctx context.Context, sr device.StateReader, s GraphStore, r store.Room) *model.Room {
 	mr := &model.Room{
+		Revision:  int(r.Revision),
 		ID:        r.ID,
 		Name:      r.Name,
 		Icon:      r.Icon,
@@ -1873,6 +1782,31 @@ func attrsContainFold(attrs map[string]string, substr string) bool {
 // error), and every placement must name a device or a group that exists and
 // appear only once (the primary key on floorplan_placements backstops that).
 func validateFloorplanInput(ctx context.Context, store GraphStore, input model.UpdateFloorplanInput) error {
+	vertices := make(map[string]*model.FloorplanVertexInput, len(input.Vertices))
+	for _, v := range input.Vertices {
+		if v.ID == "" || vertices[v.ID] != nil || !isFinite(v.X) || !isFinite(v.Y) {
+			return fmt.Errorf("invalid or duplicate vertex %q", v.ID)
+		}
+		vertices[v.ID] = v
+	}
+	rooms := make(map[string]bool, len(input.Rooms))
+	for _, room := range input.Rooms {
+		if room.ID == "" || rooms[room.ID] {
+			return fmt.Errorf("invalid or duplicate floorplan room %q", room.ID)
+		}
+		rooms[room.ID] = true
+		seen := map[string]bool{}
+		for _, id := range room.VertexIds {
+			if vertices[id] == nil || seen[id] {
+				return fmt.Errorf("room %s has invalid or duplicate vertex %q", room.ID, id)
+			}
+			seen[id] = true
+		}
+		if len(room.VertexIds) > 0 && len(room.VertexIds) < 3 {
+			return fmt.Errorf("room %s requires at least three vertices", room.ID)
+		}
+	}
+
 	linked := make(map[string]string, len(input.Rooms))
 	for _, room := range input.Rooms {
 		roomID := room.RoomID.Value()
@@ -1890,6 +1824,20 @@ func validateFloorplanInput(ctx context.Context, store GraphStore, input model.U
 	}
 	wallIDs := make(map[string]bool, len(input.Walls))
 	for _, w := range input.Walls {
+		if w.ID == "" || wallIDs[w.ID] {
+			return fmt.Errorf("invalid or duplicate wall %q", w.ID)
+		}
+		a, b := vertices[w.VertexA], vertices[w.VertexB]
+		if a == nil || b == nil || w.VertexA == w.VertexB || a.X == b.X && a.Y == b.Y {
+			return fmt.Errorf("wall %s requires two distinct existing endpoints", w.ID)
+		}
+		if !isFinite(w.Thickness) || w.Thickness <= 0 {
+			return fmt.Errorf("wall %s thickness must be positive", w.ID)
+		}
+		x, y := w.CurveX.Value(), w.CurveY.Value()
+		if (x == nil) != (y == nil) || x != nil && (!isFinite(*x) || !isFinite(*y)) {
+			return fmt.Errorf("wall %s requires a complete finite curve point", w.ID)
+		}
 		wallIDs[w.ID] = true
 	}
 	openings := make(map[string]model.FloorplanOpeningKind, len(input.Openings))
@@ -1897,10 +1845,10 @@ func validateFloorplanInput(ctx context.Context, store GraphStore, input model.U
 		if !wallIDs[o.WallID] {
 			return fmt.Errorf("opening %q references wall %q, which is not part of the plan", o.ID, o.WallID)
 		}
-		if o.T < 0 || o.T > 1 {
+		if !isFinite(o.T) || o.T < 0 || o.T > 1 {
 			return fmt.Errorf("opening %q has t %v, outside the wall's 0..1 range", o.ID, o.T)
 		}
-		if o.Width <= 0 {
+		if !isFinite(o.Width) || o.Width <= 0 {
 			return fmt.Errorf("opening %q has width %v, which is not positive", o.ID, o.Width)
 		}
 		if _, exists := openings[o.ID]; exists {
@@ -1936,6 +1884,9 @@ func validateFloorplanInput(ctx context.Context, store GraphStore, input model.U
 	}
 	placed := make(map[device.TargetType]map[string]bool, 2)
 	for _, p := range input.Placements {
+		if !isFinite(p.X) || !isFinite(p.Y) {
+			return fmt.Errorf("placement %q requires finite coordinates", p.MemberID)
+		}
 		memberType := device.TargetType(p.MemberType)
 		switch memberType {
 		case device.TargetDevice:
@@ -2021,14 +1972,11 @@ func normalizeRotation(deg float64) float64 {
 	return r
 }
 
-// validateAutomationInput validates automation node/edge inputs before persisting.
-// Returns a user-friendly error if the graph has structural issues (no triggers,
-// invalid cron expressions, cycles, etc.).
-// automationNodeInputs returns a stored graph's nodes in input form.
-func automationNodeInputs(g store.AutomationGraph) []*model.AutomationNodeInput {
-	nodes := make([]*model.AutomationNodeInput, len(g.Nodes))
+// storedAutomationNodes returns a stored graph's nodes in input form.
+func storedAutomationNodes(g store.AutomationGraph) []store.CreateAutomationNodeParams {
+	nodes := make([]store.CreateAutomationNodeParams, len(g.Nodes))
 	for i, n := range g.Nodes {
-		nodes[i] = &model.AutomationNodeInput{ID: n.ID, Type: n.Type, Config: n.Config, PositionX: n.PositionX, PositionY: n.PositionY}
+		nodes[i] = store.CreateAutomationNodeParams{ID: n.ID, Type: n.Type, Config: n.Config, PositionX: n.PositionX, PositionY: n.PositionY}
 	}
 	return nodes
 }
@@ -2037,7 +1985,7 @@ func automationNodeInputs(g store.AutomationGraph) []*model.AutomationNodeInput 
 // reference resolves. Saves of drafts run only this check: an incomplete
 // graph may be stored and reports itself through compilable, but a broken
 // macro is never a draft state.
-func validateAutomationMacros(definitions string, nodes []*model.AutomationNodeInput) error {
+func validateAutomationMacros(definitions string, nodes []store.CreateAutomationNodeParams) error {
 	defs, err := automation.ParseDefinitions(definitions)
 	if err != nil {
 		return fmt.Errorf("automation validation failed: %w", err)
@@ -2053,75 +2001,66 @@ func validateAutomationMacros(definitions string, nodes []*model.AutomationNodeI
 	return nil
 }
 
-// validateAutomationInput checks a graph and its definitions as they would be
+// validateAutomationReferences checks a graph and its definitions as they would be
 // stored. Macro references are expanded first, so every check below sees the
 // configs the engine runs.
-func validateAutomationInput(ctx context.Context, store GraphStore, definitions string, rawNodes []*model.AutomationNodeInput, inputEdges []*model.AutomationEdgeInput) error {
-	if err := validateAutomationMacros(definitions, rawNodes); err != nil {
+func validateAutomationReferences(ctx context.Context, s GraphStore, definitions string, nodes []store.CreateAutomationNodeParams) error {
+	defs, err := automation.ParseDefinitions(definitions)
+	if err != nil {
 		return err
 	}
-	defs, _ := automation.ParseDefinitions(definitions)
-	inputNodes := make([]*model.AutomationNodeInput, 0, len(rawNodes))
-	domainNodes := make([]automation.Node, 0, len(rawNodes))
-	for _, n := range rawNodes {
-		nodeType := automation.NodeType(n.Type)
-		expanded, _ := defs.ExpandNodeConfig(nodeType, n.Config)
-		inputNodes = append(inputNodes, &model.AutomationNodeInput{ID: n.ID, Type: n.Type, Config: expanded})
-		config, _ := defs.ParseNodeConfig(nodeType, n.Config)
-		domainNodes = append(domainNodes, automation.Node{
-			ID:     automation.NodeID(n.ID),
-			Type:   nodeType,
-			Config: config,
-		})
+	for _, n := range nodes {
+		expanded, err := defs.ExpandNodeConfig(automation.NodeType(n.Type), n.Config)
+		if err != nil {
+			return err
+		}
+		config, err := defs.ParseNodeConfig(automation.NodeType(n.Type), n.Config)
+		if err != nil {
+			return err
+		}
+		input := []store.CreateAutomationNodeParams{{ID: n.ID, Type: n.Type, Config: expanded}}
+		if action, ok := config.(automation.ActionConfig); ok {
+			if err := automation.ValidateAction(action); err != nil {
+				return err
+			}
+		}
+		if err := validateRunEffectActions(ctx, s, input); err != nil {
+			return err
+		}
+		if err := validateConfigureDeviceActions(ctx, s, input); err != nil {
+			return err
+		}
+		if err := validateActivateSceneActions(ctx, s, input); err != nil {
+			return err
+		}
+		if err := validateCycleScenesActions(ctx, s, input); err != nil {
+			return err
+		}
+		if err := validateActionExpressions(input); err != nil {
+			return err
+		}
+		if err := validateWebhookTriggers(ctx, s, input); err != nil {
+			return err
+		}
+		switch cfg := config.(type) {
+		case automation.TriggerConfig:
+			if cfg.HoldDeviceID != "" {
+				if err := validateEntityReference(ctx, s, "device", cfg.HoldDeviceID); err != nil {
+					return err
+				}
+			}
+		case automation.ActionConfig:
+			if cfg.TargetID != "" && (cfg.TargetType == automation.TargetDevice || cfg.TargetType == automation.TargetGroup || cfg.TargetType == automation.TargetRoom) {
+				if err := validateEntityReference(ctx, s, string(cfg.TargetType), cfg.TargetID); err != nil {
+					return err
+				}
+			}
+		}
 	}
-	domainEdges := make([]automation.Edge, 0, len(inputEdges))
-	for _, e := range inputEdges {
-		domainEdges = append(domainEdges, automation.Edge{
-			FromNodeID: automation.NodeID(e.FromNodeID),
-			ToNodeID:   automation.NodeID(e.ToNodeID),
-		})
-	}
-
-	result := automation.ValidateGraph(automation.AutomationGraph{
-		Nodes: domainNodes,
-		Edges: domainEdges,
-	})
-	if result.Valid() {
-		if err := validateAlarmActionPayloads(inputNodes); err != nil {
-			return err
-		}
-		if err := validateRunEffectActions(ctx, store, inputNodes); err != nil {
-			return err
-		}
-		if err := validateToggleDeviceStateActions(inputNodes); err != nil {
-			return err
-		}
-		if err := validateConfigureDeviceActions(ctx, store, inputNodes); err != nil {
-			return err
-		}
-		if err := validateActivateSceneActions(ctx, store, inputNodes); err != nil {
-			return err
-		}
-		if err := validateCycleScenesActions(ctx, store, inputNodes); err != nil {
-			return err
-		}
-		if err := validateActionExpressions(inputNodes); err != nil {
-			return err
-		}
-		if err := validateWebhookTriggers(ctx, store, inputNodes); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	msgs := make([]string, 0, len(result.Errors))
-	for _, err := range result.Errors {
-		msgs = append(msgs, err.Error())
-	}
-	return fmt.Errorf("automation validation failed: %s", strings.Join(msgs, "; "))
+	return nil
 }
 
-func validateWebhookTriggers(ctx context.Context, graphStore GraphStore, nodes []*model.AutomationNodeInput) error {
+func validateWebhookTriggers(ctx context.Context, graphStore GraphStore, nodes []store.CreateAutomationNodeParams) error {
 	for _, node := range nodes {
 		if automation.NodeType(node.Type) != automation.NodeTrigger {
 			continue
@@ -2140,7 +2079,7 @@ func validateWebhookTriggers(ctx context.Context, graphStore GraphStore, nodes [
 	return nil
 }
 
-func validateConfigureDeviceActions(ctx context.Context, store GraphStore, nodes []*model.AutomationNodeInput) error {
+func validateConfigureDeviceActions(ctx context.Context, store GraphStore, nodes []store.CreateAutomationNodeParams) error {
 	for _, n := range nodes {
 		if automation.NodeType(n.Type) != automation.NodeAction {
 			continue
@@ -2180,7 +2119,7 @@ func validateConfigureDeviceActions(ctx context.Context, store GraphStore, nodes
 // Capability coverage is intentionally not enforced here — the
 // runner logs at debug when a step is dropped per device, so a partial cap
 // match is a soft warning rather than a hard rejection.
-func validateRunEffectActions(ctx context.Context, store GraphStore, nodes []*model.AutomationNodeInput) error {
+func validateRunEffectActions(ctx context.Context, store GraphStore, nodes []store.CreateAutomationNodeParams) error {
 	for _, n := range nodes {
 		if automation.NodeType(n.Type) != automation.NodeAction {
 			continue
@@ -2236,7 +2175,7 @@ func validateRunEffectActions(ctx context.Context, store GraphStore, nodes []*mo
 
 // validateActionExpressions checks that every action node with an
 // expression-typed target carries a well-formed target_expr.
-func validateActionExpressions(nodes []*model.AutomationNodeInput) error {
+func validateActionExpressions(nodes []store.CreateAutomationNodeParams) error {
 	for _, n := range nodes {
 		if automation.NodeType(n.Type) != automation.NodeAction {
 			continue
@@ -2258,7 +2197,7 @@ func validateActionExpressions(nodes []*model.AutomationNodeInput) error {
 	return nil
 }
 
-func validateActivateSceneActions(ctx context.Context, store GraphStore, nodes []*model.AutomationNodeInput) error {
+func validateActivateSceneActions(ctx context.Context, store GraphStore, nodes []store.CreateAutomationNodeParams) error {
 	for _, n := range nodes {
 		if automation.NodeType(n.Type) != automation.NodeAction {
 			continue
@@ -2293,7 +2232,7 @@ func validateActivateSceneActions(ctx context.Context, store GraphStore, nodes [
 // exist in the store at save time. Scenes deleted between save and fire are
 // filtered at fire time without breaking the automation; the save-time check
 // catches typos and stale references during editing.
-func validateCycleScenesActions(ctx context.Context, store GraphStore, nodes []*model.AutomationNodeInput) error {
+func validateCycleScenesActions(ctx context.Context, store GraphStore, nodes []store.CreateAutomationNodeParams) error {
 	for _, n := range nodes {
 		if automation.NodeType(n.Type) != automation.NodeAction {
 			continue
@@ -2329,91 +2268,6 @@ func validateCycleScenesActions(ctx context.Context, store GraphStore, nodes []*
 	return nil
 }
 
-// validateToggleDeviceStateActions checks every toggle_device_state action.
-// Toggle has no payload because the server computes the desired state from
-// the target's current aggregate at fire time.
-func validateToggleDeviceStateActions(nodes []*model.AutomationNodeInput) error {
-	for _, n := range nodes {
-		if automation.NodeType(n.Type) != automation.NodeAction {
-			continue
-		}
-		var outer struct {
-			ActionType string `json:"action_type"`
-			TargetType string `json:"target_type"`
-			TargetID   string `json:"target_id"`
-		}
-		if err := json.Unmarshal([]byte(n.Config), &outer); err != nil {
-			continue
-		}
-		if outer.ActionType != automation.ActionToggleDeviceState {
-			continue
-		}
-		switch automation.TargetType(outer.TargetType) {
-		case automation.TargetDevice, automation.TargetGroup, automation.TargetRoom:
-			if outer.TargetID == "" {
-				return fmt.Errorf("node %s: toggle_device_state requires target_id", n.ID)
-			}
-		case automation.TargetType(device.TargetExpression):
-		default:
-			return fmt.Errorf("node %s: toggle_device_state target_type must be device, group, room, or expression (got %q)", n.ID, outer.TargetType)
-		}
-	}
-	return nil
-}
-
-// validateAlarmActionPayloads type-checks the alarm-specific fields carried
-// inside action-node payloads. The outer automation.ValidateGraph treats
-// action payloads as opaque so this lives here.
-func validateAlarmActionPayloads(nodes []*model.AutomationNodeInput) error {
-	for _, n := range nodes {
-		if automation.NodeType(n.Type) != automation.NodeAction {
-			continue
-		}
-		var outer struct {
-			ActionType string `json:"action_type"`
-			Payload    string `json:"payload"`
-		}
-		if err := json.Unmarshal([]byte(n.Config), &outer); err != nil {
-			continue
-		}
-		switch outer.ActionType {
-		case automation.ActionRaiseAlarm:
-			var p struct {
-				AlarmID  string `json:"alarm_id"`
-				Severity string `json:"severity"`
-				Kind     string `json:"kind"`
-				Message  string `json:"message"`
-			}
-			if err := json.Unmarshal([]byte(outer.Payload), &p); err != nil {
-				return fmt.Errorf("node %s: invalid raise_alarm payload JSON", n.ID)
-			}
-			if p.AlarmID == "" {
-				return fmt.Errorf("node %s: raise_alarm requires alarm_id", n.ID)
-			}
-			if p.Severity != "high" && p.Severity != "medium" && p.Severity != "low" {
-				return fmt.Errorf("node %s: raise_alarm severity must be high, medium, or low", n.ID)
-			}
-			if p.Kind != "auto" && p.Kind != "one_shot" {
-				return fmt.Errorf("node %s: raise_alarm kind must be auto or one_shot", n.ID)
-			}
-			if p.Message == "" {
-				return fmt.Errorf("node %s: raise_alarm requires message", n.ID)
-			}
-		case automation.ActionClearAlarm:
-			var p struct {
-				AlarmID string `json:"alarm_id"`
-			}
-			if err := json.Unmarshal([]byte(outer.Payload), &p); err != nil {
-				return fmt.Errorf("node %s: invalid clear_alarm payload JSON", n.ID)
-			}
-			if p.AlarmID == "" {
-				return fmt.Errorf("node %s: clear_alarm requires alarm_id", n.ID)
-			}
-		}
-	}
-	return nil
-}
-
 // displayBrightnessToModel narrows the stored 0-254 value to the GraphQL Int.
 func displayBrightnessToModel(v *int64) *int {
 	if v == nil {
@@ -2421,4 +2275,12 @@ func displayBrightnessToModel(v *int64) *int {
 	}
 	n := int(*v)
 	return &n
+}
+
+func nodeAuthoring(kind automation.NodeType, config string) *automation.AuthoringConfig {
+	value, err := automation.InterpretAuthoring(kind, config)
+	if err != nil {
+		return nil
+	}
+	return &value
 }

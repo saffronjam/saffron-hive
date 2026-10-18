@@ -4,11 +4,12 @@ import { createDeviceStore, deviceStore, devicesHydrated } from "$lib/stores/dev
 import { cacheKey, saveSnapshot } from "$lib/entity-cache";
 
 const SNAPSHOT = "devices";
-const VERSION = 4;
+const VERSION = 5;
 
 function makeDevice(id: string, name: string) {
   return {
     id,
+    revision: 1,
     name,
     icon: null,
     displayColor: null,

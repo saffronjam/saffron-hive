@@ -13,6 +13,7 @@ export type RoomMember = Room["members"][number];
 
 graphql(`
   fragment RoomFields on Room {
+    revision
     id
     name
     icon
@@ -86,7 +87,7 @@ const REMOVE_ROOM_MEMBER = graphql(`
 
 const base = createEntityStore<Room, RoomsStoreQuery>({
   name: "rooms",
-  version: 1,
+  version: 2,
   query: ROOMS_QUERY,
   select: (data) => data.rooms,
 });

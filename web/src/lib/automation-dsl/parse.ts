@@ -1,3 +1,6 @@
+import { serializeConditionConfig } from "$lib/components/graph/condition-expr";
+import { actionPayloadFromAPI } from "$lib/automation-authoring";
+import type { AutomationConfigInput } from "$lib/gql/graphql";
 import type { Clause as TargetClause } from "$lib/target-resolve";
 import {
   serializeActionConfig,
@@ -178,7 +181,14 @@ class Compiler {
           };
         }
         if (kind === "condition") return { kind, expr: this.conditionExpr(body, at) };
-        const config = JSON.parse(this.actionConfig(body, at)) as JsonObject;
+        const authored = (JSON.parse(this.actionConfig(body, at)) as AutomationConfigInput).action!;
+        const config = {
+          action_type: authored.actionType,
+          target_type: authored.targetType,
+          target_id: authored.targetId,
+          target_expr: authored.targetExpr,
+          payload: JSON.stringify(actionPayloadFromAPI(authored.payload)),
+        } as JsonObject;
         const payloadText = typeof config.payload === "string" ? config.payload : "";
         let payload: JsonValue = payloadText;
         try {
@@ -333,23 +343,75 @@ class Compiler {
 
   conditionConfig(value: unknown, path: Path): string {
     if (typeof value === "string" && value.startsWith("$")) {
-      return JSON.stringify({ use: this.macro(value, "condition", path) });
+      return JSON.stringify({
+        macro: { name: this.macro(value, "condition", path), arguments: [] },
+      });
     }
     const object = this.object(value, path);
     if (typeof object.use === "string") {
       this.allowKeys(object, path, ["id", "use"]);
-      return JSON.stringify({ use: this.macro(object.use, "condition", [...path, "use"]) });
-    }
-    const keys = Object.keys(object).filter((key) => key !== "id");
-    if (keys.length === 0) return JSON.stringify({ mode: "" });
-    if (keys.length === 1 && typeof object.not === "string" && object.not.startsWith("$")) {
       return JSON.stringify({
-        use: this.macro(object.not, "condition", [...path, "not"]),
-        negate: true,
+        macro: { name: this.macro(object.use, "condition", [...path, "use"]), arguments: [] },
       });
     }
+    const keys = Object.keys(object).filter((key) => key !== "id");
+    if (keys.length === 0) return serializeConditionConfig({ mode: "" });
+    if (keys.length === 1 && "not" in object) {
+      const config = JSON.parse(
+        this.conditionConfig(object.not, [...path, "not"]),
+      ) as AutomationConfigInput;
+      const condition = config.condition ?? config.macro;
+      if (condition) condition.negate = !condition.negate;
+      return JSON.stringify(config);
+    }
     const { id: _id, ...rest } = object;
-    return JSON.stringify({ expr: this.conditionExpr(rest, path) });
+    const expr = this.conditionExpr(rest, path);
+    if (rest.time && isObject(rest.time)) {
+      const time = rest.time;
+      const after =
+        typeof time.after === "string"
+          ? parseClock(time.after)
+          : Array.isArray(time.between)
+            ? parseClock(String(time.between[0]))
+            : null;
+      const before =
+        typeof time.before === "string"
+          ? parseClock(time.before)
+          : Array.isArray(time.between)
+            ? parseClock(String(time.between[1]))
+            : null;
+      if ((!after || after[2] === 0) && (!before || before[2] === 0))
+        return serializeConditionConfig({
+          mode: "time_window",
+          afterHour: after?.[0],
+          afterMinute: after?.[1],
+          beforeHour: before?.[0],
+          beforeMinute: before?.[1],
+        });
+    }
+    if (Array.isArray(rest.day))
+      return serializeConditionConfig({ mode: "weekday", weekdays: rest.day.map(String) });
+    if (isObject(rest.state) && Object.keys(rest.state).length === 1) {
+      const [property, raw] = Object.entries(rest.state)[0];
+      const ops = isObject(raw)
+        ? this.comparisons(raw, [...path, "state", property], true)
+        : [["==", raw] as [Comparator, JsonValue]];
+      if (ops.length === 1) {
+        const [comparator, operand] = ops[0];
+        const value = this.stateValue(property, operand, [...path, "state", property]);
+        const target = this.target(rest, path, false);
+        return serializeConditionConfig({
+          mode: "device_state",
+          targetType: target.targetType as "device" | "room" | "group",
+          targetId: target.targetId,
+          property,
+          comparator,
+          value: String(value),
+          valueType: value === null ? "null" : (typeof value as "string" | "number" | "boolean"),
+        });
+      }
+    }
+    return serializeConditionConfig({ mode: "custom", customExpr: expr });
   }
 
   conditionExpr(value: unknown, path: Path): string {
@@ -516,10 +578,13 @@ class Compiler {
           deviceId,
           property,
           comparator,
-          value: literal === null ? "" : String(literal),
+          value: String(literal),
+          valueType:
+            literal === null ? "null" : (typeof literal as "string" | "number" | "boolean"),
           holdMs:
             object.for === undefined ? undefined : this.duration(object.for, [...path, "for"]),
         };
+
         break;
       }
       case "event":
@@ -542,9 +607,11 @@ class Compiler {
         config = this.schedule(this.object(object.schedule, at), at);
         break;
       case "webhook":
-        this.allowKeys(object, path, [...timing, "webhook", "where"]);
+        this.allowKeys(object, path, [...timing, "webhook", "where", "guard"]);
         config = {
           mode: "webhook",
+          customExpr:
+            object.guard === undefined ? undefined : this.string(object.guard, [...path, "guard"]),
           endpointId: this.resolve("webhook", object.webhook, at),
           webhookFilters:
             object.where === undefined
@@ -553,9 +620,15 @@ class Compiler {
         };
         break;
       default:
-        this.allowKeys(object, path, [...timing, "expr", "event_type"]);
+        this.allowKeys(object, path, [...timing, "expr", "event_type", "device", "for"]);
         config = {
           mode: "custom",
+          deviceId:
+            object.device === undefined
+              ? undefined
+              : this.resolve("device", object.device, [...path, "device"]),
+          holdMs:
+            object.for === undefined ? undefined : this.duration(object.for, [...path, "for"]),
           customExpr: this.string(object.expr, at),
           eventType:
             object.event_type === undefined
@@ -784,7 +857,7 @@ class Compiler {
       const field = fields.get(index + 1);
       return field ? this.stateValue(field, arg, [...path, index]) : arg;
     });
-    return JSON.stringify(converted.length ? { use: name, args: converted } : { use: name });
+    return JSON.stringify({ macro: { name, arguments: converted } });
   }
 }
 
@@ -839,13 +912,13 @@ export function parseAutomation(doc: unknown, names: Names): ParseResult {
             return compiler.actionConfig(element.value, element.path);
           default: {
             const op = compiler.string(element.value, element.path).toLowerCase();
-            if (!["and", "or", "not"].includes(op)) {
+            if (!["and", "or"].includes(op)) {
               compiler.fail(
                 element.path,
-                m.automation_code_one_of({ keys: quoteList(["and", "or", "not"]) }, options),
+                m.automation_code_one_of({ keys: quoteList(["and", "or"]) }, options),
               );
             }
-            return JSON.stringify({ kind: op });
+            return JSON.stringify({ operator: { kind: op } });
           }
         }
       });
@@ -891,32 +964,11 @@ export function parseAutomation(doc: unknown, names: Names): ParseResult {
       checkDuplicates(compiler, elements, ids);
       elements.forEach((element, index) => compile(element, ids[index]));
       const idOf = new Map(elements.map((element, index) => [element, ids[index]]));
-      const taken = new Set(ids);
-      const nextOperator = () => assignIds([{ prefix: "o" }], taken)[0];
       for (const rule of rules) {
         const triggers = rule.triggers.map((element) => idOf.get(element)!);
         const conditions = rule.conditions.map((element) => idOf.get(element)!);
         const actions = rule.actions.map((element) => idOf.get(element)!);
-        const operators: { or?: string; and?: string } = {};
-        if (conditions.length >= 2) {
-          if (triggers.length > 1) {
-            operators.or = nextOperator();
-            taken.add(operators.or);
-            nodes.push({
-              id: operators.or,
-              type: "operator",
-              config: JSON.stringify({ kind: "or" }),
-            });
-          }
-          operators.and = nextOperator();
-          taken.add(operators.and);
-          nodes.push({
-            id: operators.and,
-            type: "operator",
-            config: JSON.stringify({ kind: "and" }),
-          });
-        }
-        for (const key of ruleEdgeKeys(triggers, conditions, actions, operators)) {
+        for (const key of ruleEdgeKeys(triggers, conditions, actions)) {
           const [fromNodeId, toNodeId] = key.split("\u0000");
           edges.push({ fromNodeId, toNodeId });
         }

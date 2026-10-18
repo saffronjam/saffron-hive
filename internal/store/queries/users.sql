@@ -3,40 +3,40 @@ INSERT INTO users (id, username, name, password_hash, must_change_password)
 VALUES (?, ?, ?, ?, ?);
 
 -- name: GetUserByID :one
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, language, must_change_password, token_version, created_at
+SELECT revision, id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, language, must_change_password, token_version, created_at
 FROM users
 WHERE id = ?;
 
 -- name: GetUserByUsername :one
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, language, must_change_password, token_version, created_at
+SELECT revision, id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, language, must_change_password, token_version, created_at
 FROM users
 WHERE username = ?;
 
 -- name: ListUsers :many
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, language, must_change_password, token_version, created_at
+SELECT revision, id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, language, must_change_password, token_version, created_at
 FROM users
 ORDER BY created_at ASC;
 
 -- name: CountUsers :one
 SELECT COUNT(*) FROM users;
 
--- name: UpdateUserProfile :exec
+-- name: UpdateUserProfile :execrows
 -- Partial update of mutable profile fields. Nil narg values leave their column
 -- untouched. avatar_path can be set to a value here but cannot be cleared to
 -- NULL; use ClearUserAvatar for that (COALESCE cannot distinguish "leave alone"
 -- from "set to NULL"). theme is constrained by a CHECK in the migration.
 UPDATE users SET
+ revision=revision+1,
     name             = COALESCE(sqlc.narg('name'),             name),
     theme            = COALESCE(sqlc.narg('theme'),            theme),
-    avatar_path      = COALESCE(sqlc.narg('avatar_path'),      avatar_path),
     time_format      = COALESCE(sqlc.narg('time_format'),      time_format),
     temperature_unit = COALESCE(sqlc.narg('temperature_unit'), temperature_unit),
     haptics_enabled   = COALESCE(sqlc.narg('haptics_enabled'),   haptics_enabled),
     language          = COALESCE(sqlc.narg('language'),          language)
-WHERE id = sqlc.arg('id');
+WHERE id = sqlc.arg('id') AND revision=sqlc.arg('expected_revision');
 
 -- name: ClearUserAvatar :exec
-UPDATE users SET avatar_path = NULL WHERE id = ?;
+UPDATE users SET avatar_path = NULL, revision=revision+1 WHERE id = ?;
 
 -- name: UpdateUserPasswordHash :exec
 UPDATE users SET password_hash = ? WHERE id = ?;
@@ -74,3 +74,6 @@ WHERE id IN (SELECT value FROM json_each(CAST(sqlc.arg('ids_json') AS TEXT)));
 -- next time they hit the API. Bumped automatically on password change /
 -- reset, and exposed via forceLogoutAllSessions for explicit revocation.
 UPDATE users SET token_version = token_version + 1 WHERE id = ?;
+
+-- name: SetUserAvatar :exec
+UPDATE users SET avatar_path=?, revision=revision+1 WHERE id=?;

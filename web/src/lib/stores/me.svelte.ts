@@ -12,6 +12,7 @@ export type { Language } from "$lib/i18n/messages";
 const ME_QUERY = graphql(`
   query Me {
     me {
+      revision
       id
       username
       name
@@ -30,6 +31,7 @@ const ME_QUERY = graphql(`
 export type TimeMode = "12h" | "24h";
 export type TempUnit = "celsius" | "fahrenheit";
 export interface Me {
+  revision: number;
   id: string;
   username: string;
   name: string;
@@ -67,6 +69,7 @@ function createMe() {
   let user = $state<Me | null>(null);
 
   function setFromData(data: {
+    revision: number;
     id: string;
     username: string;
     name: string;
@@ -85,6 +88,7 @@ function createMe() {
     const language: Language = languageFromGraphQL(data.language);
     user = {
       id: data.id,
+      revision: data.revision,
       username: data.username,
       name: data.name,
       avatarPath: data.avatarPath ?? null,
@@ -115,6 +119,7 @@ function createMe() {
     },
     /** Overwrite from a mutation result (updateCurrentUser, avatar upload). */
     apply(data: {
+      revision: number;
       id: string;
       username: string;
       name: string;

@@ -2,6 +2,8 @@ package graph
 
 import (
 	"context"
+	"errors"
+	"github.com/saffronjam/saffron-hive/internal/store"
 	"regexp"
 	"strconv"
 	"strings"
@@ -20,6 +22,8 @@ func ErrorPresenter(ctx context.Context, err error) *gqlerror.Error {
 	if code == "" {
 		message := strings.ToLower(presented.Message)
 		switch {
+		case errors.Is(err, store.ErrRevisionConflict):
+			code = "REVISION_CONFLICT"
 		case strings.Contains(message, "too many login attempts"):
 			code = "RATE_LIMITED"
 			if match := retryDurationPattern.FindStringSubmatch(message); len(match) == 2 {
@@ -45,6 +49,9 @@ func ErrorPresenter(ctx context.Context, err error) *gqlerror.Error {
 		graphLogger.Error("GraphQL request failed", "error", presented.Message)
 	}
 	extensions := map[string]any{"code": code}
+	if code == "CONFIGURATION_INVALID" {
+		extensions["issues"] = presented.Extensions["issues"]
+	}
 	if len(arguments) > 0 {
 		extensions["arguments"] = arguments
 	}

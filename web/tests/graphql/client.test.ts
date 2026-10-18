@@ -15,6 +15,9 @@ vi.mock("graphql-ws", () => ({ createClient: ws.createClient }));
 vi.mock("$lib/session", () => ({ sessionTeardown: vi.fn() }));
 
 import { createGraphQLConnection } from "$lib/graphql/client";
+import { auth } from "$lib/stores/auth.svelte";
+import { sessionTeardown } from "$lib/session";
+import { gotoCalls, resetMockNavigation } from "../mocks/app-navigation";
 
 function latestOptions(): ClientOptions {
   return ws.createClient.mock.calls.at(-1)![0] as ClientOptions;
@@ -30,6 +33,34 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+it("keeps the guest destination when HTTP and GraphQL both report an expired session", async () => {
+  resetMockNavigation();
+  const payload = btoa(JSON.stringify({ sub: "guest", guest: true, exp: 2_000_000_000 }));
+  auth.setToken(`header.${payload}.signature`);
+  vi.mocked(sessionTeardown).mockClear();
+  vi.mocked(sessionTeardown).mockImplementation(() => auth.clearToken());
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            errors: [{ message: "Expired", extensions: { code: "UNAUTHENTICATED" } }],
+          }),
+          { status: 401, headers: { "Content-Type": "application/json" } },
+        ),
+    ),
+  );
+
+  await createGraphQLConnection().client.query("query { currentGuest { id } }", {}).toPromise();
+
+  expect(sessionTeardown).toHaveBeenCalledOnce();
+  expect(gotoCalls.map((call) => call.url.pathname + call.url.search)).toEqual([
+    "/login?mode=guest&reason=unavailable",
+  ]);
 });
 
 describe("GraphQL WebSocket recovery", () => {

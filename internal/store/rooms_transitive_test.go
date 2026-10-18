@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
 	"sort"
 	"testing"
 
@@ -15,6 +16,12 @@ import (
 func TestResolveTargetDeviceIDs_RoomWithGroup(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
+
+	for _, id := range []device.DeviceID{"d-1", "d-2", "d-3"} {
+		if _, err := s.CreateDevice(ctx, CreateDeviceParams{ID: id, Type: device.Light, Source: device.SourceZigbee2MQTT}); err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	mustCreateRoom(ctx, t, s, "r-1", "Room")
 	mustCreateGroup(ctx, t, s, "g-1", "Group")
@@ -39,6 +46,12 @@ func TestResolveTargetDeviceIDs_DedupesAcrossPaths(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
+	for _, id := range []device.DeviceID{"d-1"} {
+		if _, err := s.CreateDevice(ctx, CreateDeviceParams{ID: id, Type: device.Light, Source: device.SourceZigbee2MQTT}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	mustCreateRoom(ctx, t, s, "r-1", "Room")
 	mustCreateGroup(ctx, t, s, "g-1", "Group")
 
@@ -53,20 +66,24 @@ func TestResolveTargetDeviceIDs_DedupesAcrossPaths(t *testing.T) {
 	}
 }
 
-// TestResolveTargetDeviceIDs_RoomGroupCycleTerminates models the cycle a user
-// could create today by adding a room as a group member (allowed) and the same
-// group as a member of that room (allowed at the store layer; the resolver
-// rejects via checkCircularDependency, but the data integrity check belongs
-// here too — never loop forever, regardless of how the cycle was introduced).
+// TestResolveTargetDeviceIDs_RoomGroupCycleTerminates verifies bounded reads of a cyclic stored graph.
 func TestResolveTargetDeviceIDs_RoomGroupCycleTerminates(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
+
+	for _, id := range []device.DeviceID{"d-1"} {
+		if _, err := s.CreateDevice(ctx, CreateDeviceParams{ID: id, Type: device.Light, Source: device.SourceZigbee2MQTT}); err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	mustCreateRoom(ctx, t, s, "r-1", "Room")
 	mustCreateGroup(ctx, t, s, "g-1", "Group")
 
 	mustAddRoomMember(ctx, t, s, "r-1", device.RoomMemberGroup, "g-1")
-	mustAddGroupMember(ctx, t, s, "g-1", device.GroupMemberRoom, "r-1")
+	if err := s.q.AddGroupMember(ctx, sqlite.AddGroupMemberParams{ID: "cycle", GroupID: "g-1", MemberType: device.GroupMemberRoom, MemberID: "r-1"}); err != nil {
+		t.Fatal(err)
+	}
 	mustAddGroupMember(ctx, t, s, "g-1", device.GroupMemberDevice, "d-1")
 
 	got := s.ResolveTargetDeviceIDs(ctx, device.TargetRoom, "r-1")
@@ -81,6 +98,12 @@ func TestResolveTargetDeviceIDs_RoomGroupCycleTerminates(t *testing.T) {
 func TestListTransitiveRoomDeviceMemberships_NestedGroup(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
+
+	for _, id := range []device.DeviceID{"d-nested"} {
+		if _, err := s.CreateDevice(ctx, CreateDeviceParams{ID: id, Type: device.Light, Source: device.SourceZigbee2MQTT}); err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	mustCreateRoom(ctx, t, s, "r-1", "Room")
 	mustCreateGroup(ctx, t, s, "g-1", "Group")

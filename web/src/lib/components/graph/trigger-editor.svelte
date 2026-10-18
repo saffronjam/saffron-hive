@@ -1,4 +1,8 @@
 <script lang="ts">
+ import {getContextClient} from "@urql/svelte";
+ import {AUTOMATION_NODE_PREVIEW} from "$lib/graphql/authoring";
+ import {authoringInput} from "$lib/automation-authoring";
+ const client=getContextClient();
 	import { deviceDisplayName, entityDisplayName } from "$lib/utils";
 	import {
 		Select,
@@ -35,7 +39,7 @@
 		type TriggerConfig,
 		type TriggerMode,
 		type ScheduleSubmode,
-		generateCronExpr,
+		serializeTriggerConfig,
 		humanizeCron,
 		eventTypeForMode,
 		capabilityToExprProperty,
@@ -132,6 +136,7 @@
 		data.onConfigChange({
 			mode,
 			eventType: eventTypeForMode(mode),
+            ...(mode === "schedule" ? { scheduleSubmode: "at" as const } : {}),
 		});
 	}
 
@@ -165,7 +170,7 @@
 			defaultComparator = ">";
 			defaultValue = cap.valueMin !== null && cap.valueMin !== undefined ? String(cap.valueMin) : "";
 		}
-		update({ property: value, comparator: defaultComparator, value: defaultValue });
+		update({ property: value, comparator: defaultComparator, value: defaultValue, valueType: cap?.type === "binary" ? "boolean" : cap?.type === "numeric" ? "number" : "string" });
 	}
 
 	const selectedDevice = $derived(
@@ -198,7 +203,19 @@
 	});
 	const deviceRoomLabels = $derived(roomLabelsByDevice(data.rooms ?? []));
 
-	const generatedCron = $derived(generateCronExpr(data.config));
+	let generatedCron=$state("");
+ $effect(()=>{
+  if(data.config.mode!=="schedule")return;
+  const config=authoringInput(JSON.parse(serializeTriggerConfig(data.config)));
+  let active=true;
+  const timer=setTimeout(async()=>{
+    const result=await client.query(AUTOMATION_NODE_PREVIEW,{type:"trigger",config},{requestPolicy:"network-only"}).toPromise();
+    if(!active)return;
+    generatedCron=result.data?.automationNodePreview.cron ?? "";
+    if(generatedCron && generatedCron!==data.config.cronExpr) update({cronExpr:generatedCron});
+  },150);
+  return ()=>{active=false;clearTimeout(timer)};
+ });
 	const humanSchedule = $derived(humanizeCron(generatedCron));
 	const validationError = $derived(validateTriggerConfig(data.config));
 	const timingOptions = $derived.by(() => timingPresets());
@@ -212,9 +229,10 @@
 			patch.scheduleIntervalValue = undefined;
 			patch.scheduleIntervalUnit = undefined;
 		}
-		if (value !== "at") {
-			// intentionally keep hour/minute/second/weekdays — user may toggle back
-		}
+        if (value === "every") {
+            patch.scheduleIntervalValue = data.config.scheduleIntervalValue ?? 1;
+            patch.scheduleIntervalUnit = data.config.scheduleIntervalUnit ?? "minutes";
+        }
 		update(patch);
 	}
 
@@ -320,6 +338,11 @@
 						</div>
 					{/snippet}
 				</HiveSelectAutocomplete>
+				{#if data.config.customExpr && data.config.customExpr !== "true"}
+					<Input value={data.config.customExpr} class="text-xs font-mono"
+						aria-label={m.automation_node_condition_expression({}, messageOptions)}
+						oninput={(e) => update({ customExpr: e.currentTarget.value })} />
+				{/if}
 				{#if data.config.endpointId}
 					<WebhookFilterEditor
 						rules={data.config.webhookFilters ?? []}
@@ -353,7 +376,7 @@
 				</HiveSelectAutocomplete>
 
 				{#if data.config.property && selectedCapability}
-					{#if selectedCapability.type === "binary"}
+					{#if selectedCapability.type === "binary" && (!data.config.valueType || data.config.valueType === "boolean")}
 						<Select
 							type="single"
 							value={data.config.value ?? "true"}
@@ -368,7 +391,7 @@
 								<SelectItem value="false">{m.state_off({}, messageOptions)}</SelectItem>
 							</SelectContent>
 						</Select>
-					{:else if selectedCapability.type === "numeric"}
+					{:else if selectedCapability.type === "numeric" && (!data.config.valueType || data.config.valueType === "number")}
 						<div class="flex gap-1">
 							<Select
 								type="single"
@@ -618,6 +641,28 @@
 						{/each}
 					</SelectContent>
 				</Select>
+				{#if data.config.eventType === "device.state_changed"}
+					<HiveSelectAutocomplete
+						items={data.devices ?? []}
+						value={data.config.deviceId ?? ""}
+						getValue={(d) => d.id}
+						getLabel={(d) => deviceDisplayName(d)}
+						placeholder={m.automation_node_select_device({}, messageOptions)}
+						size="sm"
+						disabled={data.readOnly}
+						onchange={(deviceId) => update({ deviceId })}
+					/>
+					<label for="trigger-{id}-custom-hold" class="text-xs text-muted-foreground">{m.automation_node_hold({}, messageOptions)}</label>
+					<Select type="single" value={String(holdMs)} disabled={data.readOnly}
+						onValueChange={(v) => v !== undefined && update({ holdMs: Number(v) })}>
+						<SelectTrigger size="sm" id="trigger-{id}-custom-hold" class="w-full text-xs">{formatHoldDuration(holdMs)}</SelectTrigger>
+						<SelectContent>
+							{#each holdOptions as p (p.value)}
+								<SelectItem value={String(p.value)}>{p.label}</SelectItem>
+							{/each}
+						</SelectContent>
+					</Select>
+				{/if}
 				<Input
 					value={data.config.customExpr ?? ""}
 					oninput={(e) => {

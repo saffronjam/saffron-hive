@@ -72,6 +72,23 @@ func (q *Queries) BatchDeleteGroups(ctx context.Context, idsJson string) (int64,
 	return result.RowsAffected()
 }
 
+const claimGroupRevision = `-- name: ClaimGroupRevision :execrows
+UPDATE groups SET revision = revision + 1 WHERE id = ?1 AND revision = ?2
+`
+
+type ClaimGroupRevisionParams struct {
+	ID               string
+	ExpectedRevision int64
+}
+
+func (q *Queries) ClaimGroupRevision(ctx context.Context, arg ClaimGroupRevisionParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, claimGroupRevision, arg.ID, arg.ExpectedRevision)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const clearGroupIcon = `-- name: ClearGroupIcon :exec
 UPDATE groups SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `
@@ -118,7 +135,7 @@ func (q *Queries) DeleteProviderGroupMembers(ctx context.Context, groupID string
 }
 
 const getGroup = `-- name: GetGroup :one
-SELECT g.id, g.name, g.friendly_name, g.icon, g.provider, g.provider_group_id, g.removed,
+SELECT g.revision, g.id, g.name, g.friendly_name, g.icon, g.provider, g.provider_group_id, g.removed,
        g.created_at, g.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
@@ -129,6 +146,7 @@ WHERE g.id = ?
 `
 
 type GetGroupRow struct {
+	Revision        int64
 	ID              string
 	Name            *string
 	FriendlyName    string
@@ -147,6 +165,7 @@ func (q *Queries) GetGroup(ctx context.Context, id string) (GetGroupRow, error) 
 	row := q.db.QueryRowContext(ctx, getGroup, id)
 	var i GetGroupRow
 	err := row.Scan(
+		&i.Revision,
 		&i.ID,
 		&i.Name,
 		&i.FriendlyName,
@@ -265,7 +284,7 @@ func (q *Queries) ListGroupMembers(ctx context.Context, groupID string) ([]Group
 }
 
 const listGroups = `-- name: ListGroups :many
-SELECT g.id, g.name, g.friendly_name, g.icon, g.provider, g.provider_group_id, g.removed,
+SELECT g.revision, g.id, g.name, g.friendly_name, g.icon, g.provider, g.provider_group_id, g.removed,
        g.created_at, g.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
@@ -276,6 +295,7 @@ WHERE g.removed = false
 `
 
 type ListGroupsRow struct {
+	Revision        int64
 	ID              string
 	Name            *string
 	FriendlyName    string
@@ -300,6 +320,7 @@ func (q *Queries) ListGroups(ctx context.Context) ([]ListGroupsRow, error) {
 	for rows.Next() {
 		var i ListGroupsRow
 		if err := rows.Scan(
+			&i.Revision,
 			&i.ID,
 			&i.Name,
 			&i.FriendlyName,
@@ -327,7 +348,7 @@ func (q *Queries) ListGroups(ctx context.Context) ([]ListGroupsRow, error) {
 }
 
 const listGroupsContainingMember = `-- name: ListGroupsContainingMember :many
-SELECT g.id, g.name, g.friendly_name, g.icon, g.provider, g.provider_group_id, g.removed,
+SELECT g.revision, g.id, g.name, g.friendly_name, g.icon, g.provider, g.provider_group_id, g.removed,
        g.created_at, g.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
@@ -344,6 +365,7 @@ type ListGroupsContainingMemberParams struct {
 }
 
 type ListGroupsContainingMemberRow struct {
+	Revision        int64
 	ID              string
 	Name            *string
 	FriendlyName    string
@@ -368,6 +390,7 @@ func (q *Queries) ListGroupsContainingMember(ctx context.Context, arg ListGroups
 	for rows.Next() {
 		var i ListGroupsContainingMemberRow
 		if err := rows.Scan(
+			&i.Revision,
 			&i.ID,
 			&i.Name,
 			&i.FriendlyName,

@@ -7,9 +7,27 @@ package sqlite
 
 import (
 	"context"
+	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
 )
+
+const claimFloorplanRevision = `-- name: ClaimFloorplanRevision :execrows
+UPDATE floorplans SET revision = revision + 1 WHERE id = ?1 AND revision = ?2
+`
+
+type ClaimFloorplanRevisionParams struct {
+	ID               string
+	ExpectedRevision int64
+}
+
+func (q *Queries) ClaimFloorplanRevision(ctx context.Context, arg ClaimFloorplanRevisionParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, claimFloorplanRevision, arg.ID, arg.ExpectedRevision)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
 
 const createFloorplanDoorBinding = `-- name: CreateFloorplanDoorBinding :exec
 INSERT INTO floorplan_door_bindings (floorplan_id, opening_id, device_id, hinge_side, swing_side)
@@ -291,20 +309,29 @@ func (q *Queries) DeleteFloorplanWallsByFloorplan(ctx context.Context, floorplan
 
 const getFloorplan = `-- name: GetFloorplan :one
 
-SELECT id, name, created_at, updated_at
+SELECT revision, id, name, created_at, updated_at
 FROM floorplans
 ORDER BY created_at
 LIMIT 1
 `
 
+type GetFloorplanRow struct {
+	Revision  int64
+	ID        string
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 // A floorplan owns its graph, rooms, placements, furniture, and door bindings. GetFloorplanGraph
 // is composed in Go from these queries; ReplaceFloorplan swaps the whole plan
 // inside one tx. vertex_ids is a JSON TEXT array; the Go wrapper marshals it
 // before hitting these queries and unmarshals on read.
-func (q *Queries) GetFloorplan(ctx context.Context) (Floorplan, error) {
+func (q *Queries) GetFloorplan(ctx context.Context) (GetFloorplanRow, error) {
 	row := q.db.QueryRowContext(ctx, getFloorplan)
-	var i Floorplan
+	var i GetFloorplanRow
 	err := row.Scan(
+		&i.Revision,
 		&i.ID,
 		&i.Name,
 		&i.CreatedAt,

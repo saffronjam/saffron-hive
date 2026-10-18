@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/saffronjam/saffron-hive/internal/automation"
+	"github.com/saffronjam/saffron-hive/internal/effect"
 )
 
 type SceneTarget interface {
@@ -116,6 +118,96 @@ type AlarmFilter struct {
 	Since      graphql.Omittable[*time.Time]      `json:"since,omitempty"`
 }
 
+type AssistantAction struct {
+	ID                string                   `json:"id"`
+	RunID             string                   `json:"runId"`
+	Status            AssistantActionStatus    `json:"status"`
+	Title             string                   `json:"title"`
+	Description       string                   `json:"description"`
+	ButtonLabel       string                   `json:"buttonLabel"`
+	Targets           []*AssistantTarget       `json:"targets"`
+	Inputs            []*AssistantPrivateField `json:"inputs"`
+	NeedsConfirmation bool                     `json:"needsConfirmation"`
+	Result            string                   `json:"result"`
+	HasPrivateResult  bool                     `json:"hasPrivateResult"`
+}
+
+type AssistantActionResponseInput struct {
+	ConversationID string                        `json:"conversationId"`
+	ActionID       string                        `json:"actionId"`
+	Approve        bool                          `json:"approve"`
+	Acknowledged   bool                          `json:"acknowledged"`
+	Values         []*AssistantPrivateValueInput `json:"values"`
+}
+
+type AssistantAttachment struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Mime string `json:"mime"`
+}
+
+type AssistantConversation struct {
+	ID            string              `json:"id"`
+	AutoTitle     string              `json:"autoTitle"`
+	TitleOverride string              `json:"titleOverride"`
+	Revision      int                 `json:"revision"`
+	UpdatedAt     string              `json:"updatedAt"`
+	Messages      []*AssistantMessage `json:"messages"`
+	Actions       []*AssistantAction  `json:"actions"`
+	Runs          []*AssistantRun     `json:"runs"`
+}
+
+type AssistantConversationSummary struct {
+	ID            string `json:"id"`
+	AutoTitle     string `json:"autoTitle"`
+	TitleOverride string `json:"titleOverride"`
+	Revision      int    `json:"revision"`
+	UpdatedAt     string `json:"updatedAt"`
+}
+
+type AssistantMessage struct {
+	ID          string                 `json:"id"`
+	Role        string                 `json:"role"`
+	Text        string                 `json:"text"`
+	Attachments []*AssistantAttachment `json:"attachments"`
+	CreatedAt   string                 `json:"createdAt"`
+	RunID       string                 `json:"runId"`
+}
+
+type AssistantMessageInput struct {
+	ConversationID string   `json:"conversationId"`
+	ClientID       string   `json:"clientId"`
+	Text           string   `json:"text"`
+	AttachmentIds  []string `json:"attachmentIds"`
+}
+
+type AssistantPrivateField struct {
+	Path     string `json:"path"`
+	Label    string `json:"label"`
+	Required bool   `json:"required"`
+}
+
+type AssistantPrivateValueInput struct {
+	Path  string `json:"path"`
+	Value string `json:"value"`
+}
+
+type AssistantRun struct {
+	ID         string            `json:"id"`
+	State      AssistantRunState `json:"state"`
+	Activity   string            `json:"activity"`
+	Error      string            `json:"error"`
+	Model      string            `json:"model"`
+	StartedAt  string            `json:"startedAt"`
+	FinishedAt string            `json:"finishedAt"`
+}
+
+type AssistantTarget struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Href string `json:"href"`
+}
+
 type AuthPayload struct {
 	Token string `json:"token"`
 	User  *User  `json:"user"`
@@ -132,27 +224,28 @@ type AutomationEdgeInput struct {
 }
 
 type AutomationGraph struct {
-	ID      string  `json:"id"`
-	Name    string  `json:"name"`
-	Icon    *string `json:"icon,omitempty"`
-	Enabled bool    `json:"enabled"`
-	// Whether the stored graph can be loaded by the automation engine.
-	Compilable bool `json:"compilable"`
+	Revision int     `json:"revision"`
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Icon     *string `json:"icon,omitempty"`
+	Enabled  bool    `json:"enabled"`
+	// Validation of the complete stored configuration, including references.
+	Validation *ConfigurationValidation `json:"validation"`
 	// JSON object of the automation's named macros, keyed by name. Nodes refer to
 	// them by name; see automation.Definition for the shapes.
 	Definitions string            `json:"definitions"`
 	LastFiredAt *time.Time        `json:"lastFiredAt,omitempty"`
 	Nodes       []*AutomationNode `json:"nodes"`
 	Edges       []*AutomationEdge `json:"edges"`
-	CreatedBy   *User             `json:"createdBy,omitempty"`
+	CreatedBy   *UserRef          `json:"createdBy,omitempty"`
 }
 
 type AutomationNode struct {
-	ID        string  `json:"id"`
-	Type      string  `json:"type"`
-	Config    string  `json:"config"`
-	PositionX float64 `json:"positionX"`
-	PositionY float64 `json:"positionY"`
+	ID        string                      `json:"id"`
+	Type      string                      `json:"type"`
+	Config    *automation.AuthoringConfig `json:"config"`
+	PositionX float64                     `json:"positionX"`
+	PositionY float64                     `json:"positionY"`
 	// JSON-encoded map of per-node runtime state (e.g. cycle_scenes index).
 	RuntimeState string `json:"runtimeState"`
 	// For a trigger with a hold duration whose condition currently holds: when it
@@ -170,11 +263,17 @@ type AutomationNodeActivationEvent struct {
 }
 
 type AutomationNodeInput struct {
-	ID        string  `json:"id"`
-	Type      string  `json:"type"`
-	Config    string  `json:"config"`
-	PositionX float64 `json:"positionX"`
-	PositionY float64 `json:"positionY"`
+	ID        string                      `json:"id"`
+	Type      string                      `json:"type"`
+	Config    *automation.AuthoringConfig `json:"config"`
+	PositionX float64                     `json:"positionX"`
+	PositionY float64                     `json:"positionY"`
+}
+
+// Read-only compiled expression for the editor's preview and copy commands.
+type AutomationNodePreview struct {
+	Expression string `json:"expression"`
+	Cron       string `json:"cron"`
 }
 
 type Capability struct {
@@ -197,6 +296,26 @@ type ChangePasswordInput struct {
 	NewPassword string `json:"newPassword"`
 }
 
+type ClaudeAvailableModel struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	ResolvedModel string `json:"resolvedModel"`
+}
+
+type ClaudeConfig struct {
+	Revision int    `json:"revision"`
+	Token    string `json:"token"`
+	Enabled  bool   `json:"enabled"`
+	Model    string `json:"model"`
+	Ready    bool   `json:"ready"`
+}
+
+type ClaudeConfigInput struct {
+	Token   string `json:"token"`
+	Enabled bool   `json:"enabled"`
+	Model   string `json:"model"`
+}
+
 type Color struct {
 	R int     `json:"r"`
 	G int     `json:"g"`
@@ -217,6 +336,19 @@ type CommandTargetInput struct {
 	Type      CommandTargetType           `json:"type"`
 	ID        graphql.Omittable[*string]  `json:"id,omitempty"`
 	DeviceIds graphql.Omittable[[]string] `json:"deviceIds,omitempty"`
+}
+
+type ConfigurationIssue struct {
+	Code     string  `json:"code"`
+	Path     string  `json:"path"`
+	NodeID   *string `json:"nodeId,omitempty"`
+	Severity string  `json:"severity"`
+	Message  string  `json:"message"`
+}
+
+type ConfigurationValidation struct {
+	Valid  bool                  `json:"valid"`
+	Issues []*ConfigurationIssue `json:"issues"`
 }
 
 type ConnectionTestResult struct {
@@ -319,7 +451,8 @@ type DesiredSceneStateInput struct {
 }
 
 type Device struct {
-	ID string `json:"id"`
+	Revision int    `json:"revision"`
+	ID       string `json:"id"`
 	// The user's name override. Null means unset, in which case the device shows the
 	// name its integration reports, or its id when there is none. Clients render
 	// `name ?? friendlyName ?? id`; `updateDevice(name: null)` clears the override.
@@ -473,6 +606,7 @@ type DynamicSceneSourceInput struct {
 }
 
 type Effect struct {
+	Revision   int        `json:"revision"`
 	ID         string     `json:"id"`
 	Name       string     `json:"name"`
 	Source     string     `json:"source"`
@@ -494,33 +628,32 @@ type Effect struct {
 	// contribute no capability either; their support is gated by the device's
 	// effect cap value list.
 	RequiredCapabilities []string  `json:"requiredCapabilities"`
-	CreatedBy            *User     `json:"createdBy,omitempty"`
+	CreatedBy            *UserRef  `json:"createdBy,omitempty"`
 	CreatedAt            time.Time `json:"createdAt"`
 	UpdatedAt            time.Time `json:"updatedAt"`
 }
 
-// A single clip on a track. config is a JSON document whose shape is
-// determined by kind — the inner config struct directly, e.g.
-// {"mode":"rgb","rgb":{"r":244,"g":42,"b":23}} for a SET_COLOR clip in rgb
-// mode, {"mode":"temp","temp":{"mireds":370}} for the same kind in temp mode.
+// A single clip on a track. config contains exactly one variant matching kind.
+// SET_COLOR uses setColor with mode rgb and an RGB value, or mode temp and mireds.
 // transitionMinMs and transitionMaxMs bound a uniform random pick of the
 // actual transition sampled per clip-execution; equal bounds collapse to a
 // deterministic value.
 type EffectClip struct {
-	ID              string         `json:"id"`
-	StartMs         int            `json:"startMs"`
-	TransitionMinMs int            `json:"transitionMinMs"`
-	TransitionMaxMs int            `json:"transitionMaxMs"`
-	Kind            EffectClipKind `json:"kind"`
-	Config          string         `json:"config"`
+	ID              string             `json:"id"`
+	StartMs         int                `json:"startMs"`
+	TransitionMinMs int                `json:"transitionMinMs"`
+	TransitionMaxMs int                `json:"transitionMaxMs"`
+	Kind            EffectClipKind     `json:"kind"`
+	Config          *effect.ClipConfig `json:"config"`
 }
 
 type EffectClipInput struct {
-	StartMs         int            `json:"startMs"`
-	TransitionMinMs int            `json:"transitionMinMs"`
-	TransitionMaxMs int            `json:"transitionMaxMs"`
-	Kind            EffectClipKind `json:"kind"`
-	Config          string         `json:"config"`
+	ID              graphql.Omittable[*string] `json:"id,omitempty"`
+	StartMs         int                        `json:"startMs"`
+	TransitionMinMs int                        `json:"transitionMinMs"`
+	TransitionMaxMs int                        `json:"transitionMaxMs"`
+	Kind            EffectClipKind             `json:"kind"`
+	Config          *effect.ClipConfig         `json:"config"`
 }
 
 // Clip boundary marker emitted by the runner. active=true on enter,
@@ -556,6 +689,7 @@ type EffectTrackInput struct {
 // meters. Saved as a whole — updateFloorplan replaces every list in one
 // transaction.
 type Floorplan struct {
+	Revision     int                     `json:"revision"`
 	ID           string                  `json:"id"`
 	Name         string                  `json:"name"`
 	Vertices     []*FloorplanVertex      `json:"vertices"`
@@ -697,7 +831,8 @@ type FloorplanWallInput struct {
 }
 
 type Group struct {
-	ID string `json:"id"`
+	Revision int    `json:"revision"`
+	ID       string `json:"id"`
 	// The user's name override. Null means unset, in which case the group shows the
 	// name its integration reports, or its id when there is none. Clients render
 	// `name ?? friendlyName ?? id`; `updateGroup(name: null)` clears the override.
@@ -710,7 +845,7 @@ type Group struct {
 	Tags            []GroupTag     `json:"tags"`
 	Members         []*GroupMember `json:"members"`
 	ResolvedDevices []*Device      `json:"resolvedDevices"`
-	CreatedBy       *User          `json:"createdBy,omitempty"`
+	CreatedBy       *UserRef       `json:"createdBy,omitempty"`
 }
 
 func (Group) IsSceneTarget() {}
@@ -722,6 +857,11 @@ type GroupMember struct {
 	Device     *Device `json:"device,omitempty"`
 	Group      *Group  `json:"group,omitempty"`
 	Room       *Room   `json:"room,omitempty"`
+}
+
+type GroupMemberInput struct {
+	MemberType string `json:"memberType"`
+	MemberID   string `json:"memberId"`
 }
 
 type Guest struct {
@@ -769,13 +909,14 @@ type GuidedVibeRoundInput struct {
 }
 
 type Integration struct {
-	Provider    string  `json:"provider"`
-	Name        string  `json:"name"`
-	Configured  bool    `json:"configured"`
-	Enabled     bool    `json:"enabled"`
-	Connected   bool    `json:"connected"`
-	DeviceCount int     `json:"deviceCount"`
-	Message     *string `json:"message,omitempty"`
+	Provider    string          `json:"provider"`
+	Name        string          `json:"name"`
+	Configured  bool            `json:"configured"`
+	Enabled     bool            `json:"enabled"`
+	Connected   bool            `json:"connected"`
+	DeviceCount int             `json:"deviceCount"`
+	Message     *string         `json:"message,omitempty"`
+	Kind        IntegrationKind `json:"kind"`
 }
 
 type LocalizedName struct {
@@ -789,6 +930,7 @@ type LocalizedNameInput struct {
 }
 
 type LocalizedNameSet struct {
+	Revision       int              `json:"revision"`
 	EntityType     string           `json:"entityType"`
 	EntityID       string           `json:"entityId"`
 	SourceLanguage Language         `json:"sourceLanguage"`
@@ -796,10 +938,11 @@ type LocalizedNameSet struct {
 }
 
 type LocalizedNameSetInput struct {
-	EntityType     string                `json:"entityType"`
-	EntityID       string                `json:"entityId"`
-	SourceLanguage Language              `json:"sourceLanguage"`
-	Translations   []*LocalizedNameInput `json:"translations"`
+	ExpectedRevision int                   `json:"expectedRevision"`
+	EntityType       string                `json:"entityType"`
+	EntityID         string                `json:"entityId"`
+	SourceLanguage   Language              `json:"sourceLanguage"`
+	Translations     []*LocalizedNameInput `json:"translations"`
 }
 
 type LogEntry struct {
@@ -919,12 +1062,13 @@ type RaiseAlarmInput struct {
 }
 
 type Room struct {
+	Revision        int           `json:"revision"`
 	ID              string        `json:"id"`
 	Name            string        `json:"name"`
 	Icon            *string       `json:"icon,omitempty"`
 	Members         []*RoomMember `json:"members"`
 	ResolvedDevices []*Device     `json:"resolvedDevices"`
-	CreatedBy       *User         `json:"createdBy,omitempty"`
+	CreatedBy       *UserRef      `json:"createdBy,omitempty"`
 }
 
 func (Room) IsSceneTarget() {}
@@ -943,6 +1087,7 @@ type RoomMemberInput struct {
 }
 
 type Scene struct {
+	Revision         int                     `json:"revision"`
 	ID               string                  `json:"id"`
 	Name             string                  `json:"name"`
 	Icon             *string                 `json:"icon,omitempty"`
@@ -951,7 +1096,7 @@ type Scene struct {
 	Lighting         *SceneLighting          `json:"lighting"`
 	SupportingStates []*SceneSupportingState `json:"supportingStates"`
 	Preview          *ScenePreview           `json:"preview"`
-	CreatedBy        *User                   `json:"createdBy,omitempty"`
+	CreatedBy        *UserRef                `json:"createdBy,omitempty"`
 	ActivatedAt      *time.Time              `json:"activatedAt,omitempty"`
 }
 
@@ -961,6 +1106,21 @@ type Scene struct {
 type SceneActiveEvent struct {
 	SceneID     string     `json:"sceneId"`
 	ActivatedAt *time.Time `json:"activatedAt,omitempty"`
+}
+
+type SceneAuthoredState struct {
+	DeviceID string             `json:"deviceId"`
+	Lighting bool               `json:"lighting"`
+	State    *DesiredSceneState `json:"state"`
+}
+
+type SceneAuthoringInput struct {
+	Targets []*SceneTargetInput `json:"targets"`
+	Source  SceneStateSource    `json:"source"`
+	// Used when CURRENT has no writable reported state.
+	FallbackToDefaults bool `json:"fallbackToDefaults"`
+	// Explicit desired values applied after selecting defaults or current state.
+	Desired graphql.Omittable[*DesiredSceneStateInput] `json:"desired,omitempty"`
 }
 
 type SceneDefinitionInput struct {
@@ -1030,8 +1190,9 @@ type SceneTargetInput struct {
 }
 
 type Setting struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
+	Revision int    `json:"revision"`
+	Key      string `json:"key"`
+	Value    string `json:"value"`
 }
 
 type SetupStatus struct {
@@ -1105,6 +1266,7 @@ type TopologyNode struct {
 }
 
 type TuyaConfig struct {
+	Revision     int    `json:"revision"`
 	AccessID     string `json:"accessId"`
 	AccessSecret string `json:"accessSecret"`
 	Region       string `json:"region"`
@@ -1118,10 +1280,16 @@ type TuyaConfigInput struct {
 	Enabled      bool   `json:"enabled"`
 }
 
+type TuyaConfigResult struct {
+	Config      *TuyaConfig           `json:"config"`
+	Application *ConnectionTestResult `json:"application"`
+}
+
 type UpdateAutomationInput struct {
-	Name    graphql.Omittable[*string] `json:"name,omitempty"`
-	Icon    graphql.Omittable[*string] `json:"icon,omitempty"`
-	Enabled graphql.Omittable[*bool]   `json:"enabled,omitempty"`
+	ExpectedRevision int                        `json:"expectedRevision"`
+	Name             graphql.Omittable[*string] `json:"name,omitempty"`
+	Icon             graphql.Omittable[*string] `json:"icon,omitempty"`
+	Enabled          graphql.Omittable[*bool]   `json:"enabled,omitempty"`
 	// JSON object of named macros.
 	Definitions graphql.Omittable[*string]                `json:"definitions,omitempty"`
 	Nodes       graphql.Omittable[[]*AutomationNodeInput] `json:"nodes,omitempty"`
@@ -1129,15 +1297,17 @@ type UpdateAutomationInput struct {
 }
 
 type UpdateCurrentUserInput struct {
-	Name            graphql.Omittable[*string]          `json:"name,omitempty"`
-	Theme           graphql.Omittable[*Theme]           `json:"theme,omitempty"`
-	TimeFormat      graphql.Omittable[*TimeFormat]      `json:"timeFormat,omitempty"`
-	TemperatureUnit graphql.Omittable[*TemperatureUnit] `json:"temperatureUnit,omitempty"`
-	HapticsEnabled  graphql.Omittable[*bool]            `json:"hapticsEnabled,omitempty"`
-	Language        graphql.Omittable[*Language]        `json:"language,omitempty"`
+	ExpectedRevision int                                 `json:"expectedRevision"`
+	Name             graphql.Omittable[*string]          `json:"name,omitempty"`
+	Theme            graphql.Omittable[*Theme]           `json:"theme,omitempty"`
+	TimeFormat       graphql.Omittable[*TimeFormat]      `json:"timeFormat,omitempty"`
+	TemperatureUnit  graphql.Omittable[*TemperatureUnit] `json:"temperatureUnit,omitempty"`
+	HapticsEnabled   graphql.Omittable[*bool]            `json:"hapticsEnabled,omitempty"`
+	Language         graphql.Omittable[*Language]        `json:"language,omitempty"`
 }
 
 type UpdateDeviceInput struct {
+	ExpectedRevision int `json:"expectedRevision"`
 	// Sets the name override. Pass null to clear it and fall back to the
 	// integration's name. Omit the field to leave it alone.
 	Name graphql.Omittable[*string] `json:"name,omitempty"`
@@ -1158,48 +1328,56 @@ type UpdateDeviceRolesInput struct {
 }
 
 type UpdateEffectInput struct {
-	ID         string                                 `json:"id"`
-	Name       graphql.Omittable[*string]             `json:"name,omitempty"`
-	Icon       graphql.Omittable[*string]             `json:"icon,omitempty"`
-	Loop       graphql.Omittable[*bool]               `json:"loop,omitempty"`
-	DurationMs graphql.Omittable[*int]                `json:"durationMs,omitempty"`
-	NativeName graphql.Omittable[*string]             `json:"nativeName,omitempty"`
-	Tracks     graphql.Omittable[[]*EffectTrackInput] `json:"tracks,omitempty"`
+	ExpectedRevision int                                    `json:"expectedRevision"`
+	ID               string                                 `json:"id"`
+	Name             graphql.Omittable[*string]             `json:"name,omitempty"`
+	Icon             graphql.Omittable[*string]             `json:"icon,omitempty"`
+	Loop             graphql.Omittable[*bool]               `json:"loop,omitempty"`
+	DurationMs       graphql.Omittable[*int]                `json:"durationMs,omitempty"`
+	NativeName       graphql.Omittable[*string]             `json:"nativeName,omitempty"`
+	Tracks           graphql.Omittable[[]*EffectTrackInput] `json:"tracks,omitempty"`
 }
 
 // The whole plan in one input: the client sends every vertex, wall, opening,
 // room, and placement it wants persisted, and the server replaces the stored plan
 // with exactly this set. Ids are client-generated and stable across saves.
 type UpdateFloorplanInput struct {
-	ID           string                       `json:"id"`
-	Name         string                       `json:"name"`
-	Vertices     []*FloorplanVertexInput      `json:"vertices"`
-	Walls        []*FloorplanWallInput        `json:"walls"`
-	Openings     []*FloorplanOpeningInput     `json:"openings"`
-	DoorBindings []*FloorplanDoorBindingInput `json:"doorBindings"`
-	Rooms        []*FloorplanRoomInput        `json:"rooms"`
-	Placements   []*FloorplanPlacementInput   `json:"placements"`
-	Furniture    []*FloorplanFurnitureInput   `json:"furniture"`
+	ExpectedRevision int                          `json:"expectedRevision"`
+	ID               string                       `json:"id"`
+	Name             string                       `json:"name"`
+	Vertices         []*FloorplanVertexInput      `json:"vertices"`
+	Walls            []*FloorplanWallInput        `json:"walls"`
+	Openings         []*FloorplanOpeningInput     `json:"openings"`
+	DoorBindings     []*FloorplanDoorBindingInput `json:"doorBindings"`
+	Rooms            []*FloorplanRoomInput        `json:"rooms"`
+	Placements       []*FloorplanPlacementInput   `json:"placements"`
+	Furniture        []*FloorplanFurnitureInput   `json:"furniture"`
 }
 
 type UpdateGroupInput struct {
-	Name graphql.Omittable[*string]    `json:"name,omitempty"`
-	Icon graphql.Omittable[*string]    `json:"icon,omitempty"`
-	Tags graphql.Omittable[[]GroupTag] `json:"tags,omitempty"`
+	Members          graphql.Omittable[[]*GroupMemberInput] `json:"members,omitempty"`
+	ExpectedRevision int                                    `json:"expectedRevision"`
+	Name             graphql.Omittable[*string]             `json:"name,omitempty"`
+	Icon             graphql.Omittable[*string]             `json:"icon,omitempty"`
+	Tags             graphql.Omittable[[]GroupTag]          `json:"tags,omitempty"`
 }
 
 type UpdateRoomInput struct {
-	Name graphql.Omittable[*string] `json:"name,omitempty"`
-	Icon graphql.Omittable[*string] `json:"icon,omitempty"`
+	Members          graphql.Omittable[[]*RoomMemberInput] `json:"members,omitempty"`
+	ExpectedRevision int                                   `json:"expectedRevision"`
+	Name             graphql.Omittable[*string]            `json:"name,omitempty"`
+	Icon             graphql.Omittable[*string]            `json:"icon,omitempty"`
 }
 
 type UpdateSceneInput struct {
-	Name       graphql.Omittable[*string]               `json:"name,omitempty"`
-	Icon       graphql.Omittable[*string]               `json:"icon,omitempty"`
-	Definition graphql.Omittable[*SceneDefinitionInput] `json:"definition,omitempty"`
+	ExpectedRevision int                                      `json:"expectedRevision"`
+	Name             graphql.Omittable[*string]               `json:"name,omitempty"`
+	Icon             graphql.Omittable[*string]               `json:"icon,omitempty"`
+	Definition       graphql.Omittable[*SceneDefinitionInput] `json:"definition,omitempty"`
 }
 
 type UpdateWebhookEndpointInput struct {
+	ExpectedRevision  int    `json:"expectedRevision"`
 	Name              string `json:"name"`
 	Enabled           bool   `json:"enabled"`
 	RateLimitCount    int    `json:"rateLimitCount"`
@@ -1207,6 +1385,7 @@ type UpdateWebhookEndpointInput struct {
 }
 
 type User struct {
+	Revision int    `json:"revision"`
 	ID       string `json:"id"`
 	Username string `json:"username"`
 	Name     string `json:"name"`
@@ -1241,6 +1420,13 @@ type User struct {
 	// flow. Present on full user loads (`me`, `users`, `AuthPayload.user`); null
 	// on attribution references.
 	MustChangePassword *bool `json:"mustChangePassword,omitempty"`
+}
+
+// Attribution for an authored entity.
+type UserRef struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Name     string `json:"name"`
 }
 
 type VibeFieldSample struct {
@@ -1297,6 +1483,7 @@ type WebhookDelivery struct {
 }
 
 type WebhookEndpoint struct {
+	Revision          int        `json:"revision"`
 	ID                string     `json:"id"`
 	Name              string     `json:"name"`
 	Enabled           bool       `json:"enabled"`
@@ -1304,7 +1491,7 @@ type WebhookEndpoint struct {
 	RateLimitWindowMs int        `json:"rateLimitWindowMs"`
 	CreatedAt         time.Time  `json:"createdAt"`
 	UpdatedAt         time.Time  `json:"updatedAt"`
-	CreatedBy         *User      `json:"createdBy,omitempty"`
+	CreatedBy         *UserRef   `json:"createdBy,omitempty"`
 	LastDeliveryAt    *time.Time `json:"lastDeliveryAt,omitempty"`
 }
 
@@ -1326,6 +1513,7 @@ type Zigbee2MqttBridgeInfo struct {
 }
 
 type Zigbee2MqttConfig struct {
+	Revision    int     `json:"revision"`
 	Broker      string  `json:"broker"`
 	FrontendURL *string `json:"frontendUrl,omitempty"`
 	Username    string  `json:"username"`
@@ -1363,6 +1551,12 @@ type Zigbee2MqttConfigInput struct {
 	ScanMinute                   graphql.Omittable[*int] `json:"scanMinute,omitempty"`
 	InteractiveCommandsPerSecond int                     `json:"interactiveCommandsPerSecond"`
 	ContinuousCommandsPerSecond  int                     `json:"continuousCommandsPerSecond"`
+}
+
+// Persisted configuration and the result of applying it to the integration.
+type Zigbee2MqttConfigResult struct {
+	Config      *Zigbee2MqttConfig    `json:"config"`
+	Application *ConnectionTestResult `json:"application"`
 }
 
 type Zigbee2MqttDeviceDefinition struct {
@@ -1634,6 +1828,138 @@ func (e *AlarmSeverity) UnmarshalJSON(b []byte) error {
 }
 
 func (e AlarmSeverity) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AssistantActionStatus string
+
+const (
+	AssistantActionStatusPending    AssistantActionStatus = "PENDING"
+	AssistantActionStatusNeedsInput AssistantActionStatus = "NEEDS_INPUT"
+	AssistantActionStatusExecuting  AssistantActionStatus = "EXECUTING"
+	AssistantActionStatusCompleted  AssistantActionStatus = "COMPLETED"
+	AssistantActionStatusRejected   AssistantActionStatus = "REJECTED"
+	AssistantActionStatusStale      AssistantActionStatus = "STALE"
+	AssistantActionStatusFailed     AssistantActionStatus = "FAILED"
+)
+
+var AllAssistantActionStatus = []AssistantActionStatus{
+	AssistantActionStatusPending,
+	AssistantActionStatusNeedsInput,
+	AssistantActionStatusExecuting,
+	AssistantActionStatusCompleted,
+	AssistantActionStatusRejected,
+	AssistantActionStatusStale,
+	AssistantActionStatusFailed,
+}
+
+func (e AssistantActionStatus) IsValid() bool {
+	switch e {
+	case AssistantActionStatusPending, AssistantActionStatusNeedsInput, AssistantActionStatusExecuting, AssistantActionStatusCompleted, AssistantActionStatusRejected, AssistantActionStatusStale, AssistantActionStatusFailed:
+		return true
+	}
+	return false
+}
+
+func (e AssistantActionStatus) String() string {
+	return string(e)
+}
+
+func (e *AssistantActionStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AssistantActionStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AssistantActionStatus", str)
+	}
+	return nil
+}
+
+func (e AssistantActionStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AssistantActionStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AssistantActionStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AssistantRunState string
+
+const (
+	AssistantRunStateIdle        AssistantRunState = "IDLE"
+	AssistantRunStateQueued      AssistantRunState = "QUEUED"
+	AssistantRunStateRunning     AssistantRunState = "RUNNING"
+	AssistantRunStateWaiting     AssistantRunState = "WAITING"
+	AssistantRunStateCompleted   AssistantRunState = "COMPLETED"
+	AssistantRunStateFailed      AssistantRunState = "FAILED"
+	AssistantRunStateStopped     AssistantRunState = "STOPPED"
+	AssistantRunStateInterrupted AssistantRunState = "INTERRUPTED"
+)
+
+var AllAssistantRunState = []AssistantRunState{
+	AssistantRunStateIdle,
+	AssistantRunStateQueued,
+	AssistantRunStateRunning,
+	AssistantRunStateWaiting,
+	AssistantRunStateCompleted,
+	AssistantRunStateFailed,
+	AssistantRunStateStopped,
+	AssistantRunStateInterrupted,
+}
+
+func (e AssistantRunState) IsValid() bool {
+	switch e {
+	case AssistantRunStateIdle, AssistantRunStateQueued, AssistantRunStateRunning, AssistantRunStateWaiting, AssistantRunStateCompleted, AssistantRunStateFailed, AssistantRunStateStopped, AssistantRunStateInterrupted:
+		return true
+	}
+	return false
+}
+
+func (e AssistantRunState) String() string {
+	return string(e)
+}
+
+func (e *AssistantRunState) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AssistantRunState(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AssistantRunState", str)
+	}
+	return nil
+}
+
+func (e AssistantRunState) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AssistantRunState) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AssistantRunState) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
@@ -2341,6 +2667,61 @@ func (e GuestChangeKind) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type IntegrationKind string
+
+const (
+	IntegrationKindDeviceProvider IntegrationKind = "DEVICE_PROVIDER"
+	IntegrationKindAssistant      IntegrationKind = "ASSISTANT"
+)
+
+var AllIntegrationKind = []IntegrationKind{
+	IntegrationKindDeviceProvider,
+	IntegrationKindAssistant,
+}
+
+func (e IntegrationKind) IsValid() bool {
+	switch e {
+	case IntegrationKindDeviceProvider, IntegrationKindAssistant:
+		return true
+	}
+	return false
+}
+
+func (e IntegrationKind) String() string {
+	return string(e)
+}
+
+func (e *IntegrationKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = IntegrationKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid IntegrationKind", str)
+	}
+	return nil
+}
+
+func (e IntegrationKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *IntegrationKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e IntegrationKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type Language string
 
 const (
@@ -2623,6 +3004,61 @@ func (e *SceneLightOverrideKind) UnmarshalJSON(b []byte) error {
 }
 
 func (e SceneLightOverrideKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type SceneStateSource string
+
+const (
+	SceneStateSourceDefaults SceneStateSource = "DEFAULTS"
+	SceneStateSourceCurrent  SceneStateSource = "CURRENT"
+)
+
+var AllSceneStateSource = []SceneStateSource{
+	SceneStateSourceDefaults,
+	SceneStateSourceCurrent,
+}
+
+func (e SceneStateSource) IsValid() bool {
+	switch e {
+	case SceneStateSourceDefaults, SceneStateSourceCurrent:
+		return true
+	}
+	return false
+}
+
+func (e SceneStateSource) String() string {
+	return string(e)
+}
+
+func (e *SceneStateSource) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SceneStateSource(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SceneStateSource", str)
+	}
+	return nil
+}
+
+func (e SceneStateSource) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *SceneStateSource) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e SceneStateSource) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

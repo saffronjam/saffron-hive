@@ -62,6 +62,7 @@ func (s *DB) GetDevice(ctx context.Context, id device.DeviceID) (device.Device, 
 	}
 	return device.Device{
 		ID:                row.ID,
+		Revision:          row.Revision,
 		Name:              row.Name,
 		FriendlyName:      row.FriendlyName,
 		Icon:              row.Icon,
@@ -90,6 +91,7 @@ func (s *DB) ListDevices(ctx context.Context) ([]device.Device, error) {
 	for _, r := range rows {
 		devices = append(devices, device.Device{
 			ID:                r.ID,
+			Revision:          r.Revision,
 			Name:              r.Name,
 			FriendlyName:      r.FriendlyName,
 			Icon:              r.Icon,
@@ -120,6 +122,7 @@ func (s *DB) ListDevicesBySource(ctx context.Context, source device.Source) ([]d
 	for _, r := range rows {
 		devices = append(devices, device.Device{
 			ID:                r.ID,
+			Revision:          r.Revision,
 			Name:              r.Name,
 			FriendlyName:      r.FriendlyName,
 			Icon:              r.Icon,
@@ -423,10 +426,7 @@ func (s *DB) UpdateDeviceDisplayBrightness(ctx context.Context, params UpdateDev
 	return s.GetDevice(ctx, params.ID)
 }
 
-// PurgeDevice deletes a device by its ID together with its floorplan
-// placement in one transaction. The placement is deleted explicitly because
-// the runtime connection does not enforce foreign keys, so the schema's
-// ON DELETE CASCADE does not fire on its own.
+// PurgeDevice deletes a device and its polymorphic floorplan placement atomically.
 func (s *DB) PurgeDevice(ctx context.Context, id device.DeviceID) error {
 	return s.execTx(ctx, func(q *sqlite.Queries) error {
 		if err := q.DeleteFloorplanPlacementsByMember(ctx, sqlite.DeleteFloorplanPlacementsByMemberParams{
@@ -450,4 +450,82 @@ func derefTime(t *time.Time) time.Time {
 		return time.Time{}
 	}
 	return *t
+}
+
+// UpdateDeviceMetadata commits user-owned fields without overwriting device telemetry.
+func (s *DB) UpdateDeviceMetadata(ctx context.Context, p UpdateDeviceMetadataParams) (result device.Device, err error) {
+	if p.Color != nil && *p.Color != "" {
+		color := *p.Color
+		if len(color) != 7 || color[0] != '#' {
+			return result, fmt.Errorf("display color must be #RRGGBB")
+		}
+		for _, c := range color[1:] {
+			if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
+				return result, fmt.Errorf("display color must be #RRGGBB")
+			}
+		}
+	}
+	if p.Brightness != nil && (*p.Brightness < 0 || *p.Brightness > 254) {
+		return result, fmt.Errorf("display brightness must be between 0 and 254")
+	}
+	err = s.atomic(ctx, func(s *DB) error {
+		changed, err := s.q.ClaimDeviceRevision(ctx, sqlite.ClaimDeviceRevisionParams{ID: p.ID, ExpectedRevision: p.ExpectedRevision})
+		if err != nil {
+			return err
+		}
+		if changed != 1 {
+			return ErrRevisionConflict
+		}
+
+		current, err := s.GetDevice(ctx, p.ID)
+		if err != nil {
+			return err
+		}
+		if p.SetRoles {
+			if err := device.ValidateDeviceRoles(current, p.Roles); err != nil {
+				return err
+			}
+			if p.Roles.Contact == nil || *p.Roles.Contact != device.ContactRoleDoor {
+				if _, err := s.q.GetFloorplanDoorBindingByDevice(ctx, string(p.ID)); err == nil {
+					return fmt.Errorf("detach this sensor from its map door before changing its contact role")
+				} else if !errors.Is(err, sql.ErrNoRows) {
+					return err
+				}
+			}
+			if err := s.q.SetDeviceRoles(ctx, sqlite.SetDeviceRolesParams{ID: p.ID, ControlledLoadRole: controlledLoadRoleString(p.Roles.ControlledLoad), ContactRole: contactRoleString(p.Roles.Contact)}); err != nil {
+				return err
+			}
+		}
+		if p.SetName {
+			if _, err := s.SetDeviceName(ctx, p.ID, p.Name); err != nil {
+				return err
+			}
+		}
+		if p.SetIcon {
+			if _, err := s.UpdateDeviceIcon(ctx, UpdateDeviceIconParams{ID: p.ID, SetIcon: true, Icon: p.Icon}); err != nil {
+				return err
+			}
+		}
+		if p.SetColor {
+			if _, err := s.UpdateDeviceDisplayColor(ctx, UpdateDeviceDisplayColorParams{ID: p.ID, SetColor: true, Color: p.Color}); err != nil {
+				return err
+			}
+		}
+		if p.SetBrightness {
+			if p.Brightness != nil && (*p.Brightness < 0 || *p.Brightness > 254) {
+				return fmt.Errorf("display brightness must be between 0 and 254")
+			}
+			if _, err := s.UpdateDeviceDisplayBrightness(ctx, UpdateDeviceDisplayBrightnessParams{ID: p.ID, SetBrightness: true, Brightness: p.Brightness}); err != nil {
+				return err
+			}
+		}
+		if p.Disabled != nil {
+			if _, err := s.SetDeviceDisabled(ctx, p.ID, *p.Disabled); err != nil {
+				return err
+			}
+		}
+		result, err = s.GetDevice(ctx, p.ID)
+		return err
+	})
+	return result, err
 }

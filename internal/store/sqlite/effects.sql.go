@@ -23,6 +23,23 @@ func (q *Queries) BatchDeleteEffects(ctx context.Context, idsJson string) (int64
 	return result.RowsAffected()
 }
 
+const claimEffectRevision = `-- name: ClaimEffectRevision :execrows
+UPDATE effects SET revision = revision + 1 WHERE id = ?1 AND revision = ?2
+`
+
+type ClaimEffectRevisionParams struct {
+	ID               string
+	ExpectedRevision int64
+}
+
+func (q *Queries) ClaimEffectRevision(ctx context.Context, arg ClaimEffectRevisionParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, claimEffectRevision, arg.ID, arg.ExpectedRevision)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const clearEffectIcon = `-- name: ClearEffectIcon :exec
 UPDATE effects SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `
@@ -182,7 +199,7 @@ func (q *Queries) DeleteVolatileActiveEffects(ctx context.Context) (int64, error
 }
 
 const getEffect = `-- name: GetEffect :one
-SELECT e.id, e.name, e.icon, e.kind, e.native_name, e.loop, e.duration_ms,
+SELECT e.revision, e.id, e.name, e.icon, e.kind, e.native_name, e.loop, e.duration_ms,
        e.created_at, e.updated_at,
        u.id       AS creator_id,
        u.username AS creator_username,
@@ -193,6 +210,7 @@ WHERE e.id = ?
 `
 
 type GetEffectRow struct {
+	Revision        int64
 	ID              string
 	Name            string
 	Icon            *string
@@ -211,6 +229,7 @@ func (q *Queries) GetEffect(ctx context.Context, id string) (GetEffectRow, error
 	row := q.db.QueryRowContext(ctx, getEffect, id)
 	var i GetEffectRow
 	err := row.Scan(
+		&i.Revision,
 		&i.ID,
 		&i.Name,
 		&i.Icon,
@@ -336,7 +355,7 @@ func (q *Queries) ListEffectTracks(ctx context.Context, effectID string) ([]Effe
 }
 
 const listEffects = `-- name: ListEffects :many
-SELECT e.id, e.name, e.icon, e.kind, e.native_name, e.loop, e.duration_ms,
+SELECT e.revision, e.id, e.name, e.icon, e.kind, e.native_name, e.loop, e.duration_ms,
        e.created_at, e.updated_at,
        u.id       AS creator_id,
        u.username AS creator_username,
@@ -346,6 +365,7 @@ LEFT JOIN users u ON u.id = e.created_by
 `
 
 type ListEffectsRow struct {
+	Revision        int64
 	ID              string
 	Name            string
 	Icon            *string
@@ -370,6 +390,7 @@ func (q *Queries) ListEffects(ctx context.Context) ([]ListEffectsRow, error) {
 	for rows.Next() {
 		var i ListEffectsRow
 		if err := rows.Scan(
+			&i.Revision,
 			&i.ID,
 			&i.Name,
 			&i.Icon,
@@ -439,20 +460,6 @@ func (q *Queries) UpdateEffect(ctx context.Context, arg UpdateEffectParams) erro
 		arg.DurationMs,
 		arg.ID,
 	)
-	return err
-}
-
-const updateEffectDuration = `-- name: UpdateEffectDuration :exec
-UPDATE effects SET duration_ms = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
-`
-
-type UpdateEffectDurationParams struct {
-	DurationMs int64
-	ID         string
-}
-
-func (q *Queries) UpdateEffectDuration(ctx context.Context, arg UpdateEffectDurationParams) error {
-	_, err := q.db.ExecContext(ctx, updateEffectDuration, arg.DurationMs, arg.ID)
 	return err
 }
 

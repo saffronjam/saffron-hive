@@ -17,6 +17,7 @@ const (
 
 // NameSet identifies an entity's immutable source language and optional translations.
 type NameSet struct {
+	Revision       int64
 	EntityType     string
 	EntityID       string
 	SourceLanguage Language

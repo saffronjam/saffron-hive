@@ -28,7 +28,7 @@ func TestScenesStateAndEffectOverrides(t *testing.T) {
 	}
 	time.Sleep(200 * time.Millisecond)
 
-	clipConfig := `{"value":true}`
+	clipConfig := map[string]any{"setOnOff": map[string]any{"value": true}}
 	data, err := graphqlMutation(`mutation($input: CreateEffectInput!) {
 		createEffect(input: $input) { id }
 	}`, map[string]any{

@@ -1,3 +1,4 @@
+import { serializeActionConfig } from "$lib/components/graph/trigger-expr";
 import type { Clause as TargetClause } from "$lib/target-resolve";
 import {
   normalizeActionConfig,
@@ -142,7 +143,14 @@ class Printer {
         const device = config.deviceId
           ? this.ref("device", config.deviceId)
           : (config.deviceName ?? "");
-        const value = formatStateValue(config.property ?? "", storedValue(config.value ?? ""));
+        const value = formatStateValue(
+          config.property ?? "",
+          config.valueType === "string"
+            ? (config.value ?? "")
+            : config.valueType === "null"
+              ? null
+              : storedValue(config.value ?? ""),
+        );
         const comparator = config.comparator ?? "==";
         printed = {
           device,
@@ -169,11 +177,16 @@ class Printer {
         break;
       case "webhook":
         printed = { webhook: this.ref("webhook", config.endpointId ?? "") };
+        if (config.customExpr && config.customExpr !== "true") printed.guard = config.customExpr;
         if (config.webhookFilters?.length)
           printed.where = config.webhookFilters as unknown as JsonValue;
         break;
       default:
         printed = { expr: config.customExpr ?? "true" };
+        if (config.holdMs) {
+          printed.for = formatDuration(config.holdMs);
+          printed.device = this.ref("device", config.deviceId ?? "");
+        }
         if (config.eventType && config.eventType !== "device.state_changed") {
           printed.event_type = config.eventType;
         }
@@ -207,12 +220,69 @@ class Printer {
 
   condition(configText: string): JsonValue {
     const raw = parseJson(configText);
-    if (typeof raw.use === "string") {
-      return raw.negate === true ? { not: `$${raw.use}` } : `$${raw.use}`;
+    const c = normalizeConditionConfig(raw);
+    if (c.negate) {
+      const input = raw.condition ?? raw.macro;
+      return {
+        not: this.condition(
+          JSON.stringify({
+            ...raw,
+            [raw.condition ? "condition" : "macro"]: { ...(input as JsonObject), negate: false },
+          }),
+        ),
+      };
     }
-    const expr = typeof raw.expr === "string" ? raw.expr : "";
-    if (!expr) return {};
-    return this.expression(expr);
+    switch (c.mode) {
+      case "macro":
+        return `$${c.macro}`;
+      case "time_window": {
+        const after =
+          c.afterHour === undefined ? undefined : formatClock(c.afterHour, c.afterMinute ?? 0);
+        const before =
+          c.beforeHour === undefined ? undefined : formatClock(c.beforeHour, c.beforeMinute ?? 0);
+        return {
+          time:
+            after && before
+              ? { between: [after, before] }
+              : after
+                ? { after }
+                : before
+                  ? { before }
+                  : {},
+        };
+      }
+      case "weekday":
+        return { day: (c.weekdays ?? []).map((day) => parseDay(day) ?? day) };
+      case "device_state": {
+        const value =
+          c.valueType === "string"
+            ? (c.value ?? "")
+            : c.valueType === "null"
+              ? null
+              : storedValue(c.value ?? "");
+        const property = c.property ?? "";
+        return {
+          [c.targetType ?? "device"]: this.ref(c.targetType ?? "device", c.targetId ?? ""),
+          state: {
+            [property]:
+              (c.comparator ?? "==") === "=="
+                ? (formatStateValue(property, value) as JsonValue)
+                : { [c.comparator!]: formatStateValue(property, value) as JsonValue },
+          },
+        };
+      }
+      case "custom": {
+        const expression = this.expression(c.customExpr ?? "");
+        return expression !== null &&
+          typeof expression === "object" &&
+          !Array.isArray(expression) &&
+          "not" in expression
+          ? { expr: c.customExpr ?? "" }
+          : expression;
+      }
+      default:
+        return {};
+    }
   }
 
   expression(expr: string): JsonValue {
@@ -220,23 +290,6 @@ class Printer {
     if (ast) {
       const printed = this.clauseList(ast.clauses);
       if (printed) return printed;
-    }
-    const legacy = normalizeConditionConfig({ expr });
-    if (legacy.mode === "time_window") {
-      const after =
-        legacy.afterHour !== undefined
-          ? formatClock(legacy.afterHour, legacy.afterMinute ?? 0)
-          : null;
-      const before =
-        legacy.beforeHour !== undefined
-          ? formatClock(legacy.beforeHour, legacy.beforeMinute ?? 0)
-          : null;
-      if (after && before) return { time: { between: [after, before] } };
-      if (after) return { time: { after } };
-      if (before) return { time: { before } };
-    }
-    if (legacy.mode === "weekday") {
-      return { day: (legacy.weekdays ?? []).map((day) => parseDay(day) ?? day) };
     }
     return { expr };
   }
@@ -459,7 +512,16 @@ class Printer {
           if (action.payload && typeof action.payload === "object") {
             action.payload = JSON.stringify(action.payload);
           }
-          define[name] = this.action(JSON.stringify(action));
+          define[name] = this.action(
+            serializeActionConfig({
+              actionType: String(action.action_type ?? ""),
+              targetType: String(action.target_type ?? ""),
+              targetId: String(action.target_id ?? ""),
+              targetExpr:
+                (action.target_expr as unknown as import("$lib/target-resolve").Clause[]) ?? [],
+              payload: String(action.payload ?? ""),
+            }),
+          );
           break;
         }
       }
@@ -479,33 +541,23 @@ function edgeKey(from: string, to: string): string {
 }
 
 function operatorKind(node: WireNode): string {
-  const kind = parseJson(node.config).kind;
+  const kind = (parseJson(node.config).operator as JsonObject | undefined)?.kind;
   return typeof kind === "string" ? kind.toLowerCase() : "";
 }
 
-/** The edges a rule compiles to; see parse.ts ruleEdges for the shapes. */
+/** The edges of a rule: any trigger, followed by each condition, then its actions. */
 export function ruleEdgeKeys(
   triggers: string[],
   conditions: string[],
   actions: string[],
-  operators: { or?: string; and?: string },
 ): Set<string> {
   const keys = new Set<string>();
-  if (conditions.length === 0) {
-    for (const t of triggers) for (const a of actions) keys.add(edgeKey(t, a));
-  } else if (conditions.length === 1) {
-    for (const t of triggers) keys.add(edgeKey(t, conditions[0]));
-    for (const a of actions) keys.add(edgeKey(conditions[0], a));
-  } else {
-    const and = operators.and ?? "";
-    if (triggers.length === 1) keys.add(edgeKey(triggers[0], and));
-    else {
-      for (const t of triggers) keys.add(edgeKey(t, operators.or ?? ""));
-      keys.add(edgeKey(operators.or ?? "", and));
-    }
-    for (const c of conditions) keys.add(edgeKey(c, and));
-    for (const a of actions) keys.add(edgeKey(and, a));
+  let sources = triggers;
+  for (const condition of conditions) {
+    for (const source of sources) keys.add(edgeKey(source, condition));
+    sources = [condition];
   }
+  for (const source of sources) for (const action of actions) keys.add(edgeKey(source, action));
   return keys;
 }
 
@@ -531,7 +583,7 @@ function decompose(nodes: WireNode[], edges: WireEdge[]): Rule[] | null {
     const ids = new Set(members.map((node) => node.id));
     const ofType = (type: WireNode["type"]) => members.filter((node) => node.type === type);
     const triggers = ofType("trigger");
-    const conditions = ofType("condition");
+    let conditions = ofType("condition");
     const operators = ofType("operator");
     const actions = ofType("action");
     if (triggers.length === 0) return null;
@@ -541,20 +593,22 @@ function decompose(nodes: WireNode[], edges: WireEdge[]): Rule[] | null {
         .map((e) => edgeKey(e.fromNodeId, e.toNodeId)),
     );
     if (actions.length === 0 && (triggers.length !== 1 || members.length !== 1)) return null;
-    const ops: { or?: string; and?: string } = {};
-    const wantOperators = conditions.length < 2 ? 0 : triggers.length === 1 ? 1 : 2;
-    if (operators.length !== wantOperators) return null;
-    for (const operator of operators) {
-      const kind = operatorKind(operator);
-      if (kind === "and" && !ops.and) ops.and = operator.id;
-      else if (kind === "or" && !ops.or && wantOperators === 2) ops.or = operator.id;
-      else return null;
+    if (operators.length !== 0) return null;
+    const ordered: WireNode[] = [];
+    let previous = triggers[0].id;
+    while (ordered.length < conditions.length) {
+      const next = conditions.find(
+        (node) => actual.has(edgeKey(previous, node.id)) && !ordered.includes(node),
+      );
+      if (!next) return null;
+      ordered.push(next);
+      previous = next.id;
     }
+    conditions = ordered;
     const expected = ruleEdgeKeys(
       triggers.map((n) => n.id),
       conditions.map((n) => n.id),
       actions.map((n) => n.id),
-      ops,
     );
     if (expected.size !== actual.size || [...expected].some((key) => !actual.has(key))) return null;
     rules.push({ triggers, conditions, actions });

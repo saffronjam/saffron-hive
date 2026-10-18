@@ -19,12 +19,13 @@ func (q *Queries) DeleteTuyaConfig(ctx context.Context) error {
 }
 
 const getTuyaConfig = `-- name: GetTuyaConfig :one
-SELECT access_id, access_secret, region, enabled
+SELECT revision, access_id, access_secret, region, enabled
 FROM tuya_config
 WHERE id = 1
 `
 
 type GetTuyaConfigRow struct {
+	Revision     int64
 	AccessID     string
 	AccessSecret string
 	Region       string
@@ -35,6 +36,7 @@ func (q *Queries) GetTuyaConfig(ctx context.Context) (GetTuyaConfigRow, error) {
 	row := q.db.QueryRowContext(ctx, getTuyaConfig)
 	var i GetTuyaConfigRow
 	err := row.Scan(
+		&i.Revision,
 		&i.AccessID,
 		&i.AccessSecret,
 		&i.Region,
@@ -43,29 +45,34 @@ func (q *Queries) GetTuyaConfig(ctx context.Context) (GetTuyaConfigRow, error) {
 	return i, err
 }
 
-const upsertTuyaConfig = `-- name: UpsertTuyaConfig :exec
-INSERT INTO tuya_config (id, access_id, access_secret, region, enabled)
-VALUES (1, ?, ?, ?, ?)
+const upsertTuyaConfig = `-- name: UpsertTuyaConfig :execrows
+INSERT INTO tuya_config (revision, id, access_id, access_secret, region, enabled)
+SELECT CAST(?1 AS INTEGER)+1, 1, ?2, ?3, ?4, ?5 WHERE CAST(?1 AS INTEGER) = 0 OR EXISTS (SELECT 1 FROM tuya_config WHERE id=1 AND revision=?1)
 ON CONFLICT(id) DO UPDATE SET
     access_id     = excluded.access_id,
     access_secret = excluded.access_secret,
     region        = excluded.region,
-    enabled       = excluded.enabled
+    enabled       = excluded.enabled, revision=tuya_config.revision+1 WHERE tuya_config.revision=excluded.revision-1
 `
 
 type UpsertTuyaConfigParams struct {
-	AccessID     string
-	AccessSecret string
-	Region       string
-	Enabled      bool
+	ExpectedRevision int64
+	AccessID         string
+	AccessSecret     string
+	Region           string
+	Enabled          bool
 }
 
-func (q *Queries) UpsertTuyaConfig(ctx context.Context, arg UpsertTuyaConfigParams) error {
-	_, err := q.db.ExecContext(ctx, upsertTuyaConfig,
+func (q *Queries) UpsertTuyaConfig(ctx context.Context, arg UpsertTuyaConfigParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, upsertTuyaConfig,
+		arg.ExpectedRevision,
 		arg.AccessID,
 		arg.AccessSecret,
 		arg.Region,
 		arg.Enabled,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

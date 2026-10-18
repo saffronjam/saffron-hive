@@ -446,7 +446,7 @@ func TestScenesRejectInvalidPhotoAndUnknownUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("invalid Photo sample was accepted: %v", err)
 	}
-	err = graphqlMutationExpectError(`mutation($id: ID!, $input: UpdateSceneInput!) { updateScene(id: $id, input: $input) { id } }`, map[string]any{"id": "missing-scene", "input": map[string]any{"name": "Nope"}})
+	err = graphqlMutationExpectError(`mutation($id: ID!, $input: UpdateSceneInput!) { updateScene(id: $id, input: $input) { id } }`, map[string]any{"id": "missing-scene", "input": map[string]any{"expectedRevision": 0, "name": "Nope"}})
 	if err != nil {
 		t.Fatalf("unknown Scene update was accepted: %v", err)
 	}

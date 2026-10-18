@@ -1,4 +1,31 @@
 <script lang="ts">
+	import { onExternalChanges } from "$lib/external-changes";
+	import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
+	let externalConflict = $state(false);
+	async function refreshExternalScene(discard = false) {
+		if (saving || loading) return;
+		await scenesStore.refresh(client);
+		if (saving) return;
+		const scene = scenesStore.byId.get(sceneId) as unknown as SceneData | undefined;
+		if (!scene) {
+			if (dirty && !discard) externalConflict = true;
+			else void goto("/scenes");
+			return;
+		}
+		const signature = currentSignature(sceneToEditorState(scene), scene.name, scene.icon ?? null);
+		if (signature === savedSignature && !discard) return;
+		if (dirty && !discard) {
+			externalConflict = true;
+			return;
+		}
+		setInitialScene(scene);
+		externalConflict = false;
+	}
+	onExternalChanges(() => {
+		void refreshExternalScene();
+	});
+
+
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { onMount } from "svelte";
@@ -65,9 +92,11 @@
 	let effects = $state<EffectSummary[]>([]);
 	let loading = $state(true);
 	let saving = $state(false);
+    let authoringBusy = $state(false);
 	let applying = $state(false);
 	let error = $state<string | null>(null);
 	let savedSignature = $state("");
+ let savedRevision=$state(0);
 	let dirty = $state(false);
 	let vibePickerOpen = $state(false);
 	let initializedSceneId = "";
@@ -90,6 +119,7 @@
 	}
 
 	function setInitialScene(value: SceneData) {
+ savedRevision=value.revision;
 		name = value.name;
 		icon = value.icon ?? null;
 		editorState = sceneToEditorState(value);
@@ -110,11 +140,13 @@
 	}
 
 	async function save() {
+ if(externalConflict || authoringBusy)return;
 		if (!editorState || !name.trim()) return;
 		saving = true;
 		error = null;
 		try {
 			const updated = await scenesStore.update(client, sceneId, {
+ expectedRevision:savedRevision,
 				name: name.trim(),
 				icon,
 				definition: editorDefinitionInput(editorState),
@@ -128,6 +160,7 @@
 					dynamicSource: { ...editorState.dynamicSource, seed: updated.lighting.dynamicSource.seed },
 				};
 			}
+			savedRevision=updated.revision;
 			savedSignature = currentSignature(editorState, name, icon);
 			dirty = false;
 		} catch (caught) {
@@ -180,13 +213,16 @@
 		pageHeader.actions = [
 			{ label: active ? m.scene_action_stop({}, locale.messageOptions()) : m.scene_action_apply({}, locale.messageOptions()), icon: active ? Square : Play, variant: "outline", onclick: applyOrStop, disabled: applying || dirty || !editorState || (!active && controllableDeviceCount === 0), hideLabelOnMobile: true },
 			{ label: m.common_cancel({}, locale.messageOptions()), icon: X, variant: "outline", onclick: () => goto("/scenes"), hideLabelOnMobile: true },
-			{ label: m.common_save({}, locale.messageOptions()), saving, onclick: save, disabled: saving || !dirty || !name.trim(), hideLabelOnMobile: true },
+			{ label: m.common_save({}, locale.messageOptions()), saving, onclick: save, disabled: saving || authoringBusy || externalConflict || !dirty || !name.trim(), hideLabelOnMobile: true },
 		];
 	});
 
 </script>
 
 <UnsavedGuard {dirty} />
+{#if externalConflict}
+	<ExternalChangeBanner onreload={() => { void refreshExternalScene(true); }} />
+{/if}
 
 {#if error}<ErrorBanner class="mb-4" message={error} ondismiss={() => (error = null)} />{/if}
 
@@ -211,6 +247,7 @@
 			{/if}
 		</div>
 		<SceneEditor
+            bind:authoringBusy
 			editor={editorState}
 			{preview}
 			{devices}

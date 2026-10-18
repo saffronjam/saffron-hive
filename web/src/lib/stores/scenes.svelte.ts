@@ -7,6 +7,7 @@ export type Scene = ScenesStoreQuery["scenes"][number];
 
 graphql(`
   fragment SceneFields on Scene {
+    revision
     id
     name
     icon
@@ -199,7 +200,7 @@ interface ActivationSettle {
 export function createScenesStore() {
   const base = createEntityStore<Scene, ScenesStoreQuery>({
     name: "scenes",
-    version: 4,
+    version: 5,
     query: SCENES_QUERY,
     select: (data) => data.scenes,
   });

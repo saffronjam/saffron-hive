@@ -5,6 +5,7 @@ package graph
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -13,7 +14,11 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
+	"github.com/saffronjam/saffron-hive/internal/automation"
+	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/graph/model"
+	"github.com/saffronjam/saffron-hive/internal/graph/scalars"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -91,9 +96,157 @@ type ComplexityRoot struct {
 		Kind           func(childComplexity int) int
 	}
 
+	AssistantAction struct {
+		ButtonLabel       func(childComplexity int) int
+		Description       func(childComplexity int) int
+		HasPrivateResult  func(childComplexity int) int
+		ID                func(childComplexity int) int
+		Inputs            func(childComplexity int) int
+		NeedsConfirmation func(childComplexity int) int
+		Result            func(childComplexity int) int
+		RunID             func(childComplexity int) int
+		Status            func(childComplexity int) int
+		Targets           func(childComplexity int) int
+		Title             func(childComplexity int) int
+	}
+
+	AssistantAttachment struct {
+		ID   func(childComplexity int) int
+		Mime func(childComplexity int) int
+		Name func(childComplexity int) int
+	}
+
+	AssistantConversation struct {
+		Actions       func(childComplexity int) int
+		AutoTitle     func(childComplexity int) int
+		ID            func(childComplexity int) int
+		Messages      func(childComplexity int) int
+		Revision      func(childComplexity int) int
+		Runs          func(childComplexity int) int
+		TitleOverride func(childComplexity int) int
+		UpdatedAt     func(childComplexity int) int
+	}
+
+	AssistantConversationSummary struct {
+		AutoTitle     func(childComplexity int) int
+		ID            func(childComplexity int) int
+		Revision      func(childComplexity int) int
+		TitleOverride func(childComplexity int) int
+		UpdatedAt     func(childComplexity int) int
+	}
+
+	AssistantMessage struct {
+		Attachments func(childComplexity int) int
+		CreatedAt   func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Role        func(childComplexity int) int
+		RunID       func(childComplexity int) int
+		Text        func(childComplexity int) int
+	}
+
+	AssistantPrivateField struct {
+		Label    func(childComplexity int) int
+		Path     func(childComplexity int) int
+		Required func(childComplexity int) int
+	}
+
+	AssistantRun struct {
+		Activity   func(childComplexity int) int
+		Error      func(childComplexity int) int
+		FinishedAt func(childComplexity int) int
+		ID         func(childComplexity int) int
+		Model      func(childComplexity int) int
+		StartedAt  func(childComplexity int) int
+		State      func(childComplexity int) int
+	}
+
+	AssistantTarget struct {
+		Href func(childComplexity int) int
+		ID   func(childComplexity int) int
+		Name func(childComplexity int) int
+	}
+
 	AuthPayload struct {
 		Token func(childComplexity int) int
 		User  func(childComplexity int) int
+	}
+
+	AuthoringAttribute struct {
+		BooleanValue func(childComplexity int) int
+		Capability   func(childComplexity int) int
+		NumberValue  func(childComplexity int) int
+		StringValue  func(childComplexity int) int
+	}
+
+	AuthoringClause struct {
+		Connector func(childComplexity int) int
+		Op        func(childComplexity int) int
+		Subject   func(childComplexity int) int
+		Values    func(childComplexity int) int
+	}
+
+	AuthoringColor struct {
+		B func(childComplexity int) int
+		G func(childComplexity int) int
+		R func(childComplexity int) int
+		X func(childComplexity int) int
+		Y func(childComplexity int) int
+	}
+
+	AutomationAction struct {
+		ActionType func(childComplexity int) int
+		Payload    func(childComplexity int) int
+		TargetExpr func(childComplexity int) int
+		TargetID   func(childComplexity int) int
+		TargetType func(childComplexity int) int
+	}
+
+	AutomationActionPayload struct {
+		AlarmID           func(childComplexity int) int
+		Brightness        func(childComplexity int) int
+		Color             func(childComplexity int) int
+		ColorTemp         func(childComplexity int) int
+		Delta             func(childComplexity int) int
+		EffectID          func(childComplexity int) int
+		FanMode           func(childComplexity int) int
+		Field             func(childComplexity int) int
+		HvacMode          func(childComplexity int) int
+		Kind              func(childComplexity int) int
+		Message           func(childComplexity int) int
+		Mode              func(childComplexity int) int
+		NativeName        func(childComplexity int) int
+		On                func(childComplexity int) int
+		SceneID           func(childComplexity int) int
+		Scenes            func(childComplexity int) int
+		Settings          func(childComplexity int) int
+		Severity          func(childComplexity int) int
+		Swing             func(childComplexity int) int
+		TargetTemperature func(childComplexity int) int
+		Transition        func(childComplexity int) int
+	}
+
+	AutomationCondition struct {
+		AfterHour    func(childComplexity int) int
+		AfterMinute  func(childComplexity int) int
+		BeforeHour   func(childComplexity int) int
+		BeforeMinute func(childComplexity int) int
+		Comparator   func(childComplexity int) int
+		CustomExpr   func(childComplexity int) int
+		Mode         func(childComplexity int) int
+		Negate       func(childComplexity int) int
+		Property     func(childComplexity int) int
+		TargetID     func(childComplexity int) int
+		TargetType   func(childComplexity int) int
+		Value        func(childComplexity int) int
+		Weekdays     func(childComplexity int) int
+	}
+
+	AutomationConfig struct {
+		Action    func(childComplexity int) int
+		Condition func(childComplexity int) int
+		Macro     func(childComplexity int) int
+		Operator  func(childComplexity int) int
+		Trigger   func(childComplexity int) int
 	}
 
 	AutomationEdge struct {
@@ -102,7 +255,6 @@ type ComplexityRoot struct {
 	}
 
 	AutomationGraph struct {
-		Compilable  func(childComplexity int) int
 		CreatedBy   func(childComplexity int) int
 		Definitions func(childComplexity int) int
 		Edges       func(childComplexity int) int
@@ -112,6 +264,21 @@ type ComplexityRoot struct {
 		LastFiredAt func(childComplexity int) int
 		Name        func(childComplexity int) int
 		Nodes       func(childComplexity int) int
+		Revision    func(childComplexity int) int
+		Validation  func(childComplexity int) int
+	}
+
+	AutomationLiteral struct {
+		BooleanValue func(childComplexity int) int
+		NullValue    func(childComplexity int) int
+		NumberValue  func(childComplexity int) int
+		StringValue  func(childComplexity int) int
+	}
+
+	AutomationMacro struct {
+		Arguments func(childComplexity int) int
+		Name      func(childComplexity int) int
+		Negate    func(childComplexity int) int
 	}
 
 	AutomationNode struct {
@@ -131,6 +298,46 @@ type ComplexityRoot struct {
 		PendingUntil func(childComplexity int) int
 	}
 
+	AutomationNodePreview struct {
+		Cron       func(childComplexity int) int
+		Expression func(childComplexity int) int
+	}
+
+	AutomationOperator struct {
+		Kind func(childComplexity int) int
+	}
+
+	AutomationTrigger struct {
+		Comparator            func(childComplexity int) int
+		CooldownMs            func(childComplexity int) int
+		CronExpr              func(childComplexity int) int
+		CustomExpr            func(childComplexity int) int
+		DeviceID              func(childComplexity int) int
+		EndpointID            func(childComplexity int) int
+		EventType             func(childComplexity int) int
+		EventValue            func(childComplexity int) int
+		GraceMs               func(childComplexity int) int
+		HoldMs                func(childComplexity int) int
+		Mode                  func(childComplexity int) int
+		Property              func(childComplexity int) int
+		ScheduleHour          func(childComplexity int) int
+		ScheduleIntervalUnit  func(childComplexity int) int
+		ScheduleIntervalValue func(childComplexity int) int
+		ScheduleMinute        func(childComplexity int) int
+		ScheduleSecond        func(childComplexity int) int
+		ScheduleSubmode       func(childComplexity int) int
+		ScheduleWeekdays      func(childComplexity int) int
+		Value                 func(childComplexity int) int
+		WebhookFilters        func(childComplexity int) int
+	}
+
+	AutomationWebhookFilter struct {
+		Operator func(childComplexity int) int
+		Path     func(childComplexity int) int
+		Source   func(childComplexity int) int
+		Value    func(childComplexity int) int
+	}
+
 	Capability struct {
 		CanGet       func(childComplexity int) int
 		CanSet       func(childComplexity int) int
@@ -146,12 +353,39 @@ type ComplexityRoot struct {
 		Values       func(childComplexity int) int
 	}
 
+	ClaudeAvailableModel struct {
+		ID            func(childComplexity int) int
+		Name          func(childComplexity int) int
+		ResolvedModel func(childComplexity int) int
+	}
+
+	ClaudeConfig struct {
+		Enabled  func(childComplexity int) int
+		Model    func(childComplexity int) int
+		Ready    func(childComplexity int) int
+		Revision func(childComplexity int) int
+		Token    func(childComplexity int) int
+	}
+
 	Color struct {
 		B func(childComplexity int) int
 		G func(childComplexity int) int
 		R func(childComplexity int) int
 		X func(childComplexity int) int
 		Y func(childComplexity int) int
+	}
+
+	ConfigurationIssue struct {
+		Code     func(childComplexity int) int
+		Message  func(childComplexity int) int
+		NodeID   func(childComplexity int) int
+		Path     func(childComplexity int) int
+		Severity func(childComplexity int) int
+	}
+
+	ConfigurationValidation struct {
+		Issues func(childComplexity int) int
+		Valid  func(childComplexity int) int
 	}
 
 	ConnectionTestResult struct {
@@ -191,6 +425,7 @@ type ComplexityRoot struct {
 		Icon              func(childComplexity int) int
 		LastSeen          func(childComplexity int) int
 		Name              func(childComplexity int) int
+		Revision          func(childComplexity int) int
 		Roles             func(childComplexity int) int
 		Seen              func(childComplexity int) int
 		Source            func(childComplexity int) int
@@ -284,6 +519,7 @@ type ComplexityRoot struct {
 		Name                 func(childComplexity int) int
 		NativeName           func(childComplexity int) int
 		RequiredCapabilities func(childComplexity int) int
+		Revision             func(childComplexity int) int
 		Source               func(childComplexity int) int
 		Tracks               func(childComplexity int) int
 		UpdatedAt            func(childComplexity int) int
@@ -296,6 +532,41 @@ type ComplexityRoot struct {
 		StartMs         func(childComplexity int) int
 		TransitionMaxMs func(childComplexity int) int
 		TransitionMinMs func(childComplexity int) int
+	}
+
+	EffectClipConfig struct {
+		NativeEffect  func(childComplexity int) int
+		SetBrightness func(childComplexity int) int
+		SetColor      func(childComplexity int) int
+		SetOnOff      func(childComplexity int) int
+	}
+
+	EffectNativeEffectClipConfig struct {
+		Name func(childComplexity int) int
+	}
+
+	EffectSetBrightnessClipConfig struct {
+		Value func(childComplexity int) int
+	}
+
+	EffectSetColorClipConfig struct {
+		Mode func(childComplexity int) int
+		RGB  func(childComplexity int) int
+		Temp func(childComplexity int) int
+	}
+
+	EffectSetColorRGBValue struct {
+		B func(childComplexity int) int
+		G func(childComplexity int) int
+		R func(childComplexity int) int
+	}
+
+	EffectSetColorTempValue struct {
+		Mireds func(childComplexity int) int
+	}
+
+	EffectSetOnOffClipConfig struct {
+		Value func(childComplexity int) int
 	}
 
 	EffectStepEvent struct {
@@ -319,6 +590,7 @@ type ComplexityRoot struct {
 		Name         func(childComplexity int) int
 		Openings     func(childComplexity int) int
 		Placements   func(childComplexity int) int
+		Revision     func(childComplexity int) int
 		Rooms        func(childComplexity int) int
 		Vertices     func(childComplexity int) int
 		Walls        func(childComplexity int) int
@@ -388,6 +660,7 @@ type ComplexityRoot struct {
 		Name            func(childComplexity int) int
 		Removed         func(childComplexity int) int
 		ResolvedDevices func(childComplexity int) int
+		Revision        func(childComplexity int) int
 		Source          func(childComplexity int) int
 		Tags            func(childComplexity int) int
 	}
@@ -438,6 +711,7 @@ type ComplexityRoot struct {
 		Connected   func(childComplexity int) int
 		DeviceCount func(childComplexity int) int
 		Enabled     func(childComplexity int) int
+		Kind        func(childComplexity int) int
 		Message     func(childComplexity int) int
 		Name        func(childComplexity int) int
 		Provider    func(childComplexity int) int
@@ -451,6 +725,7 @@ type ComplexityRoot struct {
 	LocalizedNameSet struct {
 		EntityID       func(childComplexity int) int
 		EntityType     func(childComplexity int) int
+		Revision       func(childComplexity int) int
 		SourceLanguage func(childComplexity int) int
 		Translations   func(childComplexity int) int
 	}
@@ -493,6 +768,7 @@ type ComplexityRoot struct {
 		ChangePassword              func(childComplexity int, input model.ChangePasswordInput) int
 		CompleteFirstPasswordChange func(childComplexity int, newPassword string) int
 		CompleteMaintenanceTasks    func(childComplexity int, ids []string) int
+		CreateAssistantConversation func(childComplexity int) int
 		CreateAutomation            func(childComplexity int, input model.CreateAutomationInput) int
 		CreateEffect                func(childComplexity int, input model.CreateEffectInput) int
 		CreateGroup                 func(childComplexity int, input model.CreateGroupInput) int
@@ -504,6 +780,7 @@ type ComplexityRoot struct {
 		CreateWebhookEndpoint       func(childComplexity int, input model.CreateWebhookEndpointInput) int
 		DeactivateScene             func(childComplexity int, sceneID string) int
 		DeleteAlarm                 func(childComplexity int, alarmID string) int
+		DeleteAssistantConversation func(childComplexity int, id string) int
 		DeleteAutomation            func(childComplexity int, id string) int
 		DeleteDevice                func(childComplexity int, id string) int
 		DeleteEffect                func(childComplexity int, id string) int
@@ -514,6 +791,7 @@ type ComplexityRoot struct {
 		DeleteScene                 func(childComplexity int, id string) int
 		DeleteUser                  func(childComplexity int, id string) int
 		DeleteWebhookEndpoint       func(childComplexity int, id string) int
+		DiscoverClaudeModels        func(childComplexity int, token string) int
 		ExtendGuest                 func(childComplexity int, id string, durationMinutes int) int
 		FireAutomationTrigger       func(childComplexity int, automationID string, nodeID string) int
 		ForceLogoutAllSessions      func(childComplexity int, userID *string) int
@@ -523,22 +801,28 @@ type ComplexityRoot struct {
 		RaiseAlarm                  func(childComplexity int, input model.RaiseAlarmInput) int
 		RemoveGroupMember           func(childComplexity int, id string) int
 		RemoveRoomMember            func(childComplexity int, id string) int
+		RenameAssistantConversation func(childComplexity int, id string, title string) int
 		ResetUserPassword           func(childComplexity int, id string, newPassword string) int
+		RespondToAssistantAction    func(childComplexity int, input model.AssistantActionResponseInput) int
 		RestoreDevice               func(childComplexity int, id string) int
 		RotateWebhookEndpointSecret func(childComplexity int, id string) int
 		RunDeviceCommand            func(childComplexity int, deviceID string, capability string, value string) int
 		RunEffect                   func(childComplexity int, effectID string, targetType string, targetID string) int
 		RunNativeEffect             func(childComplexity int, nativeName string, targetType string, targetID string) int
 		ScanZigbee2MqttNetwork      func(childComplexity int) int
+		SendAssistantMessage        func(childComplexity int, input model.AssistantMessageInput) int
 		SetDeviceConfiguration      func(childComplexity int, deviceID string, settings []*model.DeviceAttributeValueInput) int
 		SetTargetState              func(childComplexity int, target model.CommandTargetInput, state model.DeviceStateInput) int
 		SimulateDeviceAction        func(childComplexity int, deviceID string, action string) int
+		StopAssistantRun            func(childComplexity int, conversationID string) int
 		StopEffect                  func(childComplexity int, targetType string, targetID string) int
 		SyncTuyaDevices             func(childComplexity int) int
+		TestClaudeConnection        func(childComplexity int, input model.ClaudeConfigInput) int
 		TestTuyaConnection          func(childComplexity int, input model.TuyaConfigInput) int
 		TestZigbee2MqttConnection   func(childComplexity int, input model.Zigbee2MqttConfigInput) int
-		ToggleAutomation            func(childComplexity int, id string, enabled bool) int
+		ToggleAutomation            func(childComplexity int, id string, enabled bool, expectedRevision int) int
 		UpdateAutomation            func(childComplexity int, id string, input model.UpdateAutomationInput) int
+		UpdateClaudeConfig          func(childComplexity int, input model.ClaudeConfigInput, expectedRevision int) int
 		UpdateCurrentGuestLanguage  func(childComplexity int, language model.Language) int
 		UpdateCurrentUser           func(childComplexity int, input model.UpdateCurrentUserInput) int
 		UpdateDevice                func(childComplexity int, id string, input model.UpdateDeviceInput) int
@@ -548,10 +832,10 @@ type ComplexityRoot struct {
 		UpdateLocalizedNameSet      func(childComplexity int, input model.LocalizedNameSetInput) int
 		UpdateRoom                  func(childComplexity int, id string, input model.UpdateRoomInput) int
 		UpdateScene                 func(childComplexity int, id string, input model.UpdateSceneInput) int
-		UpdateSetting               func(childComplexity int, key string, value string) int
-		UpdateTuyaConfig            func(childComplexity int, input model.TuyaConfigInput) int
+		UpdateSetting               func(childComplexity int, key string, value string, expectedRevision int) int
+		UpdateTuyaConfig            func(childComplexity int, input model.TuyaConfigInput, expectedRevision int) int
 		UpdateWebhookEndpoint       func(childComplexity int, id string, input model.UpdateWebhookEndpointInput) int
-		UpdateZigbee2MqttConfig     func(childComplexity int, input model.Zigbee2MqttConfigInput) int
+		UpdateZigbee2MqttConfig     func(childComplexity int, input model.Zigbee2MqttConfigInput, expectedRevision int) int
 	}
 
 	NativeEffectDeviceRunResult struct {
@@ -610,47 +894,54 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		ActiveEffects          func(childComplexity int) int
-		Activity               func(childComplexity int, filter *model.ActivityFilter) int
-		AggregatedStateHistory func(childComplexity int, filter model.AggregatedStateHistoryFilter) int
-		Alarms                 func(childComplexity int, filter *model.AlarmFilter) int
-		Automation             func(childComplexity int, id string) int
-		Automations            func(childComplexity int) int
-		CurrentGuest           func(childComplexity int) int
-		DashboardLocalization  func(childComplexity int) int
-		Device                 func(childComplexity int, id string) int
-		Devices                func(childComplexity int) int
-		Effect                 func(childComplexity int, id string) int
-		Effects                func(childComplexity int) int
-		Floorplan              func(childComplexity int) int
-		Group                  func(childComplexity int, id string) int
-		Groups                 func(childComplexity int) int
-		Guests                 func(childComplexity int) int
-		GuidedVibeRound        func(childComplexity int, input model.GuidedVibeRoundInput) int
-		Integrations           func(childComplexity int) int
-		LocalizedNameSets      func(childComplexity int) int
-		Logs                   func(childComplexity int, search *string, limit *int) int
-		MaintenanceTasks       func(childComplexity int) int
-		Me                     func(childComplexity int) int
-		NativeEffectOptions    func(childComplexity int) int
-		NativeEffectSupport    func(childComplexity int, name string) int
-		NetworkTopologies      func(childComplexity int) int
-		PreviewVibe            func(childComplexity int, input model.PreviewVibeInput) int
-		Room                   func(childComplexity int, id string) int
-		Rooms                  func(childComplexity int) int
-		Scene                  func(childComplexity int, id string) int
-		Scenes                 func(childComplexity int) int
-		Settings               func(childComplexity int) int
-		SetupStatus            func(childComplexity int) int
-		StateHistory           func(childComplexity int, filter model.StateHistoryFilter) int
-		StateHistoryFields     func(childComplexity int) int
-		TuyaConfig             func(childComplexity int) int
-		Users                  func(childComplexity int) int
-		VibePresets            func(childComplexity int) int
-		WebhookDeliveries      func(childComplexity int, endpointID string, before *time.Time, limit *int) int
-		WebhookEndpoint        func(childComplexity int, id string) int
-		WebhookEndpoints       func(childComplexity int) int
-		Zigbee2MqttConfig      func(childComplexity int) int
+		ActiveEffects                func(childComplexity int) int
+		Activity                     func(childComplexity int, filter *model.ActivityFilter) int
+		AggregatedStateHistory       func(childComplexity int, filter model.AggregatedStateHistoryFilter) int
+		Alarms                       func(childComplexity int, filter *model.AlarmFilter) int
+		AssistantActionPrivateResult func(childComplexity int, conversationID string, actionID string) int
+		AssistantConversation        func(childComplexity int, id string) int
+		AssistantConversations       func(childComplexity int) int
+		Automation                   func(childComplexity int, id string) int
+		AutomationNodePreview        func(childComplexity int, typeArg string, config automation.AuthoringConfig) int
+		Automations                  func(childComplexity int) int
+		ClaudeConfig                 func(childComplexity int) int
+		CurrentGuest                 func(childComplexity int) int
+		DashboardLocalization        func(childComplexity int) int
+		Device                       func(childComplexity int, id string) int
+		Devices                      func(childComplexity int) int
+		Effect                       func(childComplexity int, id string) int
+		Effects                      func(childComplexity int) int
+		Floorplan                    func(childComplexity int) int
+		Group                        func(childComplexity int, id string) int
+		Groups                       func(childComplexity int) int
+		Guests                       func(childComplexity int) int
+		GuidedVibeRound              func(childComplexity int, input model.GuidedVibeRoundInput) int
+		Integrations                 func(childComplexity int) int
+		LocalizedNameSets            func(childComplexity int) int
+		Logs                         func(childComplexity int, search *string, limit *int) int
+		MaintenanceTasks             func(childComplexity int) int
+		Me                           func(childComplexity int) int
+		NativeEffectOptions          func(childComplexity int) int
+		NativeEffectSupport          func(childComplexity int, name string) int
+		NetworkTopologies            func(childComplexity int) int
+		PreviewVibe                  func(childComplexity int, input model.PreviewVibeInput) int
+		Room                         func(childComplexity int, id string) int
+		Rooms                        func(childComplexity int) int
+		Scene                        func(childComplexity int, id string) int
+		SceneAuthoring               func(childComplexity int, input model.SceneAuthoringInput) int
+		Scenes                       func(childComplexity int) int
+		Settings                     func(childComplexity int) int
+		SetupStatus                  func(childComplexity int) int
+		StateHistory                 func(childComplexity int, filter model.StateHistoryFilter) int
+		StateHistoryFields           func(childComplexity int) int
+		TuyaConfig                   func(childComplexity int) int
+		Users                        func(childComplexity int) int
+		ValidateAutomation           func(childComplexity int, input model.CreateAutomationInput) int
+		VibePresets                  func(childComplexity int) int
+		WebhookDeliveries            func(childComplexity int, endpointID string, before *time.Time, limit *int) int
+		WebhookEndpoint              func(childComplexity int, id string) int
+		WebhookEndpoints             func(childComplexity int) int
+		Zigbee2MqttConfig            func(childComplexity int) int
 	}
 
 	Room struct {
@@ -660,6 +951,7 @@ type ComplexityRoot struct {
 		Members         func(childComplexity int) int
 		Name            func(childComplexity int) int
 		ResolvedDevices func(childComplexity int) int
+		Revision        func(childComplexity int) int
 	}
 
 	RoomMember struct {
@@ -678,6 +970,7 @@ type ComplexityRoot struct {
 		Lighting         func(childComplexity int) int
 		Name             func(childComplexity int) int
 		Preview          func(childComplexity int) int
+		Revision         func(childComplexity int) int
 		Rooms            func(childComplexity int) int
 		SupportingStates func(childComplexity int) int
 		Targets          func(childComplexity int) int
@@ -686,6 +979,12 @@ type ComplexityRoot struct {
 	SceneActiveEvent struct {
 		ActivatedAt func(childComplexity int) int
 		SceneID     func(childComplexity int) int
+	}
+
+	SceneAuthoredState struct {
+		DeviceID func(childComplexity int) int
+		Lighting func(childComplexity int) int
+		State    func(childComplexity int) int
 	}
 
 	SceneLightOverride struct {
@@ -723,8 +1022,9 @@ type ComplexityRoot struct {
 	}
 
 	Setting struct {
-		Key   func(childComplexity int) int
-		Value func(childComplexity int) int
+		Key      func(childComplexity int) int
+		Revision func(childComplexity int) int
+		Value    func(childComplexity int) int
 	}
 
 	SetupStatus struct {
@@ -746,25 +1046,27 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
-		ActivityStream             func(childComplexity int, advanced *bool) int
-		AlarmEvent                 func(childComplexity int) int
-		AutomationNodeActivated    func(childComplexity int, automationID *string) int
-		DeviceActionFired          func(childComplexity int, deviceID *string) int
-		DeviceAdded                func(childComplexity int) int
-		DeviceAttributesChanged    func(childComplexity int, deviceID *string) int
-		DeviceAvailabilityChanged  func(childComplexity int) int
-		DeviceRemoved              func(childComplexity int) int
-		DeviceStateChanged         func(childComplexity int, deviceID *string) int
-		DeviceUpdated              func(childComplexity int) int
-		EffectStepActivated        func(childComplexity int, runID *string) int
-		GroupsChanged              func(childComplexity int) int
-		GuestChanged               func(childComplexity int) int
-		LogStream                  func(childComplexity int) int
-		MaintenanceChanged         func(childComplexity int) int
-		NativeEffectSupportChanged func(childComplexity int) int
-		NetworkTopologyUpdated     func(childComplexity int, provider *string) int
-		SceneActiveChanged         func(childComplexity int) int
-		WebhookDeliveryRecorded    func(childComplexity int, endpointID *string) int
+		ActivityStream               func(childComplexity int, advanced *bool) int
+		AlarmEvent                   func(childComplexity int) int
+		ApplicationChanged           func(childComplexity int) int
+		AssistantConversationChanged func(childComplexity int, id string) int
+		AutomationNodeActivated      func(childComplexity int, automationID *string) int
+		DeviceActionFired            func(childComplexity int, deviceID *string) int
+		DeviceAdded                  func(childComplexity int) int
+		DeviceAttributesChanged      func(childComplexity int, deviceID *string) int
+		DeviceAvailabilityChanged    func(childComplexity int) int
+		DeviceRemoved                func(childComplexity int) int
+		DeviceStateChanged           func(childComplexity int, deviceID *string) int
+		DeviceUpdated                func(childComplexity int) int
+		EffectStepActivated          func(childComplexity int, runID *string) int
+		GroupsChanged                func(childComplexity int) int
+		GuestChanged                 func(childComplexity int) int
+		LogStream                    func(childComplexity int) int
+		MaintenanceChanged           func(childComplexity int) int
+		NativeEffectSupportChanged   func(childComplexity int) int
+		NetworkTopologyUpdated       func(childComplexity int, provider *string) int
+		SceneActiveChanged           func(childComplexity int) int
+		WebhookDeliveryRecorded      func(childComplexity int, endpointID *string) int
 	}
 
 	TargetClause struct {
@@ -795,6 +1097,12 @@ type ComplexityRoot struct {
 		AccessSecret func(childComplexity int) int
 		Enabled      func(childComplexity int) int
 		Region       func(childComplexity int) int
+		Revision     func(childComplexity int) int
+	}
+
+	TuyaConfigResult struct {
+		Application func(childComplexity int) int
+		Config      func(childComplexity int) int
 	}
 
 	User struct {
@@ -805,10 +1113,17 @@ type ComplexityRoot struct {
 		Language           func(childComplexity int) int
 		MustChangePassword func(childComplexity int) int
 		Name               func(childComplexity int) int
+		Revision           func(childComplexity int) int
 		TemperatureUnit    func(childComplexity int) int
 		Theme              func(childComplexity int) int
 		TimeFormat         func(childComplexity int) int
 		Username           func(childComplexity int) int
+	}
+
+	UserRef struct {
+		ID       func(childComplexity int) int
+		Name     func(childComplexity int) int
+		Username func(childComplexity int) int
 	}
 
 	VibeFieldSample struct {
@@ -867,6 +1182,7 @@ type ComplexityRoot struct {
 		Name              func(childComplexity int) int
 		RateLimitCount    func(childComplexity int) int
 		RateLimitWindowMs func(childComplexity int) int
+		Revision          func(childComplexity int) int
 		UpdatedAt         func(childComplexity int) int
 	}
 
@@ -895,12 +1211,18 @@ type ComplexityRoot struct {
 		FrontendURL                  func(childComplexity int) int
 		InteractiveCommandsPerSecond func(childComplexity int) int
 		Password                     func(childComplexity int) int
+		Revision                     func(childComplexity int) int
 		ScanHour                     func(childComplexity int) int
 		ScanMinute                   func(childComplexity int) int
 		ScanScheduleEnabled          func(childComplexity int) int
 		ScanStartedAt                func(childComplexity int) int
 		UseWss                       func(childComplexity int) int
 		Username                     func(childComplexity int) int
+	}
+
+	Zigbee2MqttConfigResult struct {
+		Application func(childComplexity int) int
+		Config      func(childComplexity int) int
 	}
 
 	Zigbee2MqttDeviceDefinition struct {
@@ -976,7 +1298,7 @@ type MutationResolver interface {
 	CreateAutomation(ctx context.Context, input model.CreateAutomationInput) (*model.AutomationGraph, error)
 	UpdateAutomation(ctx context.Context, id string, input model.UpdateAutomationInput) (*model.AutomationGraph, error)
 	DeleteAutomation(ctx context.Context, id string) (bool, error)
-	ToggleAutomation(ctx context.Context, id string, enabled bool) (*model.AutomationGraph, error)
+	ToggleAutomation(ctx context.Context, id string, enabled bool, expectedRevision int) (*model.AutomationGraph, error)
 	FireAutomationTrigger(ctx context.Context, automationID string, nodeID string) (bool, error)
 	CreateWebhookEndpoint(ctx context.Context, input model.CreateWebhookEndpointInput) (*model.WebhookSecretResult, error)
 	UpdateWebhookEndpoint(ctx context.Context, id string, input model.UpdateWebhookEndpointInput) (*model.WebhookEndpoint, error)
@@ -994,14 +1316,14 @@ type MutationResolver interface {
 	AddRoomMember(ctx context.Context, input model.AddRoomMemberInput) (*model.Room, error)
 	RemoveRoomMember(ctx context.Context, id string) (*model.Room, error)
 	UpdateFloorplan(ctx context.Context, input model.UpdateFloorplanInput) (*model.Floorplan, error)
-	UpdateZigbee2MqttConfig(ctx context.Context, input model.Zigbee2MqttConfigInput) (*model.Zigbee2MqttConfig, error)
+	UpdateZigbee2MqttConfig(ctx context.Context, input model.Zigbee2MqttConfigInput, expectedRevision int) (*model.Zigbee2MqttConfigResult, error)
 	TestZigbee2MqttConnection(ctx context.Context, input model.Zigbee2MqttConfigInput) (*model.ConnectionTestResult, error)
 	ScanZigbee2MqttNetwork(ctx context.Context) (bool, error)
-	UpdateTuyaConfig(ctx context.Context, input model.TuyaConfigInput) (*model.TuyaConfig, error)
+	UpdateTuyaConfig(ctx context.Context, input model.TuyaConfigInput, expectedRevision int) (*model.TuyaConfigResult, error)
 	TestTuyaConnection(ctx context.Context, input model.TuyaConfigInput) (*model.ConnectionTestResult, error)
 	SyncTuyaDevices(ctx context.Context) ([]*model.Device, error)
 	DeleteIntegration(ctx context.Context, provider string) (int, error)
-	UpdateSetting(ctx context.Context, key string, value string) (*model.Setting, error)
+	UpdateSetting(ctx context.Context, key string, value string, expectedRevision int) (*model.Setting, error)
 	Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error)
 	CreateInitialUser(ctx context.Context, input model.CreateInitialUserInput) (*model.AuthPayload, error)
 	CreateUser(ctx context.Context, input model.CreateUserInput) (*model.User, error)
@@ -1036,6 +1358,15 @@ type MutationResolver interface {
 	RunEffect(ctx context.Context, effectID string, targetType string, targetID string) (*model.ActiveEffect, error)
 	RunNativeEffect(ctx context.Context, nativeName string, targetType string, targetID string) (*model.NativeEffectRunResult, error)
 	StopEffect(ctx context.Context, targetType string, targetID string) (bool, error)
+	DiscoverClaudeModels(ctx context.Context, token string) ([]*model.ClaudeAvailableModel, error)
+	UpdateClaudeConfig(ctx context.Context, input model.ClaudeConfigInput, expectedRevision int) (*model.ClaudeConfig, error)
+	TestClaudeConnection(ctx context.Context, input model.ClaudeConfigInput) (*model.ConnectionTestResult, error)
+	CreateAssistantConversation(ctx context.Context) (*model.AssistantConversation, error)
+	RenameAssistantConversation(ctx context.Context, id string, title string) (*model.AssistantConversation, error)
+	DeleteAssistantConversation(ctx context.Context, id string) (bool, error)
+	SendAssistantMessage(ctx context.Context, input model.AssistantMessageInput) (*model.AssistantConversation, error)
+	StopAssistantRun(ctx context.Context, conversationID string) (bool, error)
+	RespondToAssistantAction(ctx context.Context, input model.AssistantActionResponseInput) (*model.AssistantConversation, error)
 }
 type QueryResolver interface {
 	LocalizedNameSets(ctx context.Context) ([]*model.LocalizedNameSet, error)
@@ -1048,6 +1379,7 @@ type QueryResolver interface {
 	PreviewVibe(ctx context.Context, input model.PreviewVibeInput) (*model.VibePreviewResult, error)
 	Automations(ctx context.Context) ([]*model.AutomationGraph, error)
 	Automation(ctx context.Context, id string) (*model.AutomationGraph, error)
+	ValidateAutomation(ctx context.Context, input model.CreateAutomationInput) (*model.ConfigurationValidation, error)
 	WebhookEndpoints(ctx context.Context) ([]*model.WebhookEndpoint, error)
 	WebhookEndpoint(ctx context.Context, id string) (*model.WebhookEndpoint, error)
 	WebhookDeliveries(ctx context.Context, endpointID string, before *time.Time, limit *int) ([]*model.WebhookDelivery, error)
@@ -1079,6 +1411,12 @@ type QueryResolver interface {
 	ActiveEffects(ctx context.Context) ([]*model.ActiveEffect, error)
 	NativeEffectOptions(ctx context.Context) ([]*model.NativeEffectOption, error)
 	NativeEffectSupport(ctx context.Context, name string) ([]*model.NativeEffectDeviceSupport, error)
+	AssistantActionPrivateResult(ctx context.Context, conversationID string, actionID string) (string, error)
+	ClaudeConfig(ctx context.Context) (*model.ClaudeConfig, error)
+	AssistantConversations(ctx context.Context) ([]*model.AssistantConversationSummary, error)
+	AssistantConversation(ctx context.Context, id string) (*model.AssistantConversation, error)
+	AutomationNodePreview(ctx context.Context, typeArg string, config automation.AuthoringConfig) (*model.AutomationNodePreview, error)
+	SceneAuthoring(ctx context.Context, input model.SceneAuthoringInput) ([]*model.SceneAuthoredState, error)
 }
 type SubscriptionResolver interface {
 	DeviceStateChanged(ctx context.Context, deviceID *string) (<-chan *model.DeviceStateEvent, error)
@@ -1100,6 +1438,8 @@ type SubscriptionResolver interface {
 	EffectStepActivated(ctx context.Context, runID *string) (<-chan *model.EffectStepEvent, error)
 	NativeEffectSupportChanged(ctx context.Context) (<-chan *time.Time, error)
 	NetworkTopologyUpdated(ctx context.Context, provider *string) (<-chan *model.NetworkTopologyEvent, error)
+	AssistantConversationChanged(ctx context.Context, id string) (<-chan *model.AssistantConversation, error)
+	ApplicationChanged(ctx context.Context) (<-chan int, error)
 }
 type Zigbee2MqttDeviceMetadataResolver interface {
 	Documentation(ctx context.Context, obj *model.Zigbee2MqttDeviceMetadata) (*model.Zigbee2MqttDeviceDocumentation, error)
@@ -1323,6 +1663,290 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.AlarmEvent.Kind(childComplexity), true
 
+	case "AssistantAction.buttonLabel":
+		if e.ComplexityRoot.AssistantAction.ButtonLabel == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantAction.ButtonLabel(childComplexity), true
+	case "AssistantAction.description":
+		if e.ComplexityRoot.AssistantAction.Description == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantAction.Description(childComplexity), true
+	case "AssistantAction.hasPrivateResult":
+		if e.ComplexityRoot.AssistantAction.HasPrivateResult == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantAction.HasPrivateResult(childComplexity), true
+	case "AssistantAction.id":
+		if e.ComplexityRoot.AssistantAction.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantAction.ID(childComplexity), true
+	case "AssistantAction.inputs":
+		if e.ComplexityRoot.AssistantAction.Inputs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantAction.Inputs(childComplexity), true
+	case "AssistantAction.needsConfirmation":
+		if e.ComplexityRoot.AssistantAction.NeedsConfirmation == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantAction.NeedsConfirmation(childComplexity), true
+	case "AssistantAction.result":
+		if e.ComplexityRoot.AssistantAction.Result == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantAction.Result(childComplexity), true
+	case "AssistantAction.runId":
+		if e.ComplexityRoot.AssistantAction.RunID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantAction.RunID(childComplexity), true
+	case "AssistantAction.status":
+		if e.ComplexityRoot.AssistantAction.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantAction.Status(childComplexity), true
+	case "AssistantAction.targets":
+		if e.ComplexityRoot.AssistantAction.Targets == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantAction.Targets(childComplexity), true
+	case "AssistantAction.title":
+		if e.ComplexityRoot.AssistantAction.Title == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantAction.Title(childComplexity), true
+
+	case "AssistantAttachment.id":
+		if e.ComplexityRoot.AssistantAttachment.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantAttachment.ID(childComplexity), true
+	case "AssistantAttachment.mime":
+		if e.ComplexityRoot.AssistantAttachment.Mime == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantAttachment.Mime(childComplexity), true
+	case "AssistantAttachment.name":
+		if e.ComplexityRoot.AssistantAttachment.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantAttachment.Name(childComplexity), true
+
+	case "AssistantConversation.actions":
+		if e.ComplexityRoot.AssistantConversation.Actions == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantConversation.Actions(childComplexity), true
+	case "AssistantConversation.autoTitle":
+		if e.ComplexityRoot.AssistantConversation.AutoTitle == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantConversation.AutoTitle(childComplexity), true
+	case "AssistantConversation.id":
+		if e.ComplexityRoot.AssistantConversation.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantConversation.ID(childComplexity), true
+	case "AssistantConversation.messages":
+		if e.ComplexityRoot.AssistantConversation.Messages == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantConversation.Messages(childComplexity), true
+	case "AssistantConversation.revision":
+		if e.ComplexityRoot.AssistantConversation.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantConversation.Revision(childComplexity), true
+	case "AssistantConversation.runs":
+		if e.ComplexityRoot.AssistantConversation.Runs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantConversation.Runs(childComplexity), true
+	case "AssistantConversation.titleOverride":
+		if e.ComplexityRoot.AssistantConversation.TitleOverride == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantConversation.TitleOverride(childComplexity), true
+	case "AssistantConversation.updatedAt":
+		if e.ComplexityRoot.AssistantConversation.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantConversation.UpdatedAt(childComplexity), true
+
+	case "AssistantConversationSummary.autoTitle":
+		if e.ComplexityRoot.AssistantConversationSummary.AutoTitle == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantConversationSummary.AutoTitle(childComplexity), true
+	case "AssistantConversationSummary.id":
+		if e.ComplexityRoot.AssistantConversationSummary.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantConversationSummary.ID(childComplexity), true
+	case "AssistantConversationSummary.revision":
+		if e.ComplexityRoot.AssistantConversationSummary.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantConversationSummary.Revision(childComplexity), true
+	case "AssistantConversationSummary.titleOverride":
+		if e.ComplexityRoot.AssistantConversationSummary.TitleOverride == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantConversationSummary.TitleOverride(childComplexity), true
+	case "AssistantConversationSummary.updatedAt":
+		if e.ComplexityRoot.AssistantConversationSummary.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantConversationSummary.UpdatedAt(childComplexity), true
+
+	case "AssistantMessage.attachments":
+		if e.ComplexityRoot.AssistantMessage.Attachments == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantMessage.Attachments(childComplexity), true
+	case "AssistantMessage.createdAt":
+		if e.ComplexityRoot.AssistantMessage.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantMessage.CreatedAt(childComplexity), true
+	case "AssistantMessage.id":
+		if e.ComplexityRoot.AssistantMessage.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantMessage.ID(childComplexity), true
+	case "AssistantMessage.role":
+		if e.ComplexityRoot.AssistantMessage.Role == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantMessage.Role(childComplexity), true
+	case "AssistantMessage.runId":
+		if e.ComplexityRoot.AssistantMessage.RunID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantMessage.RunID(childComplexity), true
+	case "AssistantMessage.text":
+		if e.ComplexityRoot.AssistantMessage.Text == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantMessage.Text(childComplexity), true
+
+	case "AssistantPrivateField.label":
+		if e.ComplexityRoot.AssistantPrivateField.Label == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantPrivateField.Label(childComplexity), true
+	case "AssistantPrivateField.path":
+		if e.ComplexityRoot.AssistantPrivateField.Path == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantPrivateField.Path(childComplexity), true
+	case "AssistantPrivateField.required":
+		if e.ComplexityRoot.AssistantPrivateField.Required == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantPrivateField.Required(childComplexity), true
+
+	case "AssistantRun.activity":
+		if e.ComplexityRoot.AssistantRun.Activity == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantRun.Activity(childComplexity), true
+	case "AssistantRun.error":
+		if e.ComplexityRoot.AssistantRun.Error == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantRun.Error(childComplexity), true
+	case "AssistantRun.finishedAt":
+		if e.ComplexityRoot.AssistantRun.FinishedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantRun.FinishedAt(childComplexity), true
+	case "AssistantRun.id":
+		if e.ComplexityRoot.AssistantRun.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantRun.ID(childComplexity), true
+	case "AssistantRun.model":
+		if e.ComplexityRoot.AssistantRun.Model == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantRun.Model(childComplexity), true
+	case "AssistantRun.startedAt":
+		if e.ComplexityRoot.AssistantRun.StartedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantRun.StartedAt(childComplexity), true
+	case "AssistantRun.state":
+		if e.ComplexityRoot.AssistantRun.State == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantRun.State(childComplexity), true
+
+	case "AssistantTarget.href":
+		if e.ComplexityRoot.AssistantTarget.Href == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantTarget.Href(childComplexity), true
+	case "AssistantTarget.id":
+		if e.ComplexityRoot.AssistantTarget.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantTarget.ID(childComplexity), true
+	case "AssistantTarget.name":
+		if e.ComplexityRoot.AssistantTarget.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantTarget.Name(childComplexity), true
+
 	case "AuthPayload.token":
 		if e.ComplexityRoot.AuthPayload.Token == nil {
 			break
@@ -1335,6 +1959,355 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AuthPayload.User(childComplexity), true
+
+	case "AuthoringAttribute.booleanValue":
+		if e.ComplexityRoot.AuthoringAttribute.BooleanValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthoringAttribute.BooleanValue(childComplexity), true
+	case "AuthoringAttribute.capability":
+		if e.ComplexityRoot.AuthoringAttribute.Capability == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthoringAttribute.Capability(childComplexity), true
+	case "AuthoringAttribute.numberValue":
+		if e.ComplexityRoot.AuthoringAttribute.NumberValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthoringAttribute.NumberValue(childComplexity), true
+	case "AuthoringAttribute.stringValue":
+		if e.ComplexityRoot.AuthoringAttribute.StringValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthoringAttribute.StringValue(childComplexity), true
+
+	case "AuthoringClause.connector":
+		if e.ComplexityRoot.AuthoringClause.Connector == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthoringClause.Connector(childComplexity), true
+	case "AuthoringClause.op":
+		if e.ComplexityRoot.AuthoringClause.Op == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthoringClause.Op(childComplexity), true
+	case "AuthoringClause.subject":
+		if e.ComplexityRoot.AuthoringClause.Subject == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthoringClause.Subject(childComplexity), true
+	case "AuthoringClause.values":
+		if e.ComplexityRoot.AuthoringClause.Values == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthoringClause.Values(childComplexity), true
+
+	case "AuthoringColor.b":
+		if e.ComplexityRoot.AuthoringColor.B == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthoringColor.B(childComplexity), true
+	case "AuthoringColor.g":
+		if e.ComplexityRoot.AuthoringColor.G == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthoringColor.G(childComplexity), true
+	case "AuthoringColor.r":
+		if e.ComplexityRoot.AuthoringColor.R == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthoringColor.R(childComplexity), true
+	case "AuthoringColor.x":
+		if e.ComplexityRoot.AuthoringColor.X == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthoringColor.X(childComplexity), true
+	case "AuthoringColor.y":
+		if e.ComplexityRoot.AuthoringColor.Y == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AuthoringColor.Y(childComplexity), true
+
+	case "AutomationAction.actionType":
+		if e.ComplexityRoot.AutomationAction.ActionType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationAction.ActionType(childComplexity), true
+	case "AutomationAction.payload":
+		if e.ComplexityRoot.AutomationAction.Payload == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationAction.Payload(childComplexity), true
+	case "AutomationAction.targetExpr":
+		if e.ComplexityRoot.AutomationAction.TargetExpr == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationAction.TargetExpr(childComplexity), true
+	case "AutomationAction.targetId":
+		if e.ComplexityRoot.AutomationAction.TargetID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationAction.TargetID(childComplexity), true
+	case "AutomationAction.targetType":
+		if e.ComplexityRoot.AutomationAction.TargetType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationAction.TargetType(childComplexity), true
+
+	case "AutomationActionPayload.alarmId":
+		if e.ComplexityRoot.AutomationActionPayload.AlarmID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.AlarmID(childComplexity), true
+	case "AutomationActionPayload.brightness":
+		if e.ComplexityRoot.AutomationActionPayload.Brightness == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.Brightness(childComplexity), true
+	case "AutomationActionPayload.color":
+		if e.ComplexityRoot.AutomationActionPayload.Color == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.Color(childComplexity), true
+	case "AutomationActionPayload.colorTemp":
+		if e.ComplexityRoot.AutomationActionPayload.ColorTemp == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.ColorTemp(childComplexity), true
+	case "AutomationActionPayload.delta":
+		if e.ComplexityRoot.AutomationActionPayload.Delta == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.Delta(childComplexity), true
+	case "AutomationActionPayload.effectId":
+		if e.ComplexityRoot.AutomationActionPayload.EffectID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.EffectID(childComplexity), true
+	case "AutomationActionPayload.fanMode":
+		if e.ComplexityRoot.AutomationActionPayload.FanMode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.FanMode(childComplexity), true
+	case "AutomationActionPayload.field":
+		if e.ComplexityRoot.AutomationActionPayload.Field == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.Field(childComplexity), true
+	case "AutomationActionPayload.hvacMode":
+		if e.ComplexityRoot.AutomationActionPayload.HvacMode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.HvacMode(childComplexity), true
+	case "AutomationActionPayload.kind":
+		if e.ComplexityRoot.AutomationActionPayload.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.Kind(childComplexity), true
+	case "AutomationActionPayload.message":
+		if e.ComplexityRoot.AutomationActionPayload.Message == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.Message(childComplexity), true
+	case "AutomationActionPayload.mode":
+		if e.ComplexityRoot.AutomationActionPayload.Mode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.Mode(childComplexity), true
+	case "AutomationActionPayload.nativeName":
+		if e.ComplexityRoot.AutomationActionPayload.NativeName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.NativeName(childComplexity), true
+	case "AutomationActionPayload.on":
+		if e.ComplexityRoot.AutomationActionPayload.On == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.On(childComplexity), true
+	case "AutomationActionPayload.sceneId":
+		if e.ComplexityRoot.AutomationActionPayload.SceneID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.SceneID(childComplexity), true
+	case "AutomationActionPayload.scenes":
+		if e.ComplexityRoot.AutomationActionPayload.Scenes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.Scenes(childComplexity), true
+	case "AutomationActionPayload.settings":
+		if e.ComplexityRoot.AutomationActionPayload.Settings == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.Settings(childComplexity), true
+	case "AutomationActionPayload.severity":
+		if e.ComplexityRoot.AutomationActionPayload.Severity == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.Severity(childComplexity), true
+	case "AutomationActionPayload.swing":
+		if e.ComplexityRoot.AutomationActionPayload.Swing == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.Swing(childComplexity), true
+	case "AutomationActionPayload.targetTemperature":
+		if e.ComplexityRoot.AutomationActionPayload.TargetTemperature == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.TargetTemperature(childComplexity), true
+	case "AutomationActionPayload.transition":
+		if e.ComplexityRoot.AutomationActionPayload.Transition == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.Transition(childComplexity), true
+
+	case "AutomationCondition.afterHour":
+		if e.ComplexityRoot.AutomationCondition.AfterHour == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationCondition.AfterHour(childComplexity), true
+	case "AutomationCondition.afterMinute":
+		if e.ComplexityRoot.AutomationCondition.AfterMinute == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationCondition.AfterMinute(childComplexity), true
+	case "AutomationCondition.beforeHour":
+		if e.ComplexityRoot.AutomationCondition.BeforeHour == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationCondition.BeforeHour(childComplexity), true
+	case "AutomationCondition.beforeMinute":
+		if e.ComplexityRoot.AutomationCondition.BeforeMinute == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationCondition.BeforeMinute(childComplexity), true
+	case "AutomationCondition.comparator":
+		if e.ComplexityRoot.AutomationCondition.Comparator == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationCondition.Comparator(childComplexity), true
+	case "AutomationCondition.customExpr":
+		if e.ComplexityRoot.AutomationCondition.CustomExpr == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationCondition.CustomExpr(childComplexity), true
+	case "AutomationCondition.mode":
+		if e.ComplexityRoot.AutomationCondition.Mode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationCondition.Mode(childComplexity), true
+	case "AutomationCondition.negate":
+		if e.ComplexityRoot.AutomationCondition.Negate == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationCondition.Negate(childComplexity), true
+	case "AutomationCondition.property":
+		if e.ComplexityRoot.AutomationCondition.Property == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationCondition.Property(childComplexity), true
+	case "AutomationCondition.targetId":
+		if e.ComplexityRoot.AutomationCondition.TargetID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationCondition.TargetID(childComplexity), true
+	case "AutomationCondition.targetType":
+		if e.ComplexityRoot.AutomationCondition.TargetType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationCondition.TargetType(childComplexity), true
+	case "AutomationCondition.value":
+		if e.ComplexityRoot.AutomationCondition.Value == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationCondition.Value(childComplexity), true
+	case "AutomationCondition.weekdays":
+		if e.ComplexityRoot.AutomationCondition.Weekdays == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationCondition.Weekdays(childComplexity), true
+
+	case "AutomationConfig.action":
+		if e.ComplexityRoot.AutomationConfig.Action == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationConfig.Action(childComplexity), true
+	case "AutomationConfig.condition":
+		if e.ComplexityRoot.AutomationConfig.Condition == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationConfig.Condition(childComplexity), true
+	case "AutomationConfig.macro":
+		if e.ComplexityRoot.AutomationConfig.Macro == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationConfig.Macro(childComplexity), true
+	case "AutomationConfig.operator":
+		if e.ComplexityRoot.AutomationConfig.Operator == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationConfig.Operator(childComplexity), true
+	case "AutomationConfig.trigger":
+		if e.ComplexityRoot.AutomationConfig.Trigger == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationConfig.Trigger(childComplexity), true
 
 	case "AutomationEdge.fromNodeId":
 		if e.ComplexityRoot.AutomationEdge.FromNodeID == nil {
@@ -1349,12 +2322,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.AutomationEdge.ToNodeID(childComplexity), true
 
-	case "AutomationGraph.compilable":
-		if e.ComplexityRoot.AutomationGraph.Compilable == nil {
-			break
-		}
-
-		return e.ComplexityRoot.AutomationGraph.Compilable(childComplexity), true
 	case "AutomationGraph.createdBy":
 		if e.ComplexityRoot.AutomationGraph.CreatedBy == nil {
 			break
@@ -1409,6 +2376,62 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AutomationGraph.Nodes(childComplexity), true
+	case "AutomationGraph.revision":
+		if e.ComplexityRoot.AutomationGraph.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationGraph.Revision(childComplexity), true
+	case "AutomationGraph.validation":
+		if e.ComplexityRoot.AutomationGraph.Validation == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationGraph.Validation(childComplexity), true
+
+	case "AutomationLiteral.booleanValue":
+		if e.ComplexityRoot.AutomationLiteral.BooleanValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationLiteral.BooleanValue(childComplexity), true
+	case "AutomationLiteral.nullValue":
+		if e.ComplexityRoot.AutomationLiteral.NullValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationLiteral.NullValue(childComplexity), true
+	case "AutomationLiteral.numberValue":
+		if e.ComplexityRoot.AutomationLiteral.NumberValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationLiteral.NumberValue(childComplexity), true
+	case "AutomationLiteral.stringValue":
+		if e.ComplexityRoot.AutomationLiteral.StringValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationLiteral.StringValue(childComplexity), true
+
+	case "AutomationMacro.arguments":
+		if e.ComplexityRoot.AutomationMacro.Arguments == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationMacro.Arguments(childComplexity), true
+	case "AutomationMacro.name":
+		if e.ComplexityRoot.AutomationMacro.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationMacro.Name(childComplexity), true
+	case "AutomationMacro.negate":
+		if e.ComplexityRoot.AutomationMacro.Negate == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationMacro.Negate(childComplexity), true
 
 	case "AutomationNode.config":
 		if e.ComplexityRoot.AutomationNode.Config == nil {
@@ -1477,6 +2500,178 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AutomationNodeActivationEvent.PendingUntil(childComplexity), true
+
+	case "AutomationNodePreview.cron":
+		if e.ComplexityRoot.AutomationNodePreview.Cron == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationNodePreview.Cron(childComplexity), true
+	case "AutomationNodePreview.expression":
+		if e.ComplexityRoot.AutomationNodePreview.Expression == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationNodePreview.Expression(childComplexity), true
+
+	case "AutomationOperator.kind":
+		if e.ComplexityRoot.AutomationOperator.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationOperator.Kind(childComplexity), true
+
+	case "AutomationTrigger.comparator":
+		if e.ComplexityRoot.AutomationTrigger.Comparator == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.Comparator(childComplexity), true
+	case "AutomationTrigger.cooldownMs":
+		if e.ComplexityRoot.AutomationTrigger.CooldownMs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.CooldownMs(childComplexity), true
+	case "AutomationTrigger.cronExpr":
+		if e.ComplexityRoot.AutomationTrigger.CronExpr == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.CronExpr(childComplexity), true
+	case "AutomationTrigger.customExpr":
+		if e.ComplexityRoot.AutomationTrigger.CustomExpr == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.CustomExpr(childComplexity), true
+	case "AutomationTrigger.deviceId":
+		if e.ComplexityRoot.AutomationTrigger.DeviceID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.DeviceID(childComplexity), true
+	case "AutomationTrigger.endpointId":
+		if e.ComplexityRoot.AutomationTrigger.EndpointID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.EndpointID(childComplexity), true
+	case "AutomationTrigger.eventType":
+		if e.ComplexityRoot.AutomationTrigger.EventType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.EventType(childComplexity), true
+	case "AutomationTrigger.eventValue":
+		if e.ComplexityRoot.AutomationTrigger.EventValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.EventValue(childComplexity), true
+	case "AutomationTrigger.graceMs":
+		if e.ComplexityRoot.AutomationTrigger.GraceMs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.GraceMs(childComplexity), true
+	case "AutomationTrigger.holdMs":
+		if e.ComplexityRoot.AutomationTrigger.HoldMs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.HoldMs(childComplexity), true
+	case "AutomationTrigger.mode":
+		if e.ComplexityRoot.AutomationTrigger.Mode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.Mode(childComplexity), true
+	case "AutomationTrigger.property":
+		if e.ComplexityRoot.AutomationTrigger.Property == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.Property(childComplexity), true
+	case "AutomationTrigger.scheduleHour":
+		if e.ComplexityRoot.AutomationTrigger.ScheduleHour == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.ScheduleHour(childComplexity), true
+	case "AutomationTrigger.scheduleIntervalUnit":
+		if e.ComplexityRoot.AutomationTrigger.ScheduleIntervalUnit == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.ScheduleIntervalUnit(childComplexity), true
+	case "AutomationTrigger.scheduleIntervalValue":
+		if e.ComplexityRoot.AutomationTrigger.ScheduleIntervalValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.ScheduleIntervalValue(childComplexity), true
+	case "AutomationTrigger.scheduleMinute":
+		if e.ComplexityRoot.AutomationTrigger.ScheduleMinute == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.ScheduleMinute(childComplexity), true
+	case "AutomationTrigger.scheduleSecond":
+		if e.ComplexityRoot.AutomationTrigger.ScheduleSecond == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.ScheduleSecond(childComplexity), true
+	case "AutomationTrigger.scheduleSubmode":
+		if e.ComplexityRoot.AutomationTrigger.ScheduleSubmode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.ScheduleSubmode(childComplexity), true
+	case "AutomationTrigger.scheduleWeekdays":
+		if e.ComplexityRoot.AutomationTrigger.ScheduleWeekdays == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.ScheduleWeekdays(childComplexity), true
+	case "AutomationTrigger.value":
+		if e.ComplexityRoot.AutomationTrigger.Value == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.Value(childComplexity), true
+	case "AutomationTrigger.webhookFilters":
+		if e.ComplexityRoot.AutomationTrigger.WebhookFilters == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationTrigger.WebhookFilters(childComplexity), true
+
+	case "AutomationWebhookFilter.operator":
+		if e.ComplexityRoot.AutomationWebhookFilter.Operator == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationWebhookFilter.Operator(childComplexity), true
+	case "AutomationWebhookFilter.path":
+		if e.ComplexityRoot.AutomationWebhookFilter.Path == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationWebhookFilter.Path(childComplexity), true
+	case "AutomationWebhookFilter.source":
+		if e.ComplexityRoot.AutomationWebhookFilter.Source == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationWebhookFilter.Source(childComplexity), true
+	case "AutomationWebhookFilter.value":
+		if e.ComplexityRoot.AutomationWebhookFilter.Value == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationWebhookFilter.Value(childComplexity), true
 
 	case "Capability.canGet":
 		if e.ComplexityRoot.Capability.CanGet == nil {
@@ -1551,6 +2746,56 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Capability.Values(childComplexity), true
 
+	case "ClaudeAvailableModel.id":
+		if e.ComplexityRoot.ClaudeAvailableModel.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ClaudeAvailableModel.ID(childComplexity), true
+	case "ClaudeAvailableModel.name":
+		if e.ComplexityRoot.ClaudeAvailableModel.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ClaudeAvailableModel.Name(childComplexity), true
+	case "ClaudeAvailableModel.resolvedModel":
+		if e.ComplexityRoot.ClaudeAvailableModel.ResolvedModel == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ClaudeAvailableModel.ResolvedModel(childComplexity), true
+
+	case "ClaudeConfig.enabled":
+		if e.ComplexityRoot.ClaudeConfig.Enabled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ClaudeConfig.Enabled(childComplexity), true
+	case "ClaudeConfig.model":
+		if e.ComplexityRoot.ClaudeConfig.Model == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ClaudeConfig.Model(childComplexity), true
+	case "ClaudeConfig.ready":
+		if e.ComplexityRoot.ClaudeConfig.Ready == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ClaudeConfig.Ready(childComplexity), true
+	case "ClaudeConfig.revision":
+		if e.ComplexityRoot.ClaudeConfig.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ClaudeConfig.Revision(childComplexity), true
+	case "ClaudeConfig.token":
+		if e.ComplexityRoot.ClaudeConfig.Token == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ClaudeConfig.Token(childComplexity), true
+
 	case "Color.b":
 		if e.ComplexityRoot.Color.B == nil {
 			break
@@ -1581,6 +2826,50 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Color.Y(childComplexity), true
+
+	case "ConfigurationIssue.code":
+		if e.ComplexityRoot.ConfigurationIssue.Code == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ConfigurationIssue.Code(childComplexity), true
+	case "ConfigurationIssue.message":
+		if e.ComplexityRoot.ConfigurationIssue.Message == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ConfigurationIssue.Message(childComplexity), true
+	case "ConfigurationIssue.nodeId":
+		if e.ComplexityRoot.ConfigurationIssue.NodeID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ConfigurationIssue.NodeID(childComplexity), true
+	case "ConfigurationIssue.path":
+		if e.ComplexityRoot.ConfigurationIssue.Path == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ConfigurationIssue.Path(childComplexity), true
+	case "ConfigurationIssue.severity":
+		if e.ComplexityRoot.ConfigurationIssue.Severity == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ConfigurationIssue.Severity(childComplexity), true
+
+	case "ConfigurationValidation.issues":
+		if e.ComplexityRoot.ConfigurationValidation.Issues == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ConfigurationValidation.Issues(childComplexity), true
+	case "ConfigurationValidation.valid":
+		if e.ComplexityRoot.ConfigurationValidation.Valid == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ConfigurationValidation.Valid(childComplexity), true
 
 	case "ConnectionTestResult.code":
 		if e.ComplexityRoot.ConnectionTestResult.Code == nil {
@@ -1747,6 +3036,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Device.Name(childComplexity), true
+	case "Device.revision":
+		if e.ComplexityRoot.Device.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Device.Revision(childComplexity), true
 	case "Device.roles":
 		if e.ComplexityRoot.Device.Roles == nil {
 			break
@@ -2152,6 +3447,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Effect.RequiredCapabilities(childComplexity), true
+	case "Effect.revision":
+		if e.ComplexityRoot.Effect.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Effect.Revision(childComplexity), true
 	case "Effect.source":
 		if e.ComplexityRoot.Effect.Source == nil {
 			break
@@ -2207,6 +3508,97 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.EffectClip.TransitionMinMs(childComplexity), true
+
+	case "EffectClipConfig.nativeEffect":
+		if e.ComplexityRoot.EffectClipConfig.NativeEffect == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectClipConfig.NativeEffect(childComplexity), true
+	case "EffectClipConfig.setBrightness":
+		if e.ComplexityRoot.EffectClipConfig.SetBrightness == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectClipConfig.SetBrightness(childComplexity), true
+	case "EffectClipConfig.setColor":
+		if e.ComplexityRoot.EffectClipConfig.SetColor == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectClipConfig.SetColor(childComplexity), true
+	case "EffectClipConfig.setOnOff":
+		if e.ComplexityRoot.EffectClipConfig.SetOnOff == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectClipConfig.SetOnOff(childComplexity), true
+
+	case "EffectNativeEffectClipConfig.name":
+		if e.ComplexityRoot.EffectNativeEffectClipConfig.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectNativeEffectClipConfig.Name(childComplexity), true
+
+	case "EffectSetBrightnessClipConfig.value":
+		if e.ComplexityRoot.EffectSetBrightnessClipConfig.Value == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectSetBrightnessClipConfig.Value(childComplexity), true
+
+	case "EffectSetColorClipConfig.mode":
+		if e.ComplexityRoot.EffectSetColorClipConfig.Mode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectSetColorClipConfig.Mode(childComplexity), true
+	case "EffectSetColorClipConfig.rgb":
+		if e.ComplexityRoot.EffectSetColorClipConfig.RGB == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectSetColorClipConfig.RGB(childComplexity), true
+	case "EffectSetColorClipConfig.temp":
+		if e.ComplexityRoot.EffectSetColorClipConfig.Temp == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectSetColorClipConfig.Temp(childComplexity), true
+
+	case "EffectSetColorRGBValue.b":
+		if e.ComplexityRoot.EffectSetColorRGBValue.B == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectSetColorRGBValue.B(childComplexity), true
+	case "EffectSetColorRGBValue.g":
+		if e.ComplexityRoot.EffectSetColorRGBValue.G == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectSetColorRGBValue.G(childComplexity), true
+	case "EffectSetColorRGBValue.r":
+		if e.ComplexityRoot.EffectSetColorRGBValue.R == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectSetColorRGBValue.R(childComplexity), true
+
+	case "EffectSetColorTempValue.mireds":
+		if e.ComplexityRoot.EffectSetColorTempValue.Mireds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectSetColorTempValue.Mireds(childComplexity), true
+
+	case "EffectSetOnOffClipConfig.value":
+		if e.ComplexityRoot.EffectSetOnOffClipConfig.Value == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EffectSetOnOffClipConfig.Value(childComplexity), true
 
 	case "EffectStepEvent.active":
 		if e.ComplexityRoot.EffectStepEvent.Active == nil {
@@ -2294,6 +3686,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Floorplan.Placements(childComplexity), true
+	case "Floorplan.revision":
+		if e.ComplexityRoot.Floorplan.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Floorplan.Revision(childComplexity), true
 	case "Floorplan.rooms":
 		if e.ComplexityRoot.Floorplan.Rooms == nil {
 			break
@@ -2572,6 +3970,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Group.ResolvedDevices(childComplexity), true
+	case "Group.revision":
+		if e.ComplexityRoot.Group.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Group.Revision(childComplexity), true
 	case "Group.source":
 		if e.ComplexityRoot.Group.Source == nil {
 			break
@@ -2753,6 +4157,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Integration.Enabled(childComplexity), true
+	case "Integration.kind":
+		if e.ComplexityRoot.Integration.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Integration.Kind(childComplexity), true
 	case "Integration.message":
 		if e.ComplexityRoot.Integration.Message == nil {
 			break
@@ -2797,6 +4207,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.LocalizedNameSet.EntityType(childComplexity), true
+	case "LocalizedNameSet.revision":
+		if e.ComplexityRoot.LocalizedNameSet.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.LocalizedNameSet.Revision(childComplexity), true
 	case "LocalizedNameSet.sourceLanguage":
 		if e.ComplexityRoot.LocalizedNameSet.SourceLanguage == nil {
 			break
@@ -3093,6 +4509,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CompleteMaintenanceTasks(childComplexity, args["ids"].([]string)), true
+	case "Mutation.createAssistantConversation":
+		if e.ComplexityRoot.Mutation.CreateAssistantConversation == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Mutation.CreateAssistantConversation(childComplexity), true
 	case "Mutation.createAutomation":
 		if e.ComplexityRoot.Mutation.CreateAutomation == nil {
 			break
@@ -3214,6 +4636,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteAlarm(childComplexity, args["alarmId"].(string)), true
+	case "Mutation.deleteAssistantConversation":
+		if e.ComplexityRoot.Mutation.DeleteAssistantConversation == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteAssistantConversation_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteAssistantConversation(childComplexity, args["id"].(string)), true
 	case "Mutation.deleteAutomation":
 		if e.ComplexityRoot.Mutation.DeleteAutomation == nil {
 			break
@@ -3324,6 +4757,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteWebhookEndpoint(childComplexity, args["id"].(string)), true
+	case "Mutation.discoverClaudeModels":
+		if e.ComplexityRoot.Mutation.DiscoverClaudeModels == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_discoverClaudeModels_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DiscoverClaudeModels(childComplexity, args["token"].(string)), true
 	case "Mutation.extendGuest":
 		if e.ComplexityRoot.Mutation.ExtendGuest == nil {
 			break
@@ -3423,6 +4867,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.RemoveRoomMember(childComplexity, args["id"].(string)), true
+	case "Mutation.renameAssistantConversation":
+		if e.ComplexityRoot.Mutation.RenameAssistantConversation == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_renameAssistantConversation_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RenameAssistantConversation(childComplexity, args["id"].(string), args["title"].(string)), true
 	case "Mutation.resetUserPassword":
 		if e.ComplexityRoot.Mutation.ResetUserPassword == nil {
 			break
@@ -3434,6 +4889,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ResetUserPassword(childComplexity, args["id"].(string), args["newPassword"].(string)), true
+	case "Mutation.respondToAssistantAction":
+		if e.ComplexityRoot.Mutation.RespondToAssistantAction == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_respondToAssistantAction_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RespondToAssistantAction(childComplexity, args["input"].(model.AssistantActionResponseInput)), true
 	case "Mutation.restoreDevice":
 		if e.ComplexityRoot.Mutation.RestoreDevice == nil {
 			break
@@ -3495,6 +4961,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ScanZigbee2MqttNetwork(childComplexity), true
+	case "Mutation.sendAssistantMessage":
+		if e.ComplexityRoot.Mutation.SendAssistantMessage == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_sendAssistantMessage_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SendAssistantMessage(childComplexity, args["input"].(model.AssistantMessageInput)), true
 	case "Mutation.setDeviceConfiguration":
 		if e.ComplexityRoot.Mutation.SetDeviceConfiguration == nil {
 			break
@@ -3528,6 +5005,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SimulateDeviceAction(childComplexity, args["deviceId"].(string), args["action"].(string)), true
+	case "Mutation.stopAssistantRun":
+		if e.ComplexityRoot.Mutation.StopAssistantRun == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_stopAssistantRun_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.StopAssistantRun(childComplexity, args["conversationId"].(string)), true
 	case "Mutation.stopEffect":
 		if e.ComplexityRoot.Mutation.StopEffect == nil {
 			break
@@ -3545,6 +5033,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SyncTuyaDevices(childComplexity), true
+	case "Mutation.testClaudeConnection":
+		if e.ComplexityRoot.Mutation.TestClaudeConnection == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_testClaudeConnection_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.TestClaudeConnection(childComplexity, args["input"].(model.ClaudeConfigInput)), true
 	case "Mutation.testTuyaConnection":
 		if e.ComplexityRoot.Mutation.TestTuyaConnection == nil {
 			break
@@ -3577,7 +5076,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.ToggleAutomation(childComplexity, args["id"].(string), args["enabled"].(bool)), true
+		return e.ComplexityRoot.Mutation.ToggleAutomation(childComplexity, args["id"].(string), args["enabled"].(bool), args["expectedRevision"].(int)), true
 	case "Mutation.updateAutomation":
 		if e.ComplexityRoot.Mutation.UpdateAutomation == nil {
 			break
@@ -3589,6 +5088,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateAutomation(childComplexity, args["id"].(string), args["input"].(model.UpdateAutomationInput)), true
+	case "Mutation.updateClaudeConfig":
+		if e.ComplexityRoot.Mutation.UpdateClaudeConfig == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateClaudeConfig_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateClaudeConfig(childComplexity, args["input"].(model.ClaudeConfigInput), args["expectedRevision"].(int)), true
 	case "Mutation.updateCurrentGuestLanguage":
 		if e.ComplexityRoot.Mutation.UpdateCurrentGuestLanguage == nil {
 			break
@@ -3698,7 +5208,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.UpdateSetting(childComplexity, args["key"].(string), args["value"].(string)), true
+		return e.ComplexityRoot.Mutation.UpdateSetting(childComplexity, args["key"].(string), args["value"].(string), args["expectedRevision"].(int)), true
 	case "Mutation.updateTuyaConfig":
 		if e.ComplexityRoot.Mutation.UpdateTuyaConfig == nil {
 			break
@@ -3709,7 +5219,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.UpdateTuyaConfig(childComplexity, args["input"].(model.TuyaConfigInput)), true
+		return e.ComplexityRoot.Mutation.UpdateTuyaConfig(childComplexity, args["input"].(model.TuyaConfigInput), args["expectedRevision"].(int)), true
 	case "Mutation.updateWebhookEndpoint":
 		if e.ComplexityRoot.Mutation.UpdateWebhookEndpoint == nil {
 			break
@@ -3731,7 +5241,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.UpdateZigbee2MqttConfig(childComplexity, args["input"].(model.Zigbee2MqttConfigInput)), true
+		return e.ComplexityRoot.Mutation.UpdateZigbee2MqttConfig(childComplexity, args["input"].(model.Zigbee2MqttConfigInput), args["expectedRevision"].(int)), true
 
 	case "NativeEffectDeviceRunResult.deviceId":
 		if e.ComplexityRoot.NativeEffectDeviceRunResult.DeviceID == nil {
@@ -3949,6 +5459,34 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Alarms(childComplexity, args["filter"].(*model.AlarmFilter)), true
+	case "Query.assistantActionPrivateResult":
+		if e.ComplexityRoot.Query.AssistantActionPrivateResult == nil {
+			break
+		}
+
+		args, err := ec.field_Query_assistantActionPrivateResult_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AssistantActionPrivateResult(childComplexity, args["conversationId"].(string), args["actionId"].(string)), true
+	case "Query.assistantConversation":
+		if e.ComplexityRoot.Query.AssistantConversation == nil {
+			break
+		}
+
+		args, err := ec.field_Query_assistantConversation_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AssistantConversation(childComplexity, args["id"].(string)), true
+	case "Query.assistantConversations":
+		if e.ComplexityRoot.Query.AssistantConversations == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.AssistantConversations(childComplexity), true
 	case "Query.automation":
 		if e.ComplexityRoot.Query.Automation == nil {
 			break
@@ -3960,12 +5498,29 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Automation(childComplexity, args["id"].(string)), true
+	case "Query.automationNodePreview":
+		if e.ComplexityRoot.Query.AutomationNodePreview == nil {
+			break
+		}
+
+		args, err := ec.field_Query_automationNodePreview_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AutomationNodePreview(childComplexity, args["type"].(string), args["config"].(automation.AuthoringConfig)), true
 	case "Query.automations":
 		if e.ComplexityRoot.Query.Automations == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Query.Automations(childComplexity), true
+	case "Query.claudeConfig":
+		if e.ComplexityRoot.Query.ClaudeConfig == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.ClaudeConfig(childComplexity), true
 	case "Query.currentGuest":
 		if e.ComplexityRoot.Query.CurrentGuest == nil {
 			break
@@ -4150,6 +5705,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Scene(childComplexity, args["id"].(string)), true
+	case "Query.sceneAuthoring":
+		if e.ComplexityRoot.Query.SceneAuthoring == nil {
+			break
+		}
+
+		args, err := ec.field_Query_sceneAuthoring_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.SceneAuthoring(childComplexity, args["input"].(model.SceneAuthoringInput)), true
 	case "Query.scenes":
 		if e.ComplexityRoot.Query.Scenes == nil {
 			break
@@ -4197,6 +5763,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Users(childComplexity), true
+	case "Query.validateAutomation":
+		if e.ComplexityRoot.Query.ValidateAutomation == nil {
+			break
+		}
+
+		args, err := ec.field_Query_validateAutomation_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.ValidateAutomation(childComplexity, args["input"].(model.CreateAutomationInput)), true
 	case "Query.vibePresets":
 		if e.ComplexityRoot.Query.VibePresets == nil {
 			break
@@ -4274,6 +5851,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Room.ResolvedDevices(childComplexity), true
+	case "Room.revision":
+		if e.ComplexityRoot.Room.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Room.Revision(childComplexity), true
 
 	case "RoomMember.device":
 		if e.ComplexityRoot.RoomMember.Device == nil {
@@ -4348,6 +5931,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Scene.Preview(childComplexity), true
+	case "Scene.revision":
+		if e.ComplexityRoot.Scene.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Scene.Revision(childComplexity), true
 	case "Scene.rooms":
 		if e.ComplexityRoot.Scene.Rooms == nil {
 			break
@@ -4379,6 +5968,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.SceneActiveEvent.SceneID(childComplexity), true
+
+	case "SceneAuthoredState.deviceId":
+		if e.ComplexityRoot.SceneAuthoredState.DeviceID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneAuthoredState.DeviceID(childComplexity), true
+	case "SceneAuthoredState.lighting":
+		if e.ComplexityRoot.SceneAuthoredState.Lighting == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneAuthoredState.Lighting(childComplexity), true
+	case "SceneAuthoredState.state":
+		if e.ComplexityRoot.SceneAuthoredState.State == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SceneAuthoredState.State(childComplexity), true
 
 	case "SceneLightOverride.deviceId":
 		if e.ComplexityRoot.SceneLightOverride.DeviceID == nil {
@@ -4505,6 +6113,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Setting.Key(childComplexity), true
+	case "Setting.revision":
+		if e.ComplexityRoot.Setting.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Setting.Revision(childComplexity), true
 	case "Setting.value":
 		if e.ComplexityRoot.Setting.Value == nil {
 			break
@@ -4586,6 +6200,23 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Subscription.AlarmEvent(childComplexity), true
+	case "Subscription.applicationChanged":
+		if e.ComplexityRoot.Subscription.ApplicationChanged == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Subscription.ApplicationChanged(childComplexity), true
+	case "Subscription.assistantConversationChanged":
+		if e.ComplexityRoot.Subscription.AssistantConversationChanged == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_assistantConversationChanged_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Subscription.AssistantConversationChanged(childComplexity, args["id"].(string)), true
 	case "Subscription.automationNodeActivated":
 		if e.ComplexityRoot.Subscription.AutomationNodeActivated == nil {
 			break
@@ -4835,6 +6466,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TuyaConfig.Region(childComplexity), true
+	case "TuyaConfig.revision":
+		if e.ComplexityRoot.TuyaConfig.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TuyaConfig.Revision(childComplexity), true
+
+	case "TuyaConfigResult.application":
+		if e.ComplexityRoot.TuyaConfigResult.Application == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TuyaConfigResult.Application(childComplexity), true
+	case "TuyaConfigResult.config":
+		if e.ComplexityRoot.TuyaConfigResult.Config == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TuyaConfigResult.Config(childComplexity), true
 
 	case "User.avatarPath":
 		if e.ComplexityRoot.User.AvatarPath == nil {
@@ -4878,6 +6528,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.User.Name(childComplexity), true
+	case "User.revision":
+		if e.ComplexityRoot.User.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.User.Revision(childComplexity), true
 	case "User.temperatureUnit":
 		if e.ComplexityRoot.User.TemperatureUnit == nil {
 			break
@@ -4902,6 +6558,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.User.Username(childComplexity), true
+
+	case "UserRef.id":
+		if e.ComplexityRoot.UserRef.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UserRef.ID(childComplexity), true
+	case "UserRef.name":
+		if e.ComplexityRoot.UserRef.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UserRef.Name(childComplexity), true
+	case "UserRef.username":
+		if e.ComplexityRoot.UserRef.Username == nil {
+			break
+		}
+
+		return e.ComplexityRoot.UserRef.Username(childComplexity), true
 
 	case "VibeFieldSample.brightness":
 		if e.ComplexityRoot.VibeFieldSample.Brightness == nil {
@@ -5165,6 +6840,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.WebhookEndpoint.RateLimitWindowMs(childComplexity), true
+	case "WebhookEndpoint.revision":
+		if e.ComplexityRoot.WebhookEndpoint.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WebhookEndpoint.Revision(childComplexity), true
 	case "WebhookEndpoint.updatedAt":
 		if e.ComplexityRoot.WebhookEndpoint.UpdatedAt == nil {
 			break
@@ -5282,6 +6963,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Zigbee2MqttConfig.Password(childComplexity), true
+	case "Zigbee2MqttConfig.revision":
+		if e.ComplexityRoot.Zigbee2MqttConfig.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttConfig.Revision(childComplexity), true
 	case "Zigbee2MqttConfig.scanHour":
 		if e.ComplexityRoot.Zigbee2MqttConfig.ScanHour == nil {
 			break
@@ -5318,6 +7005,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Zigbee2MqttConfig.Username(childComplexity), true
+
+	case "Zigbee2MqttConfigResult.application":
+		if e.ComplexityRoot.Zigbee2MqttConfigResult.Application == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttConfigResult.Application(childComplexity), true
+	case "Zigbee2MqttConfigResult.config":
+		if e.ComplexityRoot.Zigbee2MqttConfigResult.Config == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Zigbee2MqttConfigResult.Config(childComplexity), true
 
 	case "Zigbee2MqttDeviceDefinition.description":
 		if e.ComplexityRoot.Zigbee2MqttDeviceDefinition.Description == nil {
@@ -5565,9 +7265,25 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputAggregatedHistoryTarget,
 		ec.unmarshalInputAggregatedStateHistoryFilter,
 		ec.unmarshalInputAlarmFilter,
+		ec.unmarshalInputAssistantActionResponseInput,
+		ec.unmarshalInputAssistantMessageInput,
+		ec.unmarshalInputAssistantPrivateValueInput,
+		ec.unmarshalInputAuthoringAttributeInput,
+		ec.unmarshalInputAuthoringClauseInput,
+		ec.unmarshalInputAuthoringColorInput,
+		ec.unmarshalInputAutomationActionInput,
+		ec.unmarshalInputAutomationActionPayloadInput,
+		ec.unmarshalInputAutomationConditionInput,
+		ec.unmarshalInputAutomationConfigInput,
 		ec.unmarshalInputAutomationEdgeInput,
+		ec.unmarshalInputAutomationLiteralInput,
+		ec.unmarshalInputAutomationMacroInput,
 		ec.unmarshalInputAutomationNodeInput,
+		ec.unmarshalInputAutomationOperatorInput,
+		ec.unmarshalInputAutomationTriggerInput,
+		ec.unmarshalInputAutomationWebhookFilterInput,
 		ec.unmarshalInputChangePasswordInput,
+		ec.unmarshalInputClaudeConfigInput,
 		ec.unmarshalInputColorInput,
 		ec.unmarshalInputCommandTargetInput,
 		ec.unmarshalInputCreateAutomationInput,
@@ -5583,7 +7299,14 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputDeviceAttributeValueInput,
 		ec.unmarshalInputDeviceStateInput,
 		ec.unmarshalInputDynamicSceneSourceInput,
+		ec.unmarshalInputEffectClipConfigInput,
 		ec.unmarshalInputEffectClipInput,
+		ec.unmarshalInputEffectNativeEffectClipConfigInput,
+		ec.unmarshalInputEffectSetBrightnessClipConfigInput,
+		ec.unmarshalInputEffectSetColorClipConfigInput,
+		ec.unmarshalInputEffectSetColorRGBValueInput,
+		ec.unmarshalInputEffectSetColorTempValueInput,
+		ec.unmarshalInputEffectSetOnOffClipConfigInput,
 		ec.unmarshalInputEffectTrackInput,
 		ec.unmarshalInputFloorplanDoorBindingInput,
 		ec.unmarshalInputFloorplanFurnitureInput,
@@ -5592,6 +7315,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputFloorplanRoomInput,
 		ec.unmarshalInputFloorplanVertexInput,
 		ec.unmarshalInputFloorplanWallInput,
+		ec.unmarshalInputGroupMemberInput,
 		ec.unmarshalInputGuidedVibeRecipeInput,
 		ec.unmarshalInputGuidedVibeRoundInput,
 		ec.unmarshalInputLocalizedNameInput,
@@ -5602,6 +7326,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputPreviewVibeInput,
 		ec.unmarshalInputRaiseAlarmInput,
 		ec.unmarshalInputRoomMemberInput,
+		ec.unmarshalInputSceneAuthoringInput,
 		ec.unmarshalInputSceneDefinitionInput,
 		ec.unmarshalInputSceneLightOverrideInput,
 		ec.unmarshalInputSceneLightingInput,
@@ -5758,6 +7483,7 @@ type DeviceAttributeValue {
 }
 
 type Device {
+  revision: Int!
   id: ID!
   """
   The user's name override. Null means unset, in which case the device shows the
@@ -5935,6 +7661,7 @@ type Color {
 }
 
 type Scene {
+  revision: Int!
   id: ID!
   name: String!
   icon: String
@@ -5943,7 +7670,7 @@ type Scene {
   lighting: SceneLighting!
   supportingStates: [SceneSupportingState!]!
   preview: ScenePreview!
-  createdBy: User
+  createdBy: UserRef
   activatedAt: DateTime
 }
 
@@ -6118,13 +7845,27 @@ type VibePreviewResult {
   maximumLightness: Float!
 }
 
+type ConfigurationIssue {
+  code: String!
+  path: String!
+  nodeId: ID
+  severity: String!
+  message: String!
+}
+
+type ConfigurationValidation {
+  valid: Boolean!
+  issues: [ConfigurationIssue!]!
+}
+
 type AutomationGraph {
+  revision: Int!
   id: ID!
   name: String!
   icon: String
   enabled: Boolean!
-  "Whether the stored graph can be loaded by the automation engine."
-  compilable: Boolean!
+  "Validation of the complete stored configuration, including references."
+  validation: ConfigurationValidation!
   """
   JSON object of the automation's named macros, keyed by name. Nodes refer to
   them by name; see automation.Definition for the shapes.
@@ -6133,10 +7874,11 @@ type AutomationGraph {
   lastFiredAt: DateTime
   nodes: [AutomationNode!]!
   edges: [AutomationEdge!]!
-  createdBy: User
+  createdBy: UserRef
 }
 
 type WebhookEndpoint {
+  revision: Int!
   id: ID!
   name: String!
   enabled: Boolean!
@@ -6144,7 +7886,7 @@ type WebhookEndpoint {
   rateLimitWindowMs: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
-  createdBy: User
+  createdBy: UserRef
   lastDeliveryAt: DateTime
 }
 
@@ -6178,6 +7920,7 @@ input CreateWebhookEndpointInput {
 }
 
 input UpdateWebhookEndpointInput {
+  expectedRevision: Int!
   name: String!
   enabled: Boolean!
   rateLimitCount: Int!
@@ -6202,6 +7945,7 @@ enum EffectClipKind {
 }
 
 type Effect {
+  revision: Int!
   id: ID!
   name: String!
   source: String!
@@ -6227,7 +7971,7 @@ type Effect {
   effect cap value list.
   """
   requiredCapabilities: [String!]!
-  createdBy: User
+  createdBy: UserRef
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -6246,10 +7990,8 @@ type EffectTrack {
 }
 
 """
-A single clip on a track. config is a JSON document whose shape is
-determined by kind — the inner config struct directly, e.g.
-{"mode":"rgb","rgb":{"r":244,"g":42,"b":23}} for a SET_COLOR clip in rgb
-mode, {"mode":"temp","temp":{"mireds":370}} for the same kind in temp mode.
+A single clip on a track. config contains exactly one variant matching kind.
+SET_COLOR uses setColor with mode rgb and an RGB value, or mode temp and mireds.
 transitionMinMs and transitionMaxMs bound a uniform random pick of the
 actual transition sampled per clip-execution; equal bounds collapse to a
 deterministic value.
@@ -6260,7 +8002,7 @@ type EffectClip {
   transitionMinMs: Int!
   transitionMaxMs: Int!
   kind: EffectClipKind!
-  config: String!
+  config: EffectClipConfig!
 }
 
 input EffectTrackInput {
@@ -6270,11 +8012,12 @@ input EffectTrackInput {
 }
 
 input EffectClipInput {
+  id: ID
   startMs: Int!
   transitionMinMs: Int!
   transitionMaxMs: Int!
   kind: EffectClipKind!
-  config: String!
+  config: EffectClipConfigInput!
 }
 
 input CreateEffectInput {
@@ -6288,6 +8031,7 @@ input CreateEffectInput {
 }
 
 input UpdateEffectInput {
+  expectedRevision: Int!
   id: ID!
   name: String
   icon: String
@@ -6364,7 +8108,7 @@ type EffectStepEvent {
 type AutomationNode {
   id: ID!
   type: String!
-  config: String!
+  config: AutomationConfig!
   positionX: Float!
   positionY: Float!
   "JSON-encoded map of per-node runtime state (e.g. cycle_scenes index)."
@@ -6382,6 +8126,7 @@ type AutomationEdge {
 }
 
 type Group {
+  revision: Int!
   id: ID!
   """
   The user's name override. Null means unset, in which case the group shows the
@@ -6397,7 +8142,7 @@ type Group {
   tags: [GroupTag!]!
   members: [GroupMember!]!
   resolvedDevices: [Device!]!
-  createdBy: User
+  createdBy: UserRef
 }
 
 """
@@ -6421,12 +8166,13 @@ type GroupMember {
 }
 
 type Room {
+  revision: Int!
   id: ID!
   name: String!
   icon: String
   members: [RoomMember!]!
   resolvedDevices: [Device!]!
-  createdBy: User
+  createdBy: UserRef
 }
 
 type RoomMember {
@@ -6444,6 +8190,7 @@ meters. Saved as a whole — updateFloorplan replaces every list in one
 transaction.
 """
 type Floorplan {
+  revision: Int!
   id: ID!
   name: String!
   vertices: [FloorplanVertex!]!
@@ -6685,6 +8432,7 @@ type LocalizedName {
 }
 
 type LocalizedNameSet {
+ revision: Int!
   entityType: String!
   entityId: ID!
   sourceLanguage: Language!
@@ -6703,13 +8451,22 @@ input LocalizedNameInput {
 }
 
 input LocalizedNameSetInput {
+ expectedRevision: Int!
   entityType: String!
   entityId: ID!
   sourceLanguage: Language!
   translations: [LocalizedNameInput!]!
 }
 
+"""Attribution for an authored entity."""
+type UserRef {
+  id: ID!
+  username: String!
+  name: String!
+}
+
 type User {
+ revision: Int!
   id: ID!
   username: String!
   name: String!
@@ -6826,6 +8583,7 @@ input CreateGuestInput {
 }
 
 input UpdateCurrentUserInput {
+ expectedRevision: Int!
   name: String
   theme: Theme
   timeFormat: TimeFormat
@@ -6840,6 +8598,7 @@ input ChangePasswordInput {
 }
 
 type Zigbee2MqttConfig {
+  revision: Int!
   broker: String!
   frontendUrl: String
   username: String!
@@ -6879,6 +8638,7 @@ type Integration {
 }
 
 type TuyaConfig {
+  revision: Int!
   accessId: String!
   accessSecret: String!
   region: String!
@@ -6952,6 +8712,7 @@ type NetworkTopologyEvent {
 }
 
 type Setting {
+  revision: Int!
   key: String!
   value: String!
 }
@@ -7132,6 +8893,7 @@ input ColorInput {
 }
 
 input UpdateDeviceInput {
+  expectedRevision: Int!
   """
   Sets the name override. Pass null to clear it and fall back to the
   integration's name. Omit the field to leave it alone.
@@ -7247,6 +9009,7 @@ input SceneDefinitionInput {
 }
 
 input UpdateSceneInput {
+  expectedRevision: Int!
   name: String
   icon: String
   definition: SceneDefinitionInput
@@ -7277,7 +9040,7 @@ input CreateAutomationInput {
 input AutomationNodeInput {
   id: ID!
   type: String!
-  config: String!
+  config: AutomationConfigInput!
   positionX: Float! = 0
   positionY: Float! = 0
 }
@@ -7293,6 +9056,8 @@ input CreateGroupInput {
 }
 
 input UpdateGroupInput {
+  members: [GroupMemberInput!]
+  expectedRevision: Int!
   name: String
   icon: String
   tags: [GroupTag!]
@@ -7309,6 +9074,8 @@ input CreateRoomInput {
 }
 
 input UpdateRoomInput {
+  members: [RoomMemberInput!]
+  expectedRevision: Int!
   name: String
   icon: String
 }
@@ -7330,6 +9097,7 @@ room, and placement it wants persisted, and the server replaces the stored plan
 with exactly this set. Ids are client-generated and stable across saves.
 """
 input UpdateFloorplanInput {
+  expectedRevision: Int!
   id: ID!
   name: String!
   vertices: [FloorplanVertexInput!]!
@@ -7397,6 +9165,7 @@ input FloorplanFurnitureInput {
 }
 
 input UpdateAutomationInput {
+  expectedRevision: Int!
   name: String
   icon: String
   enabled: Boolean
@@ -7417,6 +9186,7 @@ type Query {
   previewVibe(input: PreviewVibeInput!): VibePreviewResult! @auth
   automations: [AutomationGraph!]! @auth
   automation(id: ID!): AutomationGraph @auth
+  validateAutomation(input: CreateAutomationInput!): ConfigurationValidation! @auth
   webhookEndpoints: [WebhookEndpoint!]! @auth
   webhookEndpoint(id: ID!): WebhookEndpoint @auth
   webhookDeliveries(endpointId: ID!, before: DateTime, limit: Int): [WebhookDelivery!]! @auth
@@ -7481,7 +9251,7 @@ type Mutation {
   createAutomation(input: CreateAutomationInput!): AutomationGraph! @auth
   updateAutomation(id: ID!, input: UpdateAutomationInput!): AutomationGraph! @auth
   deleteAutomation(id: ID!): Boolean! @auth
-  toggleAutomation(id: ID!, enabled: Boolean!): AutomationGraph! @auth
+  toggleAutomation(id: ID!, enabled: Boolean!, expectedRevision: Int!): AutomationGraph! @auth
   """
   Fires a trigger node immediately inside its enabled automation. The trigger's
   configured event or schedule does not need to occur. Intended for testing a
@@ -7518,7 +9288,7 @@ type Mutation {
   placements with the input's sets in one transaction. Returns the saved plan.
   """
   updateFloorplan(input: UpdateFloorplanInput!): Floorplan! @auth
-  updateZigbee2MqttConfig(input: Zigbee2MqttConfigInput!): Zigbee2MqttConfig! @auth
+  updateZigbee2MqttConfig(input: Zigbee2MqttConfigInput!, expectedRevision: Int!): Zigbee2MqttConfigResult! @auth
   testZigbee2MqttConnection(input: Zigbee2MqttConfigInput!): ConnectionTestResult! @auth
   """
   Requests a Zigbee topology scan. Returns immediately; the scan walks every
@@ -7526,11 +9296,11 @@ type Mutation {
   Completion is announced on the networkTopologyUpdated subscription.
   """
   scanZigbee2MqttNetwork: Boolean! @auth
-  updateTuyaConfig(input: TuyaConfigInput!): TuyaConfig! @auth
+  updateTuyaConfig(input: TuyaConfigInput!, expectedRevision: Int!): TuyaConfigResult! @auth
   testTuyaConnection(input: TuyaConfigInput!): ConnectionTestResult! @auth
   syncTuyaDevices: [Device!]! @auth
   deleteIntegration(provider: String!): Int! @auth
-  updateSetting(key: String!, value: String!): Setting! @auth
+  updateSetting(key: String!, value: String!, expectedRevision: Int!): Setting! @auth
   login(input: LoginInput!): AuthPayload!
   createInitialUser(input: CreateInitialUserInput!): AuthPayload!
   createUser(input: CreateUserInput!): User! @auth
@@ -7640,6 +9410,446 @@ type Subscription {
   only that provider's updates are delivered.
   """
   networkTopologyUpdated(provider: String): NetworkTopologyEvent! @auth
+}
+
+"Persisted configuration and the result of applying it to the integration."
+type Zigbee2MqttConfigResult {
+  config: Zigbee2MqttConfig!
+  application: ConnectionTestResult!
+}
+
+type TuyaConfigResult {
+  config: TuyaConfig!
+  application: ConnectionTestResult!
+}
+
+input GroupMemberInput {
+  memberType: String!
+  memberId: ID!
+}
+`, BuiltIn: false},
+	{Name: "../../api/assistant.graphql", Input: `enum IntegrationKind { DEVICE_PROVIDER ASSISTANT }
+extend type Integration { kind: IntegrationKind! }
+
+type ClaudeAvailableModel { id: String! name: String! resolvedModel: String! }
+type ClaudeConfig {
+  revision: Int! token: String! enabled: Boolean! model: String! ready: Boolean! }
+input ClaudeConfigInput { token: String! enabled: Boolean! model: String! }
+
+enum AssistantRunState { IDLE QUEUED RUNNING WAITING COMPLETED FAILED STOPPED INTERRUPTED }
+enum AssistantActionStatus { PENDING NEEDS_INPUT EXECUTING COMPLETED REJECTED STALE FAILED }
+type AssistantAttachment { id: ID! name: String! mime: String! }
+type AssistantMessage { id: ID! role: String! text: String! attachments: [AssistantAttachment!]! createdAt: String! runId: ID! }
+type AssistantRun { id: ID! state: AssistantRunState! activity: String! error: String! model: String! startedAt: String! finishedAt: String! }
+type AssistantTarget { id: ID! name: String! href: String! }
+type AssistantPrivateField { path: String! label: String! required: Boolean! }
+type AssistantAction {
+ id: ID!
+ runId: ID!
+ status: AssistantActionStatus!
+ title: String!
+ description: String!
+ buttonLabel: String!
+ targets: [AssistantTarget!]!
+ inputs: [AssistantPrivateField!]!
+ needsConfirmation: Boolean!
+ result: String!
+ hasPrivateResult: Boolean!
+}
+type AssistantConversationSummary { id: ID! autoTitle: String! titleOverride: String! revision: Int! updatedAt: String! }
+type AssistantConversation {
+ id: ID!
+ autoTitle: String!
+ titleOverride: String!
+ revision: Int!
+ updatedAt: String!
+ messages: [AssistantMessage!]!
+ actions: [AssistantAction!]!
+ runs: [AssistantRun!]!
+}
+input AssistantMessageInput { conversationId: ID! clientId: ID! text: String! attachmentIds: [ID!]! }
+input AssistantPrivateValueInput { path: String! value: String! }
+input AssistantActionResponseInput { conversationId: ID! actionId: ID! approve: Boolean! acknowledged: Boolean! values: [AssistantPrivateValueInput!]! }
+extend type Query {
+ assistantActionPrivateResult(conversationId: ID!, actionId: ID!): String! @auth
+ claudeConfig: ClaudeConfig @auth
+ assistantConversations: [AssistantConversationSummary!]! @auth
+ assistantConversation(id: ID!): AssistantConversation! @auth
+}
+extend type Mutation {
+ discoverClaudeModels(token: String!): [ClaudeAvailableModel!]! @auth
+ updateClaudeConfig(input: ClaudeConfigInput!, expectedRevision: Int!): ClaudeConfig! @auth
+ testClaudeConnection(input: ClaudeConfigInput!): ConnectionTestResult! @auth
+ createAssistantConversation: AssistantConversation! @auth
+ """Set a manual title; an empty title restores the automatic name."""
+ renameAssistantConversation(id: ID!, title: String!): AssistantConversation! @auth
+ deleteAssistantConversation(id: ID!): Boolean! @auth
+ sendAssistantMessage(input: AssistantMessageInput!): AssistantConversation! @auth
+ stopAssistantRun(conversationId: ID!): Boolean! @auth
+ respondToAssistantAction(input: AssistantActionResponseInput!): AssistantConversation! @auth
+}
+extend type Subscription {
+ assistantConversationChanged(id: ID!): AssistantConversation! @auth
+ applicationChanged: Int! @auth(allowGuest: true)
+}
+`, BuiltIn: false},
+	{Name: "../../api/authoring.graphql", Input: `"""Structured macro arguments. Other authoring fields use concrete types."""
+scalar JSON
+
+type AutomationLiteral {
+  stringValue: String
+  numberValue: Float
+  booleanValue: Boolean
+  nullValue: Boolean
+}
+
+input AutomationLiteralInput {
+  stringValue: String
+  numberValue: Float
+  booleanValue: Boolean
+  nullValue: Boolean
+}
+
+type AutomationConfig {
+  trigger: AutomationTrigger
+  condition: AutomationCondition
+  operator: AutomationOperator
+  action: AutomationAction
+  macro: AutomationMacro
+}
+
+input AutomationConfigInput {
+  trigger: AutomationTriggerInput
+  condition: AutomationConditionInput
+  operator: AutomationOperatorInput
+  action: AutomationActionInput
+  macro: AutomationMacroInput
+}
+
+type AutomationTrigger {
+  mode: String!
+  deviceId: String!
+  property: String!
+  comparator: String!
+  value: AutomationLiteral
+  eventValue: String!
+  eventType: String!
+  customExpr: String!
+  endpointId: String!
+  webhookFilters: [AutomationWebhookFilter!]!
+  scheduleSubmode: String!
+  cronExpr: String!
+  scheduleHour: Int!
+  scheduleMinute: Int!
+  scheduleSecond: Int!
+  scheduleWeekdays: [String!]!
+  scheduleIntervalValue: Int!
+  scheduleIntervalUnit: String!
+  graceMs: Int!
+  cooldownMs: Int!
+  holdMs: Int!
+}
+
+input AutomationTriggerInput {
+  mode: String!
+  deviceId: String
+  property: String
+  comparator: String
+  value: AutomationLiteralInput
+  eventValue: String
+  eventType: String
+  customExpr: String
+  endpointId: String
+  webhookFilters: [AutomationWebhookFilterInput!]
+  scheduleSubmode: String
+  cronExpr: String
+  scheduleHour: Int
+  scheduleMinute: Int
+  scheduleSecond: Int
+  scheduleWeekdays: [String!]
+  scheduleIntervalValue: Int
+  scheduleIntervalUnit: String
+  graceMs: Int
+  cooldownMs: Int
+  holdMs: Int
+}
+
+type AutomationWebhookFilter {
+  source: String!
+  path: String!
+  operator: String!
+  value: AutomationLiteral
+}
+
+input AutomationWebhookFilterInput {
+  source: String
+  path: String
+  operator: String
+  value: AutomationLiteralInput
+}
+
+type AutomationCondition {
+  negate: Boolean!
+  mode: String!
+  afterHour: Int
+  afterMinute: Int
+  beforeHour: Int
+  beforeMinute: Int
+  weekdays: [String!]!
+  targetType: String!
+  targetId: String!
+  property: String!
+  comparator: String!
+  value: AutomationLiteral
+  customExpr: String!
+}
+
+input AutomationConditionInput {
+  negate: Boolean = false
+  mode: String!
+  afterHour: Int
+  afterMinute: Int
+  beforeHour: Int
+  beforeMinute: Int
+  weekdays: [String!]
+  targetType: String
+  targetId: String
+  property: String
+  comparator: String
+  value: AutomationLiteralInput
+  customExpr: String
+}
+
+type AutomationOperator {
+  kind: String!
+}
+
+input AutomationOperatorInput {
+  kind: String!
+}
+
+type AutomationMacro {
+  name: String!
+  negate: Boolean!
+  arguments: [JSON!]!
+}
+
+input AutomationMacroInput {
+  name: String!
+  negate: Boolean
+  arguments: [JSON!]
+}
+
+type AutomationAction {
+  actionType: String!
+  targetType: String!
+  targetId: String!
+  targetExpr: [AuthoringClause!]!
+  payload: AutomationActionPayload
+}
+
+input AutomationActionInput {
+  actionType: String!
+  targetType: String
+  targetId: String
+  targetExpr: [AuthoringClauseInput!]
+  payload: AutomationActionPayloadInput
+}
+
+type AutomationActionPayload {
+  on: Boolean
+  brightness: Int
+  colorTemp: Int
+  color: AuthoringColor
+  transition: Float
+  targetTemperature: Float
+  hvacMode: String
+  fanMode: String
+  swing: String
+  sceneId: String
+  scenes: [String!]!
+  effectId: String
+  nativeName: String
+  field: String
+  delta: Float
+  mode: String
+  settings: [AuthoringAttribute!]!
+  alarmId: String
+  severity: String
+  kind: String
+  message: String
+}
+
+input AutomationActionPayloadInput {
+  on: Boolean
+  brightness: Int
+  colorTemp: Int
+  color: AuthoringColorInput
+  transition: Float
+  targetTemperature: Float
+  hvacMode: String
+  fanMode: String
+  swing: String
+  sceneId: String
+  scenes: [String!]
+  effectId: String
+  nativeName: String
+  field: String
+  delta: Float
+  mode: String
+  settings: [AuthoringAttributeInput!]
+  alarmId: String
+  severity: String
+  kind: String
+  message: String
+}
+
+type AuthoringClause {
+  connector: AuthoringConnector!
+  subject: AuthoringClauseSubject!
+  op: AuthoringClauseOp!
+  values: [String!]!
+}
+
+input AuthoringClauseInput {
+  connector: AuthoringConnector
+  subject: AuthoringClauseSubject!
+  op: AuthoringClauseOp!
+  values: [String!]
+}
+
+type AuthoringColor {
+  r: Int!
+  g: Int!
+  b: Int!
+  x: Float!
+  y: Float!
+}
+
+input AuthoringColorInput {
+  r: Int!
+  g: Int!
+  b: Int!
+  x: Float
+  y: Float
+}
+
+type AuthoringAttribute {
+  capability: String!
+  booleanValue: Boolean
+  numberValue: Float
+  stringValue: String
+}
+
+input AuthoringAttributeInput {
+  capability: String!
+  booleanValue: Boolean
+  numberValue: Float
+  stringValue: String
+}
+
+type EffectClipConfig {
+  setOnOff: EffectSetOnOffClipConfig
+  setBrightness: EffectSetBrightnessClipConfig
+  setColor: EffectSetColorClipConfig
+  nativeEffect: EffectNativeEffectClipConfig
+}
+
+input EffectClipConfigInput {
+  setOnOff: EffectSetOnOffClipConfigInput
+  setBrightness: EffectSetBrightnessClipConfigInput
+  setColor: EffectSetColorClipConfigInput
+  nativeEffect: EffectNativeEffectClipConfigInput
+}
+
+type EffectSetOnOffClipConfig {
+  value: Boolean!
+}
+
+input EffectSetOnOffClipConfigInput {
+  value: Boolean!
+}
+
+type EffectSetBrightnessClipConfig {
+  value: Int!
+}
+
+input EffectSetBrightnessClipConfigInput {
+  value: Int!
+}
+
+type EffectSetColorClipConfig {
+  mode: EffectColorMode!
+  rgb: EffectSetColorRGBValue
+  temp: EffectSetColorTempValue
+}
+
+input EffectSetColorClipConfigInput {
+  mode: EffectColorMode!
+  rgb: EffectSetColorRGBValueInput
+  temp: EffectSetColorTempValueInput
+}
+
+type EffectSetColorRGBValue {
+  r: Int!
+  g: Int!
+  b: Int!
+}
+
+input EffectSetColorRGBValueInput {
+  r: Int!
+  g: Int!
+  b: Int!
+}
+
+type EffectSetColorTempValue {
+  mireds: Int!
+}
+
+input EffectSetColorTempValueInput {
+  mireds: Int!
+}
+
+type EffectNativeEffectClipConfig {
+  name: String!
+}
+
+input EffectNativeEffectClipConfigInput {
+  name: String!
+}
+
+scalar AuthoringConnector
+scalar AuthoringClauseSubject
+scalar AuthoringClauseOp
+scalar EffectColorMode
+
+"""Read-only compiled expression for the editor's preview and copy commands."""
+type AutomationNodePreview {
+  expression: String!
+  cron: String!
+}
+
+extend type Query {
+  automationNodePreview(type: String!, config: AutomationConfigInput!): AutomationNodePreview! @auth
+}
+
+enum SceneStateSource { DEFAULTS CURRENT }
+input SceneAuthoringInput {
+  targets: [SceneTargetInput!]!
+  source: SceneStateSource! = DEFAULTS
+  """Used when CURRENT has no writable reported state."""
+  fallbackToDefaults: Boolean! = false
+  """Explicit desired values applied after selecting defaults or current state."""
+  desired: DesiredSceneStateInput
+}
+type SceneAuthoredState {
+  deviceId: ID!
+  lighting: Boolean!
+  state: DesiredSceneState!
+}
+extend type Query {
+  """Resolve targets once and construct capability-filtered Scene states without sending commands."""
+  sceneAuthoring(input: SceneAuthoringInput!): [SceneAuthoredState!]! @auth
 }
 `, BuiltIn: false},
 }
@@ -8000,6 +10210,17 @@ func (ec *executionContext) field_Mutation_deleteAlarm_args(ctx context.Context,
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_deleteAssistantConversation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_deleteAutomation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -8107,6 +10328,17 @@ func (ec *executionContext) field_Mutation_deleteWebhookEndpoint_args(ctx contex
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_discoverClaudeModels_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "token", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["token"] = arg0
 	return args, nil
 }
 
@@ -8219,6 +10451,22 @@ func (ec *executionContext) field_Mutation_removeRoomMember_args(ctx context.Con
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_renameAssistantConversation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "title", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["title"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_resetUserPassword_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -8232,6 +10480,17 @@ func (ec *executionContext) field_Mutation_resetUserPassword_args(ctx context.Co
 		return nil, err
 	}
 	args["newPassword"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_respondToAssistantAction_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNAssistantActionResponseInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantActionResponseInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -8320,6 +10579,17 @@ func (ec *executionContext) field_Mutation_runNativeEffect_args(ctx context.Cont
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_sendAssistantMessage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNAssistantMessageInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantMessageInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_setDeviceConfiguration_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -8368,6 +10638,17 @@ func (ec *executionContext) field_Mutation_simulateDeviceAction_args(ctx context
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_stopAssistantRun_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "conversationId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["conversationId"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_stopEffect_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -8381,6 +10662,17 @@ func (ec *executionContext) field_Mutation_stopEffect_args(ctx context.Context, 
 		return nil, err
 	}
 	args["targetId"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_testClaudeConnection_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNClaudeConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐClaudeConfigInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -8419,6 +10711,11 @@ func (ec *executionContext) field_Mutation_toggleAutomation_args(ctx context.Con
 		return nil, err
 	}
 	args["enabled"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg2
 	return args, nil
 }
 
@@ -8435,6 +10732,22 @@ func (ec *executionContext) field_Mutation_updateAutomation_args(ctx context.Con
 		return nil, err
 	}
 	args["input"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateClaudeConfig_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNClaudeConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐClaudeConfigInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg1
 	return args, nil
 }
 
@@ -8570,6 +10883,11 @@ func (ec *executionContext) field_Mutation_updateSetting_args(ctx context.Contex
 		return nil, err
 	}
 	args["value"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg2
 	return args, nil
 }
 
@@ -8581,6 +10899,11 @@ func (ec *executionContext) field_Mutation_updateTuyaConfig_args(ctx context.Con
 		return nil, err
 	}
 	args["input"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg1
 	return args, nil
 }
 
@@ -8608,6 +10931,11 @@ func (ec *executionContext) field_Mutation_updateZigbee2MqttConfig_args(ctx cont
 		return nil, err
 	}
 	args["input"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg1
 	return args, nil
 }
 
@@ -8652,6 +10980,49 @@ func (ec *executionContext) field_Query_alarms_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["filter"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_assistantActionPrivateResult_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "conversationId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["conversationId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "actionId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["actionId"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_assistantConversation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_automationNodePreview_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "type", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["type"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "config", ec.unmarshalNAutomationConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringConfig)
+	if err != nil {
+		return nil, err
+	}
+	args["config"] = arg1
 	return args, nil
 }
 
@@ -8759,6 +11130,17 @@ func (ec *executionContext) field_Query_room_args(ctx context.Context, rawArgs m
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_sceneAuthoring_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNSceneAuthoringInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneAuthoringInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_scene_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -8778,6 +11160,17 @@ func (ec *executionContext) field_Query_stateHistory_args(ctx context.Context, r
 		return nil, err
 	}
 	args["filter"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_validateAutomation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateAutomationInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCreateAutomationInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -8821,6 +11214,17 @@ func (ec *executionContext) field_Subscription_activityStream_args(ctx context.C
 		return nil, err
 	}
 	args["advanced"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_assistantConversationChanged_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -9006,6 +11410,8 @@ func (ec *executionContext) fieldContext_ActiveEffect_effect(_ context.Context, 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Effect_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Effect_id(ctx, field)
 			case "name":
@@ -9982,6 +12388,1418 @@ func (ec *executionContext) fieldContext_AlarmEvent_clearedAlarmId(_ context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _AssistantAction_id(ctx context.Context, field graphql.CollectedField, obj *model.AssistantAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantAction_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantAction_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantAction_runId(ctx context.Context, field graphql.CollectedField, obj *model.AssistantAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantAction_runId,
+		func(ctx context.Context) (any, error) {
+			return obj.RunID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantAction_runId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantAction_status(ctx context.Context, field graphql.CollectedField, obj *model.AssistantAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantAction_status,
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		ec.marshalNAssistantActionStatus2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantActionStatus,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantAction_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type AssistantActionStatus does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantAction_title(ctx context.Context, field graphql.CollectedField, obj *model.AssistantAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantAction_title,
+		func(ctx context.Context) (any, error) {
+			return obj.Title, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantAction_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantAction_description(ctx context.Context, field graphql.CollectedField, obj *model.AssistantAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantAction_description,
+		func(ctx context.Context) (any, error) {
+			return obj.Description, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantAction_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantAction_buttonLabel(ctx context.Context, field graphql.CollectedField, obj *model.AssistantAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantAction_buttonLabel,
+		func(ctx context.Context) (any, error) {
+			return obj.ButtonLabel, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantAction_buttonLabel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantAction_targets(ctx context.Context, field graphql.CollectedField, obj *model.AssistantAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantAction_targets,
+		func(ctx context.Context) (any, error) {
+			return obj.Targets, nil
+		},
+		nil,
+		ec.marshalNAssistantTarget2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantTargetᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantAction_targets(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AssistantTarget_id(ctx, field)
+			case "name":
+				return ec.fieldContext_AssistantTarget_name(ctx, field)
+			case "href":
+				return ec.fieldContext_AssistantTarget_href(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantTarget", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantAction_inputs(ctx context.Context, field graphql.CollectedField, obj *model.AssistantAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantAction_inputs,
+		func(ctx context.Context) (any, error) {
+			return obj.Inputs, nil
+		},
+		nil,
+		ec.marshalNAssistantPrivateField2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantPrivateFieldᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantAction_inputs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "path":
+				return ec.fieldContext_AssistantPrivateField_path(ctx, field)
+			case "label":
+				return ec.fieldContext_AssistantPrivateField_label(ctx, field)
+			case "required":
+				return ec.fieldContext_AssistantPrivateField_required(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantPrivateField", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantAction_needsConfirmation(ctx context.Context, field graphql.CollectedField, obj *model.AssistantAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantAction_needsConfirmation,
+		func(ctx context.Context) (any, error) {
+			return obj.NeedsConfirmation, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantAction_needsConfirmation(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantAction_result(ctx context.Context, field graphql.CollectedField, obj *model.AssistantAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantAction_result,
+		func(ctx context.Context) (any, error) {
+			return obj.Result, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantAction_result(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantAction_hasPrivateResult(ctx context.Context, field graphql.CollectedField, obj *model.AssistantAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantAction_hasPrivateResult,
+		func(ctx context.Context) (any, error) {
+			return obj.HasPrivateResult, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantAction_hasPrivateResult(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantAttachment_id(ctx context.Context, field graphql.CollectedField, obj *model.AssistantAttachment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantAttachment_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantAttachment_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantAttachment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantAttachment_name(ctx context.Context, field graphql.CollectedField, obj *model.AssistantAttachment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantAttachment_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantAttachment_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantAttachment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantAttachment_mime(ctx context.Context, field graphql.CollectedField, obj *model.AssistantAttachment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantAttachment_mime,
+		func(ctx context.Context) (any, error) {
+			return obj.Mime, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantAttachment_mime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantAttachment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantConversation_id(ctx context.Context, field graphql.CollectedField, obj *model.AssistantConversation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantConversation_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantConversation_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantConversation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantConversation_autoTitle(ctx context.Context, field graphql.CollectedField, obj *model.AssistantConversation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantConversation_autoTitle,
+		func(ctx context.Context) (any, error) {
+			return obj.AutoTitle, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantConversation_autoTitle(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantConversation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantConversation_titleOverride(ctx context.Context, field graphql.CollectedField, obj *model.AssistantConversation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantConversation_titleOverride,
+		func(ctx context.Context) (any, error) {
+			return obj.TitleOverride, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantConversation_titleOverride(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantConversation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantConversation_revision(ctx context.Context, field graphql.CollectedField, obj *model.AssistantConversation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantConversation_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantConversation_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantConversation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantConversation_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.AssistantConversation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantConversation_updatedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantConversation_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantConversation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantConversation_messages(ctx context.Context, field graphql.CollectedField, obj *model.AssistantConversation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantConversation_messages,
+		func(ctx context.Context) (any, error) {
+			return obj.Messages, nil
+		},
+		nil,
+		ec.marshalNAssistantMessage2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantMessageᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantConversation_messages(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantConversation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AssistantMessage_id(ctx, field)
+			case "role":
+				return ec.fieldContext_AssistantMessage_role(ctx, field)
+			case "text":
+				return ec.fieldContext_AssistantMessage_text(ctx, field)
+			case "attachments":
+				return ec.fieldContext_AssistantMessage_attachments(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_AssistantMessage_createdAt(ctx, field)
+			case "runId":
+				return ec.fieldContext_AssistantMessage_runId(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantMessage", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantConversation_actions(ctx context.Context, field graphql.CollectedField, obj *model.AssistantConversation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantConversation_actions,
+		func(ctx context.Context) (any, error) {
+			return obj.Actions, nil
+		},
+		nil,
+		ec.marshalNAssistantAction2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantActionᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantConversation_actions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantConversation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AssistantAction_id(ctx, field)
+			case "runId":
+				return ec.fieldContext_AssistantAction_runId(ctx, field)
+			case "status":
+				return ec.fieldContext_AssistantAction_status(ctx, field)
+			case "title":
+				return ec.fieldContext_AssistantAction_title(ctx, field)
+			case "description":
+				return ec.fieldContext_AssistantAction_description(ctx, field)
+			case "buttonLabel":
+				return ec.fieldContext_AssistantAction_buttonLabel(ctx, field)
+			case "targets":
+				return ec.fieldContext_AssistantAction_targets(ctx, field)
+			case "inputs":
+				return ec.fieldContext_AssistantAction_inputs(ctx, field)
+			case "needsConfirmation":
+				return ec.fieldContext_AssistantAction_needsConfirmation(ctx, field)
+			case "result":
+				return ec.fieldContext_AssistantAction_result(ctx, field)
+			case "hasPrivateResult":
+				return ec.fieldContext_AssistantAction_hasPrivateResult(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantAction", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantConversation_runs(ctx context.Context, field graphql.CollectedField, obj *model.AssistantConversation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantConversation_runs,
+		func(ctx context.Context) (any, error) {
+			return obj.Runs, nil
+		},
+		nil,
+		ec.marshalNAssistantRun2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantRunᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantConversation_runs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantConversation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AssistantRun_id(ctx, field)
+			case "state":
+				return ec.fieldContext_AssistantRun_state(ctx, field)
+			case "activity":
+				return ec.fieldContext_AssistantRun_activity(ctx, field)
+			case "error":
+				return ec.fieldContext_AssistantRun_error(ctx, field)
+			case "model":
+				return ec.fieldContext_AssistantRun_model(ctx, field)
+			case "startedAt":
+				return ec.fieldContext_AssistantRun_startedAt(ctx, field)
+			case "finishedAt":
+				return ec.fieldContext_AssistantRun_finishedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantRun", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantConversationSummary_id(ctx context.Context, field graphql.CollectedField, obj *model.AssistantConversationSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantConversationSummary_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantConversationSummary_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantConversationSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantConversationSummary_autoTitle(ctx context.Context, field graphql.CollectedField, obj *model.AssistantConversationSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantConversationSummary_autoTitle,
+		func(ctx context.Context) (any, error) {
+			return obj.AutoTitle, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantConversationSummary_autoTitle(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantConversationSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantConversationSummary_titleOverride(ctx context.Context, field graphql.CollectedField, obj *model.AssistantConversationSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantConversationSummary_titleOverride,
+		func(ctx context.Context) (any, error) {
+			return obj.TitleOverride, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantConversationSummary_titleOverride(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantConversationSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantConversationSummary_revision(ctx context.Context, field graphql.CollectedField, obj *model.AssistantConversationSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantConversationSummary_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantConversationSummary_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantConversationSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantConversationSummary_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.AssistantConversationSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantConversationSummary_updatedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantConversationSummary_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantConversationSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantMessage_id(ctx context.Context, field graphql.CollectedField, obj *model.AssistantMessage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantMessage_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantMessage_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantMessage_role(ctx context.Context, field graphql.CollectedField, obj *model.AssistantMessage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantMessage_role,
+		func(ctx context.Context) (any, error) {
+			return obj.Role, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantMessage_role(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantMessage_text(ctx context.Context, field graphql.CollectedField, obj *model.AssistantMessage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantMessage_text,
+		func(ctx context.Context) (any, error) {
+			return obj.Text, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantMessage_text(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantMessage_attachments(ctx context.Context, field graphql.CollectedField, obj *model.AssistantMessage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantMessage_attachments,
+		func(ctx context.Context) (any, error) {
+			return obj.Attachments, nil
+		},
+		nil,
+		ec.marshalNAssistantAttachment2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantAttachmentᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantMessage_attachments(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AssistantAttachment_id(ctx, field)
+			case "name":
+				return ec.fieldContext_AssistantAttachment_name(ctx, field)
+			case "mime":
+				return ec.fieldContext_AssistantAttachment_mime(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantAttachment", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantMessage_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.AssistantMessage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantMessage_createdAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantMessage_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantMessage_runId(ctx context.Context, field graphql.CollectedField, obj *model.AssistantMessage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantMessage_runId,
+		func(ctx context.Context) (any, error) {
+			return obj.RunID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantMessage_runId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantPrivateField_path(ctx context.Context, field graphql.CollectedField, obj *model.AssistantPrivateField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantPrivateField_path,
+		func(ctx context.Context) (any, error) {
+			return obj.Path, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantPrivateField_path(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantPrivateField",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantPrivateField_label(ctx context.Context, field graphql.CollectedField, obj *model.AssistantPrivateField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantPrivateField_label,
+		func(ctx context.Context) (any, error) {
+			return obj.Label, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantPrivateField_label(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantPrivateField",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantPrivateField_required(ctx context.Context, field graphql.CollectedField, obj *model.AssistantPrivateField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantPrivateField_required,
+		func(ctx context.Context) (any, error) {
+			return obj.Required, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantPrivateField_required(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantPrivateField",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantRun_id(ctx context.Context, field graphql.CollectedField, obj *model.AssistantRun) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantRun_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantRun_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantRun",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantRun_state(ctx context.Context, field graphql.CollectedField, obj *model.AssistantRun) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantRun_state,
+		func(ctx context.Context) (any, error) {
+			return obj.State, nil
+		},
+		nil,
+		ec.marshalNAssistantRunState2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantRunState,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantRun_state(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantRun",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type AssistantRunState does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantRun_activity(ctx context.Context, field graphql.CollectedField, obj *model.AssistantRun) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantRun_activity,
+		func(ctx context.Context) (any, error) {
+			return obj.Activity, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantRun_activity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantRun",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantRun_error(ctx context.Context, field graphql.CollectedField, obj *model.AssistantRun) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantRun_error,
+		func(ctx context.Context) (any, error) {
+			return obj.Error, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantRun_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantRun",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantRun_model(ctx context.Context, field graphql.CollectedField, obj *model.AssistantRun) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantRun_model,
+		func(ctx context.Context) (any, error) {
+			return obj.Model, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantRun_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantRun",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantRun_startedAt(ctx context.Context, field graphql.CollectedField, obj *model.AssistantRun) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantRun_startedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.StartedAt, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantRun_startedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantRun",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantRun_finishedAt(ctx context.Context, field graphql.CollectedField, obj *model.AssistantRun) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantRun_finishedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.FinishedAt, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantRun_finishedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantRun",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantTarget_id(ctx context.Context, field graphql.CollectedField, obj *model.AssistantTarget) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantTarget_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantTarget_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantTarget",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantTarget_name(ctx context.Context, field graphql.CollectedField, obj *model.AssistantTarget) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantTarget_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantTarget_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantTarget",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantTarget_href(ctx context.Context, field graphql.CollectedField, obj *model.AssistantTarget) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantTarget_href,
+		func(ctx context.Context) (any, error) {
+			return obj.Href, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantTarget_href(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantTarget",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _AuthPayload_token(ctx context.Context, field graphql.CollectedField, obj *model.AuthPayload) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10035,6 +13853,8 @@ func (ec *executionContext) fieldContext_AuthPayload_user(_ context.Context, fie
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_User_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
 			case "username":
@@ -10059,6 +13879,1841 @@ func (ec *executionContext) fieldContext_AuthPayload_user(_ context.Context, fie
 				return ec.fieldContext_User_mustChangePassword(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AuthoringAttribute_capability(ctx context.Context, field graphql.CollectedField, obj *device.AttributeValue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthoringAttribute_capability,
+		func(ctx context.Context) (any, error) {
+			return obj.Capability, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthoringAttribute_capability(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthoringAttribute",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AuthoringAttribute_booleanValue(ctx context.Context, field graphql.CollectedField, obj *device.AttributeValue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthoringAttribute_booleanValue,
+		func(ctx context.Context) (any, error) {
+			return obj.BooleanValue, nil
+		},
+		nil,
+		ec.marshalOBoolean2ᚖbool,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthoringAttribute_booleanValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthoringAttribute",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AuthoringAttribute_numberValue(ctx context.Context, field graphql.CollectedField, obj *device.AttributeValue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthoringAttribute_numberValue,
+		func(ctx context.Context) (any, error) {
+			return obj.NumberValue, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthoringAttribute_numberValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthoringAttribute",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AuthoringAttribute_stringValue(ctx context.Context, field graphql.CollectedField, obj *device.AttributeValue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthoringAttribute_stringValue,
+		func(ctx context.Context) (any, error) {
+			return obj.StringValue, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthoringAttribute_stringValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthoringAttribute",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AuthoringClause_connector(ctx context.Context, field graphql.CollectedField, obj *device.Clause) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthoringClause_connector,
+		func(ctx context.Context) (any, error) {
+			return obj.Connector, nil
+		},
+		nil,
+		ec.marshalNAuthoringConnector2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐConnector,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthoringClause_connector(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthoringClause",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type AuthoringConnector does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AuthoringClause_subject(ctx context.Context, field graphql.CollectedField, obj *device.Clause) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthoringClause_subject,
+		func(ctx context.Context) (any, error) {
+			return obj.Subject, nil
+		},
+		nil,
+		ec.marshalNAuthoringClauseSubject2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐClauseSubject,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthoringClause_subject(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthoringClause",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type AuthoringClauseSubject does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AuthoringClause_op(ctx context.Context, field graphql.CollectedField, obj *device.Clause) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthoringClause_op,
+		func(ctx context.Context) (any, error) {
+			return obj.Op, nil
+		},
+		nil,
+		ec.marshalNAuthoringClauseOp2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐClauseOp,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthoringClause_op(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthoringClause",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type AuthoringClauseOp does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AuthoringClause_values(ctx context.Context, field graphql.CollectedField, obj *device.Clause) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthoringClause_values,
+		func(ctx context.Context) (any, error) {
+			return obj.Values, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthoringClause_values(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthoringClause",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AuthoringColor_r(ctx context.Context, field graphql.CollectedField, obj *device.Color) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthoringColor_r,
+		func(ctx context.Context) (any, error) {
+			return obj.R, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthoringColor_r(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthoringColor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AuthoringColor_g(ctx context.Context, field graphql.CollectedField, obj *device.Color) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthoringColor_g,
+		func(ctx context.Context) (any, error) {
+			return obj.G, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthoringColor_g(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthoringColor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AuthoringColor_b(ctx context.Context, field graphql.CollectedField, obj *device.Color) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthoringColor_b,
+		func(ctx context.Context) (any, error) {
+			return obj.B, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthoringColor_b(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthoringColor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AuthoringColor_x(ctx context.Context, field graphql.CollectedField, obj *device.Color) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthoringColor_x,
+		func(ctx context.Context) (any, error) {
+			return obj.X, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthoringColor_x(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthoringColor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AuthoringColor_y(ctx context.Context, field graphql.CollectedField, obj *device.Color) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AuthoringColor_y,
+		func(ctx context.Context) (any, error) {
+			return obj.Y, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AuthoringColor_y(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AuthoringColor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationAction_actionType(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationAction_actionType,
+		func(ctx context.Context) (any, error) {
+			return obj.ActionType, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationAction_actionType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationAction_targetType(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationAction_targetType,
+		func(ctx context.Context) (any, error) {
+			return obj.TargetType, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationAction_targetType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationAction_targetId(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationAction_targetId,
+		func(ctx context.Context) (any, error) {
+			return obj.TargetID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationAction_targetId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationAction_targetExpr(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationAction_targetExpr,
+		func(ctx context.Context) (any, error) {
+			return obj.TargetExpr, nil
+		},
+		nil,
+		ec.marshalNAuthoringClause2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐClauseᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationAction_targetExpr(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "connector":
+				return ec.fieldContext_AuthoringClause_connector(ctx, field)
+			case "subject":
+				return ec.fieldContext_AuthoringClause_subject(ctx, field)
+			case "op":
+				return ec.fieldContext_AuthoringClause_op(ctx, field)
+			case "values":
+				return ec.fieldContext_AuthoringClause_values(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AuthoringClause", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationAction_payload(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringAction) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationAction_payload,
+		func(ctx context.Context) (any, error) {
+			return obj.Payload, nil
+		},
+		nil,
+		ec.marshalOAutomationActionPayload2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringActionPayload,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationAction_payload(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationAction",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "on":
+				return ec.fieldContext_AutomationActionPayload_on(ctx, field)
+			case "brightness":
+				return ec.fieldContext_AutomationActionPayload_brightness(ctx, field)
+			case "colorTemp":
+				return ec.fieldContext_AutomationActionPayload_colorTemp(ctx, field)
+			case "color":
+				return ec.fieldContext_AutomationActionPayload_color(ctx, field)
+			case "transition":
+				return ec.fieldContext_AutomationActionPayload_transition(ctx, field)
+			case "targetTemperature":
+				return ec.fieldContext_AutomationActionPayload_targetTemperature(ctx, field)
+			case "hvacMode":
+				return ec.fieldContext_AutomationActionPayload_hvacMode(ctx, field)
+			case "fanMode":
+				return ec.fieldContext_AutomationActionPayload_fanMode(ctx, field)
+			case "swing":
+				return ec.fieldContext_AutomationActionPayload_swing(ctx, field)
+			case "sceneId":
+				return ec.fieldContext_AutomationActionPayload_sceneId(ctx, field)
+			case "scenes":
+				return ec.fieldContext_AutomationActionPayload_scenes(ctx, field)
+			case "effectId":
+				return ec.fieldContext_AutomationActionPayload_effectId(ctx, field)
+			case "nativeName":
+				return ec.fieldContext_AutomationActionPayload_nativeName(ctx, field)
+			case "field":
+				return ec.fieldContext_AutomationActionPayload_field(ctx, field)
+			case "delta":
+				return ec.fieldContext_AutomationActionPayload_delta(ctx, field)
+			case "mode":
+				return ec.fieldContext_AutomationActionPayload_mode(ctx, field)
+			case "settings":
+				return ec.fieldContext_AutomationActionPayload_settings(ctx, field)
+			case "alarmId":
+				return ec.fieldContext_AutomationActionPayload_alarmId(ctx, field)
+			case "severity":
+				return ec.fieldContext_AutomationActionPayload_severity(ctx, field)
+			case "kind":
+				return ec.fieldContext_AutomationActionPayload_kind(ctx, field)
+			case "message":
+				return ec.fieldContext_AutomationActionPayload_message(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AutomationActionPayload", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_on(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_on,
+		func(ctx context.Context) (any, error) {
+			return obj.On, nil
+		},
+		nil,
+		ec.marshalOBoolean2ᚖbool,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_on(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_brightness(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_brightness,
+		func(ctx context.Context) (any, error) {
+			return obj.Brightness, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_brightness(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_colorTemp(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_colorTemp,
+		func(ctx context.Context) (any, error) {
+			return obj.ColorTemp, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_colorTemp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_color(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_color,
+		func(ctx context.Context) (any, error) {
+			return obj.Color, nil
+		},
+		nil,
+		ec.marshalOAuthoringColor2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐColor,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_color(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "r":
+				return ec.fieldContext_AuthoringColor_r(ctx, field)
+			case "g":
+				return ec.fieldContext_AuthoringColor_g(ctx, field)
+			case "b":
+				return ec.fieldContext_AuthoringColor_b(ctx, field)
+			case "x":
+				return ec.fieldContext_AuthoringColor_x(ctx, field)
+			case "y":
+				return ec.fieldContext_AuthoringColor_y(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AuthoringColor", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_transition(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_transition,
+		func(ctx context.Context) (any, error) {
+			return obj.Transition, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_transition(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_targetTemperature(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_targetTemperature,
+		func(ctx context.Context) (any, error) {
+			return obj.TargetTemperature, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_targetTemperature(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_hvacMode(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_hvacMode,
+		func(ctx context.Context) (any, error) {
+			return obj.HvacMode, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_hvacMode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_fanMode(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_fanMode,
+		func(ctx context.Context) (any, error) {
+			return obj.FanMode, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_fanMode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_swing(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_swing,
+		func(ctx context.Context) (any, error) {
+			return obj.Swing, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_swing(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_sceneId(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_sceneId,
+		func(ctx context.Context) (any, error) {
+			return obj.SceneID, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_sceneId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_scenes(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_scenes,
+		func(ctx context.Context) (any, error) {
+			return obj.Scenes, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_scenes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_effectId(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_effectId,
+		func(ctx context.Context) (any, error) {
+			return obj.EffectID, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_effectId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_nativeName(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_nativeName,
+		func(ctx context.Context) (any, error) {
+			return obj.NativeName, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_nativeName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_field(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_field,
+		func(ctx context.Context) (any, error) {
+			return obj.Field, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_field(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_delta(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_delta,
+		func(ctx context.Context) (any, error) {
+			return obj.Delta, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_delta(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_mode(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_mode,
+		func(ctx context.Context) (any, error) {
+			return obj.Mode, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_mode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_settings(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_settings,
+		func(ctx context.Context) (any, error) {
+			return obj.Settings, nil
+		},
+		nil,
+		ec.marshalNAuthoringAttribute2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐAttributeValueᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_settings(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "capability":
+				return ec.fieldContext_AuthoringAttribute_capability(ctx, field)
+			case "booleanValue":
+				return ec.fieldContext_AuthoringAttribute_booleanValue(ctx, field)
+			case "numberValue":
+				return ec.fieldContext_AuthoringAttribute_numberValue(ctx, field)
+			case "stringValue":
+				return ec.fieldContext_AuthoringAttribute_stringValue(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AuthoringAttribute", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_alarmId(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_alarmId,
+		func(ctx context.Context) (any, error) {
+			return obj.AlarmID, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_alarmId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_severity(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_severity,
+		func(ctx context.Context) (any, error) {
+			return obj.Severity, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_severity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_kind(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_kind,
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_message(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_message,
+		func(ctx context.Context) (any, error) {
+			return obj.Message, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationCondition_negate(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationCondition_negate,
+		func(ctx context.Context) (any, error) {
+			return obj.Negate, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationCondition_negate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationCondition_mode(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationCondition_mode,
+		func(ctx context.Context) (any, error) {
+			return obj.Mode, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationCondition_mode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationCondition_afterHour(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationCondition_afterHour,
+		func(ctx context.Context) (any, error) {
+			return obj.AfterHour, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationCondition_afterHour(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationCondition_afterMinute(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationCondition_afterMinute,
+		func(ctx context.Context) (any, error) {
+			return obj.AfterMinute, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationCondition_afterMinute(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationCondition_beforeHour(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationCondition_beforeHour,
+		func(ctx context.Context) (any, error) {
+			return obj.BeforeHour, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationCondition_beforeHour(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationCondition_beforeMinute(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationCondition_beforeMinute,
+		func(ctx context.Context) (any, error) {
+			return obj.BeforeMinute, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationCondition_beforeMinute(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationCondition_weekdays(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationCondition_weekdays,
+		func(ctx context.Context) (any, error) {
+			return obj.Weekdays, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationCondition_weekdays(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationCondition_targetType(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationCondition_targetType,
+		func(ctx context.Context) (any, error) {
+			return obj.TargetType, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationCondition_targetType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationCondition_targetId(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationCondition_targetId,
+		func(ctx context.Context) (any, error) {
+			return obj.TargetID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationCondition_targetId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationCondition_property(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationCondition_property,
+		func(ctx context.Context) (any, error) {
+			return obj.Property, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationCondition_property(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationCondition_comparator(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationCondition_comparator,
+		func(ctx context.Context) (any, error) {
+			return obj.Comparator, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationCondition_comparator(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationCondition_value(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationCondition_value,
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		ec.marshalOAutomationLiteral2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐLiteral,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationCondition_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "stringValue":
+				return ec.fieldContext_AutomationLiteral_stringValue(ctx, field)
+			case "numberValue":
+				return ec.fieldContext_AutomationLiteral_numberValue(ctx, field)
+			case "booleanValue":
+				return ec.fieldContext_AutomationLiteral_booleanValue(ctx, field)
+			case "nullValue":
+				return ec.fieldContext_AutomationLiteral_nullValue(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AutomationLiteral", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationCondition_customExpr(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationCondition_customExpr,
+		func(ctx context.Context) (any, error) {
+			return obj.CustomExpr, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationCondition_customExpr(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationConfig_trigger(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationConfig_trigger,
+		func(ctx context.Context) (any, error) {
+			return obj.Trigger, nil
+		},
+		nil,
+		ec.marshalOAutomationTrigger2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringTrigger,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationConfig_trigger(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "mode":
+				return ec.fieldContext_AutomationTrigger_mode(ctx, field)
+			case "deviceId":
+				return ec.fieldContext_AutomationTrigger_deviceId(ctx, field)
+			case "property":
+				return ec.fieldContext_AutomationTrigger_property(ctx, field)
+			case "comparator":
+				return ec.fieldContext_AutomationTrigger_comparator(ctx, field)
+			case "value":
+				return ec.fieldContext_AutomationTrigger_value(ctx, field)
+			case "eventValue":
+				return ec.fieldContext_AutomationTrigger_eventValue(ctx, field)
+			case "eventType":
+				return ec.fieldContext_AutomationTrigger_eventType(ctx, field)
+			case "customExpr":
+				return ec.fieldContext_AutomationTrigger_customExpr(ctx, field)
+			case "endpointId":
+				return ec.fieldContext_AutomationTrigger_endpointId(ctx, field)
+			case "webhookFilters":
+				return ec.fieldContext_AutomationTrigger_webhookFilters(ctx, field)
+			case "scheduleSubmode":
+				return ec.fieldContext_AutomationTrigger_scheduleSubmode(ctx, field)
+			case "cronExpr":
+				return ec.fieldContext_AutomationTrigger_cronExpr(ctx, field)
+			case "scheduleHour":
+				return ec.fieldContext_AutomationTrigger_scheduleHour(ctx, field)
+			case "scheduleMinute":
+				return ec.fieldContext_AutomationTrigger_scheduleMinute(ctx, field)
+			case "scheduleSecond":
+				return ec.fieldContext_AutomationTrigger_scheduleSecond(ctx, field)
+			case "scheduleWeekdays":
+				return ec.fieldContext_AutomationTrigger_scheduleWeekdays(ctx, field)
+			case "scheduleIntervalValue":
+				return ec.fieldContext_AutomationTrigger_scheduleIntervalValue(ctx, field)
+			case "scheduleIntervalUnit":
+				return ec.fieldContext_AutomationTrigger_scheduleIntervalUnit(ctx, field)
+			case "graceMs":
+				return ec.fieldContext_AutomationTrigger_graceMs(ctx, field)
+			case "cooldownMs":
+				return ec.fieldContext_AutomationTrigger_cooldownMs(ctx, field)
+			case "holdMs":
+				return ec.fieldContext_AutomationTrigger_holdMs(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AutomationTrigger", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationConfig_condition(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationConfig_condition,
+		func(ctx context.Context) (any, error) {
+			return obj.Condition, nil
+		},
+		nil,
+		ec.marshalOAutomationCondition2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringCondition,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationConfig_condition(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "negate":
+				return ec.fieldContext_AutomationCondition_negate(ctx, field)
+			case "mode":
+				return ec.fieldContext_AutomationCondition_mode(ctx, field)
+			case "afterHour":
+				return ec.fieldContext_AutomationCondition_afterHour(ctx, field)
+			case "afterMinute":
+				return ec.fieldContext_AutomationCondition_afterMinute(ctx, field)
+			case "beforeHour":
+				return ec.fieldContext_AutomationCondition_beforeHour(ctx, field)
+			case "beforeMinute":
+				return ec.fieldContext_AutomationCondition_beforeMinute(ctx, field)
+			case "weekdays":
+				return ec.fieldContext_AutomationCondition_weekdays(ctx, field)
+			case "targetType":
+				return ec.fieldContext_AutomationCondition_targetType(ctx, field)
+			case "targetId":
+				return ec.fieldContext_AutomationCondition_targetId(ctx, field)
+			case "property":
+				return ec.fieldContext_AutomationCondition_property(ctx, field)
+			case "comparator":
+				return ec.fieldContext_AutomationCondition_comparator(ctx, field)
+			case "value":
+				return ec.fieldContext_AutomationCondition_value(ctx, field)
+			case "customExpr":
+				return ec.fieldContext_AutomationCondition_customExpr(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AutomationCondition", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationConfig_operator(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationConfig_operator,
+		func(ctx context.Context) (any, error) {
+			return obj.Operator, nil
+		},
+		nil,
+		ec.marshalOAutomationOperator2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringOperator,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationConfig_operator(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "kind":
+				return ec.fieldContext_AutomationOperator_kind(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AutomationOperator", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationConfig_action(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationConfig_action,
+		func(ctx context.Context) (any, error) {
+			return obj.Action, nil
+		},
+		nil,
+		ec.marshalOAutomationAction2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringAction,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationConfig_action(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "actionType":
+				return ec.fieldContext_AutomationAction_actionType(ctx, field)
+			case "targetType":
+				return ec.fieldContext_AutomationAction_targetType(ctx, field)
+			case "targetId":
+				return ec.fieldContext_AutomationAction_targetId(ctx, field)
+			case "targetExpr":
+				return ec.fieldContext_AutomationAction_targetExpr(ctx, field)
+			case "payload":
+				return ec.fieldContext_AutomationAction_payload(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AutomationAction", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationConfig_macro(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationConfig_macro,
+		func(ctx context.Context) (any, error) {
+			return obj.Macro, nil
+		},
+		nil,
+		ec.marshalOAutomationMacro2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringMacro,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationConfig_macro(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_AutomationMacro_name(ctx, field)
+			case "negate":
+				return ec.fieldContext_AutomationMacro_negate(ctx, field)
+			case "arguments":
+				return ec.fieldContext_AutomationMacro_arguments(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AutomationMacro", field.Name)
 		},
 	}
 	return fc, nil
@@ -10117,6 +15772,35 @@ func (ec *executionContext) fieldContext_AutomationEdge_toNodeId(_ context.Conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationGraph_revision(ctx context.Context, field graphql.CollectedField, obj *model.AutomationGraph) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationGraph_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationGraph_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationGraph",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -10238,30 +15922,36 @@ func (ec *executionContext) fieldContext_AutomationGraph_enabled(_ context.Conte
 	return fc, nil
 }
 
-func (ec *executionContext) _AutomationGraph_compilable(ctx context.Context, field graphql.CollectedField, obj *model.AutomationGraph) (ret graphql.Marshaler) {
+func (ec *executionContext) _AutomationGraph_validation(ctx context.Context, field graphql.CollectedField, obj *model.AutomationGraph) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_AutomationGraph_compilable,
+		ec.fieldContext_AutomationGraph_validation,
 		func(ctx context.Context) (any, error) {
-			return obj.Compilable, nil
+			return obj.Validation, nil
 		},
 		nil,
-		ec.marshalNBoolean2bool,
+		ec.marshalNConfigurationValidation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConfigurationValidation,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_AutomationGraph_compilable(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_AutomationGraph_validation(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "AutomationGraph",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
+			switch field.Name {
+			case "valid":
+				return ec.fieldContext_ConfigurationValidation_valid(ctx, field)
+			case "issues":
+				return ec.fieldContext_ConfigurationValidation_issues(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConfigurationValidation", field.Name)
 		},
 	}
 	return fc, nil
@@ -10415,7 +16105,7 @@ func (ec *executionContext) _AutomationGraph_createdBy(ctx context.Context, fiel
 			return obj.CreatedBy, nil
 		},
 		nil,
-		ec.marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
+		ec.marshalOUserRef2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUserRef,
 		true,
 		false,
 	)
@@ -10430,29 +16120,216 @@ func (ec *executionContext) fieldContext_AutomationGraph_createdBy(_ context.Con
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_User_id(ctx, field)
+				return ec.fieldContext_UserRef_id(ctx, field)
 			case "username":
-				return ec.fieldContext_User_username(ctx, field)
+				return ec.fieldContext_UserRef_username(ctx, field)
 			case "name":
-				return ec.fieldContext_User_name(ctx, field)
-			case "avatarPath":
-				return ec.fieldContext_User_avatarPath(ctx, field)
-			case "theme":
-				return ec.fieldContext_User_theme(ctx, field)
-			case "timeFormat":
-				return ec.fieldContext_User_timeFormat(ctx, field)
-			case "temperatureUnit":
-				return ec.fieldContext_User_temperatureUnit(ctx, field)
-			case "hapticsEnabled":
-				return ec.fieldContext_User_hapticsEnabled(ctx, field)
-			case "language":
-				return ec.fieldContext_User_language(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_User_createdAt(ctx, field)
-			case "mustChangePassword":
-				return ec.fieldContext_User_mustChangePassword(ctx, field)
+				return ec.fieldContext_UserRef_name(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type UserRef", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationLiteral_stringValue(ctx context.Context, field graphql.CollectedField, obj *automation.Literal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationLiteral_stringValue,
+		func(ctx context.Context) (any, error) {
+			return obj.StringValue, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationLiteral_stringValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationLiteral",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationLiteral_numberValue(ctx context.Context, field graphql.CollectedField, obj *automation.Literal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationLiteral_numberValue,
+		func(ctx context.Context) (any, error) {
+			return obj.NumberValue, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationLiteral_numberValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationLiteral",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationLiteral_booleanValue(ctx context.Context, field graphql.CollectedField, obj *automation.Literal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationLiteral_booleanValue,
+		func(ctx context.Context) (any, error) {
+			return obj.BooleanValue, nil
+		},
+		nil,
+		ec.marshalOBoolean2ᚖbool,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationLiteral_booleanValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationLiteral",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationLiteral_nullValue(ctx context.Context, field graphql.CollectedField, obj *automation.Literal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationLiteral_nullValue,
+		func(ctx context.Context) (any, error) {
+			return obj.NullValue, nil
+		},
+		nil,
+		ec.marshalOBoolean2ᚖbool,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationLiteral_nullValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationLiteral",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationMacro_name(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringMacro) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationMacro_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationMacro_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationMacro",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationMacro_negate(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringMacro) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationMacro_negate,
+		func(ctx context.Context) (any, error) {
+			return obj.Negate, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationMacro_negate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationMacro",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationMacro_arguments(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringMacro) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationMacro_arguments,
+		func(ctx context.Context) (any, error) {
+			return obj.Arguments, nil
+		},
+		nil,
+		ec.marshalNJSON2ᚕencodingᚋjsonᚐRawMessageᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationMacro_arguments(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationMacro",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type JSON does not have child fields")
 		},
 	}
 	return fc, nil
@@ -10526,7 +16403,7 @@ func (ec *executionContext) _AutomationNode_config(ctx context.Context, field gr
 			return obj.Config, nil
 		},
 		nil,
-		ec.marshalNString2string,
+		ec.marshalNAutomationConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringConfig,
 		true,
 		true,
 	)
@@ -10539,7 +16416,19 @@ func (ec *executionContext) fieldContext_AutomationNode_config(_ context.Context
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
+			switch field.Name {
+			case "trigger":
+				return ec.fieldContext_AutomationConfig_trigger(ctx, field)
+			case "condition":
+				return ec.fieldContext_AutomationConfig_condition(ctx, field)
+			case "operator":
+				return ec.fieldContext_AutomationConfig_operator(ctx, field)
+			case "action":
+				return ec.fieldContext_AutomationConfig_action(ctx, field)
+			case "macro":
+				return ec.fieldContext_AutomationConfig_macro(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AutomationConfig", field.Name)
 		},
 	}
 	return fc, nil
@@ -10772,6 +16661,848 @@ func (ec *executionContext) fieldContext_AutomationNodeActivationEvent_pendingUn
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationNodePreview_expression(ctx context.Context, field graphql.CollectedField, obj *model.AutomationNodePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationNodePreview_expression,
+		func(ctx context.Context) (any, error) {
+			return obj.Expression, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationNodePreview_expression(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationNodePreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationNodePreview_cron(ctx context.Context, field graphql.CollectedField, obj *model.AutomationNodePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationNodePreview_cron,
+		func(ctx context.Context) (any, error) {
+			return obj.Cron, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationNodePreview_cron(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationNodePreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationOperator_kind(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringOperator) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationOperator_kind,
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationOperator_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationOperator",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_mode(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_mode,
+		func(ctx context.Context) (any, error) {
+			return obj.Mode, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_mode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_deviceId(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_deviceId,
+		func(ctx context.Context) (any, error) {
+			return obj.DeviceID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_property(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_property,
+		func(ctx context.Context) (any, error) {
+			return obj.Property, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_property(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_comparator(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_comparator,
+		func(ctx context.Context) (any, error) {
+			return obj.Comparator, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_comparator(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_value(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_value,
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		ec.marshalOAutomationLiteral2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐLiteral,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "stringValue":
+				return ec.fieldContext_AutomationLiteral_stringValue(ctx, field)
+			case "numberValue":
+				return ec.fieldContext_AutomationLiteral_numberValue(ctx, field)
+			case "booleanValue":
+				return ec.fieldContext_AutomationLiteral_booleanValue(ctx, field)
+			case "nullValue":
+				return ec.fieldContext_AutomationLiteral_nullValue(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AutomationLiteral", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_eventValue(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_eventValue,
+		func(ctx context.Context) (any, error) {
+			return obj.EventValue, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_eventValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_eventType(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_eventType,
+		func(ctx context.Context) (any, error) {
+			return obj.EventType, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_eventType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_customExpr(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_customExpr,
+		func(ctx context.Context) (any, error) {
+			return obj.CustomExpr, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_customExpr(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_endpointId(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_endpointId,
+		func(ctx context.Context) (any, error) {
+			return obj.EndpointID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_endpointId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_webhookFilters(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_webhookFilters,
+		func(ctx context.Context) (any, error) {
+			return obj.WebhookFilters, nil
+		},
+		nil,
+		ec.marshalNAutomationWebhookFilter2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringWebhookFilterᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_webhookFilters(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "source":
+				return ec.fieldContext_AutomationWebhookFilter_source(ctx, field)
+			case "path":
+				return ec.fieldContext_AutomationWebhookFilter_path(ctx, field)
+			case "operator":
+				return ec.fieldContext_AutomationWebhookFilter_operator(ctx, field)
+			case "value":
+				return ec.fieldContext_AutomationWebhookFilter_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AutomationWebhookFilter", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_scheduleSubmode(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_scheduleSubmode,
+		func(ctx context.Context) (any, error) {
+			return obj.ScheduleSubmode, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_scheduleSubmode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_cronExpr(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_cronExpr,
+		func(ctx context.Context) (any, error) {
+			return obj.CronExpr, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_cronExpr(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_scheduleHour(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_scheduleHour,
+		func(ctx context.Context) (any, error) {
+			return obj.ScheduleHour, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_scheduleHour(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_scheduleMinute(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_scheduleMinute,
+		func(ctx context.Context) (any, error) {
+			return obj.ScheduleMinute, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_scheduleMinute(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_scheduleSecond(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_scheduleSecond,
+		func(ctx context.Context) (any, error) {
+			return obj.ScheduleSecond, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_scheduleSecond(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_scheduleWeekdays(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_scheduleWeekdays,
+		func(ctx context.Context) (any, error) {
+			return obj.ScheduleWeekdays, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_scheduleWeekdays(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_scheduleIntervalValue(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_scheduleIntervalValue,
+		func(ctx context.Context) (any, error) {
+			return obj.ScheduleIntervalValue, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_scheduleIntervalValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_scheduleIntervalUnit(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_scheduleIntervalUnit,
+		func(ctx context.Context) (any, error) {
+			return obj.ScheduleIntervalUnit, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_scheduleIntervalUnit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_graceMs(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_graceMs,
+		func(ctx context.Context) (any, error) {
+			return obj.GraceMs, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_graceMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_cooldownMs(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_cooldownMs,
+		func(ctx context.Context) (any, error) {
+			return obj.CooldownMs, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_cooldownMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationTrigger_holdMs(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationTrigger_holdMs,
+		func(ctx context.Context) (any, error) {
+			return obj.HoldMs, nil
+		},
+		nil,
+		ec.marshalNInt2int64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationTrigger_holdMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationTrigger",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationWebhookFilter_source(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringWebhookFilter) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationWebhookFilter_source,
+		func(ctx context.Context) (any, error) {
+			return obj.Source, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationWebhookFilter_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationWebhookFilter",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationWebhookFilter_path(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringWebhookFilter) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationWebhookFilter_path,
+		func(ctx context.Context) (any, error) {
+			return obj.Path, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationWebhookFilter_path(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationWebhookFilter",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationWebhookFilter_operator(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringWebhookFilter) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationWebhookFilter_operator,
+		func(ctx context.Context) (any, error) {
+			return obj.Operator, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationWebhookFilter_operator(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationWebhookFilter",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationWebhookFilter_value(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringWebhookFilter) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationWebhookFilter_value,
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		ec.marshalOAutomationLiteral2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐLiteral,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationWebhookFilter_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationWebhookFilter",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "stringValue":
+				return ec.fieldContext_AutomationLiteral_stringValue(ctx, field)
+			case "numberValue":
+				return ec.fieldContext_AutomationLiteral_numberValue(ctx, field)
+			case "booleanValue":
+				return ec.fieldContext_AutomationLiteral_booleanValue(ctx, field)
+			case "nullValue":
+				return ec.fieldContext_AutomationLiteral_nullValue(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AutomationLiteral", field.Name)
 		},
 	}
 	return fc, nil
@@ -11125,6 +17856,238 @@ func (ec *executionContext) fieldContext_Capability_canGet(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _ClaudeAvailableModel_id(ctx context.Context, field graphql.CollectedField, obj *model.ClaudeAvailableModel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ClaudeAvailableModel_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ClaudeAvailableModel_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ClaudeAvailableModel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ClaudeAvailableModel_name(ctx context.Context, field graphql.CollectedField, obj *model.ClaudeAvailableModel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ClaudeAvailableModel_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ClaudeAvailableModel_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ClaudeAvailableModel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ClaudeAvailableModel_resolvedModel(ctx context.Context, field graphql.CollectedField, obj *model.ClaudeAvailableModel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ClaudeAvailableModel_resolvedModel,
+		func(ctx context.Context) (any, error) {
+			return obj.ResolvedModel, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ClaudeAvailableModel_resolvedModel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ClaudeAvailableModel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ClaudeConfig_revision(ctx context.Context, field graphql.CollectedField, obj *model.ClaudeConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ClaudeConfig_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ClaudeConfig_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ClaudeConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ClaudeConfig_token(ctx context.Context, field graphql.CollectedField, obj *model.ClaudeConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ClaudeConfig_token,
+		func(ctx context.Context) (any, error) {
+			return obj.Token, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ClaudeConfig_token(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ClaudeConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ClaudeConfig_enabled(ctx context.Context, field graphql.CollectedField, obj *model.ClaudeConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ClaudeConfig_enabled,
+		func(ctx context.Context) (any, error) {
+			return obj.Enabled, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ClaudeConfig_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ClaudeConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ClaudeConfig_model(ctx context.Context, field graphql.CollectedField, obj *model.ClaudeConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ClaudeConfig_model,
+		func(ctx context.Context) (any, error) {
+			return obj.Model, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ClaudeConfig_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ClaudeConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ClaudeConfig_ready(ctx context.Context, field graphql.CollectedField, obj *model.ClaudeConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ClaudeConfig_ready,
+		func(ctx context.Context) (any, error) {
+			return obj.Ready, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ClaudeConfig_ready(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ClaudeConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Color_r(ctx context.Context, field graphql.CollectedField, obj *model.Color) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -11270,6 +18233,221 @@ func (ec *executionContext) fieldContext_Color_y(_ context.Context, field graphq
 	return fc, nil
 }
 
+func (ec *executionContext) _ConfigurationIssue_code(ctx context.Context, field graphql.CollectedField, obj *model.ConfigurationIssue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConfigurationIssue_code,
+		func(ctx context.Context) (any, error) {
+			return obj.Code, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConfigurationIssue_code(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConfigurationIssue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConfigurationIssue_path(ctx context.Context, field graphql.CollectedField, obj *model.ConfigurationIssue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConfigurationIssue_path,
+		func(ctx context.Context) (any, error) {
+			return obj.Path, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConfigurationIssue_path(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConfigurationIssue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConfigurationIssue_nodeId(ctx context.Context, field graphql.CollectedField, obj *model.ConfigurationIssue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConfigurationIssue_nodeId,
+		func(ctx context.Context) (any, error) {
+			return obj.NodeID, nil
+		},
+		nil,
+		ec.marshalOID2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConfigurationIssue_nodeId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConfigurationIssue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConfigurationIssue_severity(ctx context.Context, field graphql.CollectedField, obj *model.ConfigurationIssue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConfigurationIssue_severity,
+		func(ctx context.Context) (any, error) {
+			return obj.Severity, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConfigurationIssue_severity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConfigurationIssue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConfigurationIssue_message(ctx context.Context, field graphql.CollectedField, obj *model.ConfigurationIssue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConfigurationIssue_message,
+		func(ctx context.Context) (any, error) {
+			return obj.Message, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConfigurationIssue_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConfigurationIssue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConfigurationValidation_valid(ctx context.Context, field graphql.CollectedField, obj *model.ConfigurationValidation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConfigurationValidation_valid,
+		func(ctx context.Context) (any, error) {
+			return obj.Valid, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConfigurationValidation_valid(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConfigurationValidation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConfigurationValidation_issues(ctx context.Context, field graphql.CollectedField, obj *model.ConfigurationValidation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConfigurationValidation_issues,
+		func(ctx context.Context) (any, error) {
+			return obj.Issues, nil
+		},
+		nil,
+		ec.marshalNConfigurationIssue2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConfigurationIssueᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConfigurationValidation_issues(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConfigurationValidation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "code":
+				return ec.fieldContext_ConfigurationIssue_code(ctx, field)
+			case "path":
+				return ec.fieldContext_ConfigurationIssue_path(ctx, field)
+			case "nodeId":
+				return ec.fieldContext_ConfigurationIssue_nodeId(ctx, field)
+			case "severity":
+				return ec.fieldContext_ConfigurationIssue_severity(ctx, field)
+			case "message":
+				return ec.fieldContext_ConfigurationIssue_message(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConfigurationIssue", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ConnectionTestResult_success(ctx context.Context, field graphql.CollectedField, obj *model.ConnectionTestResult) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -11381,6 +18559,8 @@ func (ec *executionContext) fieldContext_DashboardLocalization_localizedNameSets
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_LocalizedNameSet_revision(ctx, field)
 			case "entityType":
 				return ec.fieldContext_LocalizedNameSet_entityType(ctx, field)
 			case "entityId":
@@ -11722,6 +18902,35 @@ func (ec *executionContext) fieldContext_DesiredSceneState_swing(_ context.Conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Device_revision(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Device_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Device_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Device",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -13919,6 +21128,35 @@ func (ec *executionContext) fieldContext_DynamicSceneSource_samples(_ context.Co
 	return fc, nil
 }
 
+func (ec *executionContext) _Effect_revision(ctx context.Context, field graphql.CollectedField, obj *model.Effect) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Effect_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Effect_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Effect",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Effect_id(ctx context.Context, field graphql.CollectedField, obj *model.Effect) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -14229,7 +21467,7 @@ func (ec *executionContext) _Effect_createdBy(ctx context.Context, field graphql
 			return obj.CreatedBy, nil
 		},
 		nil,
-		ec.marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
+		ec.marshalOUserRef2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUserRef,
 		true,
 		false,
 	)
@@ -14244,29 +21482,13 @@ func (ec *executionContext) fieldContext_Effect_createdBy(_ context.Context, fie
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_User_id(ctx, field)
+				return ec.fieldContext_UserRef_id(ctx, field)
 			case "username":
-				return ec.fieldContext_User_username(ctx, field)
+				return ec.fieldContext_UserRef_username(ctx, field)
 			case "name":
-				return ec.fieldContext_User_name(ctx, field)
-			case "avatarPath":
-				return ec.fieldContext_User_avatarPath(ctx, field)
-			case "theme":
-				return ec.fieldContext_User_theme(ctx, field)
-			case "timeFormat":
-				return ec.fieldContext_User_timeFormat(ctx, field)
-			case "temperatureUnit":
-				return ec.fieldContext_User_temperatureUnit(ctx, field)
-			case "hapticsEnabled":
-				return ec.fieldContext_User_hapticsEnabled(ctx, field)
-			case "language":
-				return ec.fieldContext_User_language(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_User_createdAt(ctx, field)
-			case "mustChangePassword":
-				return ec.fieldContext_User_mustChangePassword(ctx, field)
+				return ec.fieldContext_UserRef_name(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type UserRef", field.Name)
 		},
 	}
 	return fc, nil
@@ -14485,7 +21707,7 @@ func (ec *executionContext) _EffectClip_config(ctx context.Context, field graphq
 			return obj.Config, nil
 		},
 		nil,
-		ec.marshalNString2string,
+		ec.marshalNEffectClipConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐClipConfig,
 		true,
 		true,
 	)
@@ -14498,7 +21720,455 @@ func (ec *executionContext) fieldContext_EffectClip_config(_ context.Context, fi
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "setOnOff":
+				return ec.fieldContext_EffectClipConfig_setOnOff(ctx, field)
+			case "setBrightness":
+				return ec.fieldContext_EffectClipConfig_setBrightness(ctx, field)
+			case "setColor":
+				return ec.fieldContext_EffectClipConfig_setColor(ctx, field)
+			case "nativeEffect":
+				return ec.fieldContext_EffectClipConfig_nativeEffect(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type EffectClipConfig", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectClipConfig_setOnOff(ctx context.Context, field graphql.CollectedField, obj *effect.ClipConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectClipConfig_setOnOff,
+		func(ctx context.Context) (any, error) {
+			return obj.SetOnOff, nil
+		},
+		nil,
+		ec.marshalOEffectSetOnOffClipConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetOnOffClipConfig,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectClipConfig_setOnOff(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectClipConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "value":
+				return ec.fieldContext_EffectSetOnOffClipConfig_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type EffectSetOnOffClipConfig", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectClipConfig_setBrightness(ctx context.Context, field graphql.CollectedField, obj *effect.ClipConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectClipConfig_setBrightness,
+		func(ctx context.Context) (any, error) {
+			return obj.SetBrightness, nil
+		},
+		nil,
+		ec.marshalOEffectSetBrightnessClipConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetBrightnessClipConfig,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectClipConfig_setBrightness(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectClipConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "value":
+				return ec.fieldContext_EffectSetBrightnessClipConfig_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type EffectSetBrightnessClipConfig", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectClipConfig_setColor(ctx context.Context, field graphql.CollectedField, obj *effect.ClipConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectClipConfig_setColor,
+		func(ctx context.Context) (any, error) {
+			return obj.SetColor, nil
+		},
+		nil,
+		ec.marshalOEffectSetColorClipConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetColorClipConfig,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectClipConfig_setColor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectClipConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "mode":
+				return ec.fieldContext_EffectSetColorClipConfig_mode(ctx, field)
+			case "rgb":
+				return ec.fieldContext_EffectSetColorClipConfig_rgb(ctx, field)
+			case "temp":
+				return ec.fieldContext_EffectSetColorClipConfig_temp(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type EffectSetColorClipConfig", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectClipConfig_nativeEffect(ctx context.Context, field graphql.CollectedField, obj *effect.ClipConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectClipConfig_nativeEffect,
+		func(ctx context.Context) (any, error) {
+			return obj.NativeEffect, nil
+		},
+		nil,
+		ec.marshalOEffectNativeEffectClipConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐNativeEffectClipConfig,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectClipConfig_nativeEffect(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectClipConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_EffectNativeEffectClipConfig_name(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type EffectNativeEffectClipConfig", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectNativeEffectClipConfig_name(ctx context.Context, field graphql.CollectedField, obj *effect.NativeEffectClipConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectNativeEffectClipConfig_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectNativeEffectClipConfig_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectNativeEffectClipConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectSetBrightnessClipConfig_value(ctx context.Context, field graphql.CollectedField, obj *effect.SetBrightnessClipConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectSetBrightnessClipConfig_value,
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectSetBrightnessClipConfig_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectSetBrightnessClipConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectSetColorClipConfig_mode(ctx context.Context, field graphql.CollectedField, obj *effect.SetColorClipConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectSetColorClipConfig_mode,
+		func(ctx context.Context) (any, error) {
+			return obj.Mode, nil
+		},
+		nil,
+		ec.marshalNEffectColorMode2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐColorMode,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectSetColorClipConfig_mode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectSetColorClipConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type EffectColorMode does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectSetColorClipConfig_rgb(ctx context.Context, field graphql.CollectedField, obj *effect.SetColorClipConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectSetColorClipConfig_rgb,
+		func(ctx context.Context) (any, error) {
+			return obj.RGB, nil
+		},
+		nil,
+		ec.marshalOEffectSetColorRGBValue2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetColorRGBValue,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectSetColorClipConfig_rgb(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectSetColorClipConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "r":
+				return ec.fieldContext_EffectSetColorRGBValue_r(ctx, field)
+			case "g":
+				return ec.fieldContext_EffectSetColorRGBValue_g(ctx, field)
+			case "b":
+				return ec.fieldContext_EffectSetColorRGBValue_b(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type EffectSetColorRGBValue", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectSetColorClipConfig_temp(ctx context.Context, field graphql.CollectedField, obj *effect.SetColorClipConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectSetColorClipConfig_temp,
+		func(ctx context.Context) (any, error) {
+			return obj.Temp, nil
+		},
+		nil,
+		ec.marshalOEffectSetColorTempValue2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetColorTempValue,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectSetColorClipConfig_temp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectSetColorClipConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "mireds":
+				return ec.fieldContext_EffectSetColorTempValue_mireds(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type EffectSetColorTempValue", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectSetColorRGBValue_r(ctx context.Context, field graphql.CollectedField, obj *effect.SetColorRGBValue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectSetColorRGBValue_r,
+		func(ctx context.Context) (any, error) {
+			return obj.R, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectSetColorRGBValue_r(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectSetColorRGBValue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectSetColorRGBValue_g(ctx context.Context, field graphql.CollectedField, obj *effect.SetColorRGBValue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectSetColorRGBValue_g,
+		func(ctx context.Context) (any, error) {
+			return obj.G, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectSetColorRGBValue_g(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectSetColorRGBValue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectSetColorRGBValue_b(ctx context.Context, field graphql.CollectedField, obj *effect.SetColorRGBValue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectSetColorRGBValue_b,
+		func(ctx context.Context) (any, error) {
+			return obj.B, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectSetColorRGBValue_b(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectSetColorRGBValue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectSetColorTempValue_mireds(ctx context.Context, field graphql.CollectedField, obj *effect.SetColorTempValue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectSetColorTempValue_mireds,
+		func(ctx context.Context) (any, error) {
+			return obj.Mireds, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectSetColorTempValue_mireds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectSetColorTempValue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _EffectSetOnOffClipConfig_value(ctx context.Context, field graphql.CollectedField, obj *effect.SetOnOffClipConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_EffectSetOnOffClipConfig_value,
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_EffectSetOnOffClipConfig_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "EffectSetOnOffClipConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -14745,6 +22415,35 @@ func (ec *executionContext) fieldContext_EffectTrack_clips(_ context.Context, fi
 				return ec.fieldContext_EffectClip_config(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type EffectClip", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Floorplan_revision(ctx context.Context, field graphql.CollectedField, obj *model.Floorplan) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Floorplan_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Floorplan_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Floorplan",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -16079,6 +23778,35 @@ func (ec *executionContext) fieldContext_FloorplanWall_curveY(_ context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _Group_revision(ctx context.Context, field graphql.CollectedField, obj *model.Group) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Group_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Group_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Group",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Group_id(ctx context.Context, field graphql.CollectedField, obj *model.Group) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -16349,6 +24077,8 @@ func (ec *executionContext) fieldContext_Group_resolvedDevices(_ context.Context
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Device_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
@@ -16402,7 +24132,7 @@ func (ec *executionContext) _Group_createdBy(ctx context.Context, field graphql.
 			return obj.CreatedBy, nil
 		},
 		nil,
-		ec.marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
+		ec.marshalOUserRef2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUserRef,
 		true,
 		false,
 	)
@@ -16417,29 +24147,13 @@ func (ec *executionContext) fieldContext_Group_createdBy(_ context.Context, fiel
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_User_id(ctx, field)
+				return ec.fieldContext_UserRef_id(ctx, field)
 			case "username":
-				return ec.fieldContext_User_username(ctx, field)
+				return ec.fieldContext_UserRef_username(ctx, field)
 			case "name":
-				return ec.fieldContext_User_name(ctx, field)
-			case "avatarPath":
-				return ec.fieldContext_User_avatarPath(ctx, field)
-			case "theme":
-				return ec.fieldContext_User_theme(ctx, field)
-			case "timeFormat":
-				return ec.fieldContext_User_timeFormat(ctx, field)
-			case "temperatureUnit":
-				return ec.fieldContext_User_temperatureUnit(ctx, field)
-			case "hapticsEnabled":
-				return ec.fieldContext_User_hapticsEnabled(ctx, field)
-			case "language":
-				return ec.fieldContext_User_language(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_User_createdAt(ctx, field)
-			case "mustChangePassword":
-				return ec.fieldContext_User_mustChangePassword(ctx, field)
+				return ec.fieldContext_UserRef_name(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type UserRef", field.Name)
 		},
 	}
 	return fc, nil
@@ -16556,6 +24270,8 @@ func (ec *executionContext) fieldContext_GroupMember_device(_ context.Context, f
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Device_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
@@ -16623,6 +24339,8 @@ func (ec *executionContext) fieldContext_GroupMember_group(_ context.Context, fi
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Group_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Group_id(ctx, field)
 			case "name":
@@ -16674,6 +24392,8 @@ func (ec *executionContext) fieldContext_GroupMember_room(_ context.Context, fie
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Room_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Room_id(ctx, field)
 			case "name":
@@ -17431,6 +25151,35 @@ func (ec *executionContext) fieldContext_Integration_message(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Integration_kind(ctx context.Context, field graphql.CollectedField, obj *model.Integration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Integration_kind,
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalNIntegrationKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐIntegrationKind,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Integration_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Integration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type IntegrationKind does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _LocalizedName_language(ctx context.Context, field graphql.CollectedField, obj *model.LocalizedName) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -17484,6 +25233,35 @@ func (ec *executionContext) fieldContext_LocalizedName_value(_ context.Context, 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _LocalizedNameSet_revision(ctx context.Context, field graphql.CollectedField, obj *model.LocalizedNameSet) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_LocalizedNameSet_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_LocalizedNameSet_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "LocalizedNameSet",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -17809,6 +25587,8 @@ func (ec *executionContext) fieldContext_MaintenanceTask_device(_ context.Contex
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Device_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
@@ -18040,6 +25820,8 @@ func (ec *executionContext) fieldContext_Mutation_updateLocalizedNameSet(ctx con
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_LocalizedNameSet_revision(ctx, field)
 			case "entityType":
 				return ec.fieldContext_LocalizedNameSet_entityType(ctx, field)
 			case "entityId":
@@ -18109,6 +25891,8 @@ func (ec *executionContext) fieldContext_Mutation_updateDevice(ctx context.Conte
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Device_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
@@ -18206,6 +25990,8 @@ func (ec *executionContext) fieldContext_Mutation_deleteDevice(ctx context.Conte
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Device_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
@@ -18303,6 +26089,8 @@ func (ec *executionContext) fieldContext_Mutation_restoreDevice(ctx context.Cont
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Device_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
@@ -18754,6 +26542,8 @@ func (ec *executionContext) fieldContext_Mutation_applyScene(ctx context.Context
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Scene_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Scene_id(ctx, field)
 			case "name":
@@ -18835,6 +26625,8 @@ func (ec *executionContext) fieldContext_Mutation_deactivateScene(ctx context.Co
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Scene_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Scene_id(ctx, field)
 			case "name":
@@ -18916,6 +26708,8 @@ func (ec *executionContext) fieldContext_Mutation_createScene(ctx context.Contex
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Scene_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Scene_id(ctx, field)
 			case "name":
@@ -18997,6 +26791,8 @@ func (ec *executionContext) fieldContext_Mutation_updateScene(ctx context.Contex
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Scene_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Scene_id(ctx, field)
 			case "name":
@@ -19137,6 +26933,8 @@ func (ec *executionContext) fieldContext_Mutation_createAutomation(ctx context.C
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_AutomationGraph_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_AutomationGraph_id(ctx, field)
 			case "name":
@@ -19145,8 +26943,8 @@ func (ec *executionContext) fieldContext_Mutation_createAutomation(ctx context.C
 				return ec.fieldContext_AutomationGraph_icon(ctx, field)
 			case "enabled":
 				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
-			case "compilable":
-				return ec.fieldContext_AutomationGraph_compilable(ctx, field)
+			case "validation":
+				return ec.fieldContext_AutomationGraph_validation(ctx, field)
 			case "definitions":
 				return ec.fieldContext_AutomationGraph_definitions(ctx, field)
 			case "lastFiredAt":
@@ -19218,6 +27016,8 @@ func (ec *executionContext) fieldContext_Mutation_updateAutomation(ctx context.C
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_AutomationGraph_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_AutomationGraph_id(ctx, field)
 			case "name":
@@ -19226,8 +27026,8 @@ func (ec *executionContext) fieldContext_Mutation_updateAutomation(ctx context.C
 				return ec.fieldContext_AutomationGraph_icon(ctx, field)
 			case "enabled":
 				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
-			case "compilable":
-				return ec.fieldContext_AutomationGraph_compilable(ctx, field)
+			case "validation":
+				return ec.fieldContext_AutomationGraph_validation(ctx, field)
 			case "definitions":
 				return ec.fieldContext_AutomationGraph_definitions(ctx, field)
 			case "lastFiredAt":
@@ -19323,7 +27123,7 @@ func (ec *executionContext) _Mutation_toggleAutomation(ctx context.Context, fiel
 		ec.fieldContext_Mutation_toggleAutomation,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().ToggleAutomation(ctx, fc.Args["id"].(string), fc.Args["enabled"].(bool))
+			return ec.Resolvers.Mutation().ToggleAutomation(ctx, fc.Args["id"].(string), fc.Args["enabled"].(bool), fc.Args["expectedRevision"].(int))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -19358,6 +27158,8 @@ func (ec *executionContext) fieldContext_Mutation_toggleAutomation(ctx context.C
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_AutomationGraph_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_AutomationGraph_id(ctx, field)
 			case "name":
@@ -19366,8 +27168,8 @@ func (ec *executionContext) fieldContext_Mutation_toggleAutomation(ctx context.C
 				return ec.fieldContext_AutomationGraph_icon(ctx, field)
 			case "enabled":
 				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
-			case "compilable":
-				return ec.fieldContext_AutomationGraph_compilable(ctx, field)
+			case "validation":
+				return ec.fieldContext_AutomationGraph_validation(ctx, field)
 			case "definitions":
 				return ec.fieldContext_AutomationGraph_definitions(ctx, field)
 			case "lastFiredAt":
@@ -19563,6 +27365,8 @@ func (ec *executionContext) fieldContext_Mutation_updateWebhookEndpoint(ctx cont
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_WebhookEndpoint_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_WebhookEndpoint_id(ctx, field)
 			case "name":
@@ -19825,6 +27629,8 @@ func (ec *executionContext) fieldContext_Mutation_createGroup(ctx context.Contex
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Group_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Group_id(ctx, field)
 			case "name":
@@ -19906,6 +27712,8 @@ func (ec *executionContext) fieldContext_Mutation_updateGroup(ctx context.Contex
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Group_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Group_id(ctx, field)
 			case "name":
@@ -20046,6 +27854,8 @@ func (ec *executionContext) fieldContext_Mutation_addGroupMember(ctx context.Con
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Group_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Group_id(ctx, field)
 			case "name":
@@ -20127,6 +27937,8 @@ func (ec *executionContext) fieldContext_Mutation_removeGroupMember(ctx context.
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Group_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Group_id(ctx, field)
 			case "name":
@@ -20208,6 +28020,8 @@ func (ec *executionContext) fieldContext_Mutation_createRoom(ctx context.Context
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Room_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Room_id(ctx, field)
 			case "name":
@@ -20281,6 +28095,8 @@ func (ec *executionContext) fieldContext_Mutation_updateRoom(ctx context.Context
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Room_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Room_id(ctx, field)
 			case "name":
@@ -20413,6 +28229,8 @@ func (ec *executionContext) fieldContext_Mutation_addRoomMember(ctx context.Cont
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Room_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Room_id(ctx, field)
 			case "name":
@@ -20486,6 +28304,8 @@ func (ec *executionContext) fieldContext_Mutation_removeRoomMember(ctx context.C
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Room_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Room_id(ctx, field)
 			case "name":
@@ -20559,6 +28379,8 @@ func (ec *executionContext) fieldContext_Mutation_updateFloorplan(ctx context.Co
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Floorplan_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Floorplan_id(ctx, field)
 			case "name":
@@ -20603,7 +28425,7 @@ func (ec *executionContext) _Mutation_updateZigbee2MqttConfig(ctx context.Contex
 		ec.fieldContext_Mutation_updateZigbee2MqttConfig,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().UpdateZigbee2MqttConfig(ctx, fc.Args["input"].(model.Zigbee2MqttConfigInput))
+			return ec.Resolvers.Mutation().UpdateZigbee2MqttConfig(ctx, fc.Args["input"].(model.Zigbee2MqttConfigInput), fc.Args["expectedRevision"].(int))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -20611,11 +28433,11 @@ func (ec *executionContext) _Mutation_updateZigbee2MqttConfig(ctx context.Contex
 			directive1 := func(ctx context.Context) (any, error) {
 				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
 				if err != nil {
-					var zeroVal *model.Zigbee2MqttConfig
+					var zeroVal *model.Zigbee2MqttConfigResult
 					return zeroVal, err
 				}
 				if ec.Directives.Auth == nil {
-					var zeroVal *model.Zigbee2MqttConfig
+					var zeroVal *model.Zigbee2MqttConfigResult
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
 				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
@@ -20624,7 +28446,7 @@ func (ec *executionContext) _Mutation_updateZigbee2MqttConfig(ctx context.Contex
 			next = directive1
 			return next
 		},
-		ec.marshalNZigbee2MqttConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfig,
+		ec.marshalNZigbee2MqttConfigResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfigResult,
 		true,
 		true,
 	)
@@ -20638,34 +28460,12 @@ func (ec *executionContext) fieldContext_Mutation_updateZigbee2MqttConfig(ctx co
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "broker":
-				return ec.fieldContext_Zigbee2MqttConfig_broker(ctx, field)
-			case "frontendUrl":
-				return ec.fieldContext_Zigbee2MqttConfig_frontendUrl(ctx, field)
-			case "username":
-				return ec.fieldContext_Zigbee2MqttConfig_username(ctx, field)
-			case "password":
-				return ec.fieldContext_Zigbee2MqttConfig_password(ctx, field)
-			case "useWss":
-				return ec.fieldContext_Zigbee2MqttConfig_useWss(ctx, field)
-			case "enabled":
-				return ec.fieldContext_Zigbee2MqttConfig_enabled(ctx, field)
-			case "scanScheduleEnabled":
-				return ec.fieldContext_Zigbee2MqttConfig_scanScheduleEnabled(ctx, field)
-			case "scanHour":
-				return ec.fieldContext_Zigbee2MqttConfig_scanHour(ctx, field)
-			case "scanMinute":
-				return ec.fieldContext_Zigbee2MqttConfig_scanMinute(ctx, field)
-			case "scanStartedAt":
-				return ec.fieldContext_Zigbee2MqttConfig_scanStartedAt(ctx, field)
-			case "interactiveCommandsPerSecond":
-				return ec.fieldContext_Zigbee2MqttConfig_interactiveCommandsPerSecond(ctx, field)
-			case "continuousCommandsPerSecond":
-				return ec.fieldContext_Zigbee2MqttConfig_continuousCommandsPerSecond(ctx, field)
-			case "activeContinuousDeviceIds":
-				return ec.fieldContext_Zigbee2MqttConfig_activeContinuousDeviceIds(ctx, field)
+			case "config":
+				return ec.fieldContext_Zigbee2MqttConfigResult_config(ctx, field)
+			case "application":
+				return ec.fieldContext_Zigbee2MqttConfigResult_application(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttConfig", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttConfigResult", field.Name)
 		},
 	}
 	defer func() {
@@ -20804,7 +28604,7 @@ func (ec *executionContext) _Mutation_updateTuyaConfig(ctx context.Context, fiel
 		ec.fieldContext_Mutation_updateTuyaConfig,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().UpdateTuyaConfig(ctx, fc.Args["input"].(model.TuyaConfigInput))
+			return ec.Resolvers.Mutation().UpdateTuyaConfig(ctx, fc.Args["input"].(model.TuyaConfigInput), fc.Args["expectedRevision"].(int))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -20812,11 +28612,11 @@ func (ec *executionContext) _Mutation_updateTuyaConfig(ctx context.Context, fiel
 			directive1 := func(ctx context.Context) (any, error) {
 				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
 				if err != nil {
-					var zeroVal *model.TuyaConfig
+					var zeroVal *model.TuyaConfigResult
 					return zeroVal, err
 				}
 				if ec.Directives.Auth == nil {
-					var zeroVal *model.TuyaConfig
+					var zeroVal *model.TuyaConfigResult
 					return zeroVal, errors.New("directive auth is not implemented")
 				}
 				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
@@ -20825,7 +28625,7 @@ func (ec *executionContext) _Mutation_updateTuyaConfig(ctx context.Context, fiel
 			next = directive1
 			return next
 		},
-		ec.marshalNTuyaConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfig,
+		ec.marshalNTuyaConfigResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfigResult,
 		true,
 		true,
 	)
@@ -20839,16 +28639,12 @@ func (ec *executionContext) fieldContext_Mutation_updateTuyaConfig(ctx context.C
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "accessId":
-				return ec.fieldContext_TuyaConfig_accessId(ctx, field)
-			case "accessSecret":
-				return ec.fieldContext_TuyaConfig_accessSecret(ctx, field)
-			case "region":
-				return ec.fieldContext_TuyaConfig_region(ctx, field)
-			case "enabled":
-				return ec.fieldContext_TuyaConfig_enabled(ctx, field)
+			case "config":
+				return ec.fieldContext_TuyaConfigResult_config(ctx, field)
+			case "application":
+				return ec.fieldContext_TuyaConfigResult_application(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type TuyaConfig", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type TuyaConfigResult", field.Name)
 		},
 	}
 	defer func() {
@@ -20974,6 +28770,8 @@ func (ec *executionContext) fieldContext_Mutation_syncTuyaDevices(_ context.Cont
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Device_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
@@ -21084,7 +28882,7 @@ func (ec *executionContext) _Mutation_updateSetting(ctx context.Context, field g
 		ec.fieldContext_Mutation_updateSetting,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().UpdateSetting(ctx, fc.Args["key"].(string), fc.Args["value"].(string))
+			return ec.Resolvers.Mutation().UpdateSetting(ctx, fc.Args["key"].(string), fc.Args["value"].(string), fc.Args["expectedRevision"].(int))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -21119,6 +28917,8 @@ func (ec *executionContext) fieldContext_Mutation_updateSetting(ctx context.Cont
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Setting_revision(ctx, field)
 			case "key":
 				return ec.fieldContext_Setting_key(ctx, field)
 			case "value":
@@ -21278,6 +29078,8 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_User_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
 			case "username":
@@ -21739,6 +29541,8 @@ func (ec *executionContext) fieldContext_Mutation_updateCurrentUser(ctx context.
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_User_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
 			case "username":
@@ -22790,6 +30594,8 @@ func (ec *executionContext) fieldContext_Mutation_batchAddRoomMembers(ctx contex
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Room_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Room_id(ctx, field)
 			case "name":
@@ -22863,6 +30669,8 @@ func (ec *executionContext) fieldContext_Mutation_batchAddGroupDevices(ctx conte
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Group_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Group_id(ctx, field)
 			case "name":
@@ -22944,6 +30752,8 @@ func (ec *executionContext) fieldContext_Mutation_createEffect(ctx context.Conte
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Effect_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Effect_id(ctx, field)
 			case "name":
@@ -23031,6 +30841,8 @@ func (ec *executionContext) fieldContext_Mutation_updateEffect(ctx context.Conte
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Effect_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Effect_id(ctx, field)
 			case "name":
@@ -23325,6 +31137,625 @@ func (ec *executionContext) fieldContext_Mutation_stopEffect(ctx context.Context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_stopEffect_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_discoverClaudeModels(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_discoverClaudeModels,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DiscoverClaudeModels(ctx, fc.Args["token"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.ClaudeAvailableModel
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.ClaudeAvailableModel
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNClaudeAvailableModel2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐClaudeAvailableModelᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_discoverClaudeModels(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ClaudeAvailableModel_id(ctx, field)
+			case "name":
+				return ec.fieldContext_ClaudeAvailableModel_name(ctx, field)
+			case "resolvedModel":
+				return ec.fieldContext_ClaudeAvailableModel_resolvedModel(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ClaudeAvailableModel", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_discoverClaudeModels_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateClaudeConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateClaudeConfig,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateClaudeConfig(ctx, fc.Args["input"].(model.ClaudeConfigInput), fc.Args["expectedRevision"].(int))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.ClaudeConfig
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.ClaudeConfig
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNClaudeConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐClaudeConfig,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateClaudeConfig(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "revision":
+				return ec.fieldContext_ClaudeConfig_revision(ctx, field)
+			case "token":
+				return ec.fieldContext_ClaudeConfig_token(ctx, field)
+			case "enabled":
+				return ec.fieldContext_ClaudeConfig_enabled(ctx, field)
+			case "model":
+				return ec.fieldContext_ClaudeConfig_model(ctx, field)
+			case "ready":
+				return ec.fieldContext_ClaudeConfig_ready(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ClaudeConfig", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateClaudeConfig_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_testClaudeConnection(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_testClaudeConnection,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().TestClaudeConnection(ctx, fc.Args["input"].(model.ClaudeConfigInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.ConnectionTestResult
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.ConnectionTestResult
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNConnectionTestResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConnectionTestResult,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_testClaudeConnection(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_ConnectionTestResult_success(ctx, field)
+			case "code":
+				return ec.fieldContext_ConnectionTestResult_code(ctx, field)
+			case "diagnostic":
+				return ec.fieldContext_ConnectionTestResult_diagnostic(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConnectionTestResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_testClaudeConnection_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createAssistantConversation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_createAssistantConversation,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Mutation().CreateAssistantConversation(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.AssistantConversation
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.AssistantConversation
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNAssistantConversation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantConversation,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createAssistantConversation(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AssistantConversation_id(ctx, field)
+			case "autoTitle":
+				return ec.fieldContext_AssistantConversation_autoTitle(ctx, field)
+			case "titleOverride":
+				return ec.fieldContext_AssistantConversation_titleOverride(ctx, field)
+			case "revision":
+				return ec.fieldContext_AssistantConversation_revision(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_AssistantConversation_updatedAt(ctx, field)
+			case "messages":
+				return ec.fieldContext_AssistantConversation_messages(ctx, field)
+			case "actions":
+				return ec.fieldContext_AssistantConversation_actions(ctx, field)
+			case "runs":
+				return ec.fieldContext_AssistantConversation_runs(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantConversation", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_renameAssistantConversation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_renameAssistantConversation,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().RenameAssistantConversation(ctx, fc.Args["id"].(string), fc.Args["title"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.AssistantConversation
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.AssistantConversation
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNAssistantConversation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantConversation,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_renameAssistantConversation(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AssistantConversation_id(ctx, field)
+			case "autoTitle":
+				return ec.fieldContext_AssistantConversation_autoTitle(ctx, field)
+			case "titleOverride":
+				return ec.fieldContext_AssistantConversation_titleOverride(ctx, field)
+			case "revision":
+				return ec.fieldContext_AssistantConversation_revision(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_AssistantConversation_updatedAt(ctx, field)
+			case "messages":
+				return ec.fieldContext_AssistantConversation_messages(ctx, field)
+			case "actions":
+				return ec.fieldContext_AssistantConversation_actions(ctx, field)
+			case "runs":
+				return ec.fieldContext_AssistantConversation_runs(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantConversation", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_renameAssistantConversation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteAssistantConversation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_deleteAssistantConversation,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteAssistantConversation(ctx, fc.Args["id"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteAssistantConversation(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteAssistantConversation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_sendAssistantMessage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_sendAssistantMessage,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SendAssistantMessage(ctx, fc.Args["input"].(model.AssistantMessageInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.AssistantConversation
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.AssistantConversation
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNAssistantConversation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantConversation,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_sendAssistantMessage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AssistantConversation_id(ctx, field)
+			case "autoTitle":
+				return ec.fieldContext_AssistantConversation_autoTitle(ctx, field)
+			case "titleOverride":
+				return ec.fieldContext_AssistantConversation_titleOverride(ctx, field)
+			case "revision":
+				return ec.fieldContext_AssistantConversation_revision(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_AssistantConversation_updatedAt(ctx, field)
+			case "messages":
+				return ec.fieldContext_AssistantConversation_messages(ctx, field)
+			case "actions":
+				return ec.fieldContext_AssistantConversation_actions(ctx, field)
+			case "runs":
+				return ec.fieldContext_AssistantConversation_runs(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantConversation", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_sendAssistantMessage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_stopAssistantRun(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_stopAssistantRun,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().StopAssistantRun(ctx, fc.Args["conversationId"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_stopAssistantRun(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_stopAssistantRun_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_respondToAssistantAction(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_respondToAssistantAction,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().RespondToAssistantAction(ctx, fc.Args["input"].(model.AssistantActionResponseInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.AssistantConversation
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.AssistantConversation
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNAssistantConversation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantConversation,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_respondToAssistantAction(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AssistantConversation_id(ctx, field)
+			case "autoTitle":
+				return ec.fieldContext_AssistantConversation_autoTitle(ctx, field)
+			case "titleOverride":
+				return ec.fieldContext_AssistantConversation_titleOverride(ctx, field)
+			case "revision":
+				return ec.fieldContext_AssistantConversation_revision(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_AssistantConversation_updatedAt(ctx, field)
+			case "messages":
+				return ec.fieldContext_AssistantConversation_messages(ctx, field)
+			case "actions":
+				return ec.fieldContext_AssistantConversation_actions(ctx, field)
+			case "runs":
+				return ec.fieldContext_AssistantConversation_runs(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantConversation", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_respondToAssistantAction_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -24223,6 +32654,8 @@ func (ec *executionContext) fieldContext_Query_localizedNameSets(_ context.Conte
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_LocalizedNameSet_revision(ctx, field)
 			case "entityType":
 				return ec.fieldContext_LocalizedNameSet_entityType(ctx, field)
 			case "entityId":
@@ -24280,6 +32713,8 @@ func (ec *executionContext) fieldContext_Query_devices(_ context.Context, field 
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Device_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
@@ -24366,6 +32801,8 @@ func (ec *executionContext) fieldContext_Query_device(ctx context.Context, field
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Device_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
@@ -24462,6 +32899,8 @@ func (ec *executionContext) fieldContext_Query_scenes(_ context.Context, field g
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Scene_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Scene_id(ctx, field)
 			case "name":
@@ -24532,6 +32971,8 @@ func (ec *executionContext) fieldContext_Query_scene(ctx context.Context, field 
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Scene_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Scene_id(ctx, field)
 			case "name":
@@ -24823,6 +33264,8 @@ func (ec *executionContext) fieldContext_Query_automations(_ context.Context, fi
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_AutomationGraph_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_AutomationGraph_id(ctx, field)
 			case "name":
@@ -24831,8 +33274,8 @@ func (ec *executionContext) fieldContext_Query_automations(_ context.Context, fi
 				return ec.fieldContext_AutomationGraph_icon(ctx, field)
 			case "enabled":
 				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
-			case "compilable":
-				return ec.fieldContext_AutomationGraph_compilable(ctx, field)
+			case "validation":
+				return ec.fieldContext_AutomationGraph_validation(ctx, field)
 			case "definitions":
 				return ec.fieldContext_AutomationGraph_definitions(ctx, field)
 			case "lastFiredAt":
@@ -24893,6 +33336,8 @@ func (ec *executionContext) fieldContext_Query_automation(ctx context.Context, f
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_AutomationGraph_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_AutomationGraph_id(ctx, field)
 			case "name":
@@ -24901,8 +33346,8 @@ func (ec *executionContext) fieldContext_Query_automation(ctx context.Context, f
 				return ec.fieldContext_AutomationGraph_icon(ctx, field)
 			case "enabled":
 				return ec.fieldContext_AutomationGraph_enabled(ctx, field)
-			case "compilable":
-				return ec.fieldContext_AutomationGraph_compilable(ctx, field)
+			case "validation":
+				return ec.fieldContext_AutomationGraph_validation(ctx, field)
 			case "definitions":
 				return ec.fieldContext_AutomationGraph_definitions(ctx, field)
 			case "lastFiredAt":
@@ -24925,6 +33370,71 @@ func (ec *executionContext) fieldContext_Query_automation(ctx context.Context, f
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_automation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_validateAutomation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_validateAutomation,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().ValidateAutomation(ctx, fc.Args["input"].(model.CreateAutomationInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.ConfigurationValidation
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.ConfigurationValidation
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNConfigurationValidation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConfigurationValidation,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_validateAutomation(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "valid":
+				return ec.fieldContext_ConfigurationValidation_valid(ctx, field)
+			case "issues":
+				return ec.fieldContext_ConfigurationValidation_issues(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConfigurationValidation", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_validateAutomation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -24973,6 +33483,8 @@ func (ec *executionContext) fieldContext_Query_webhookEndpoints(_ context.Contex
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_WebhookEndpoint_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_WebhookEndpoint_id(ctx, field)
 			case "name":
@@ -25041,6 +33553,8 @@ func (ec *executionContext) fieldContext_Query_webhookEndpoint(ctx context.Conte
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_WebhookEndpoint_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_WebhookEndpoint_id(ctx, field)
 			case "name":
@@ -25208,6 +33722,8 @@ func (ec *executionContext) fieldContext_Query_groups(_ context.Context, field g
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Group_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Group_id(ctx, field)
 			case "name":
@@ -25278,6 +33794,8 @@ func (ec *executionContext) fieldContext_Query_group(ctx context.Context, field 
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Group_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Group_id(ctx, field)
 			case "name":
@@ -25358,6 +33876,8 @@ func (ec *executionContext) fieldContext_Query_rooms(_ context.Context, field gr
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Room_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Room_id(ctx, field)
 			case "name":
@@ -25420,6 +33940,8 @@ func (ec *executionContext) fieldContext_Query_room(ctx context.Context, field g
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Room_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Room_id(ctx, field)
 			case "name":
@@ -25492,6 +34014,8 @@ func (ec *executionContext) fieldContext_Query_floorplan(_ context.Context, fiel
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Floorplan_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Floorplan_id(ctx, field)
 			case "name":
@@ -25754,6 +34278,8 @@ func (ec *executionContext) fieldContext_Query_integrations(_ context.Context, f
 				return ec.fieldContext_Integration_deviceCount(ctx, field)
 			case "message":
 				return ec.fieldContext_Integration_message(ctx, field)
+			case "kind":
+				return ec.fieldContext_Integration_kind(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Integration", field.Name)
 		},
@@ -25803,6 +34329,8 @@ func (ec *executionContext) fieldContext_Query_zigbee2MqttConfig(_ context.Conte
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Zigbee2MqttConfig_revision(ctx, field)
 			case "broker":
 				return ec.fieldContext_Zigbee2MqttConfig_broker(ctx, field)
 			case "frontendUrl":
@@ -25878,6 +34406,8 @@ func (ec *executionContext) fieldContext_Query_tuyaConfig(_ context.Context, fie
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_TuyaConfig_revision(ctx, field)
 			case "accessId":
 				return ec.fieldContext_TuyaConfig_accessId(ctx, field)
 			case "accessSecret":
@@ -25992,6 +34522,8 @@ func (ec *executionContext) fieldContext_Query_settings(_ context.Context, field
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Setting_revision(ctx, field)
 			case "key":
 				return ec.fieldContext_Setting_key(ctx, field)
 			case "value":
@@ -26348,6 +34880,8 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_User_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
 			case "username":
@@ -26419,6 +34953,8 @@ func (ec *executionContext) fieldContext_Query_users(_ context.Context, field gr
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_User_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
 			case "username":
@@ -26663,6 +35199,8 @@ func (ec *executionContext) fieldContext_Query_effects(_ context.Context, field 
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Effect_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Effect_id(ctx, field)
 			case "name":
@@ -26739,6 +35277,8 @@ func (ec *executionContext) fieldContext_Query_effect(ctx context.Context, field
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Effect_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Effect_id(ctx, field)
 			case "name":
@@ -26970,6 +35510,392 @@ func (ec *executionContext) fieldContext_Query_nativeEffectSupport(ctx context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_assistantActionPrivateResult(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_assistantActionPrivateResult,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().AssistantActionPrivateResult(ctx, fc.Args["conversationId"].(string), fc.Args["actionId"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_assistantActionPrivateResult(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_assistantActionPrivateResult_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_claudeConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_claudeConfig,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().ClaudeConfig(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.ClaudeConfig
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.ClaudeConfig
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalOClaudeConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐClaudeConfig,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_claudeConfig(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "revision":
+				return ec.fieldContext_ClaudeConfig_revision(ctx, field)
+			case "token":
+				return ec.fieldContext_ClaudeConfig_token(ctx, field)
+			case "enabled":
+				return ec.fieldContext_ClaudeConfig_enabled(ctx, field)
+			case "model":
+				return ec.fieldContext_ClaudeConfig_model(ctx, field)
+			case "ready":
+				return ec.fieldContext_ClaudeConfig_ready(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ClaudeConfig", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_assistantConversations(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_assistantConversations,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().AssistantConversations(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.AssistantConversationSummary
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.AssistantConversationSummary
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNAssistantConversationSummary2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantConversationSummaryᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_assistantConversations(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AssistantConversationSummary_id(ctx, field)
+			case "autoTitle":
+				return ec.fieldContext_AssistantConversationSummary_autoTitle(ctx, field)
+			case "titleOverride":
+				return ec.fieldContext_AssistantConversationSummary_titleOverride(ctx, field)
+			case "revision":
+				return ec.fieldContext_AssistantConversationSummary_revision(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_AssistantConversationSummary_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantConversationSummary", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_assistantConversation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_assistantConversation,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().AssistantConversation(ctx, fc.Args["id"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.AssistantConversation
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.AssistantConversation
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNAssistantConversation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantConversation,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_assistantConversation(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AssistantConversation_id(ctx, field)
+			case "autoTitle":
+				return ec.fieldContext_AssistantConversation_autoTitle(ctx, field)
+			case "titleOverride":
+				return ec.fieldContext_AssistantConversation_titleOverride(ctx, field)
+			case "revision":
+				return ec.fieldContext_AssistantConversation_revision(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_AssistantConversation_updatedAt(ctx, field)
+			case "messages":
+				return ec.fieldContext_AssistantConversation_messages(ctx, field)
+			case "actions":
+				return ec.fieldContext_AssistantConversation_actions(ctx, field)
+			case "runs":
+				return ec.fieldContext_AssistantConversation_runs(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantConversation", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_assistantConversation_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_automationNodePreview(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_automationNodePreview,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().AutomationNodePreview(ctx, fc.Args["type"].(string), fc.Args["config"].(automation.AuthoringConfig))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.AutomationNodePreview
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.AutomationNodePreview
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNAutomationNodePreview2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodePreview,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_automationNodePreview(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "expression":
+				return ec.fieldContext_AutomationNodePreview_expression(ctx, field)
+			case "cron":
+				return ec.fieldContext_AutomationNodePreview_cron(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AutomationNodePreview", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_automationNodePreview_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_sceneAuthoring(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_sceneAuthoring,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().SceneAuthoring(ctx, fc.Args["input"].(model.SceneAuthoringInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.SceneAuthoredState
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.SceneAuthoredState
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNSceneAuthoredState2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneAuthoredStateᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_sceneAuthoring(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "deviceId":
+				return ec.fieldContext_SceneAuthoredState_deviceId(ctx, field)
+			case "lighting":
+				return ec.fieldContext_SceneAuthoredState_lighting(ctx, field)
+			case "state":
+				return ec.fieldContext_SceneAuthoredState_state(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SceneAuthoredState", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_sceneAuthoring_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -27073,6 +35999,35 @@ func (ec *executionContext) fieldContext_Query___schema(_ context.Context, field
 				return ec.fieldContext___Schema_directives(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __Schema", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Room_revision(ctx context.Context, field graphql.CollectedField, obj *model.Room) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Room_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Room_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Room",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -27230,6 +36185,8 @@ func (ec *executionContext) fieldContext_Room_resolvedDevices(_ context.Context,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Device_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
@@ -27283,7 +36240,7 @@ func (ec *executionContext) _Room_createdBy(ctx context.Context, field graphql.C
 			return obj.CreatedBy, nil
 		},
 		nil,
-		ec.marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
+		ec.marshalOUserRef2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUserRef,
 		true,
 		false,
 	)
@@ -27298,29 +36255,13 @@ func (ec *executionContext) fieldContext_Room_createdBy(_ context.Context, field
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_User_id(ctx, field)
+				return ec.fieldContext_UserRef_id(ctx, field)
 			case "username":
-				return ec.fieldContext_User_username(ctx, field)
+				return ec.fieldContext_UserRef_username(ctx, field)
 			case "name":
-				return ec.fieldContext_User_name(ctx, field)
-			case "avatarPath":
-				return ec.fieldContext_User_avatarPath(ctx, field)
-			case "theme":
-				return ec.fieldContext_User_theme(ctx, field)
-			case "timeFormat":
-				return ec.fieldContext_User_timeFormat(ctx, field)
-			case "temperatureUnit":
-				return ec.fieldContext_User_temperatureUnit(ctx, field)
-			case "hapticsEnabled":
-				return ec.fieldContext_User_hapticsEnabled(ctx, field)
-			case "language":
-				return ec.fieldContext_User_language(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_User_createdAt(ctx, field)
-			case "mustChangePassword":
-				return ec.fieldContext_User_mustChangePassword(ctx, field)
+				return ec.fieldContext_UserRef_name(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type UserRef", field.Name)
 		},
 	}
 	return fc, nil
@@ -27437,6 +36378,8 @@ func (ec *executionContext) fieldContext_RoomMember_device(_ context.Context, fi
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Device_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
@@ -27504,6 +36447,8 @@ func (ec *executionContext) fieldContext_RoomMember_group(_ context.Context, fie
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Group_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Group_id(ctx, field)
 			case "name":
@@ -27526,6 +36471,35 @@ func (ec *executionContext) fieldContext_RoomMember_group(_ context.Context, fie
 				return ec.fieldContext_Group_createdBy(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Group", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Scene_revision(ctx context.Context, field graphql.CollectedField, obj *model.Scene) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Scene_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Scene_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Scene",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -27642,6 +36616,8 @@ func (ec *executionContext) fieldContext_Scene_rooms(_ context.Context, field gr
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Room_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Room_id(ctx, field)
 			case "name":
@@ -27823,7 +36799,7 @@ func (ec *executionContext) _Scene_createdBy(ctx context.Context, field graphql.
 			return obj.CreatedBy, nil
 		},
 		nil,
-		ec.marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
+		ec.marshalOUserRef2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUserRef,
 		true,
 		false,
 	)
@@ -27838,29 +36814,13 @@ func (ec *executionContext) fieldContext_Scene_createdBy(_ context.Context, fiel
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_User_id(ctx, field)
+				return ec.fieldContext_UserRef_id(ctx, field)
 			case "username":
-				return ec.fieldContext_User_username(ctx, field)
+				return ec.fieldContext_UserRef_username(ctx, field)
 			case "name":
-				return ec.fieldContext_User_name(ctx, field)
-			case "avatarPath":
-				return ec.fieldContext_User_avatarPath(ctx, field)
-			case "theme":
-				return ec.fieldContext_User_theme(ctx, field)
-			case "timeFormat":
-				return ec.fieldContext_User_timeFormat(ctx, field)
-			case "temperatureUnit":
-				return ec.fieldContext_User_temperatureUnit(ctx, field)
-			case "hapticsEnabled":
-				return ec.fieldContext_User_hapticsEnabled(ctx, field)
-			case "language":
-				return ec.fieldContext_User_language(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_User_createdAt(ctx, field)
-			case "mustChangePassword":
-				return ec.fieldContext_User_mustChangePassword(ctx, field)
+				return ec.fieldContext_UserRef_name(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type UserRef", field.Name)
 		},
 	}
 	return fc, nil
@@ -27948,6 +36908,113 @@ func (ec *executionContext) fieldContext_SceneActiveEvent_activatedAt(_ context.
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneAuthoredState_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.SceneAuthoredState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneAuthoredState_deviceId,
+		func(ctx context.Context) (any, error) {
+			return obj.DeviceID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneAuthoredState_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneAuthoredState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneAuthoredState_lighting(ctx context.Context, field graphql.CollectedField, obj *model.SceneAuthoredState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneAuthoredState_lighting,
+		func(ctx context.Context) (any, error) {
+			return obj.Lighting, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneAuthoredState_lighting(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneAuthoredState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SceneAuthoredState_state(ctx context.Context, field graphql.CollectedField, obj *model.SceneAuthoredState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SceneAuthoredState_state,
+		func(ctx context.Context) (any, error) {
+			return obj.State, nil
+		},
+		nil,
+		ec.marshalNDesiredSceneState2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDesiredSceneState,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SceneAuthoredState_state(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SceneAuthoredState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "on":
+				return ec.fieldContext_DesiredSceneState_on(ctx, field)
+			case "brightness":
+				return ec.fieldContext_DesiredSceneState_brightness(ctx, field)
+			case "colorTemp":
+				return ec.fieldContext_DesiredSceneState_colorTemp(ctx, field)
+			case "color":
+				return ec.fieldContext_DesiredSceneState_color(ctx, field)
+			case "transition":
+				return ec.fieldContext_DesiredSceneState_transition(ctx, field)
+			case "targetTemperature":
+				return ec.fieldContext_DesiredSceneState_targetTemperature(ctx, field)
+			case "hvacMode":
+				return ec.fieldContext_DesiredSceneState_hvacMode(ctx, field)
+			case "fanMode":
+				return ec.fieldContext_DesiredSceneState_fanMode(ctx, field)
+			case "swing":
+				return ec.fieldContext_DesiredSceneState_swing(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DesiredSceneState", field.Name)
 		},
 	}
 	return fc, nil
@@ -28606,6 +37673,35 @@ func (ec *executionContext) fieldContext_SceneTargetEntry_name(_ context.Context
 	return fc, nil
 }
 
+func (ec *executionContext) _Setting_revision(ctx context.Context, field graphql.CollectedField, obj *model.Setting) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Setting_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Setting_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Setting",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Setting_key(ctx context.Context, field graphql.CollectedField, obj *model.Setting) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -29227,6 +38323,8 @@ func (ec *executionContext) fieldContext_Subscription_deviceAdded(_ context.Cont
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Device_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
@@ -29312,6 +38410,8 @@ func (ec *executionContext) fieldContext_Subscription_deviceUpdated(_ context.Co
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Device_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_Device_id(ctx, field)
 			case "name":
@@ -30130,6 +39230,130 @@ func (ec *executionContext) fieldContext_Subscription_networkTopologyUpdated(ctx
 	return fc, nil
 }
 
+func (ec *executionContext) _Subscription_assistantConversationChanged(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Subscription_assistantConversationChanged,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Subscription().AssistantConversationChanged(ctx, fc.Args["id"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.AssistantConversation
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.AssistantConversation
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNAssistantConversation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantConversation,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Subscription_assistantConversationChanged(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AssistantConversation_id(ctx, field)
+			case "autoTitle":
+				return ec.fieldContext_AssistantConversation_autoTitle(ctx, field)
+			case "titleOverride":
+				return ec.fieldContext_AssistantConversation_titleOverride(ctx, field)
+			case "revision":
+				return ec.fieldContext_AssistantConversation_revision(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_AssistantConversation_updatedAt(ctx, field)
+			case "messages":
+				return ec.fieldContext_AssistantConversation_messages(ctx, field)
+			case "actions":
+				return ec.fieldContext_AssistantConversation_actions(ctx, field)
+			case "runs":
+				return ec.fieldContext_AssistantConversation_runs(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantConversation", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_assistantConversationChanged_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Subscription_applicationChanged(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Subscription_applicationChanged,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Subscription().ApplicationChanged(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, true)
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Subscription_applicationChanged(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _TargetClause_connector(ctx context.Context, field graphql.CollectedField, obj *model.TargetClause) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -30536,6 +39760,35 @@ func (ec *executionContext) fieldContext_TopologyNode_role(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _TuyaConfig_revision(ctx context.Context, field graphql.CollectedField, obj *model.TuyaConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TuyaConfig_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TuyaConfig_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TuyaConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _TuyaConfig_accessId(ctx context.Context, field graphql.CollectedField, obj *model.TuyaConfig) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -30647,6 +39900,113 @@ func (ec *executionContext) fieldContext_TuyaConfig_enabled(_ context.Context, f
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TuyaConfigResult_config(ctx context.Context, field graphql.CollectedField, obj *model.TuyaConfigResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TuyaConfigResult_config,
+		func(ctx context.Context) (any, error) {
+			return obj.Config, nil
+		},
+		nil,
+		ec.marshalNTuyaConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfig,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TuyaConfigResult_config(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TuyaConfigResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "revision":
+				return ec.fieldContext_TuyaConfig_revision(ctx, field)
+			case "accessId":
+				return ec.fieldContext_TuyaConfig_accessId(ctx, field)
+			case "accessSecret":
+				return ec.fieldContext_TuyaConfig_accessSecret(ctx, field)
+			case "region":
+				return ec.fieldContext_TuyaConfig_region(ctx, field)
+			case "enabled":
+				return ec.fieldContext_TuyaConfig_enabled(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type TuyaConfig", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TuyaConfigResult_application(ctx context.Context, field graphql.CollectedField, obj *model.TuyaConfigResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_TuyaConfigResult_application,
+		func(ctx context.Context) (any, error) {
+			return obj.Application, nil
+		},
+		nil,
+		ec.marshalNConnectionTestResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConnectionTestResult,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_TuyaConfigResult_application(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TuyaConfigResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_ConnectionTestResult_success(ctx, field)
+			case "code":
+				return ec.fieldContext_ConnectionTestResult_code(ctx, field)
+			case "diagnostic":
+				return ec.fieldContext_ConnectionTestResult_diagnostic(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConnectionTestResult", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_revision(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -30966,6 +40326,93 @@ func (ec *executionContext) fieldContext_User_mustChangePassword(_ context.Conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserRef_id(ctx context.Context, field graphql.CollectedField, obj *model.UserRef) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UserRef_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UserRef_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserRef",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserRef_username(ctx context.Context, field graphql.CollectedField, obj *model.UserRef) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UserRef_username,
+		func(ctx context.Context) (any, error) {
+			return obj.Username, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UserRef_username(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserRef",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UserRef_name(ctx context.Context, field graphql.CollectedField, obj *model.UserRef) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UserRef_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UserRef_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UserRef",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -32006,6 +41453,35 @@ func (ec *executionContext) fieldContext_WebhookDelivery_headerNames(_ context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _WebhookEndpoint_revision(ctx context.Context, field graphql.CollectedField, obj *model.WebhookEndpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WebhookEndpoint_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WebhookEndpoint_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WebhookEndpoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _WebhookEndpoint_id(ctx context.Context, field graphql.CollectedField, obj *model.WebhookEndpoint) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -32219,7 +41695,7 @@ func (ec *executionContext) _WebhookEndpoint_createdBy(ctx context.Context, fiel
 			return obj.CreatedBy, nil
 		},
 		nil,
-		ec.marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUser,
+		ec.marshalOUserRef2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUserRef,
 		true,
 		false,
 	)
@@ -32234,29 +41710,13 @@ func (ec *executionContext) fieldContext_WebhookEndpoint_createdBy(_ context.Con
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_User_id(ctx, field)
+				return ec.fieldContext_UserRef_id(ctx, field)
 			case "username":
-				return ec.fieldContext_User_username(ctx, field)
+				return ec.fieldContext_UserRef_username(ctx, field)
 			case "name":
-				return ec.fieldContext_User_name(ctx, field)
-			case "avatarPath":
-				return ec.fieldContext_User_avatarPath(ctx, field)
-			case "theme":
-				return ec.fieldContext_User_theme(ctx, field)
-			case "timeFormat":
-				return ec.fieldContext_User_timeFormat(ctx, field)
-			case "temperatureUnit":
-				return ec.fieldContext_User_temperatureUnit(ctx, field)
-			case "hapticsEnabled":
-				return ec.fieldContext_User_hapticsEnabled(ctx, field)
-			case "language":
-				return ec.fieldContext_User_language(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_User_createdAt(ctx, field)
-			case "mustChangePassword":
-				return ec.fieldContext_User_mustChangePassword(ctx, field)
+				return ec.fieldContext_UserRef_name(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type UserRef", field.Name)
 		},
 	}
 	return fc, nil
@@ -32315,6 +41775,8 @@ func (ec *executionContext) fieldContext_WebhookSecretResult_endpoint(_ context.
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "revision":
+				return ec.fieldContext_WebhookEndpoint_revision(ctx, field)
 			case "id":
 				return ec.fieldContext_WebhookEndpoint_id(ctx, field)
 			case "name":
@@ -32625,6 +42087,35 @@ func (ec *executionContext) fieldContext_Zigbee2MqttBridgeInfo_zigbeeHerdsmanCon
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttConfig_revision(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttConfig_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttConfig_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -33002,6 +42493,102 @@ func (ec *executionContext) fieldContext_Zigbee2MqttConfig_activeContinuousDevic
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttConfigResult_config(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttConfigResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttConfigResult_config,
+		func(ctx context.Context) (any, error) {
+			return obj.Config, nil
+		},
+		nil,
+		ec.marshalNZigbee2MqttConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfig,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttConfigResult_config(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttConfigResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "revision":
+				return ec.fieldContext_Zigbee2MqttConfig_revision(ctx, field)
+			case "broker":
+				return ec.fieldContext_Zigbee2MqttConfig_broker(ctx, field)
+			case "frontendUrl":
+				return ec.fieldContext_Zigbee2MqttConfig_frontendUrl(ctx, field)
+			case "username":
+				return ec.fieldContext_Zigbee2MqttConfig_username(ctx, field)
+			case "password":
+				return ec.fieldContext_Zigbee2MqttConfig_password(ctx, field)
+			case "useWss":
+				return ec.fieldContext_Zigbee2MqttConfig_useWss(ctx, field)
+			case "enabled":
+				return ec.fieldContext_Zigbee2MqttConfig_enabled(ctx, field)
+			case "scanScheduleEnabled":
+				return ec.fieldContext_Zigbee2MqttConfig_scanScheduleEnabled(ctx, field)
+			case "scanHour":
+				return ec.fieldContext_Zigbee2MqttConfig_scanHour(ctx, field)
+			case "scanMinute":
+				return ec.fieldContext_Zigbee2MqttConfig_scanMinute(ctx, field)
+			case "scanStartedAt":
+				return ec.fieldContext_Zigbee2MqttConfig_scanStartedAt(ctx, field)
+			case "interactiveCommandsPerSecond":
+				return ec.fieldContext_Zigbee2MqttConfig_interactiveCommandsPerSecond(ctx, field)
+			case "continuousCommandsPerSecond":
+				return ec.fieldContext_Zigbee2MqttConfig_continuousCommandsPerSecond(ctx, field)
+			case "activeContinuousDeviceIds":
+				return ec.fieldContext_Zigbee2MqttConfig_activeContinuousDeviceIds(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttConfig", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Zigbee2MqttConfigResult_application(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttConfigResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Zigbee2MqttConfigResult_application,
+		func(ctx context.Context) (any, error) {
+			return obj.Application, nil
+		},
+		nil,
+		ec.marshalNConnectionTestResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConnectionTestResult,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Zigbee2MqttConfigResult_application(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Zigbee2MqttConfigResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_ConnectionTestResult_success(ctx, field)
+			case "code":
+				return ec.fieldContext_ConnectionTestResult_code(ctx, field)
+			case "diagnostic":
+				return ec.fieldContext_ConnectionTestResult_diagnostic(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConnectionTestResult", field.Name)
 		},
 	}
 	return fc, nil
@@ -35921,6 +45508,716 @@ func (ec *executionContext) unmarshalInputAlarmFilter(ctx context.Context, obj a
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputAssistantActionResponseInput(ctx context.Context, obj any) (model.AssistantActionResponseInput, error) {
+	var it model.AssistantActionResponseInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"conversationId", "actionId", "approve", "acknowledged", "values"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "conversationId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("conversationId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ConversationID = data
+		case "actionId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("actionId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ActionID = data
+		case "approve":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("approve"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Approve = data
+		case "acknowledged":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("acknowledged"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Acknowledged = data
+		case "values":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("values"))
+			data, err := ec.unmarshalNAssistantPrivateValueInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantPrivateValueInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Values = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAssistantMessageInput(ctx context.Context, obj any) (model.AssistantMessageInput, error) {
+	var it model.AssistantMessageInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"conversationId", "clientId", "text", "attachmentIds"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "conversationId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("conversationId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ConversationID = data
+		case "clientId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clientId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClientID = data
+		case "text":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("text"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Text = data
+		case "attachmentIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("attachmentIds"))
+			data, err := ec.unmarshalNID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AttachmentIds = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAssistantPrivateValueInput(ctx context.Context, obj any) (model.AssistantPrivateValueInput, error) {
+	var it model.AssistantPrivateValueInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"path", "value"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "path":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("path"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Path = data
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAuthoringAttributeInput(ctx context.Context, obj any) (device.AttributeValue, error) {
+	var it device.AttributeValue
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"capability", "booleanValue", "numberValue", "stringValue"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "capability":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("capability"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Capability = data
+		case "booleanValue":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("booleanValue"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BooleanValue = data
+		case "numberValue":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("numberValue"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NumberValue = data
+		case "stringValue":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("stringValue"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.StringValue = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAuthoringClauseInput(ctx context.Context, obj any) (device.Clause, error) {
+	var it device.Clause
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"connector", "subject", "op", "values"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "connector":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("connector"))
+			data, err := ec.unmarshalOAuthoringConnector2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐConnector(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Connector = data
+		case "subject":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("subject"))
+			data, err := ec.unmarshalNAuthoringClauseSubject2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐClauseSubject(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Subject = data
+		case "op":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("op"))
+			data, err := ec.unmarshalNAuthoringClauseOp2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐClauseOp(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Op = data
+		case "values":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("values"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Values = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAuthoringColorInput(ctx context.Context, obj any) (device.Color, error) {
+	var it device.Color
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"r", "g", "b", "x", "y"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "r":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("r"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.R = data
+		case "g":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("g"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.G = data
+		case "b":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("b"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.B = data
+		case "x":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("x"))
+			data, err := ec.unmarshalOFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.X = data
+		case "y":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("y"))
+			data, err := ec.unmarshalOFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Y = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAutomationActionInput(ctx context.Context, obj any) (automation.AuthoringAction, error) {
+	var it automation.AuthoringAction
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"actionType", "targetType", "targetId", "targetExpr", "payload"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "actionType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("actionType"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ActionType = data
+		case "targetType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetType"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TargetType = data
+		case "targetId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetId"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TargetID = data
+		case "targetExpr":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetExpr"))
+			data, err := ec.unmarshalOAuthoringClauseInput2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐClauseᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TargetExpr = data
+		case "payload":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("payload"))
+			data, err := ec.unmarshalOAutomationActionPayloadInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringActionPayload(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Payload = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAutomationActionPayloadInput(ctx context.Context, obj any) (automation.AuthoringActionPayload, error) {
+	var it automation.AuthoringActionPayload
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"on", "brightness", "colorTemp", "color", "transition", "targetTemperature", "hvacMode", "fanMode", "swing", "sceneId", "scenes", "effectId", "nativeName", "field", "delta", "mode", "settings", "alarmId", "severity", "kind", "message"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "on":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("on"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.On = data
+		case "brightness":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("brightness"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Brightness = data
+		case "colorTemp":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("colorTemp"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ColorTemp = data
+		case "color":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("color"))
+			data, err := ec.unmarshalOAuthoringColorInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐColor(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Color = data
+		case "transition":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("transition"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Transition = data
+		case "targetTemperature":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetTemperature"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TargetTemperature = data
+		case "hvacMode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hvacMode"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.HvacMode = data
+		case "fanMode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fanMode"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FanMode = data
+		case "swing":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("swing"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Swing = data
+		case "sceneId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sceneId"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SceneID = data
+		case "scenes":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scenes"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Scenes = data
+		case "effectId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("effectId"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.EffectID = data
+		case "nativeName":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nativeName"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NativeName = data
+		case "field":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("field"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Field = data
+		case "delta":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("delta"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Delta = data
+		case "mode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mode"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Mode = data
+		case "settings":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("settings"))
+			data, err := ec.unmarshalOAuthoringAttributeInput2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐAttributeValueᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Settings = data
+		case "alarmId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("alarmId"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AlarmID = data
+		case "severity":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("severity"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Severity = data
+		case "kind":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("kind"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Kind = data
+		case "message":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("message"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Message = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAutomationConditionInput(ctx context.Context, obj any) (automation.AuthoringCondition, error) {
+	var it automation.AuthoringCondition
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["negate"]; !present {
+		asMap["negate"] = false
+	}
+
+	fieldsInOrder := [...]string{"negate", "mode", "afterHour", "afterMinute", "beforeHour", "beforeMinute", "weekdays", "targetType", "targetId", "property", "comparator", "value", "customExpr"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "negate":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("negate"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Negate = data
+		case "mode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mode"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Mode = data
+		case "afterHour":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("afterHour"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AfterHour = data
+		case "afterMinute":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("afterMinute"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AfterMinute = data
+		case "beforeHour":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("beforeHour"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BeforeHour = data
+		case "beforeMinute":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("beforeMinute"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BeforeMinute = data
+		case "weekdays":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("weekdays"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Weekdays = data
+		case "targetType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetType"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TargetType = data
+		case "targetId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetId"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TargetID = data
+		case "property":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("property"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Property = data
+		case "comparator":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("comparator"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Comparator = data
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalOAutomationLiteralInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐLiteral(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
+		case "customExpr":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("customExpr"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CustomExpr = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAutomationConfigInput(ctx context.Context, obj any) (automation.AuthoringConfig, error) {
+	var it automation.AuthoringConfig
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"trigger", "condition", "operator", "action", "macro"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "trigger":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("trigger"))
+			data, err := ec.unmarshalOAutomationTriggerInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringTrigger(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Trigger = data
+		case "condition":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("condition"))
+			data, err := ec.unmarshalOAutomationConditionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringCondition(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Condition = data
+		case "operator":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("operator"))
+			data, err := ec.unmarshalOAutomationOperatorInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringOperator(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Operator = data
+		case "action":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("action"))
+			data, err := ec.unmarshalOAutomationActionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringAction(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Action = data
+		case "macro":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("macro"))
+			data, err := ec.unmarshalOAutomationMacroInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringMacro(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Macro = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputAutomationEdgeInput(ctx context.Context, obj any) (model.AutomationEdgeInput, error) {
 	var it model.AutomationEdgeInput
 	if obj == nil {
@@ -35953,6 +46250,101 @@ func (ec *executionContext) unmarshalInputAutomationEdgeInput(ctx context.Contex
 				return it, err
 			}
 			it.ToNodeID = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAutomationLiteralInput(ctx context.Context, obj any) (automation.Literal, error) {
+	var it automation.Literal
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"stringValue", "numberValue", "booleanValue", "nullValue"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "stringValue":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("stringValue"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.StringValue = data
+		case "numberValue":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("numberValue"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NumberValue = data
+		case "booleanValue":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("booleanValue"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BooleanValue = data
+		case "nullValue":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nullValue"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NullValue = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAutomationMacroInput(ctx context.Context, obj any) (automation.AuthoringMacro, error) {
+	var it automation.AuthoringMacro
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "negate", "arguments"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "negate":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("negate"))
+			data, err := ec.unmarshalOBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Negate = data
+		case "arguments":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("arguments"))
+			data, err := ec.unmarshalOJSON2ᚕencodingᚋjsonᚐRawMessageᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Arguments = data
 		}
 	}
 	return it, nil
@@ -35999,7 +46391,7 @@ func (ec *executionContext) unmarshalInputAutomationNodeInput(ctx context.Contex
 			it.Type = data
 		case "config":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("config"))
-			data, err := ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNAutomationConfigInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringConfig(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -36018,6 +46410,257 @@ func (ec *executionContext) unmarshalInputAutomationNodeInput(ctx context.Contex
 				return it, err
 			}
 			it.PositionY = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAutomationOperatorInput(ctx context.Context, obj any) (automation.AuthoringOperator, error) {
+	var it automation.AuthoringOperator
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"kind"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "kind":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("kind"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Kind = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAutomationTriggerInput(ctx context.Context, obj any) (automation.AuthoringTrigger, error) {
+	var it automation.AuthoringTrigger
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"mode", "deviceId", "property", "comparator", "value", "eventValue", "eventType", "customExpr", "endpointId", "webhookFilters", "scheduleSubmode", "cronExpr", "scheduleHour", "scheduleMinute", "scheduleSecond", "scheduleWeekdays", "scheduleIntervalValue", "scheduleIntervalUnit", "graceMs", "cooldownMs", "holdMs"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "mode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mode"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Mode = data
+		case "deviceId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deviceId"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DeviceID = data
+		case "property":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("property"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Property = data
+		case "comparator":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("comparator"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Comparator = data
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalOAutomationLiteralInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐLiteral(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
+		case "eventValue":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("eventValue"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.EventValue = data
+		case "eventType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("eventType"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.EventType = data
+		case "customExpr":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("customExpr"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CustomExpr = data
+		case "endpointId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("endpointId"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.EndpointID = data
+		case "webhookFilters":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("webhookFilters"))
+			data, err := ec.unmarshalOAutomationWebhookFilterInput2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringWebhookFilterᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebhookFilters = data
+		case "scheduleSubmode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scheduleSubmode"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ScheduleSubmode = data
+		case "cronExpr":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cronExpr"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CronExpr = data
+		case "scheduleHour":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scheduleHour"))
+			data, err := ec.unmarshalOInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ScheduleHour = data
+		case "scheduleMinute":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scheduleMinute"))
+			data, err := ec.unmarshalOInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ScheduleMinute = data
+		case "scheduleSecond":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scheduleSecond"))
+			data, err := ec.unmarshalOInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ScheduleSecond = data
+		case "scheduleWeekdays":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scheduleWeekdays"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ScheduleWeekdays = data
+		case "scheduleIntervalValue":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scheduleIntervalValue"))
+			data, err := ec.unmarshalOInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ScheduleIntervalValue = data
+		case "scheduleIntervalUnit":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scheduleIntervalUnit"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ScheduleIntervalUnit = data
+		case "graceMs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("graceMs"))
+			data, err := ec.unmarshalOInt2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GraceMs = data
+		case "cooldownMs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cooldownMs"))
+			data, err := ec.unmarshalOInt2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CooldownMs = data
+		case "holdMs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("holdMs"))
+			data, err := ec.unmarshalOInt2int64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.HoldMs = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAutomationWebhookFilterInput(ctx context.Context, obj any) (automation.AuthoringWebhookFilter, error) {
+	var it automation.AuthoringWebhookFilter
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"source", "path", "operator", "value"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "source":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("source"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Source = data
+		case "path":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("path"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Path = data
+		case "operator":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("operator"))
+			data, err := ec.unmarshalOString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Operator = data
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalOAutomationLiteralInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐLiteral(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
 		}
 	}
 	return it, nil
@@ -36055,6 +46698,50 @@ func (ec *executionContext) unmarshalInputChangePasswordInput(ctx context.Contex
 				return it, err
 			}
 			it.NewPassword = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputClaudeConfigInput(ctx context.Context, obj any) (model.ClaudeConfigInput, error) {
+	var it model.ClaudeConfigInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"token", "enabled", "model"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "token":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("token"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Token = data
+		case "enabled":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("enabled"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Enabled = data
+		case "model":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("model"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Model = data
 		}
 	}
 	return it, nil
@@ -36877,6 +47564,57 @@ func (ec *executionContext) unmarshalInputDynamicSceneSourceInput(ctx context.Co
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputEffectClipConfigInput(ctx context.Context, obj any) (effect.ClipConfig, error) {
+	var it effect.ClipConfig
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"setOnOff", "setBrightness", "setColor", "nativeEffect"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "setOnOff":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("setOnOff"))
+			data, err := ec.unmarshalOEffectSetOnOffClipConfigInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetOnOffClipConfig(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SetOnOff = data
+		case "setBrightness":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("setBrightness"))
+			data, err := ec.unmarshalOEffectSetBrightnessClipConfigInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetBrightnessClipConfig(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SetBrightness = data
+		case "setColor":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("setColor"))
+			data, err := ec.unmarshalOEffectSetColorClipConfigInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetColorClipConfig(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SetColor = data
+		case "nativeEffect":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("nativeEffect"))
+			data, err := ec.unmarshalOEffectNativeEffectClipConfigInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐNativeEffectClipConfig(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NativeEffect = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputEffectClipInput(ctx context.Context, obj any) (model.EffectClipInput, error) {
 	var it model.EffectClipInput
 	if obj == nil {
@@ -36888,13 +47626,20 @@ func (ec *executionContext) unmarshalInputEffectClipInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"startMs", "transitionMinMs", "transitionMaxMs", "kind", "config"}
+	fieldsInOrder := [...]string{"id", "startMs", "transitionMinMs", "transitionMaxMs", "kind", "config"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = graphql.OmittableOf(data)
 		case "startMs":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startMs"))
 			data, err := ec.unmarshalNInt2int(ctx, v)
@@ -36925,11 +47670,219 @@ func (ec *executionContext) unmarshalInputEffectClipInput(ctx context.Context, o
 			it.Kind = data
 		case "config":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("config"))
-			data, err := ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNEffectClipConfigInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐClipConfig(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Config = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputEffectNativeEffectClipConfigInput(ctx context.Context, obj any) (effect.NativeEffectClipConfig, error) {
+	var it effect.NativeEffectClipConfig
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputEffectSetBrightnessClipConfigInput(ctx context.Context, obj any) (effect.SetBrightnessClipConfig, error) {
+	var it effect.SetBrightnessClipConfig
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"value"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputEffectSetColorClipConfigInput(ctx context.Context, obj any) (effect.SetColorClipConfig, error) {
+	var it effect.SetColorClipConfig
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"mode", "rgb", "temp"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "mode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mode"))
+			data, err := ec.unmarshalNEffectColorMode2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐColorMode(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Mode = data
+		case "rgb":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rgb"))
+			data, err := ec.unmarshalOEffectSetColorRGBValueInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetColorRGBValue(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RGB = data
+		case "temp":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("temp"))
+			data, err := ec.unmarshalOEffectSetColorTempValueInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetColorTempValue(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Temp = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputEffectSetColorRGBValueInput(ctx context.Context, obj any) (effect.SetColorRGBValue, error) {
+	var it effect.SetColorRGBValue
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"r", "g", "b"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "r":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("r"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.R = data
+		case "g":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("g"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.G = data
+		case "b":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("b"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.B = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputEffectSetColorTempValueInput(ctx context.Context, obj any) (effect.SetColorTempValue, error) {
+	var it effect.SetColorTempValue
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"mireds"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "mireds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mireds"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Mireds = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputEffectSetOnOffClipConfigInput(ctx context.Context, obj any) (effect.SetOnOffClipConfig, error) {
+	var it effect.SetOnOffClipConfig
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"value"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
 		}
 	}
 	return it, nil
@@ -37378,6 +48331,43 @@ func (ec *executionContext) unmarshalInputFloorplanWallInput(ctx context.Context
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputGroupMemberInput(ctx context.Context, obj any) (model.GroupMemberInput, error) {
+	var it model.GroupMemberInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"memberType", "memberId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "memberType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memberType"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MemberType = data
+		case "memberId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memberId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MemberID = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputGuidedVibeRecipeInput(ctx context.Context, obj any) (model.GuidedVibeRecipeInput, error) {
 	var it model.GuidedVibeRecipeInput
 	if obj == nil {
@@ -37514,13 +48504,20 @@ func (ec *executionContext) unmarshalInputLocalizedNameSetInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"entityType", "entityId", "sourceLanguage", "translations"}
+	fieldsInOrder := [...]string{"expectedRevision", "entityType", "entityId", "sourceLanguage", "translations"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "expectedRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedRevision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedRevision = data
 		case "entityType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("entityType"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -37827,6 +48824,64 @@ func (ec *executionContext) unmarshalInputRoomMemberInput(ctx context.Context, o
 				return it, err
 			}
 			it.MemberID = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputSceneAuthoringInput(ctx context.Context, obj any) (model.SceneAuthoringInput, error) {
+	var it model.SceneAuthoringInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["source"]; !present {
+		asMap["source"] = "DEFAULTS"
+	}
+	if _, present := asMap["fallbackToDefaults"]; !present {
+		asMap["fallbackToDefaults"] = false
+	}
+
+	fieldsInOrder := [...]string{"targets", "source", "fallbackToDefaults", "desired"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "targets":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targets"))
+			data, err := ec.unmarshalNSceneTargetInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneTargetInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Targets = data
+		case "source":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("source"))
+			data, err := ec.unmarshalNSceneStateSource2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneStateSource(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Source = data
+		case "fallbackToDefaults":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fallbackToDefaults"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FallbackToDefaults = data
+		case "desired":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("desired"))
+			data, err := ec.unmarshalODesiredSceneStateInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDesiredSceneStateInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Desired = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -38237,13 +49292,20 @@ func (ec *executionContext) unmarshalInputUpdateAutomationInput(ctx context.Cont
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon", "enabled", "definitions", "nodes", "edges"}
+	fieldsInOrder := [...]string{"expectedRevision", "name", "icon", "enabled", "definitions", "nodes", "edges"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "expectedRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedRevision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedRevision = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -38302,13 +49364,20 @@ func (ec *executionContext) unmarshalInputUpdateCurrentUserInput(ctx context.Con
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "theme", "timeFormat", "temperatureUnit", "hapticsEnabled", "language"}
+	fieldsInOrder := [...]string{"expectedRevision", "name", "theme", "timeFormat", "temperatureUnit", "hapticsEnabled", "language"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "expectedRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedRevision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedRevision = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -38367,13 +49436,20 @@ func (ec *executionContext) unmarshalInputUpdateDeviceInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon", "displayColor", "displayBrightness", "roles", "disabled"}
+	fieldsInOrder := [...]string{"expectedRevision", "name", "icon", "displayColor", "displayBrightness", "roles", "disabled"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "expectedRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedRevision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedRevision = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -38469,13 +49545,20 @@ func (ec *executionContext) unmarshalInputUpdateEffectInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"id", "name", "icon", "loop", "durationMs", "nativeName", "tracks"}
+	fieldsInOrder := [...]string{"expectedRevision", "id", "name", "icon", "loop", "durationMs", "nativeName", "tracks"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "expectedRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedRevision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedRevision = data
 		case "id":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
 			data, err := ec.unmarshalNID2string(ctx, v)
@@ -38541,13 +49624,20 @@ func (ec *executionContext) unmarshalInputUpdateFloorplanInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"id", "name", "vertices", "walls", "openings", "doorBindings", "rooms", "placements", "furniture"}
+	fieldsInOrder := [...]string{"expectedRevision", "id", "name", "vertices", "walls", "openings", "doorBindings", "rooms", "placements", "furniture"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "expectedRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedRevision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedRevision = data
 		case "id":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
 			data, err := ec.unmarshalNID2string(ctx, v)
@@ -38627,13 +49717,27 @@ func (ec *executionContext) unmarshalInputUpdateGroupInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon", "tags"}
+	fieldsInOrder := [...]string{"members", "expectedRevision", "name", "icon", "tags"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "members":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("members"))
+			data, err := ec.unmarshalOGroupMemberInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupMemberInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Members = graphql.OmittableOf(data)
+		case "expectedRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedRevision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedRevision = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -38671,13 +49775,27 @@ func (ec *executionContext) unmarshalInputUpdateRoomInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon"}
+	fieldsInOrder := [...]string{"members", "expectedRevision", "name", "icon"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "members":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("members"))
+			data, err := ec.unmarshalORoomMemberInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMemberInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Members = graphql.OmittableOf(data)
+		case "expectedRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedRevision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedRevision = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -38708,13 +49826,20 @@ func (ec *executionContext) unmarshalInputUpdateSceneInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "icon", "definition"}
+	fieldsInOrder := [...]string{"expectedRevision", "name", "icon", "definition"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "expectedRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedRevision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedRevision = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -38752,13 +49877,20 @@ func (ec *executionContext) unmarshalInputUpdateWebhookEndpointInput(ctx context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "enabled", "rateLimitCount", "rateLimitWindowMs"}
+	fieldsInOrder := [...]string{"expectedRevision", "name", "enabled", "rateLimitCount", "rateLimitWindowMs"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "expectedRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedRevision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedRevision = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -39327,6 +50459,508 @@ func (ec *executionContext) _AlarmEvent(ctx context.Context, sel ast.SelectionSe
 	return out
 }
 
+var assistantActionImplementors = []string{"AssistantAction"}
+
+func (ec *executionContext) _AssistantAction(ctx context.Context, sel ast.SelectionSet, obj *model.AssistantAction) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assistantActionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AssistantAction")
+		case "id":
+			out.Values[i] = ec._AssistantAction_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "runId":
+			out.Values[i] = ec._AssistantAction_runId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._AssistantAction_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "title":
+			out.Values[i] = ec._AssistantAction_title(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "description":
+			out.Values[i] = ec._AssistantAction_description(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "buttonLabel":
+			out.Values[i] = ec._AssistantAction_buttonLabel(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "targets":
+			out.Values[i] = ec._AssistantAction_targets(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "inputs":
+			out.Values[i] = ec._AssistantAction_inputs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "needsConfirmation":
+			out.Values[i] = ec._AssistantAction_needsConfirmation(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "result":
+			out.Values[i] = ec._AssistantAction_result(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hasPrivateResult":
+			out.Values[i] = ec._AssistantAction_hasPrivateResult(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var assistantAttachmentImplementors = []string{"AssistantAttachment"}
+
+func (ec *executionContext) _AssistantAttachment(ctx context.Context, sel ast.SelectionSet, obj *model.AssistantAttachment) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assistantAttachmentImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AssistantAttachment")
+		case "id":
+			out.Values[i] = ec._AssistantAttachment_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._AssistantAttachment_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "mime":
+			out.Values[i] = ec._AssistantAttachment_mime(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var assistantConversationImplementors = []string{"AssistantConversation"}
+
+func (ec *executionContext) _AssistantConversation(ctx context.Context, sel ast.SelectionSet, obj *model.AssistantConversation) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assistantConversationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AssistantConversation")
+		case "id":
+			out.Values[i] = ec._AssistantConversation_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "autoTitle":
+			out.Values[i] = ec._AssistantConversation_autoTitle(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "titleOverride":
+			out.Values[i] = ec._AssistantConversation_titleOverride(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revision":
+			out.Values[i] = ec._AssistantConversation_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._AssistantConversation_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "messages":
+			out.Values[i] = ec._AssistantConversation_messages(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "actions":
+			out.Values[i] = ec._AssistantConversation_actions(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "runs":
+			out.Values[i] = ec._AssistantConversation_runs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var assistantConversationSummaryImplementors = []string{"AssistantConversationSummary"}
+
+func (ec *executionContext) _AssistantConversationSummary(ctx context.Context, sel ast.SelectionSet, obj *model.AssistantConversationSummary) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assistantConversationSummaryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AssistantConversationSummary")
+		case "id":
+			out.Values[i] = ec._AssistantConversationSummary_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "autoTitle":
+			out.Values[i] = ec._AssistantConversationSummary_autoTitle(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "titleOverride":
+			out.Values[i] = ec._AssistantConversationSummary_titleOverride(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revision":
+			out.Values[i] = ec._AssistantConversationSummary_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._AssistantConversationSummary_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var assistantMessageImplementors = []string{"AssistantMessage"}
+
+func (ec *executionContext) _AssistantMessage(ctx context.Context, sel ast.SelectionSet, obj *model.AssistantMessage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assistantMessageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AssistantMessage")
+		case "id":
+			out.Values[i] = ec._AssistantMessage_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "role":
+			out.Values[i] = ec._AssistantMessage_role(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "text":
+			out.Values[i] = ec._AssistantMessage_text(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "attachments":
+			out.Values[i] = ec._AssistantMessage_attachments(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._AssistantMessage_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "runId":
+			out.Values[i] = ec._AssistantMessage_runId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var assistantPrivateFieldImplementors = []string{"AssistantPrivateField"}
+
+func (ec *executionContext) _AssistantPrivateField(ctx context.Context, sel ast.SelectionSet, obj *model.AssistantPrivateField) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assistantPrivateFieldImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AssistantPrivateField")
+		case "path":
+			out.Values[i] = ec._AssistantPrivateField_path(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "label":
+			out.Values[i] = ec._AssistantPrivateField_label(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "required":
+			out.Values[i] = ec._AssistantPrivateField_required(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var assistantRunImplementors = []string{"AssistantRun"}
+
+func (ec *executionContext) _AssistantRun(ctx context.Context, sel ast.SelectionSet, obj *model.AssistantRun) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assistantRunImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AssistantRun")
+		case "id":
+			out.Values[i] = ec._AssistantRun_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "state":
+			out.Values[i] = ec._AssistantRun_state(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "activity":
+			out.Values[i] = ec._AssistantRun_activity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "error":
+			out.Values[i] = ec._AssistantRun_error(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "model":
+			out.Values[i] = ec._AssistantRun_model(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "startedAt":
+			out.Values[i] = ec._AssistantRun_startedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "finishedAt":
+			out.Values[i] = ec._AssistantRun_finishedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var assistantTargetImplementors = []string{"AssistantTarget"}
+
+func (ec *executionContext) _AssistantTarget(ctx context.Context, sel ast.SelectionSet, obj *model.AssistantTarget) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assistantTargetImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AssistantTarget")
+		case "id":
+			out.Values[i] = ec._AssistantTarget_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._AssistantTarget_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "href":
+			out.Values[i] = ec._AssistantTarget_href(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var authPayloadImplementors = []string{"AuthPayload"}
 
 func (ec *executionContext) _AuthPayload(ctx context.Context, sel ast.SelectionSet, obj *model.AuthPayload) graphql.Marshaler {
@@ -39348,6 +50982,430 @@ func (ec *executionContext) _AuthPayload(ctx context.Context, sel ast.SelectionS
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var authoringAttributeImplementors = []string{"AuthoringAttribute"}
+
+func (ec *executionContext) _AuthoringAttribute(ctx context.Context, sel ast.SelectionSet, obj *device.AttributeValue) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, authoringAttributeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AuthoringAttribute")
+		case "capability":
+			out.Values[i] = ec._AuthoringAttribute_capability(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "booleanValue":
+			out.Values[i] = ec._AuthoringAttribute_booleanValue(ctx, field, obj)
+		case "numberValue":
+			out.Values[i] = ec._AuthoringAttribute_numberValue(ctx, field, obj)
+		case "stringValue":
+			out.Values[i] = ec._AuthoringAttribute_stringValue(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var authoringClauseImplementors = []string{"AuthoringClause"}
+
+func (ec *executionContext) _AuthoringClause(ctx context.Context, sel ast.SelectionSet, obj *device.Clause) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, authoringClauseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AuthoringClause")
+		case "connector":
+			out.Values[i] = ec._AuthoringClause_connector(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subject":
+			out.Values[i] = ec._AuthoringClause_subject(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "op":
+			out.Values[i] = ec._AuthoringClause_op(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "values":
+			out.Values[i] = ec._AuthoringClause_values(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var authoringColorImplementors = []string{"AuthoringColor"}
+
+func (ec *executionContext) _AuthoringColor(ctx context.Context, sel ast.SelectionSet, obj *device.Color) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, authoringColorImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AuthoringColor")
+		case "r":
+			out.Values[i] = ec._AuthoringColor_r(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "g":
+			out.Values[i] = ec._AuthoringColor_g(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "b":
+			out.Values[i] = ec._AuthoringColor_b(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "x":
+			out.Values[i] = ec._AuthoringColor_x(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "y":
+			out.Values[i] = ec._AuthoringColor_y(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var automationActionImplementors = []string{"AutomationAction"}
+
+func (ec *executionContext) _AutomationAction(ctx context.Context, sel ast.SelectionSet, obj *automation.AuthoringAction) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, automationActionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AutomationAction")
+		case "actionType":
+			out.Values[i] = ec._AutomationAction_actionType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "targetType":
+			out.Values[i] = ec._AutomationAction_targetType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "targetId":
+			out.Values[i] = ec._AutomationAction_targetId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "targetExpr":
+			out.Values[i] = ec._AutomationAction_targetExpr(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "payload":
+			out.Values[i] = ec._AutomationAction_payload(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var automationActionPayloadImplementors = []string{"AutomationActionPayload"}
+
+func (ec *executionContext) _AutomationActionPayload(ctx context.Context, sel ast.SelectionSet, obj *automation.AuthoringActionPayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, automationActionPayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AutomationActionPayload")
+		case "on":
+			out.Values[i] = ec._AutomationActionPayload_on(ctx, field, obj)
+		case "brightness":
+			out.Values[i] = ec._AutomationActionPayload_brightness(ctx, field, obj)
+		case "colorTemp":
+			out.Values[i] = ec._AutomationActionPayload_colorTemp(ctx, field, obj)
+		case "color":
+			out.Values[i] = ec._AutomationActionPayload_color(ctx, field, obj)
+		case "transition":
+			out.Values[i] = ec._AutomationActionPayload_transition(ctx, field, obj)
+		case "targetTemperature":
+			out.Values[i] = ec._AutomationActionPayload_targetTemperature(ctx, field, obj)
+		case "hvacMode":
+			out.Values[i] = ec._AutomationActionPayload_hvacMode(ctx, field, obj)
+		case "fanMode":
+			out.Values[i] = ec._AutomationActionPayload_fanMode(ctx, field, obj)
+		case "swing":
+			out.Values[i] = ec._AutomationActionPayload_swing(ctx, field, obj)
+		case "sceneId":
+			out.Values[i] = ec._AutomationActionPayload_sceneId(ctx, field, obj)
+		case "scenes":
+			out.Values[i] = ec._AutomationActionPayload_scenes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "effectId":
+			out.Values[i] = ec._AutomationActionPayload_effectId(ctx, field, obj)
+		case "nativeName":
+			out.Values[i] = ec._AutomationActionPayload_nativeName(ctx, field, obj)
+		case "field":
+			out.Values[i] = ec._AutomationActionPayload_field(ctx, field, obj)
+		case "delta":
+			out.Values[i] = ec._AutomationActionPayload_delta(ctx, field, obj)
+		case "mode":
+			out.Values[i] = ec._AutomationActionPayload_mode(ctx, field, obj)
+		case "settings":
+			out.Values[i] = ec._AutomationActionPayload_settings(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "alarmId":
+			out.Values[i] = ec._AutomationActionPayload_alarmId(ctx, field, obj)
+		case "severity":
+			out.Values[i] = ec._AutomationActionPayload_severity(ctx, field, obj)
+		case "kind":
+			out.Values[i] = ec._AutomationActionPayload_kind(ctx, field, obj)
+		case "message":
+			out.Values[i] = ec._AutomationActionPayload_message(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var automationConditionImplementors = []string{"AutomationCondition"}
+
+func (ec *executionContext) _AutomationCondition(ctx context.Context, sel ast.SelectionSet, obj *automation.AuthoringCondition) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, automationConditionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AutomationCondition")
+		case "negate":
+			out.Values[i] = ec._AutomationCondition_negate(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "mode":
+			out.Values[i] = ec._AutomationCondition_mode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "afterHour":
+			out.Values[i] = ec._AutomationCondition_afterHour(ctx, field, obj)
+		case "afterMinute":
+			out.Values[i] = ec._AutomationCondition_afterMinute(ctx, field, obj)
+		case "beforeHour":
+			out.Values[i] = ec._AutomationCondition_beforeHour(ctx, field, obj)
+		case "beforeMinute":
+			out.Values[i] = ec._AutomationCondition_beforeMinute(ctx, field, obj)
+		case "weekdays":
+			out.Values[i] = ec._AutomationCondition_weekdays(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "targetType":
+			out.Values[i] = ec._AutomationCondition_targetType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "targetId":
+			out.Values[i] = ec._AutomationCondition_targetId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "property":
+			out.Values[i] = ec._AutomationCondition_property(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "comparator":
+			out.Values[i] = ec._AutomationCondition_comparator(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._AutomationCondition_value(ctx, field, obj)
+		case "customExpr":
+			out.Values[i] = ec._AutomationCondition_customExpr(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var automationConfigImplementors = []string{"AutomationConfig"}
+
+func (ec *executionContext) _AutomationConfig(ctx context.Context, sel ast.SelectionSet, obj *automation.AuthoringConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, automationConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AutomationConfig")
+		case "trigger":
+			out.Values[i] = ec._AutomationConfig_trigger(ctx, field, obj)
+		case "condition":
+			out.Values[i] = ec._AutomationConfig_condition(ctx, field, obj)
+		case "operator":
+			out.Values[i] = ec._AutomationConfig_operator(ctx, field, obj)
+		case "action":
+			out.Values[i] = ec._AutomationConfig_action(ctx, field, obj)
+		case "macro":
+			out.Values[i] = ec._AutomationConfig_macro(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -39426,6 +51484,11 @@ func (ec *executionContext) _AutomationGraph(ctx context.Context, sel ast.Select
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("AutomationGraph")
+		case "revision":
+			out.Values[i] = ec._AutomationGraph_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "id":
 			out.Values[i] = ec._AutomationGraph_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -39443,8 +51506,8 @@ func (ec *executionContext) _AutomationGraph(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "compilable":
-			out.Values[i] = ec._AutomationGraph_compilable(ctx, field, obj)
+		case "validation":
+			out.Values[i] = ec._AutomationGraph_validation(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -39467,6 +51530,97 @@ func (ec *executionContext) _AutomationGraph(ctx context.Context, sel ast.Select
 			}
 		case "createdBy":
 			out.Values[i] = ec._AutomationGraph_createdBy(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var automationLiteralImplementors = []string{"AutomationLiteral"}
+
+func (ec *executionContext) _AutomationLiteral(ctx context.Context, sel ast.SelectionSet, obj *automation.Literal) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, automationLiteralImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AutomationLiteral")
+		case "stringValue":
+			out.Values[i] = ec._AutomationLiteral_stringValue(ctx, field, obj)
+		case "numberValue":
+			out.Values[i] = ec._AutomationLiteral_numberValue(ctx, field, obj)
+		case "booleanValue":
+			out.Values[i] = ec._AutomationLiteral_booleanValue(ctx, field, obj)
+		case "nullValue":
+			out.Values[i] = ec._AutomationLiteral_nullValue(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var automationMacroImplementors = []string{"AutomationMacro"}
+
+func (ec *executionContext) _AutomationMacro(ctx context.Context, sel ast.SelectionSet, obj *automation.AuthoringMacro) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, automationMacroImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AutomationMacro")
+		case "name":
+			out.Values[i] = ec._AutomationMacro_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "negate":
+			out.Values[i] = ec._AutomationMacro_negate(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "arguments":
+			out.Values[i] = ec._AutomationMacro_arguments(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -39607,6 +51761,276 @@ func (ec *executionContext) _AutomationNodeActivationEvent(ctx context.Context, 
 	return out
 }
 
+var automationNodePreviewImplementors = []string{"AutomationNodePreview"}
+
+func (ec *executionContext) _AutomationNodePreview(ctx context.Context, sel ast.SelectionSet, obj *model.AutomationNodePreview) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, automationNodePreviewImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AutomationNodePreview")
+		case "expression":
+			out.Values[i] = ec._AutomationNodePreview_expression(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cron":
+			out.Values[i] = ec._AutomationNodePreview_cron(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var automationOperatorImplementors = []string{"AutomationOperator"}
+
+func (ec *executionContext) _AutomationOperator(ctx context.Context, sel ast.SelectionSet, obj *automation.AuthoringOperator) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, automationOperatorImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AutomationOperator")
+		case "kind":
+			out.Values[i] = ec._AutomationOperator_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var automationTriggerImplementors = []string{"AutomationTrigger"}
+
+func (ec *executionContext) _AutomationTrigger(ctx context.Context, sel ast.SelectionSet, obj *automation.AuthoringTrigger) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, automationTriggerImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AutomationTrigger")
+		case "mode":
+			out.Values[i] = ec._AutomationTrigger_mode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deviceId":
+			out.Values[i] = ec._AutomationTrigger_deviceId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "property":
+			out.Values[i] = ec._AutomationTrigger_property(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "comparator":
+			out.Values[i] = ec._AutomationTrigger_comparator(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._AutomationTrigger_value(ctx, field, obj)
+		case "eventValue":
+			out.Values[i] = ec._AutomationTrigger_eventValue(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "eventType":
+			out.Values[i] = ec._AutomationTrigger_eventType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "customExpr":
+			out.Values[i] = ec._AutomationTrigger_customExpr(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "endpointId":
+			out.Values[i] = ec._AutomationTrigger_endpointId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "webhookFilters":
+			out.Values[i] = ec._AutomationTrigger_webhookFilters(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "scheduleSubmode":
+			out.Values[i] = ec._AutomationTrigger_scheduleSubmode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cronExpr":
+			out.Values[i] = ec._AutomationTrigger_cronExpr(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "scheduleHour":
+			out.Values[i] = ec._AutomationTrigger_scheduleHour(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "scheduleMinute":
+			out.Values[i] = ec._AutomationTrigger_scheduleMinute(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "scheduleSecond":
+			out.Values[i] = ec._AutomationTrigger_scheduleSecond(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "scheduleWeekdays":
+			out.Values[i] = ec._AutomationTrigger_scheduleWeekdays(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "scheduleIntervalValue":
+			out.Values[i] = ec._AutomationTrigger_scheduleIntervalValue(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "scheduleIntervalUnit":
+			out.Values[i] = ec._AutomationTrigger_scheduleIntervalUnit(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "graceMs":
+			out.Values[i] = ec._AutomationTrigger_graceMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cooldownMs":
+			out.Values[i] = ec._AutomationTrigger_cooldownMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "holdMs":
+			out.Values[i] = ec._AutomationTrigger_holdMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var automationWebhookFilterImplementors = []string{"AutomationWebhookFilter"}
+
+func (ec *executionContext) _AutomationWebhookFilter(ctx context.Context, sel ast.SelectionSet, obj *automation.AuthoringWebhookFilter) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, automationWebhookFilterImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AutomationWebhookFilter")
+		case "source":
+			out.Values[i] = ec._AutomationWebhookFilter_source(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "path":
+			out.Values[i] = ec._AutomationWebhookFilter_path(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "operator":
+			out.Values[i] = ec._AutomationWebhookFilter_operator(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._AutomationWebhookFilter_value(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var capabilityImplementors = []string{"Capability"}
 
 func (ec *executionContext) _Capability(ctx context.Context, sel ast.SelectionSet, obj *model.Capability) graphql.Marshaler {
@@ -39683,6 +52107,114 @@ func (ec *executionContext) _Capability(ctx context.Context, sel ast.SelectionSe
 	return out
 }
 
+var claudeAvailableModelImplementors = []string{"ClaudeAvailableModel"}
+
+func (ec *executionContext) _ClaudeAvailableModel(ctx context.Context, sel ast.SelectionSet, obj *model.ClaudeAvailableModel) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, claudeAvailableModelImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ClaudeAvailableModel")
+		case "id":
+			out.Values[i] = ec._ClaudeAvailableModel_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._ClaudeAvailableModel_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resolvedModel":
+			out.Values[i] = ec._ClaudeAvailableModel_resolvedModel(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var claudeConfigImplementors = []string{"ClaudeConfig"}
+
+func (ec *executionContext) _ClaudeConfig(ctx context.Context, sel ast.SelectionSet, obj *model.ClaudeConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, claudeConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ClaudeConfig")
+		case "revision":
+			out.Values[i] = ec._ClaudeConfig_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "token":
+			out.Values[i] = ec._ClaudeConfig_token(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "enabled":
+			out.Values[i] = ec._ClaudeConfig_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "model":
+			out.Values[i] = ec._ClaudeConfig_model(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ready":
+			out.Values[i] = ec._ClaudeConfig_ready(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var colorImplementors = []string{"Color"}
 
 func (ec *executionContext) _Color(ctx context.Context, sel ast.SelectionSet, obj *model.Color) graphql.Marshaler {
@@ -39716,6 +52248,106 @@ func (ec *executionContext) _Color(ctx context.Context, sel ast.SelectionSet, ob
 			}
 		case "y":
 			out.Values[i] = ec._Color_y(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var configurationIssueImplementors = []string{"ConfigurationIssue"}
+
+func (ec *executionContext) _ConfigurationIssue(ctx context.Context, sel ast.SelectionSet, obj *model.ConfigurationIssue) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, configurationIssueImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ConfigurationIssue")
+		case "code":
+			out.Values[i] = ec._ConfigurationIssue_code(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "path":
+			out.Values[i] = ec._ConfigurationIssue_path(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "nodeId":
+			out.Values[i] = ec._ConfigurationIssue_nodeId(ctx, field, obj)
+		case "severity":
+			out.Values[i] = ec._ConfigurationIssue_severity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._ConfigurationIssue_message(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var configurationValidationImplementors = []string{"ConfigurationValidation"}
+
+func (ec *executionContext) _ConfigurationValidation(ctx context.Context, sel ast.SelectionSet, obj *model.ConfigurationValidation) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, configurationValidationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ConfigurationValidation")
+		case "valid":
+			out.Values[i] = ec._ConfigurationValidation_valid(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "issues":
+			out.Values[i] = ec._ConfigurationValidation_issues(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -39900,6 +52532,11 @@ func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, o
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Device")
+		case "revision":
+			out.Values[i] = ec._Device_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "id":
 			out.Values[i] = ec._Device_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -40466,6 +53103,11 @@ func (ec *executionContext) _Effect(ctx context.Context, sel ast.SelectionSet, o
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Effect")
+		case "revision":
+			out.Values[i] = ec._Effect_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "id":
 			out.Values[i] = ec._Effect_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -40583,6 +53225,296 @@ func (ec *executionContext) _EffectClip(ctx context.Context, sel ast.SelectionSe
 			}
 		case "config":
 			out.Values[i] = ec._EffectClip_config(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var effectClipConfigImplementors = []string{"EffectClipConfig"}
+
+func (ec *executionContext) _EffectClipConfig(ctx context.Context, sel ast.SelectionSet, obj *effect.ClipConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, effectClipConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("EffectClipConfig")
+		case "setOnOff":
+			out.Values[i] = ec._EffectClipConfig_setOnOff(ctx, field, obj)
+		case "setBrightness":
+			out.Values[i] = ec._EffectClipConfig_setBrightness(ctx, field, obj)
+		case "setColor":
+			out.Values[i] = ec._EffectClipConfig_setColor(ctx, field, obj)
+		case "nativeEffect":
+			out.Values[i] = ec._EffectClipConfig_nativeEffect(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var effectNativeEffectClipConfigImplementors = []string{"EffectNativeEffectClipConfig"}
+
+func (ec *executionContext) _EffectNativeEffectClipConfig(ctx context.Context, sel ast.SelectionSet, obj *effect.NativeEffectClipConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, effectNativeEffectClipConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("EffectNativeEffectClipConfig")
+		case "name":
+			out.Values[i] = ec._EffectNativeEffectClipConfig_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var effectSetBrightnessClipConfigImplementors = []string{"EffectSetBrightnessClipConfig"}
+
+func (ec *executionContext) _EffectSetBrightnessClipConfig(ctx context.Context, sel ast.SelectionSet, obj *effect.SetBrightnessClipConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, effectSetBrightnessClipConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("EffectSetBrightnessClipConfig")
+		case "value":
+			out.Values[i] = ec._EffectSetBrightnessClipConfig_value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var effectSetColorClipConfigImplementors = []string{"EffectSetColorClipConfig"}
+
+func (ec *executionContext) _EffectSetColorClipConfig(ctx context.Context, sel ast.SelectionSet, obj *effect.SetColorClipConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, effectSetColorClipConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("EffectSetColorClipConfig")
+		case "mode":
+			out.Values[i] = ec._EffectSetColorClipConfig_mode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rgb":
+			out.Values[i] = ec._EffectSetColorClipConfig_rgb(ctx, field, obj)
+		case "temp":
+			out.Values[i] = ec._EffectSetColorClipConfig_temp(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var effectSetColorRGBValueImplementors = []string{"EffectSetColorRGBValue"}
+
+func (ec *executionContext) _EffectSetColorRGBValue(ctx context.Context, sel ast.SelectionSet, obj *effect.SetColorRGBValue) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, effectSetColorRGBValueImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("EffectSetColorRGBValue")
+		case "r":
+			out.Values[i] = ec._EffectSetColorRGBValue_r(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "g":
+			out.Values[i] = ec._EffectSetColorRGBValue_g(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "b":
+			out.Values[i] = ec._EffectSetColorRGBValue_b(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var effectSetColorTempValueImplementors = []string{"EffectSetColorTempValue"}
+
+func (ec *executionContext) _EffectSetColorTempValue(ctx context.Context, sel ast.SelectionSet, obj *effect.SetColorTempValue) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, effectSetColorTempValueImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("EffectSetColorTempValue")
+		case "mireds":
+			out.Values[i] = ec._EffectSetColorTempValue_mireds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var effectSetOnOffClipConfigImplementors = []string{"EffectSetOnOffClipConfig"}
+
+func (ec *executionContext) _EffectSetOnOffClipConfig(ctx context.Context, sel ast.SelectionSet, obj *effect.SetOnOffClipConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, effectSetOnOffClipConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("EffectSetOnOffClipConfig")
+		case "value":
+			out.Values[i] = ec._EffectSetOnOffClipConfig_value(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -40728,6 +53660,11 @@ func (ec *executionContext) _Floorplan(ctx context.Context, sel ast.SelectionSet
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Floorplan")
+		case "revision":
+			out.Values[i] = ec._Floorplan_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "id":
 			out.Values[i] = ec._Floorplan_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -41203,6 +54140,11 @@ func (ec *executionContext) _Group(ctx context.Context, sel ast.SelectionSet, ob
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Group")
+		case "revision":
+			out.Values[i] = ec._Group_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "id":
 			out.Values[i] = ec._Group_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -41617,6 +54559,11 @@ func (ec *executionContext) _Integration(ctx context.Context, sel ast.SelectionS
 			}
 		case "message":
 			out.Values[i] = ec._Integration_message(ctx, field, obj)
+		case "kind":
+			out.Values[i] = ec._Integration_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -41695,6 +54642,11 @@ func (ec *executionContext) _LocalizedNameSet(ctx context.Context, sel ast.Selec
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("LocalizedNameSet")
+		case "revision":
+			out.Values[i] = ec._LocalizedNameSet_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "entityType":
 			out.Values[i] = ec._LocalizedNameSet_entityType(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -42413,6 +55365,69 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "discoverClaudeModels":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_discoverClaudeModels(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateClaudeConfig":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateClaudeConfig(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "testClaudeConnection":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_testClaudeConnection(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createAssistantConversation":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createAssistantConversation(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "renameAssistantConversation":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_renameAssistantConversation(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteAssistantConversation":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteAssistantConversation(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "sendAssistantMessage":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_sendAssistantMessage(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stopAssistantRun":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_stopAssistantRun(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "respondToAssistantAction":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_respondToAssistantAction(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -43112,6 +56127,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "validateAutomation":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_validateAutomation(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "webhookEndpoints":
 			field := field
 
@@ -43767,6 +56804,135 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "assistantActionPrivateResult":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_assistantActionPrivateResult(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "claudeConfig":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_claudeConfig(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "assistantConversations":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_assistantConversations(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "assistantConversation":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_assistantConversation(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "automationNodePreview":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_automationNodePreview(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "sceneAuthoring":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_sceneAuthoring(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -43809,6 +56975,11 @@ func (ec *executionContext) _Room(ctx context.Context, sel ast.SelectionSet, obj
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Room")
+		case "revision":
+			out.Values[i] = ec._Room_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "id":
 			out.Values[i] = ec._Room_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -43920,6 +57091,11 @@ func (ec *executionContext) _Scene(ctx context.Context, sel ast.SelectionSet, ob
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Scene")
+		case "revision":
+			out.Values[i] = ec._Scene_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "id":
 			out.Values[i] = ec._Scene_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -44002,6 +57178,55 @@ func (ec *executionContext) _SceneActiveEvent(ctx context.Context, sel ast.Selec
 			}
 		case "activatedAt":
 			out.Values[i] = ec._SceneActiveEvent_activatedAt(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var sceneAuthoredStateImplementors = []string{"SceneAuthoredState"}
+
+func (ec *executionContext) _SceneAuthoredState(ctx context.Context, sel ast.SelectionSet, obj *model.SceneAuthoredState) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, sceneAuthoredStateImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SceneAuthoredState")
+		case "deviceId":
+			out.Values[i] = ec._SceneAuthoredState_deviceId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lighting":
+			out.Values[i] = ec._SceneAuthoredState_lighting(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "state":
+			out.Values[i] = ec._SceneAuthoredState_state(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -44286,6 +57511,11 @@ func (ec *executionContext) _Setting(ctx context.Context, sel ast.SelectionSet, 
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Setting")
+		case "revision":
+			out.Values[i] = ec._Setting_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "key":
 			out.Values[i] = ec._Setting_key(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -44508,6 +57738,10 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 		return ec._Subscription_nativeEffectSupportChanged(ctx, fields[0])
 	case "networkTopologyUpdated":
 		return ec._Subscription_networkTopologyUpdated(ctx, fields[0])
+	case "assistantConversationChanged":
+		return ec._Subscription_assistantConversationChanged(ctx, fields[0])
+	case "applicationChanged":
+		return ec._Subscription_applicationChanged(ctx, fields[0])
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}
@@ -44690,6 +57924,11 @@ func (ec *executionContext) _TuyaConfig(ctx context.Context, sel ast.SelectionSe
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("TuyaConfig")
+		case "revision":
+			out.Values[i] = ec._TuyaConfig_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "accessId":
 			out.Values[i] = ec._TuyaConfig_accessId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -44733,6 +57972,50 @@ func (ec *executionContext) _TuyaConfig(ctx context.Context, sel ast.SelectionSe
 	return out
 }
 
+var tuyaConfigResultImplementors = []string{"TuyaConfigResult"}
+
+func (ec *executionContext) _TuyaConfigResult(ctx context.Context, sel ast.SelectionSet, obj *model.TuyaConfigResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, tuyaConfigResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("TuyaConfigResult")
+		case "config":
+			out.Values[i] = ec._TuyaConfigResult_config(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "application":
+			out.Values[i] = ec._TuyaConfigResult_application(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var userImplementors = []string{"User"}
 
 func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj *model.User) graphql.Marshaler {
@@ -44744,6 +58027,11 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("User")
+		case "revision":
+			out.Values[i] = ec._User_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "id":
 			out.Values[i] = ec._User_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -44775,6 +58063,55 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = ec._User_createdAt(ctx, field, obj)
 		case "mustChangePassword":
 			out.Values[i] = ec._User_mustChangePassword(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var userRefImplementors = []string{"UserRef"}
+
+func (ec *executionContext) _UserRef(ctx context.Context, sel ast.SelectionSet, obj *model.UserRef) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, userRefImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("UserRef")
+		case "id":
+			out.Values[i] = ec._UserRef_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "username":
+			out.Values[i] = ec._UserRef_username(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._UserRef_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -45099,6 +58436,11 @@ func (ec *executionContext) _WebhookEndpoint(ctx context.Context, sel ast.Select
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("WebhookEndpoint")
+		case "revision":
+			out.Values[i] = ec._WebhookEndpoint_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "id":
 			out.Values[i] = ec._WebhookEndpoint_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -45268,6 +58610,11 @@ func (ec *executionContext) _Zigbee2MqttConfig(ctx context.Context, sel ast.Sele
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Zigbee2MqttConfig")
+		case "revision":
+			out.Values[i] = ec._Zigbee2MqttConfig_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "broker":
 			out.Values[i] = ec._Zigbee2MqttConfig_broker(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -45318,6 +58665,50 @@ func (ec *executionContext) _Zigbee2MqttConfig(ctx context.Context, sel ast.Sele
 			}
 		case "activeContinuousDeviceIds":
 			out.Values[i] = ec._Zigbee2MqttConfig_activeContinuousDeviceIds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var zigbee2MqttConfigResultImplementors = []string{"Zigbee2MqttConfigResult"}
+
+func (ec *executionContext) _Zigbee2MqttConfigResult(ctx context.Context, sel ast.SelectionSet, obj *model.Zigbee2MqttConfigResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, zigbee2MqttConfigResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Zigbee2MqttConfigResult")
+		case "config":
+			out.Values[i] = ec._Zigbee2MqttConfigResult_config(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "application":
+			out.Values[i] = ec._Zigbee2MqttConfigResult_application(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -46137,6 +59528,252 @@ func (ec *executionContext) marshalNAlarmSeverity2githubᚗcomᚋsaffronjamᚋsa
 	return v
 }
 
+func (ec *executionContext) marshalNAssistantAction2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantActionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AssistantAction) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAssistantAction2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantAction(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAssistantAction2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantAction(ctx context.Context, sel ast.SelectionSet, v *model.AssistantAction) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AssistantAction(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNAssistantActionResponseInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantActionResponseInput(ctx context.Context, v any) (model.AssistantActionResponseInput, error) {
+	res, err := ec.unmarshalInputAssistantActionResponseInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNAssistantActionStatus2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantActionStatus(ctx context.Context, v any) (model.AssistantActionStatus, error) {
+	var res model.AssistantActionStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAssistantActionStatus2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantActionStatus(ctx context.Context, sel ast.SelectionSet, v model.AssistantActionStatus) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNAssistantAttachment2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantAttachmentᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AssistantAttachment) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAssistantAttachment2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantAttachment(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAssistantAttachment2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantAttachment(ctx context.Context, sel ast.SelectionSet, v *model.AssistantAttachment) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AssistantAttachment(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAssistantConversation2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantConversation(ctx context.Context, sel ast.SelectionSet, v model.AssistantConversation) graphql.Marshaler {
+	return ec._AssistantConversation(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAssistantConversation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantConversation(ctx context.Context, sel ast.SelectionSet, v *model.AssistantConversation) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AssistantConversation(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAssistantConversationSummary2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantConversationSummaryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AssistantConversationSummary) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAssistantConversationSummary2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantConversationSummary(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAssistantConversationSummary2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantConversationSummary(ctx context.Context, sel ast.SelectionSet, v *model.AssistantConversationSummary) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AssistantConversationSummary(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAssistantMessage2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantMessageᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AssistantMessage) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAssistantMessage2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantMessage(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAssistantMessage2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantMessage(ctx context.Context, sel ast.SelectionSet, v *model.AssistantMessage) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AssistantMessage(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNAssistantMessageInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantMessageInput(ctx context.Context, v any) (model.AssistantMessageInput, error) {
+	res, err := ec.unmarshalInputAssistantMessageInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAssistantPrivateField2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantPrivateFieldᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AssistantPrivateField) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAssistantPrivateField2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantPrivateField(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAssistantPrivateField2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantPrivateField(ctx context.Context, sel ast.SelectionSet, v *model.AssistantPrivateField) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AssistantPrivateField(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNAssistantPrivateValueInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantPrivateValueInputᚄ(ctx context.Context, v any) ([]*model.AssistantPrivateValueInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.AssistantPrivateValueInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNAssistantPrivateValueInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantPrivateValueInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNAssistantPrivateValueInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantPrivateValueInput(ctx context.Context, v any) (*model.AssistantPrivateValueInput, error) {
+	res, err := ec.unmarshalInputAssistantPrivateValueInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAssistantRun2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantRunᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AssistantRun) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAssistantRun2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantRun(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAssistantRun2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantRun(ctx context.Context, sel ast.SelectionSet, v *model.AssistantRun) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AssistantRun(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNAssistantRunState2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantRunState(ctx context.Context, v any) (model.AssistantRunState, error) {
+	var res model.AssistantRunState
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAssistantRunState2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantRunState(ctx context.Context, sel ast.SelectionSet, v model.AssistantRunState) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNAssistantTarget2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantTargetᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AssistantTarget) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAssistantTarget2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantTarget(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAssistantTarget2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantTarget(ctx context.Context, sel ast.SelectionSet, v *model.AssistantTarget) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AssistantTarget(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNAuthPayload2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAuthPayload(ctx context.Context, sel ast.SelectionSet, v model.AuthPayload) graphql.Marshaler {
 	return ec._AuthPayload(ctx, sel, &v)
 }
@@ -46149,6 +59786,127 @@ func (ec *executionContext) marshalNAuthPayload2ᚖgithubᚗcomᚋsaffronjamᚋs
 		return graphql.Null
 	}
 	return ec._AuthPayload(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAuthoringAttribute2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐAttributeValue(ctx context.Context, sel ast.SelectionSet, v device.AttributeValue) graphql.Marshaler {
+	return ec._AuthoringAttribute(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAuthoringAttribute2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐAttributeValueᚄ(ctx context.Context, sel ast.SelectionSet, v []device.AttributeValue) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAuthoringAttribute2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐAttributeValue(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNAuthoringAttributeInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐAttributeValue(ctx context.Context, v any) (device.AttributeValue, error) {
+	res, err := ec.unmarshalInputAuthoringAttributeInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAuthoringClause2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐClause(ctx context.Context, sel ast.SelectionSet, v device.Clause) graphql.Marshaler {
+	return ec._AuthoringClause(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAuthoringClause2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐClauseᚄ(ctx context.Context, sel ast.SelectionSet, v []device.Clause) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAuthoringClause2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐClause(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNAuthoringClauseInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐClause(ctx context.Context, v any) (device.Clause, error) {
+	res, err := ec.unmarshalInputAuthoringClauseInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNAuthoringClauseOp2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐClauseOp(ctx context.Context, v any) (device.ClauseOp, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := device.ClauseOp(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAuthoringClauseOp2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐClauseOp(ctx context.Context, sel ast.SelectionSet, v device.ClauseOp) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
+func (ec *executionContext) unmarshalNAuthoringClauseSubject2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐClauseSubject(ctx context.Context, v any) (device.ClauseSubject, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := device.ClauseSubject(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAuthoringClauseSubject2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐClauseSubject(ctx context.Context, sel ast.SelectionSet, v device.ClauseSubject) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
+func (ec *executionContext) unmarshalNAuthoringConnector2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐConnector(ctx context.Context, v any) (device.Connector, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := device.Connector(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAuthoringConnector2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐConnector(ctx context.Context, sel ast.SelectionSet, v device.Connector) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
+func (ec *executionContext) marshalNAutomationConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringConfig(ctx context.Context, sel ast.SelectionSet, v *automation.AuthoringConfig) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AutomationConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNAutomationConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringConfig(ctx context.Context, v any) (automation.AuthoringConfig, error) {
+	res, err := ec.unmarshalInputAutomationConfigInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNAutomationConfigInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringConfig(ctx context.Context, v any) (*automation.AuthoringConfig, error) {
+	res, err := ec.unmarshalInputAutomationConfigInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNAutomationEdge2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationEdgeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AutomationEdge) graphql.Marshaler {
@@ -46287,6 +60045,45 @@ func (ec *executionContext) unmarshalNAutomationNodeInput2ᚖgithubᚗcomᚋsaff
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNAutomationNodePreview2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodePreview(ctx context.Context, sel ast.SelectionSet, v model.AutomationNodePreview) graphql.Marshaler {
+	return ec._AutomationNodePreview(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAutomationNodePreview2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodePreview(ctx context.Context, sel ast.SelectionSet, v *model.AutomationNodePreview) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AutomationNodePreview(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAutomationWebhookFilter2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringWebhookFilter(ctx context.Context, sel ast.SelectionSet, v automation.AuthoringWebhookFilter) graphql.Marshaler {
+	return ec._AutomationWebhookFilter(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAutomationWebhookFilter2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringWebhookFilterᚄ(ctx context.Context, sel ast.SelectionSet, v []automation.AuthoringWebhookFilter) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAutomationWebhookFilter2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringWebhookFilter(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNAutomationWebhookFilterInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringWebhookFilter(ctx context.Context, v any) (automation.AuthoringWebhookFilter, error) {
+	res, err := ec.unmarshalInputAutomationWebhookFilterInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v any) (bool, error) {
 	res, err := graphql.UnmarshalBoolean(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -46344,6 +60141,51 @@ func (ec *executionContext) unmarshalNChangePasswordInput2githubᚗcomᚋsaffron
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNClaudeAvailableModel2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐClaudeAvailableModelᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ClaudeAvailableModel) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNClaudeAvailableModel2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐClaudeAvailableModel(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNClaudeAvailableModel2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐClaudeAvailableModel(ctx context.Context, sel ast.SelectionSet, v *model.ClaudeAvailableModel) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ClaudeAvailableModel(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNClaudeConfig2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐClaudeConfig(ctx context.Context, sel ast.SelectionSet, v model.ClaudeConfig) graphql.Marshaler {
+	return ec._ClaudeConfig(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNClaudeConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐClaudeConfig(ctx context.Context, sel ast.SelectionSet, v *model.ClaudeConfig) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ClaudeConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNClaudeConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐClaudeConfigInput(ctx context.Context, v any) (model.ClaudeConfigInput, error) {
+	res, err := ec.unmarshalInputClaudeConfigInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNCommandTargetInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCommandTargetInput(ctx context.Context, v any) (model.CommandTargetInput, error) {
 	res, err := ec.unmarshalInputCommandTargetInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -46357,6 +60199,46 @@ func (ec *executionContext) unmarshalNCommandTargetType2githubᚗcomᚋsaffronja
 
 func (ec *executionContext) marshalNCommandTargetType2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCommandTargetType(ctx context.Context, sel ast.SelectionSet, v model.CommandTargetType) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) marshalNConfigurationIssue2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConfigurationIssueᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ConfigurationIssue) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNConfigurationIssue2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConfigurationIssue(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNConfigurationIssue2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConfigurationIssue(ctx context.Context, sel ast.SelectionSet, v *model.ConfigurationIssue) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ConfigurationIssue(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNConfigurationValidation2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConfigurationValidation(ctx context.Context, sel ast.SelectionSet, v model.ConfigurationValidation) graphql.Marshaler {
+	return ec._ConfigurationValidation(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNConfigurationValidation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConfigurationValidation(ctx context.Context, sel ast.SelectionSet, v *model.ConfigurationValidation) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ConfigurationValidation(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNConnectionTestCode2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConnectionTestCode(ctx context.Context, v any) (model.ConnectionTestCode, error) {
@@ -46708,6 +60590,21 @@ func (ec *executionContext) marshalNEffectClip2ᚖgithubᚗcomᚋsaffronjamᚋsa
 	return ec._EffectClip(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNEffectClipConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐClipConfig(ctx context.Context, sel ast.SelectionSet, v *effect.ClipConfig) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._EffectClipConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNEffectClipConfigInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐClipConfig(ctx context.Context, v any) (*effect.ClipConfig, error) {
+	res, err := ec.unmarshalInputEffectClipConfigInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNEffectClipInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectClipInputᚄ(ctx context.Context, v any) ([]*model.EffectClipInput, error) {
 	var vSlice []any
 	vSlice = graphql.CoerceList(v)
@@ -46736,6 +60633,23 @@ func (ec *executionContext) unmarshalNEffectClipKind2githubᚗcomᚋsaffronjam�
 
 func (ec *executionContext) marshalNEffectClipKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectClipKind(ctx context.Context, sel ast.SelectionSet, v model.EffectClipKind) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) unmarshalNEffectColorMode2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐColorMode(ctx context.Context, v any) (effect.ColorMode, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := effect.ColorMode(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNEffectColorMode2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐColorMode(ctx context.Context, sel ast.SelectionSet, v effect.ColorMode) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
 }
 
 func (ec *executionContext) unmarshalNEffectKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectKind(ctx context.Context, v any) (model.EffectKind, error) {
@@ -47246,6 +61160,11 @@ func (ec *executionContext) marshalNGroupMember2ᚖgithubᚗcomᚋsaffronjamᚋs
 	return ec._GroupMember(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNGroupMemberInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupMemberInput(ctx context.Context, v any) (*model.GroupMemberInput, error) {
+	res, err := ec.unmarshalInputGroupMemberInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNGroupTag2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTag(ctx context.Context, v any) (model.GroupTag, error) {
 	var res model.GroupTag
 	err := res.UnmarshalGQL(v)
@@ -47462,6 +61381,22 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 	return res
 }
 
+func (ec *executionContext) unmarshalNInt2int64(ctx context.Context, v any) (int64, error) {
+	res, err := graphql.UnmarshalInt64(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNInt2int64(ctx context.Context, sel ast.SelectionSet, v int64) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalInt64(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
 func (ec *executionContext) marshalNIntegration2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐIntegrationᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Integration) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -47486,6 +61421,68 @@ func (ec *executionContext) marshalNIntegration2ᚖgithubᚗcomᚋsaffronjamᚋs
 		return graphql.Null
 	}
 	return ec._Integration(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNIntegrationKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐIntegrationKind(ctx context.Context, v any) (model.IntegrationKind, error) {
+	var res model.IntegrationKind
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNIntegrationKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐIntegrationKind(ctx context.Context, sel ast.SelectionSet, v model.IntegrationKind) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNJSON2encodingᚋjsonᚐRawMessage(ctx context.Context, v any) (json.RawMessage, error) {
+	res, err := scalars.UnmarshalRawJSON(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNJSON2encodingᚋjsonᚐRawMessage(ctx context.Context, sel ast.SelectionSet, v json.RawMessage) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	_ = sel
+	res := scalars.MarshalRawJSON(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
+func (ec *executionContext) unmarshalNJSON2ᚕencodingᚋjsonᚐRawMessageᚄ(ctx context.Context, v any) ([]json.RawMessage, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]json.RawMessage, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNJSON2encodingᚋjsonᚐRawMessage(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNJSON2ᚕencodingᚋjsonᚐRawMessageᚄ(ctx context.Context, sel ast.SelectionSet, v []json.RawMessage) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNJSON2encodingᚋjsonᚐRawMessage(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNLanguage2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLanguage(ctx context.Context, v any) (model.Language, error) {
@@ -48010,6 +62007,37 @@ func (ec *executionContext) marshalNSceneActiveEvent2ᚖgithubᚗcomᚋsaffronja
 	return ec._SceneActiveEvent(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNSceneAuthoredState2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneAuthoredStateᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SceneAuthoredState) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNSceneAuthoredState2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneAuthoredState(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNSceneAuthoredState2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneAuthoredState(ctx context.Context, sel ast.SelectionSet, v *model.SceneAuthoredState) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SceneAuthoredState(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNSceneAuthoringInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneAuthoringInput(ctx context.Context, v any) (model.SceneAuthoringInput, error) {
+	res, err := ec.unmarshalInputSceneAuthoringInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNSceneDefinitionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneDefinitionInput(ctx context.Context, v any) (*model.SceneDefinitionInput, error) {
 	res, err := ec.unmarshalInputSceneDefinitionInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
@@ -48094,6 +62122,16 @@ func (ec *executionContext) marshalNScenePreview2ᚖgithubᚗcomᚋsaffronjamᚋ
 		return graphql.Null
 	}
 	return ec._ScenePreview(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNSceneStateSource2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneStateSource(ctx context.Context, v any) (model.SceneStateSource, error) {
+	var res model.SceneStateSource
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNSceneStateSource2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneStateSource(ctx context.Context, sel ast.SelectionSet, v model.SceneStateSource) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalNSceneSupportingState2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐSceneSupportingStateᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SceneSupportingState) graphql.Marshaler {
@@ -48458,10 +62496,6 @@ func (ec *executionContext) marshalNTopologyNode2ᚖgithubᚗcomᚋsaffronjamᚋ
 	return ec._TopologyNode(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNTuyaConfig2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfig(ctx context.Context, sel ast.SelectionSet, v model.TuyaConfig) graphql.Marshaler {
-	return ec._TuyaConfig(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNTuyaConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfig(ctx context.Context, sel ast.SelectionSet, v *model.TuyaConfig) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -48475,6 +62509,20 @@ func (ec *executionContext) marshalNTuyaConfig2ᚖgithubᚗcomᚋsaffronjamᚋsa
 func (ec *executionContext) unmarshalNTuyaConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfigInput(ctx context.Context, v any) (model.TuyaConfigInput, error) {
 	res, err := ec.unmarshalInputTuyaConfigInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNTuyaConfigResult2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfigResult(ctx context.Context, sel ast.SelectionSet, v model.TuyaConfigResult) graphql.Marshaler {
+	return ec._TuyaConfigResult(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNTuyaConfigResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐTuyaConfigResult(ctx context.Context, sel ast.SelectionSet, v *model.TuyaConfigResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._TuyaConfigResult(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNUpdateAutomationInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUpdateAutomationInput(ctx context.Context, v any) (model.UpdateAutomationInput, error) {
@@ -48717,10 +62765,6 @@ func (ec *executionContext) marshalNWebhookSecretResult2ᚖgithubᚗcomᚋsaffro
 	return ec._WebhookSecretResult(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNZigbee2MqttConfig2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfig(ctx context.Context, sel ast.SelectionSet, v model.Zigbee2MqttConfig) graphql.Marshaler {
-	return ec._Zigbee2MqttConfig(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNZigbee2MqttConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfig(ctx context.Context, sel ast.SelectionSet, v *model.Zigbee2MqttConfig) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -48734,6 +62778,20 @@ func (ec *executionContext) marshalNZigbee2MqttConfig2ᚖgithubᚗcomᚋsaffronj
 func (ec *executionContext) unmarshalNZigbee2MqttConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfigInput(ctx context.Context, v any) (model.Zigbee2MqttConfigInput, error) {
 	res, err := ec.unmarshalInputZigbee2MqttConfigInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNZigbee2MqttConfigResult2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfigResult(ctx context.Context, sel ast.SelectionSet, v model.Zigbee2MqttConfigResult) graphql.Marshaler {
+	return ec._Zigbee2MqttConfigResult(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNZigbee2MqttConfigResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttConfigResult(ctx context.Context, sel ast.SelectionSet, v *model.Zigbee2MqttConfigResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Zigbee2MqttConfigResult(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNZigbee2MqttOtaStatus2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐZigbee2MqttOtaStatus(ctx context.Context, sel ast.SelectionSet, v *model.Zigbee2MqttOtaStatus) graphql.Marshaler {
@@ -48984,6 +63042,115 @@ func (ec *executionContext) marshalOAlarmSeverity2ᚕgithubᚗcomᚋsaffronjam�
 	return ret
 }
 
+func (ec *executionContext) unmarshalOAuthoringAttributeInput2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐAttributeValueᚄ(ctx context.Context, v any) ([]device.AttributeValue, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]device.AttributeValue, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNAuthoringAttributeInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐAttributeValue(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalOAuthoringClauseInput2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐClauseᚄ(ctx context.Context, v any) ([]device.Clause, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]device.Clause, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNAuthoringClauseInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐClause(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOAuthoringColor2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐColor(ctx context.Context, sel ast.SelectionSet, v *device.Color) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._AuthoringColor(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOAuthoringColorInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐColor(ctx context.Context, v any) (*device.Color, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputAuthoringColorInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOAuthoringConnector2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐConnector(ctx context.Context, v any) (device.Connector, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := device.Connector(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOAuthoringConnector2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋdeviceᚐConnector(ctx context.Context, sel ast.SelectionSet, v device.Connector) graphql.Marshaler {
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalString(string(v))
+	return res
+}
+
+func (ec *executionContext) marshalOAutomationAction2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringAction(ctx context.Context, sel ast.SelectionSet, v *automation.AuthoringAction) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._AutomationAction(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOAutomationActionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringAction(ctx context.Context, v any) (*automation.AuthoringAction, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputAutomationActionInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOAutomationActionPayload2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringActionPayload(ctx context.Context, sel ast.SelectionSet, v *automation.AuthoringActionPayload) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._AutomationActionPayload(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOAutomationActionPayloadInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringActionPayload(ctx context.Context, v any) (*automation.AuthoringActionPayload, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputAutomationActionPayloadInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOAutomationCondition2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringCondition(ctx context.Context, sel ast.SelectionSet, v *automation.AuthoringCondition) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._AutomationCondition(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOAutomationConditionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringCondition(ctx context.Context, v any) (*automation.AuthoringCondition, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputAutomationConditionInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalOAutomationEdgeInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationEdgeInputᚄ(ctx context.Context, v any) ([]*model.AutomationEdgeInput, error) {
 	if v == nil {
 		return nil, nil
@@ -49009,6 +63176,36 @@ func (ec *executionContext) marshalOAutomationGraph2ᚖgithubᚗcomᚋsaffronjam
 	return ec._AutomationGraph(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalOAutomationLiteral2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐLiteral(ctx context.Context, sel ast.SelectionSet, v *automation.Literal) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._AutomationLiteral(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOAutomationLiteralInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐLiteral(ctx context.Context, v any) (*automation.Literal, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputAutomationLiteralInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOAutomationMacro2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringMacro(ctx context.Context, sel ast.SelectionSet, v *automation.AuthoringMacro) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._AutomationMacro(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOAutomationMacroInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringMacro(ctx context.Context, v any) (*automation.AuthoringMacro, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputAutomationMacroInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalOAutomationNodeInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeInputᚄ(ctx context.Context, v any) ([]*model.AutomationNodeInput, error) {
 	if v == nil {
 		return nil, nil
@@ -49020,6 +63217,54 @@ func (ec *executionContext) unmarshalOAutomationNodeInput2ᚕᚖgithubᚗcomᚋs
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
 		res[i], err = ec.unmarshalNAutomationNodeInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAutomationNodeInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOAutomationOperator2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringOperator(ctx context.Context, sel ast.SelectionSet, v *automation.AuthoringOperator) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._AutomationOperator(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOAutomationOperatorInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringOperator(ctx context.Context, v any) (*automation.AuthoringOperator, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputAutomationOperatorInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOAutomationTrigger2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringTrigger(ctx context.Context, sel ast.SelectionSet, v *automation.AuthoringTrigger) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._AutomationTrigger(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOAutomationTriggerInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringTrigger(ctx context.Context, v any) (*automation.AuthoringTrigger, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputAutomationTriggerInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOAutomationWebhookFilterInput2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringWebhookFilterᚄ(ctx context.Context, v any) ([]automation.AuthoringWebhookFilter, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]automation.AuthoringWebhookFilter, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNAutomationWebhookFilterInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋautomationᚐAuthoringWebhookFilter(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -49055,6 +63300,13 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	_ = ctx
 	res := graphql.MarshalBoolean(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOClaudeConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐClaudeConfig(ctx context.Context, sel ast.SelectionSet, v *model.ClaudeConfig) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ClaudeConfig(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOColor2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐColor(ctx context.Context, sel ast.SelectionSet, v *model.Color) graphql.Marshaler {
@@ -49173,6 +63425,96 @@ func (ec *executionContext) marshalOEffect2ᚖgithubᚗcomᚋsaffronjamᚋsaffro
 	return ec._Effect(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalOEffectNativeEffectClipConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐNativeEffectClipConfig(ctx context.Context, sel ast.SelectionSet, v *effect.NativeEffectClipConfig) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._EffectNativeEffectClipConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOEffectNativeEffectClipConfigInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐNativeEffectClipConfig(ctx context.Context, v any) (*effect.NativeEffectClipConfig, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputEffectNativeEffectClipConfigInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOEffectSetBrightnessClipConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetBrightnessClipConfig(ctx context.Context, sel ast.SelectionSet, v *effect.SetBrightnessClipConfig) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._EffectSetBrightnessClipConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOEffectSetBrightnessClipConfigInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetBrightnessClipConfig(ctx context.Context, v any) (*effect.SetBrightnessClipConfig, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputEffectSetBrightnessClipConfigInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOEffectSetColorClipConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetColorClipConfig(ctx context.Context, sel ast.SelectionSet, v *effect.SetColorClipConfig) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._EffectSetColorClipConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOEffectSetColorClipConfigInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetColorClipConfig(ctx context.Context, v any) (*effect.SetColorClipConfig, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputEffectSetColorClipConfigInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOEffectSetColorRGBValue2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetColorRGBValue(ctx context.Context, sel ast.SelectionSet, v *effect.SetColorRGBValue) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._EffectSetColorRGBValue(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOEffectSetColorRGBValueInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetColorRGBValue(ctx context.Context, v any) (*effect.SetColorRGBValue, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputEffectSetColorRGBValueInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOEffectSetColorTempValue2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetColorTempValue(ctx context.Context, sel ast.SelectionSet, v *effect.SetColorTempValue) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._EffectSetColorTempValue(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOEffectSetColorTempValueInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetColorTempValue(ctx context.Context, v any) (*effect.SetColorTempValue, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputEffectSetColorTempValueInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOEffectSetOnOffClipConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetOnOffClipConfig(ctx context.Context, sel ast.SelectionSet, v *effect.SetOnOffClipConfig) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._EffectSetOnOffClipConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOEffectSetOnOffClipConfigInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋeffectᚐSetOnOffClipConfig(ctx context.Context, v any) (*effect.SetOnOffClipConfig, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputEffectSetOnOffClipConfigInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalOEffectTrackInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffectTrackInputᚄ(ctx context.Context, v any) ([]*model.EffectTrackInput, error) {
 	if v == nil {
 		return nil, nil
@@ -49189,6 +63531,17 @@ func (ec *executionContext) unmarshalOEffectTrackInput2ᚕᚖgithubᚗcomᚋsaff
 		}
 	}
 	return res, nil
+}
+
+func (ec *executionContext) unmarshalOFloat2float64(ctx context.Context, v any) (float64, error) {
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOFloat2float64(ctx context.Context, sel ast.SelectionSet, v float64) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalFloatContext(v)
+	return graphql.WrapContextMarshaler(ctx, res)
 }
 
 func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v any) (*float64, error) {
@@ -49220,6 +63573,24 @@ func (ec *executionContext) marshalOGroup2ᚖgithubᚗcomᚋsaffronjamᚋsaffron
 		return graphql.Null
 	}
 	return ec._Group(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOGroupMemberInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupMemberInputᚄ(ctx context.Context, v any) ([]*model.GroupMemberInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.GroupMemberInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNGroupMemberInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupMemberInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) unmarshalOGroupTag2ᚕgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐGroupTagᚄ(ctx context.Context, v any) ([]model.GroupTag, error) {
@@ -49328,6 +63699,30 @@ func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) unmarshalOInt2int(ctx context.Context, v any) (int, error) {
+	res, err := graphql.UnmarshalInt(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInt2int(ctx context.Context, sel ast.SelectionSet, v int) graphql.Marshaler {
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalInt(v)
+	return res
+}
+
+func (ec *executionContext) unmarshalOInt2int64(ctx context.Context, v any) (int64, error) {
+	res, err := graphql.UnmarshalInt64(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInt2int64(ctx context.Context, sel ast.SelectionSet, v int64) graphql.Marshaler {
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalInt64(v)
+	return res
+}
+
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {
 	if v == nil {
 		return nil, nil
@@ -49344,6 +63739,42 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	_ = ctx
 	res := graphql.MarshalInt(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOJSON2ᚕencodingᚋjsonᚐRawMessageᚄ(ctx context.Context, v any) ([]json.RawMessage, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]json.RawMessage, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNJSON2encodingᚋjsonᚐRawMessage(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOJSON2ᚕencodingᚋjsonᚐRawMessageᚄ(ctx context.Context, sel ast.SelectionSet, v []json.RawMessage) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNJSON2encodingᚋjsonᚐRawMessage(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOLanguage2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐLanguage(ctx context.Context, v any) (*model.Language, error) {
@@ -49385,6 +63816,24 @@ func (ec *executionContext) marshalORoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffron�
 	return ec._Room(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalORoomMemberInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMemberInputᚄ(ctx context.Context, v any) ([]*model.RoomMemberInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.RoomMemberInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNRoomMemberInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐRoomMemberInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
 func (ec *executionContext) marshalOScene2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐScene(ctx context.Context, sel ast.SelectionSet, v *model.Scene) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -49405,6 +63854,18 @@ func (ec *executionContext) marshalOSceneTarget2githubᚗcomᚋsaffronjamᚋsaff
 		return graphql.Null
 	}
 	return ec._SceneTarget(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOString2string(ctx context.Context, v any) (string, error) {
+	res, err := graphql.UnmarshalString(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOString2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalString(v)
+	return res
 }
 
 func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
@@ -49563,6 +64024,13 @@ func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋsaffronjamᚋsaffron�
 		return graphql.Null
 	}
 	return ec._User(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOUserRef2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐUserRef(ctx context.Context, sel ast.SelectionSet, v *model.UserRef) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._UserRef(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOVibeSourceInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐVibeSourceInput(ctx context.Context, v any) (*model.VibeSourceInput, error) {

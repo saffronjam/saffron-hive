@@ -66,6 +66,7 @@ describe("webhooksStore", () => {
     const disabled = { ...endpoint, enabled: false };
     mock.queueMutationResult({ data: { updateWebhookEndpoint: disabled } });
     await fresh.webhooksStore.update(mock.client, endpoint.id, {
+ expectedRevision:1,
       name: endpoint.name,
       enabled: false,
       rateLimitCount: 1,

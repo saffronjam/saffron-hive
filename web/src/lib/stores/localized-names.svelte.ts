@@ -14,6 +14,7 @@ import { standardRoomName, standardRoomSearchNames } from "$lib/i18n/standard-ro
 const QUERY = graphql(`
   query LocalizedNamesBootstrap {
     localizedNameSets {
+      revision
       entityType
       entityId
       sourceLanguage
@@ -33,6 +34,7 @@ const DASHBOARD_QUERY = graphql(`
   query DashboardLocalizedNamesBootstrap {
     dashboardLocalization {
       localizedNameSets {
+        revision
         entityType
         entityId
         sourceLanguage
@@ -50,6 +52,7 @@ const DASHBOARD_QUERY = graphql(`
 const UPDATE = graphql(`
   mutation UpdateLocalizedNameSet($input: LocalizedNameSetInput!) {
     updateLocalizedNameSet(input: $input) {
+      revision
       entityType
       entityId
       sourceLanguage
@@ -62,6 +65,7 @@ const UPDATE = graphql(`
 `);
 
 interface WireNameSet {
+  revision: number;
   entityType: string;
   entityId: string;
   sourceLanguage: string;
@@ -73,6 +77,7 @@ function fromWire(value: WireNameSet): LocalizedNameSet {
   for (const item of value.translations)
     translations[item.language.toLowerCase() as Language] = item.value;
   return {
+    revision: value.revision,
     entityType: value.entityType,
     entityId: value.entityId,
     sourceLanguage: value.sourceLanguage.toLowerCase() as Language,
@@ -220,6 +225,7 @@ export const localizedNamesStore = {
     const result = await client
       .mutation(UPDATE, {
         input: {
+          expectedRevision: names.revision,
           entityType: names.entityType,
           entityId: names.entityId,
           sourceLanguage: languageToGraphQL(names.sourceLanguage),

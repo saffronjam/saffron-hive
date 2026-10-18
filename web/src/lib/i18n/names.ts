@@ -2,6 +2,7 @@ import type { Language } from "$lib/i18n/messages";
 import { collator } from "$lib/i18n/format";
 
 export interface LocalizedNameSet {
+  revision: number;
   entityType: string;
   entityId: string;
   sourceLanguage: Language;

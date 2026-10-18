@@ -235,10 +235,41 @@ func boolInt(value bool) int {
 	return 0
 }
 
-func validateSceneReferences(ctx context.Context, resolver *Resolver, definition store.SceneDefinition) error {
+func validateSceneReferences(ctx context.Context, resolver *Resolver, definition store.SceneDefinition, previous *store.SceneDefinition) error {
+	for _, target := range definition.Targets {
+		if target.Type != device.TargetExpression {
+			if err := validateEntityReference(ctx, resolver.Store, string(target.Type), target.ID); err != nil {
+				if previous != nil {
+					found := false
+					for _, old := range previous.Targets {
+						if old.Type == target.Type && old.ID == target.ID {
+							found = true
+							break
+						}
+					}
+					if found {
+						continue
+					}
+				}
+				return err
+			}
+		}
+	}
 	for _, override := range definition.Lighting.Overrides {
 		target, err := resolver.Store.GetDevice(ctx, override.DeviceID)
 		if err != nil {
+			if previous != nil {
+				found := false
+				for _, old := range previous.Lighting.Overrides {
+					if old.DeviceID == override.DeviceID && old.Kind == override.Kind && old.EffectID == override.EffectID && old.NativeEffectName == override.NativeEffectName {
+						found = true
+						break
+					}
+				}
+				if found {
+					continue
+				}
+			}
 			return fmt.Errorf("scene light override device %q: %w", override.DeviceID, err)
 		}
 		if !device.IsLightControlDevice(target) {
@@ -247,6 +278,18 @@ func validateSceneReferences(ctx context.Context, resolver *Resolver, definition
 		switch override.Kind {
 		case store.SceneLightOverrideEffect:
 			if _, err := resolver.Store.GetEffect(ctx, override.EffectID); err != nil {
+				if previous != nil {
+					found := false
+					for _, old := range previous.Lighting.Overrides {
+						if old.DeviceID == override.DeviceID && old.Kind == override.Kind && old.EffectID == override.EffectID {
+							found = true
+							break
+						}
+					}
+					if found {
+						continue
+					}
+				}
 				return fmt.Errorf("scene effect %q: %w", override.EffectID, err)
 			}
 		case store.SceneLightOverrideNativeEffect:
@@ -264,6 +307,18 @@ func validateSceneReferences(ctx context.Context, resolver *Resolver, definition
 	for _, supporting := range definition.Supporting {
 		target, err := resolver.Store.GetDevice(ctx, supporting.DeviceID)
 		if err != nil {
+			if previous != nil {
+				found := false
+				for _, old := range previous.Supporting {
+					if old.DeviceID == supporting.DeviceID {
+						found = true
+						break
+					}
+				}
+				if found {
+					continue
+				}
+			}
 			return fmt.Errorf("scene supporting device %q: %w", supporting.DeviceID, err)
 		}
 		if device.IsLightControlDevice(target) {

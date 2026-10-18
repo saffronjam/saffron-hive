@@ -4,7 +4,7 @@
 -- before hitting these queries and unmarshals on read.
 
 -- name: GetFloorplan :one
-SELECT id, name, created_at, updated_at
+SELECT revision, id, name, created_at, updated_at
 FROM floorplans
 ORDER BY created_at
 LIMIT 1;
@@ -134,3 +134,6 @@ UPDATE floorplan_rooms
 SET name    = COALESCE(name, (SELECT rooms.name FROM rooms WHERE rooms.id = sqlc.arg('room_id'))),
     room_id = NULL
 WHERE room_id = sqlc.arg('room_id');
+
+-- name: ClaimFloorplanRevision :execrows
+UPDATE floorplans SET revision = revision + 1 WHERE id = sqlc.arg('id') AND revision = sqlc.arg('expected_revision');

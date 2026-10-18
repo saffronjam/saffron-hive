@@ -327,7 +327,7 @@ describe("scenes", () => {
     const updated = await graphqlClient
       .mutation(UPDATE_SCENE, {
         id,
-        input: { name: "Renamed Scene" },
+        input: { expectedRevision: 1, name: "Renamed Scene" },
       })
       .toPromise();
 
@@ -372,7 +372,7 @@ describe("scenes", () => {
     const updated = await graphqlClient
       .mutation(UPDATE_SCENE, {
         id,
-        input: {
+        input: { expectedRevision: 1,
           definition: {
             targets: [{ targetType: SceneTargetType.Device, targetId: lightDevice!.id }],
             lighting: {

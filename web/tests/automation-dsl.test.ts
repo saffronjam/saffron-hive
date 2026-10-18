@@ -1,3 +1,4 @@
+import contractFixtures from "../../testdata/automation-contract.json";
 import { describe, expect, it } from "vitest";
 import type { SummaryLookups } from "$lib/components/graph/automation-summary";
 import { CapabilityCategory, type Device } from "$lib/gql/graphql";
@@ -31,6 +32,7 @@ function device(id: string, name: string): Device {
 const lookups: SummaryLookups = {
   devices: [
     device("0xmotion", "Motion sensor"),
+    device("0x54ef44100165238f", "Hall motion"),
     device("0xlamp", "Lava lamp"),
     device("0xswitch", "Bedroom switch"),
     device("0xtwin1", "Twin"),
@@ -55,7 +57,18 @@ const lookups: SummaryLookups = {
 const names = new Names(lookups);
 
 function node(id: string, type: WireNode["type"], config: object): WireNode {
-  return { id, type, config: JSON.stringify(config) };
+  const raw=config as Record<string,unknown>;
+  let authored:unknown=config;
+  if(raw.use) authored={macro:{name:raw.use,arguments:raw.args??[],negate:raw.negate??false}};
+  else if(type==="trigger"&&!raw.trigger) authored={trigger:raw.kind==="schedule"?{mode:"schedule",scheduleSubmode:"custom",cronExpr:raw.cron_expr,graceMs:raw.grace_ms}:raw.mode===""?{mode:"unset"}:{mode:raw.event_type==="webhook.received"?"webhook":"custom",eventType:raw.event_type,customExpr:raw.filter_expr,deviceId:raw.device_id,holdMs:raw.hold_ms,graceMs:raw.grace_ms,cooldownMs:raw.cooldown_ms,endpointId:raw.endpoint_id}};
+  else if(type==="condition"&&!raw.condition) authored={condition:raw.mode===""?{mode:"unset"}:{mode:"custom",customExpr:raw.expr,negate:raw.negate}};
+  else if(type==="operator"&&!raw.operator)authored={operator:{kind:raw.kind}};
+  else if(type==="action"&&!raw.action){
+   const payload=typeof raw.payload==="string"&&raw.payload?JSON.parse(raw.payload):{};
+   const keys:Record<string,string>={scene_id:"sceneId",effect_id:"effectId",native_name:"nativeName",alarm_id:"alarmId"};
+   authored={action:{actionType:raw.action_type,targetType:raw.target_type,targetId:raw.target_id,targetExpr:raw.target_expr??[],payload:Object.fromEntries(Object.entries(payload).map(([k,v])=>[keys[k]??k,v]))}};
+  }
+  return {id,type,config:JSON.stringify(authored)};
 }
 
 function canonical(wire: WireAutomation) {
@@ -75,18 +88,14 @@ function roundTrip(wire: WireAutomation) {
   const text = formatDocument(doc);
   const parsed = parseAutomation(JSON.parse(text), names);
   expect(parsed.diagnostics).toEqual([]);
-  expect(canonical(parsed.automation!)).toEqual(canonical(wire));
+  expect(parsed.automation!.nodes.map(n=>n.id).sort()).toEqual(wire.nodes.map(n=>n.id).sort());
+  expect(canonical(parsed.automation!).edges).toEqual(canonical(wire).edges);
+  expect(canonical(parsed.automation!).definitions).toEqual(canonical(wire).definitions);
+  expect(formatDocument(printAutomation(parsed.automation!,names))).toEqual(text);
   return doc;
 }
 
-const motionOff = {
-  kind: "event",
-  event_type: "device.state_changed",
-  filter_expr:
-    'trigger.device_id == "0xmotion" && trigger.payload.state.presence != nil && trigger.payload.state.presence == false',
-  hold_ms: 10000,
-  device_id: "0xmotion",
-};
+const motionOff={trigger:{mode:"device_state",deviceId:"0xmotion",property:"presence",comparator:"==",value:{booleanValue:false},holdMs:10000}};
 
 const lampOff = {
   action_type: "set_device_state",
@@ -123,13 +132,11 @@ describe("automation language", () => {
     });
   });
 
-  it("joins several conditions with an AND and several triggers with an OR", () => {
+  it("chains conditions after either trigger", () => {
     const press = {
-      kind: "event",
-      event_type: "device.action_fired",
-      filter_expr: 'trigger.device_id == "0xswitch" && trigger.payload.action == "single"',
+      trigger:{mode:"device_event",deviceId:"0xswitch",eventValue:"single"},
     };
-    const schedule = { kind: "schedule", cron_expr: "0 30 7 * * MON,FRI" };
+    const schedule = {trigger:{mode:"schedule",scheduleSubmode:"at",scheduleHour:7,scheduleMinute:30,scheduleSecond:0,scheduleWeekdays:["MON","FRI"]}};
     const doc = roundTrip({
       name: "Morning",
       definitions: "{}",
@@ -138,8 +145,6 @@ describe("automation language", () => {
         node("t2", "trigger", schedule),
         node("c1", "condition", { expr: 'day.in("mon", "fri")' }),
         node("c2", "condition", { expr: 'any_of({"room": "r-bed"}, "on", true)' }),
-        node("o1", "operator", { kind: "or" }),
-        node("o2", "operator", { kind: "and" }),
         node("a1", "action", {
           action_type: "activate_scene",
           target_type: "",
@@ -149,12 +154,10 @@ describe("automation language", () => {
         }),
       ],
       edges: [
-        { fromNodeId: "t1", toNodeId: "o1" },
-        { fromNodeId: "t2", toNodeId: "o1" },
-        { fromNodeId: "o1", toNodeId: "o2" },
-        { fromNodeId: "c1", toNodeId: "o2" },
-        { fromNodeId: "c2", toNodeId: "o2" },
-        { fromNodeId: "o2", toNodeId: "a1" },
+        { fromNodeId: "t1", toNodeId: "c1" },
+        { fromNodeId: "t2", toNodeId: "c1" },
+        { fromNodeId: "c1", toNodeId: "c2" },
+        { fromNodeId: "c2", toNodeId: "a1" },
       ],
     });
     const rule = (doc.rules as JsonObject[])[0];
@@ -169,24 +172,21 @@ describe("automation language", () => {
     expect(rule.do).toEqual({ scene: "Cozy" });
   });
 
-  it("falls back to the graph form for a NOT operator", () => {
+  it("round-trips condition inversion as a rule", () => {
     const doc = roundTrip({
       name: "Not",
       definitions: "{}",
       nodes: [
         node("t1", "trigger", motionOff),
-        node("c1", "condition", { expr: 'scene_active("s-night")' }),
-        node("o1", "operator", { kind: "not" }),
+        node("c1", "condition", { expr: 'scene_active("s-night")', negate: true }),
         node("a1", "action", lampOff),
       ],
       edges: [
-        { fromNodeId: "c1", toNodeId: "o1" },
-        { fromNodeId: "t1", toNodeId: "a1" },
-        { fromNodeId: "o1", toNodeId: "a1" },
+        { fromNodeId: "t1", toNodeId: "c1" },
+        { fromNodeId: "c1", toNodeId: "a1" },
       ],
     });
-    expect(doc.graph).toContainEqual({ id: "o1", op: "not", after: ["c1"] });
-    expect(doc.graph).toContainEqual({ id: "c1", if: { scene_active: "Night" } });
+    expect((doc.rules as JsonObject[])[0].if).toEqual({ not: { scene_active: "Night" } });
   });
 
   it("round-trips every trigger, condition and action kind", () => {
@@ -319,10 +319,10 @@ describe("automation language", () => {
     roundTrip({ name: "Everything", definitions: "{}", nodes, edges });
   });
 
-  it("reads clock arithmetic and name-based conditions as structure", () => {
+  it("preserves custom arithmetic and prints named state conditions", () => {
     const doc = printAutomation(
       {
-        name: "Legacy",
+        name: "Custom conditions",
         definitions: "{}",
         nodes: [
           node("t1", "trigger", motionOff),
@@ -330,20 +330,18 @@ describe("automation language", () => {
             expr: "(time.hour * 60 + time.minute) >= 420 && (time.hour * 60 + time.minute) < 1350",
           }),
           node("c2", "condition", { expr: 'device("Lava lamp").on == true' }),
-          node("o1", "operator", { kind: "and" }),
           node("a1", "action", lampOff),
         ],
         edges: [
-          { fromNodeId: "t1", toNodeId: "o1" },
-          { fromNodeId: "c1", toNodeId: "o1" },
-          { fromNodeId: "c2", toNodeId: "o1" },
-          { fromNodeId: "o1", toNodeId: "a1" },
+          { fromNodeId: "t1", toNodeId: "c1" },
+          { fromNodeId: "c1", toNodeId: "c2" },
+          { fromNodeId: "c2", toNodeId: "a1" },
         ],
       },
       names,
     );
     expect((doc.rules as JsonObject[])[0].if).toEqual([
-      { time: { between: ["07:00", "22:30"] } },
+      { expr: "(time.hour * 60 + time.minute) >= 420 && (time.hour * 60 + time.minute) < 1350" },
       { device: "Lava lamp", state: { on: true } },
     ]);
   });
@@ -404,9 +402,9 @@ describe("automation language", () => {
       lights_on: { kind: "condition", expr: 'any_of({"macro": "bedroom_lights"}, "on", true)' },
     });
     const configs = wire.nodes.map((n) => JSON.parse(n.config));
-    expect(configs).toContainEqual({ use: "night" });
-    expect(configs).toContainEqual({ use: "lights_on", negate: true });
-    expect(configs).toContainEqual({ use: "dim", args: [51] });
+    expect(configs).toContainEqual({ macro:{name:"night",arguments:[]} });
+    expect(configs).toContainEqual({ macro:{name:"lights_on",negate:true,arguments:[]} });
+    expect(configs).toContainEqual({ macro:{name:"dim",arguments:[51]} });
     expect(printAutomation(wire, names)).toEqual(text);
   });
 
@@ -451,7 +449,10 @@ describe("automation language", () => {
     ]);
     const parsed = parseAutomation(JSON.parse(formatDocument(doc)), clashing);
     expect(parsed.diagnostics).toEqual([]);
-    expect(canonical(parsed.automation!)).toEqual(canonical(wire));
+    expect(parsed.automation!.nodes.map(n=>n.id).sort()).toEqual(wire.nodes.map(n=>n.id).sort());
+  expect(canonical(parsed.automation!).edges).toEqual(canonical(wire).edges);
+  expect(canonical(parsed.automation!).definitions).toEqual(canonical(wire).definitions);
+  expect(formatDocument(printAutomation(parsed.automation!,clashing))).toEqual(formatDocument(doc));
     const bare = parseAutomation(
       { name: "Bare", rules: [{ when: doc.rules && (doc.rules as JsonObject[])[0].when, do: { scene: "Cozy" } }] },
       clashing,
@@ -487,4 +488,31 @@ describe("automation language", () => {
     ]);
     expect(parsed.diagnostics[3].message).toContain("Twin");
   });
+});
+
+describe("shared backend trigger contracts", () => {
+  it.each(contractFixtures)("$name survives Code conversion", ({ config }) => {
+    roundTrip({
+      name: "Contract",
+      definitions: "{}",
+      nodes: [node("t1", "trigger", config), node("a1", "action", lampOff)],
+      edges: [{ fromNodeId: "t1", toNodeId: "a1" }],
+    });
+  });
+});
+
+
+it("keeps a custom negated expression separate from condition inversion", () => {
+  for (const negate of [false, true]) {
+    const config = { condition: { mode: "custom", customExpr: '!scene_active("s-night")', negate } };
+    const graph: WireAutomation = {
+      name: "Custom inversion", definitions: "{}",
+      nodes: [node("t1", "trigger", motionOff), node("c1", "condition", config), node("a1", "action", lampOff)],
+      edges: [{ fromNodeId: "t1", toNodeId: "c1" }, { fromNodeId: "c1", toNodeId: "a1" }],
+    };
+    const printed = printAutomation(graph, names);
+    const parsed = parseAutomation(printed, names);
+    expect(parsed.diagnostics).toEqual([]);
+    expect(JSON.parse(parsed.automation!.nodes.find((n) => n.id === "c1")!.config).condition).toMatchObject({ customExpr: '!scene_active("s-night")', ...(negate ? { negate: true } : {}) });
+  }
 });

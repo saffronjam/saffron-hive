@@ -509,7 +509,7 @@ func compileExpr(expression string) (*vm.Program, error) {
 func evalExpr(program *vm.Program, env ExprEnv) (bool, error) {
 	output, err := expr.Run(program, env)
 	if err != nil {
-		return false, nil
+		return false, err
 	}
 	result, ok := output.(bool)
 	if !ok {

@@ -18,8 +18,8 @@ func TestAutomations_CreateAndQuery(t *testing.T) {
 	}
 
 	triggerConfig, _ := json.Marshal(map[string]string{
-		"event_type":     "device.state_changed",
-		"condition_expr": "true",
+		"event_type":  "device.state_changed",
+		"filter_expr": "true",
 	})
 	actionConfig, _ := json.Marshal(map[string]string{
 		"action_type": "set_device_state",
@@ -31,7 +31,7 @@ func TestAutomations_CreateAndQuery(t *testing.T) {
 	data, err := graphqlMutation(`mutation($input: CreateAutomationInput!) {
 		createAutomation(input: $input) {
 			id name enabled
-			nodes { id type config }
+			nodes { id type config { trigger { mode } action { actionType } } }
 			edges { fromNodeId toNodeId }
 		}
 	}`, map[string]any{
@@ -39,8 +39,8 @@ func TestAutomations_CreateAndQuery(t *testing.T) {
 			"name":    "Test Automation",
 			"enabled": true,
 			"nodes": []map[string]any{
-				{"id": "trigger-1", "type": "trigger", "config": string(triggerConfig)},
-				{"id": "action-1", "type": "action", "config": string(actionConfig)},
+				{"id": "trigger-1", "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)},
+				{"id": "action-1", "type": "action", "config": authoredNode(t, "action", actionConfig)},
 			},
 			"edges": []map[string]any{
 				{"fromNodeId": "trigger-1", "toNodeId": "action-1"},
@@ -57,9 +57,9 @@ func TestAutomations_CreateAndQuery(t *testing.T) {
 			Name    string `json:"name"`
 			Enabled bool   `json:"enabled"`
 			Nodes   []struct {
-				ID     string `json:"id"`
-				Type   string `json:"type"`
-				Config string `json:"config"`
+				ID     string          `json:"id"`
+				Type   string          `json:"type"`
+				Config json.RawMessage `json:"config"`
 			} `json:"nodes"`
 			Edges []struct {
 				FromNodeID string `json:"fromNodeId"`
@@ -97,8 +97,8 @@ func TestAutomations_TriggerViaEvent(t *testing.T) {
 	}
 
 	triggerConfig, _ := json.Marshal(map[string]string{
-		"event_type":     "device.state_changed",
-		"condition_expr": "true",
+		"event_type":  "device.state_changed",
+		"filter_expr": "true",
 	})
 	actionConfig, _ := json.Marshal(map[string]string{
 		"action_type": "set_device_state",
@@ -114,8 +114,8 @@ func TestAutomations_TriggerViaEvent(t *testing.T) {
 			"name":    "Trigger Test",
 			"enabled": true,
 			"nodes": []map[string]any{
-				{"id": "tve-t1", "type": "trigger", "config": string(triggerConfig)},
-				{"id": "tve-a1", "type": "action", "config": string(actionConfig)},
+				{"id": "tve-t1", "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)},
+				{"id": "tve-a1", "type": "action", "config": authoredNode(t, "action", actionConfig)},
 			},
 			"edges": []map[string]any{
 				{"fromNodeId": "tve-t1", "toNodeId": "tve-a1"},
@@ -164,8 +164,8 @@ func TestAutomations_TriggerViaEvent(t *testing.T) {
 
 func TestAutomations_QueryAll(t *testing.T) {
 	triggerConfig, _ := json.Marshal(map[string]string{
-		"event_type":     "device.state_changed",
-		"condition_expr": "true",
+		"event_type":  "device.state_changed",
+		"filter_expr": "true",
 	})
 	actionConfig, _ := json.Marshal(map[string]string{
 		"action_type": "set_device_state",
@@ -183,8 +183,8 @@ func TestAutomations_QueryAll(t *testing.T) {
 			"name":    name,
 			"enabled": false,
 			"nodes": []map[string]any{
-				{"id": tID, "type": "trigger", "config": string(triggerConfig)},
-				{"id": aID, "type": "action", "config": string(actionConfig)},
+				{"id": tID, "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)},
+				{"id": aID, "type": "action", "config": authoredNode(t, "action", actionConfig)},
 			},
 			"edges": []map[string]any{
 				{"fromNodeId": tID, "toNodeId": aID},
@@ -259,8 +259,8 @@ func TestAutomations_UpdateAutomation(t *testing.T) {
 	}
 
 	triggerConfig, _ := json.Marshal(map[string]string{
-		"event_type":     "device.state_changed",
-		"condition_expr": "true",
+		"event_type":  "device.state_changed",
+		"filter_expr": "true",
 	})
 	actionConfig, _ := json.Marshal(map[string]string{
 		"action_type": "set_device_state",
@@ -276,8 +276,8 @@ func TestAutomations_UpdateAutomation(t *testing.T) {
 			"name":    "Before Update",
 			"enabled": false,
 			"nodes": []map[string]any{
-				{"id": "upd-t1", "type": "trigger", "config": string(triggerConfig)},
-				{"id": "upd-a1", "type": "action", "config": string(actionConfig)},
+				{"id": "upd-t1", "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)},
+				{"id": "upd-a1", "type": "action", "config": authoredNode(t, "action", actionConfig)},
 			},
 			"edges": []map[string]any{
 				{"fromNodeId": "upd-t1", "toNodeId": "upd-a1"},
@@ -304,14 +304,14 @@ func TestAutomations_UpdateAutomation(t *testing.T) {
 	})
 
 	data, err = graphqlMutation(`mutation($id: ID!, $input: UpdateAutomationInput!) {
-		updateAutomation(id: $id, input: $input) { id name nodes { id type config } }
+		updateAutomation(id: $id, input: $input) { id name nodes { id type config { trigger { mode } action { actionType } } } }
 	}`, map[string]any{
 		"id": autoID,
-		"input": map[string]any{
+		"input": map[string]any{"expectedRevision": configurationRevision(t, "automation", autoID),
 			"name": "After Update",
 			"nodes": []map[string]any{
-				{"id": "upd-t2", "type": "trigger", "config": string(triggerConfig)},
-				{"id": "upd-a2", "type": "action", "config": string(newActionConfig)},
+				{"id": "upd-t2", "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)},
+				{"id": "upd-a2", "type": "action", "config": authoredNode(t, "action", newActionConfig)},
 			},
 			"edges": []map[string]any{
 				{"fromNodeId": "upd-t2", "toNodeId": "upd-a2"},
@@ -327,9 +327,9 @@ func TestAutomations_UpdateAutomation(t *testing.T) {
 			ID    string `json:"id"`
 			Name  string `json:"name"`
 			Nodes []struct {
-				ID     string `json:"id"`
-				Type   string `json:"type"`
-				Config string `json:"config"`
+				ID     string          `json:"id"`
+				Type   string          `json:"type"`
+				Config json.RawMessage `json:"config"`
 			} `json:"nodes"`
 		} `json:"updateAutomation"`
 	}
@@ -349,7 +349,7 @@ func TestAutomations_UpdateAutomation_InvalidID(t *testing.T) {
 		updateAutomation(id: $id, input: $input) { id }
 	}`, map[string]any{
 		"id":    "nonexistent-automation-id",
-		"input": map[string]any{"name": "Nope"},
+		"input": map[string]any{"expectedRevision": 0, "name": "Nope"},
 	})
 	if err != nil {
 		t.Fatalf("expected GraphQL error for invalid automation ID, got: %v", err)
@@ -389,14 +389,14 @@ func TestAutomations_TriggerWithGroupTargetAction(t *testing.T) {
 	}
 
 	triggerConfig, _ := json.Marshal(map[string]string{
-		"event_type":     "device.state_changed",
-		"condition_expr": "true",
+		"event_type":  "device.state_changed",
+		"filter_expr": "true",
 	})
 	actionConfig, _ := json.Marshal(map[string]string{
 		"action_type": "set_device_state",
 		"target_type": "group",
 		"target_id":   groupID,
-		"payload":     `{"on":true,"brightness":255}`,
+		"payload":     `{"on":true,"brightness":254}`,
 	})
 
 	data, err = graphqlMutation(`mutation($input: CreateAutomationInput!) {
@@ -406,8 +406,8 @@ func TestAutomations_TriggerWithGroupTargetAction(t *testing.T) {
 			"name":    "Group Target Automation",
 			"enabled": true,
 			"nodes": []map[string]any{
-				{"id": "grp-t1", "type": "trigger", "config": string(triggerConfig)},
-				{"id": "grp-a1", "type": "action", "config": string(actionConfig)},
+				{"id": "grp-t1", "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)},
+				{"id": "grp-a1", "type": "action", "config": authoredNode(t, "action", actionConfig)},
 			},
 			"edges": []map[string]any{
 				{"fromNodeId": "grp-t1", "toNodeId": "grp-a1"},
@@ -460,8 +460,8 @@ func TestAutomations_DisableStopsFiring(t *testing.T) {
 	}
 
 	triggerConfig, _ := json.Marshal(map[string]string{
-		"event_type":     "device.state_changed",
-		"condition_expr": "true",
+		"event_type":  "device.state_changed",
+		"filter_expr": "true",
 	})
 	actionConfig, _ := json.Marshal(map[string]string{
 		"action_type": "set_device_state",
@@ -477,8 +477,8 @@ func TestAutomations_DisableStopsFiring(t *testing.T) {
 			"name":    "Disable Test",
 			"enabled": true,
 			"nodes": []map[string]any{
-				{"id": "dis-t1", "type": "trigger", "config": string(triggerConfig)},
-				{"id": "dis-a1", "type": "action", "config": string(actionConfig)},
+				{"id": "dis-t1", "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)},
+				{"id": "dis-a1", "type": "action", "config": authoredNode(t, "action", actionConfig)},
 			},
 			"edges": []map[string]any{
 				{"fromNodeId": "dis-t1", "toNodeId": "dis-a1"},
@@ -497,9 +497,9 @@ func TestAutomations_DisableStopsFiring(t *testing.T) {
 		_, _ = graphqlMutation(`mutation($id: ID!) { deleteAutomation(id: $id) }`, map[string]any{"id": autoID})
 	})
 
-	_, err = graphqlMutation(`mutation($id: ID!, $enabled: Boolean!) {
-		toggleAutomation(id: $id, enabled: $enabled) { id enabled }
-	}`, map[string]any{"id": autoID, "enabled": false})
+	_, err = graphqlMutation(`mutation($id: ID!, $enabled: Boolean!, $revision: Int!) {
+		toggleAutomation(id: $id, enabled: $enabled, expectedRevision: $revision) { id enabled }
+	}`, map[string]any{"id": autoID, "enabled": false, "revision": configurationRevision(t, "automation", autoID)})
 	if err != nil {
 		t.Fatalf("toggle: %v", err)
 	}
@@ -566,8 +566,8 @@ func TestAutomations_TriggerViaButtonAction(t *testing.T) {
 			"name":    "Button Trigger Test",
 			"enabled": true,
 			"nodes": []map[string]any{
-				{"id": "btn-t1", "type": "trigger", "config": string(triggerConfig)},
-				{"id": "btn-a1", "type": "action", "config": string(actionConfig)},
+				{"id": "btn-t1", "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)},
+				{"id": "btn-a1", "type": "action", "config": authoredNode(t, "action", actionConfig)},
 			},
 			"edges": []map[string]any{
 				{"fromNodeId": "btn-t1", "toNodeId": "btn-a1"},
@@ -668,8 +668,8 @@ func TestAutomations_TriggerCooldownSubSecond(t *testing.T) {
 			"name":    "Sub-second Trigger Cooldown",
 			"enabled": true,
 			"nodes": []map[string]any{
-				{"id": "sub-t1", "type": "trigger", "config": string(triggerConfig)},
-				{"id": "sub-a1", "type": "action", "config": string(actionConfig)},
+				{"id": "sub-t1", "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)},
+				{"id": "sub-a1", "type": "action", "config": authoredNode(t, "action", actionConfig)},
 			},
 			"edges": []map[string]any{
 				{"fromNodeId": "sub-t1", "toNodeId": "sub-a1"},
@@ -775,8 +775,8 @@ func TestAutomations_ToggleAction_Device(t *testing.T) {
 			"name":    "Toggle Device E2E",
 			"enabled": true,
 			"nodes": []map[string]any{
-				{"id": "tog-t1", "type": "trigger", "config": string(triggerConfig)},
-				{"id": "tog-a1", "type": "action", "config": string(actionConfig)},
+				{"id": "tog-t1", "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)},
+				{"id": "tog-a1", "type": "action", "config": authoredNode(t, "action", actionConfig)},
 			},
 			"edges": []map[string]any{
 				{"fromNodeId": "tog-t1", "toNodeId": "tog-a1"},
@@ -871,14 +871,14 @@ func TestAutomations_ActivateScene(t *testing.T) {
 		"payload":     string(scenePayload),
 	})
 	automationData, err := graphqlMutation(`mutation($input: CreateAutomationInput!) {
-		createAutomation(input: $input) { id nodes { id config } }
+		createAutomation(input: $input) { id nodes { id config { action { actionType targetType targetId payload { sceneId } } } } }
 	}`, map[string]any{
 		"input": map[string]any{
 			"name":    "Activate Scene E2E",
 			"enabled": true,
 			"nodes": []map[string]any{
-				{"id": "scene-t1", "type": "trigger", "config": string(triggerConfig)},
-				{"id": "scene-a1", "type": "action", "config": string(actionConfig)},
+				{"id": "scene-t1", "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)},
+				{"id": "scene-a1", "type": "action", "config": authoredNode(t, "action", actionConfig)},
 			},
 			"edges": []map[string]any{
 				{"fromNodeId": "scene-t1", "toNodeId": "scene-a1"},
@@ -892,8 +892,8 @@ func TestAutomations_ActivateScene(t *testing.T) {
 		CreateAutomation struct {
 			ID    string `json:"id"`
 			Nodes []struct {
-				ID     string `json:"id"`
-				Config string `json:"config"`
+				ID     string          `json:"id"`
+				Config json.RawMessage `json:"config"`
 			} `json:"nodes"`
 		} `json:"createAutomation"`
 	}
@@ -908,12 +908,13 @@ func TestAutomations_ActivateScene(t *testing.T) {
 	var persistedAction map[string]any
 	for _, node := range automationResult.CreateAutomation.Nodes {
 		if node.ID == "scene-a1" {
-			if err := json.Unmarshal([]byte(node.Config), &persistedAction); err != nil {
+			if err := json.Unmarshal(node.Config, &persistedAction); err != nil {
 				t.Fatalf("unmarshal action config: %v", err)
 			}
 		}
 	}
-	if persistedAction["payload"] != string(scenePayload) || persistedAction["target_id"] != "" {
+	action := persistedAction["action"].(map[string]any)
+	if action["payload"].(map[string]any)["sceneId"] != sceneID || action["targetId"] != "" {
 		t.Fatalf("persisted action config = %#v", persistedAction)
 	}
 
@@ -1010,8 +1011,8 @@ func TestAutomations_CycleScenes_AdvancesAndWraps(t *testing.T) {
 			"name":    "Cycle Scenes E2E",
 			"enabled": true,
 			"nodes": []map[string]any{
-				{"id": "cyc-t1", "type": "trigger", "config": string(triggerConfig)},
-				{"id": "cyc-a1", "type": "action", "config": string(actionConfig)},
+				{"id": "cyc-t1", "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)},
+				{"id": "cyc-a1", "type": "action", "config": authoredNode(t, "action", actionConfig)},
 			},
 			"edges": []map[string]any{
 				{"fromNodeId": "cyc-t1", "toNodeId": "cyc-a1"},
@@ -1106,10 +1107,10 @@ func TestAutomations_CycleScenes_RejectsSingleScene(t *testing.T) {
 	}`, map[string]any{
 		"input": map[string]any{
 			"name":    "Cycle Single",
-			"enabled": false,
+			"enabled": true,
 			"nodes": []map[string]any{
-				{"id": "cs-t1", "type": "trigger", "config": string(triggerConfig)},
-				{"id": "cs-a1", "type": "action", "config": string(actionConfig)},
+				{"id": "cs-t1", "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)},
+				{"id": "cs-a1", "type": "action", "config": authoredNode(t, "action", actionConfig)},
 			},
 			"edges": []map[string]any{
 				{"fromNodeId": "cs-t1", "toNodeId": "cs-a1"},

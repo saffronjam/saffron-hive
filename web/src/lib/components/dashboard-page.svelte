@@ -52,6 +52,7 @@
 		query DashboardIntegrations {
 			integrations {
 				provider
+				kind
 				configured
 			}
 		}
@@ -89,7 +90,7 @@
 	});
 
 	const needsIntegration = $derived(
-		!guest && !!$integrationsQuery.data && !$integrationsQuery.data.integrations.some((i) => i.configured),
+		!guest && !!$integrationsQuery.data && !$integrationsQuery.data.integrations.some((i) => i.kind === "DEVICE_PROVIDER" && i.configured),
 	);
 
 	const scenes = $derived(scenesStore.items);

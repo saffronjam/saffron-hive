@@ -120,7 +120,7 @@ func TestIncomingWebhooksLifecycleAndDelivery(t *testing.T) {
 		updateWebhookEndpoint(id: $id, input: $input) { id name enabled rateLimitCount rateLimitWindowMs }
 	}`, map[string]any{
 		"id": endpoint.ID,
-		"input": map[string]any{
+		"input": map[string]any{"expectedRevision": configurationRevision(t, "webhookEndpoint", endpoint.ID),
 			"name": "CI failure", "enabled": false,
 			"rateLimitCount": 2, "rateLimitWindowMs": 2000,
 		},
@@ -189,7 +189,7 @@ func TestIncomingWebhookCannotBeDeletedWhileUsedByAutomation(t *testing.T) {
 		createAutomation(input: $input) { id }
 	}`, map[string]any{"input": map[string]any{
 		"name": "Build light", "enabled": false,
-		"nodes": []map[string]any{{"id": "webhook-trigger", "type": "trigger", "config": string(triggerConfig)}},
+		"nodes": []map[string]any{{"id": "webhook-trigger", "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)}},
 		"edges": []any{},
 	}})
 	if err != nil {

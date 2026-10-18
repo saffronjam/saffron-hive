@@ -167,6 +167,10 @@ func (r *Runner) Start(ctx context.Context, effectID string, target Target) (str
 		return "", fmt.Errorf("effect runner: load effect %q: %w", effectID, err)
 	}
 
+	if err := Validate(eff); err != nil {
+		return "", fmt.Errorf("invalid effect: %w", err)
+	}
+
 	runID := uuid.New().String()
 
 	runCtx, cancel := context.WithCancel(context.Background())

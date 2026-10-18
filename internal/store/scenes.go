@@ -49,6 +49,7 @@ func (s *DB) GetScene(ctx context.Context, id string) (Scene, error) {
 	}
 	return Scene{
 		ID:          row.ID,
+		Revision:    row.Revision,
 		Name:        row.Name,
 		Icon:        row.Icon,
 		CreatedAt:   row.CreatedAt,
@@ -73,6 +74,7 @@ func (s *DB) ListScenes(ctx context.Context) ([]Scene, error) {
 		}
 		scenes = append(scenes, Scene{
 			ID:          row.ID,
+			Revision:    row.Revision,
 			Name:        row.Name,
 			Icon:        row.Icon,
 			CreatedAt:   row.CreatedAt,
@@ -94,6 +96,13 @@ func (s *DB) UpdateScene(ctx context.Context, id string, params UpdateSceneParam
 		}
 	}
 	err := s.execTx(ctx, func(q *sqlite.Queries) error {
+		changed, err := q.ClaimSceneRevision(ctx, sqlite.ClaimSceneRevisionParams{ID: id, ExpectedRevision: params.ExpectedRevision})
+		if err != nil {
+			return err
+		}
+		if changed != 1 {
+			return ErrRevisionConflict
+		}
 		if params.Name != nil {
 			if *params.Name == "" {
 				return errors.New("scene name is required")
@@ -122,14 +131,6 @@ func (s *DB) UpdateScene(ctx context.Context, id string, params UpdateSceneParam
 		return Scene{}, err
 	}
 	return s.GetScene(ctx, id)
-}
-
-// SaveSceneDefinition atomically replaces the complete content definition.
-func (s *DB) SaveSceneDefinition(ctx context.Context, sceneID string, definition SceneDefinition) error {
-	if err := ValidateSceneDefinition(definition); err != nil {
-		return err
-	}
-	return s.execTx(ctx, func(q *sqlite.Queries) error { return replaceSceneDefinition(ctx, q, sceneID, definition) })
 }
 
 // DeleteScene deletes a Scene and every composition row through cascades.
@@ -206,7 +207,7 @@ func ValidateSceneDefinition(definition SceneDefinition) error {
 			if desiredStateEmpty(*override.State) {
 				return fmt.Errorf("light override %d has no desired state", i)
 			}
-			if err := validateDesiredState(*override.State); err != nil {
+			if err := ValidateDesiredState(*override.State); err != nil {
 				return fmt.Errorf("light override %d: %w", i, err)
 			}
 		case SceneLightOverrideEffect:
@@ -230,7 +231,7 @@ func ValidateSceneDefinition(definition SceneDefinition) error {
 		if desiredStateEmpty(supporting.State) {
 			return fmt.Errorf("supporting state %d has no desired state", i)
 		}
-		if err := validateDesiredState(supporting.State); err != nil {
+		if err := ValidateDesiredState(supporting.State); err != nil {
 			return fmt.Errorf("supporting state %d: %w", i, err)
 		}
 	}
@@ -243,7 +244,8 @@ func desiredStateEmpty(state DesiredState) bool {
 		state.FanMode == nil && state.Swing == nil
 }
 
-func validateDesiredState(state DesiredState) error {
+// ValidateDesiredState checks the ranges and consistency of explicit desired state.
+func ValidateDesiredState(state DesiredState) error {
 	if state.Brightness != nil && (*state.Brightness < 0 || *state.Brightness > 254) {
 		return errors.New("brightness must be between 0 and 254")
 	}
@@ -264,6 +266,28 @@ func validateDesiredState(state DesiredState) error {
 }
 
 func replaceSceneDefinition(ctx context.Context, q *sqlite.Queries, sceneID string, definition SceneDefinition) error {
+	existingOverrides, err := q.ListSceneLightOverrides(ctx, sceneID)
+	if err != nil {
+		return err
+	}
+	for _, override := range definition.Lighting.Overrides {
+		if override.EffectID == "" {
+			continue
+		}
+		retained := false
+		for _, prior := range existingOverrides {
+			if prior.DeviceID == string(override.DeviceID) && prior.EffectID != nil && *prior.EffectID == override.EffectID {
+				retained = true
+				break
+			}
+		}
+		if !retained {
+			if _, err := q.GetEffect(ctx, override.EffectID); err != nil {
+				return fmt.Errorf("scene effect %q: %w", override.EffectID, err)
+			}
+		}
+	}
+
 	existingTargets, err := q.ListSceneTargets(ctx, sceneID)
 	if err != nil {
 		return fmt.Errorf("list Scene targets: %w", err)

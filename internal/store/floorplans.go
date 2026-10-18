@@ -25,6 +25,7 @@ func (s *DB) GetFloorplanGraph(ctx context.Context) (*Floorplan, error) {
 
 	fp := &Floorplan{
 		ID:        row.ID,
+		Revision:  row.Revision,
 		Name:      row.Name,
 		CreatedAt: row.CreatedAt,
 		UpdatedAt: row.UpdatedAt,
@@ -135,6 +136,26 @@ func (s *DB) GetFloorplanGraph(ctx context.Context) (*Floorplan, error) {
 // hold at every point inside the transaction.
 func (s *DB) ReplaceFloorplan(ctx context.Context, params ReplaceFloorplanParams) error {
 	return s.execTx(ctx, func(q *sqlite.Queries) error {
+		current, err := q.GetFloorplan(ctx)
+		if errors.Is(err, sql.ErrNoRows) {
+			if params.ExpectedRevision != 0 {
+				return ErrRevisionConflict
+			}
+		} else if err != nil {
+			return err
+		} else {
+			if current.ID != params.ID {
+				return ErrRevisionConflict
+			}
+			changed, err := q.ClaimFloorplanRevision(ctx, sqlite.ClaimFloorplanRevisionParams{ID: params.ID, ExpectedRevision: params.ExpectedRevision})
+			if err != nil {
+				return err
+			}
+			if changed != 1 {
+				return ErrRevisionConflict
+			}
+		}
+
 		if err := q.UpsertFloorplan(ctx, sqlite.UpsertFloorplanParams{
 			ID:   params.ID,
 			Name: params.Name,

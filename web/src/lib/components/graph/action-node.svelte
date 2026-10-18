@@ -3,14 +3,16 @@
 	import CompactNode from "./compact-node.svelte";
 	import { summarizeAction } from "./automation-summary";
 	import type { NormalizedActionConfig } from "./trigger-expr";
-	import type { GraphNodeData } from "./node-data";
+	import { getGraphEditorContext, type GraphNodeData } from "./node-data";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
 
 	let { data, id }: { data: GraphNodeData<NormalizedActionConfig>; id: string } = $props();
+	const editor = getGraphEditorContext();
+	const connectionError = $derived(editor.connectionError(id));
 
 	const summary = $derived(
-		summarizeAction(data.config, data.lookups(), {
+		summarizeAction(data.config, editor.lookups(), {
 			runtimeState: data.runtimeState,
 			live: data.readOnly,
 		}),
@@ -22,12 +24,12 @@
 	kind="action"
 	icon={Play}
 	title={m.automation_node_action({}, locale.messageOptions())}
-	summary={summary.text}
-	invalid={summary.invalid}
+	summary={connectionError ?? summary.text}
+	invalid={!!connectionError || summary.invalid}
 	activated={data.activated}
-	active={data.isActive()}
+	active={editor.isActive(id)}
 	align="left"
 	hasInput
 	hasOutput={false}
-	onActivate={data.onActivate}
+	onActivate={editor.activate}
 />

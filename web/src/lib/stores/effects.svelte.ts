@@ -7,6 +7,7 @@ export type Effect = EffectsStoreQuery["effects"][number];
 
 graphql(`
   fragment EffectFields on Effect {
+    revision
     id
     name
     source
@@ -49,6 +50,7 @@ const CREATE_EFFECT = graphql(`
 const UPDATE_EFFECT = graphql(`
   mutation EffectsStoreUpdate($input: UpdateEffectInput!) {
     updateEffect(input: $input) {
+      revision
       ...EffectFields
     }
   }
@@ -68,7 +70,7 @@ const BATCH_DELETE_EFFECTS = graphql(`
 
 const base = createEntityStore<Effect, EffectsStoreQuery>({
   name: "effects",
-  version: 2,
+  version: 3,
   query: EFFECTS_QUERY,
   select: (data) => data.effects,
 });

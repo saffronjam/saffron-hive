@@ -9,6 +9,24 @@ import (
 	"context"
 )
 
+const claimLocalizedNameRevision = `-- name: ClaimLocalizedNameRevision :execrows
+UPDATE localized_name_subjects SET revision=revision+1 WHERE entity_type=?1 AND entity_id=?2 AND revision=?3
+`
+
+type ClaimLocalizedNameRevisionParams struct {
+	EntityType       string
+	EntityID         string
+	ExpectedRevision int64
+}
+
+func (q *Queries) ClaimLocalizedNameRevision(ctx context.Context, arg ClaimLocalizedNameRevisionParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, claimLocalizedNameRevision, arg.EntityType, arg.EntityID, arg.ExpectedRevision)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteLocalizedNamesForSubject = `-- name: DeleteLocalizedNamesForSubject :exec
 DELETE FROM localized_names WHERE entity_type = ? AND entity_id = ?
 `
@@ -24,7 +42,7 @@ func (q *Queries) DeleteLocalizedNamesForSubject(ctx context.Context, arg Delete
 }
 
 const getLocalizedNameSubject = `-- name: GetLocalizedNameSubject :one
-SELECT entity_type, entity_id, source_language
+SELECT revision, entity_type, entity_id, source_language
 FROM localized_name_subjects
 WHERE entity_type = ? AND entity_id = ?
 `
@@ -34,29 +52,53 @@ type GetLocalizedNameSubjectParams struct {
 	EntityID   string
 }
 
-func (q *Queries) GetLocalizedNameSubject(ctx context.Context, arg GetLocalizedNameSubjectParams) (LocalizedNameSubject, error) {
+type GetLocalizedNameSubjectRow struct {
+	Revision       int64
+	EntityType     string
+	EntityID       string
+	SourceLanguage string
+}
+
+func (q *Queries) GetLocalizedNameSubject(ctx context.Context, arg GetLocalizedNameSubjectParams) (GetLocalizedNameSubjectRow, error) {
 	row := q.db.QueryRowContext(ctx, getLocalizedNameSubject, arg.EntityType, arg.EntityID)
-	var i LocalizedNameSubject
-	err := row.Scan(&i.EntityType, &i.EntityID, &i.SourceLanguage)
+	var i GetLocalizedNameSubjectRow
+	err := row.Scan(
+		&i.Revision,
+		&i.EntityType,
+		&i.EntityID,
+		&i.SourceLanguage,
+	)
 	return i, err
 }
 
 const listLocalizedNameSubjects = `-- name: ListLocalizedNameSubjects :many
-SELECT entity_type, entity_id, source_language
+SELECT revision, entity_type, entity_id, source_language
 FROM localized_name_subjects
 ORDER BY entity_type, entity_id
 `
 
-func (q *Queries) ListLocalizedNameSubjects(ctx context.Context) ([]LocalizedNameSubject, error) {
+type ListLocalizedNameSubjectsRow struct {
+	Revision       int64
+	EntityType     string
+	EntityID       string
+	SourceLanguage string
+}
+
+func (q *Queries) ListLocalizedNameSubjects(ctx context.Context) ([]ListLocalizedNameSubjectsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listLocalizedNameSubjects)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []LocalizedNameSubject
+	var items []ListLocalizedNameSubjectsRow
 	for rows.Next() {
-		var i LocalizedNameSubject
-		if err := rows.Scan(&i.EntityType, &i.EntityID, &i.SourceLanguage); err != nil {
+		var i ListLocalizedNameSubjectsRow
+		if err := rows.Scan(
+			&i.Revision,
+			&i.EntityType,
+			&i.EntityID,
+			&i.SourceLanguage,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

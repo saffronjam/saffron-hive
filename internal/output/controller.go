@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"reflect"
 	"slices"
 	"sync"
 	"time"
@@ -221,12 +222,27 @@ func (c *Controller) ResumeContinuous(provider device.Source) {
 
 // CommandTarget accepts a structural state or native-effect operation.
 func (c *Controller) CommandTarget(ctx context.Context, request device.TargetCommand) error {
+	if err := device.ValidateCommand(request.State); err != nil {
+		return err
+	}
 	ids, err := c.resolve(ctx, request)
 	if err != nil {
 		return err
 	}
 	if len(ids) == 0 {
 		return ErrNoControllableDevices
+	}
+	projected := make(map[device.DeviceID]device.Command, len(ids))
+	for _, id := range ids {
+		dev, ok := c.reader.GetDevice(id)
+		if !ok || dev.RuntimeDisabled() || dev.Removed {
+			continue
+		}
+		command, err := device.ProjectCommand(filterCommand(request.State, dev), dev)
+		if err != nil {
+			return err
+		}
+		projected[id] = command
 	}
 	c.owners.ForeignCommand(ids, request.State.Origin)
 
@@ -251,7 +267,7 @@ func (c *Controller) CommandTarget(ctx context.Context, request device.TargetCom
 			accepted++
 			continue
 		}
-		command := filterCommand(request.State, dev)
+		command := projected[id]
 		command.DeviceID = id
 		if emptyCommand(command) {
 			continue
@@ -495,6 +511,21 @@ func (c *Controller) sampleAndDispatch(ctx context.Context, actuator Actuator, s
 	if err != nil || emptyCommand(command) {
 		if err != nil {
 			logger.Warn("continuous sample failed", slog.String("device_id", string(selected.members[0])), slog.String("error", err.Error()))
+		}
+		return
+	}
+	dev, ok := c.reader.GetDevice(selected.members[0])
+	if !ok || dev.RuntimeDisabled() || dev.Removed {
+		return
+	}
+	if err := device.ValidateCommand(command); err != nil {
+		logger.Warn("invalid continuous sample", "device_id", dev.ID, "error", err)
+		return
+	}
+	command, err = device.ProjectCommand(filterCommand(command, dev), dev)
+	if err != nil || emptyCommand(command) {
+		if err != nil {
+			logger.Warn("unsupported continuous sample", "device_id", dev.ID, "error", err)
 		}
 		return
 	}
@@ -896,7 +927,7 @@ func (c *Controller) providerGroupCommand(ctx context.Context, request device.Ta
 			if !supportsNativeEffect(dev, request.NativeEffect) || !c.nativeEffectAllowed(ctx, dev, request.NativeEffect) {
 				return device.ProviderGroupCommand{}, false
 			}
-		} else if !acceptsCommand(dev, request.State) {
+		} else if projected, err := device.ProjectCommand(request.State, dev); err != nil || !reflect.DeepEqual(projected, request.State) || !acceptsCommand(dev, request.State) {
 			return device.ProviderGroupCommand{}, false
 		}
 		if request.State.Brightness != nil && *request.State.Brightness == 0 {

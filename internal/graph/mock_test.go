@@ -508,6 +508,10 @@ func (m *mockStore) UpdateScene(_ context.Context, id string, params store.Updat
 	if !ok {
 		return store.Scene{}, fmt.Errorf("scene %q not found", id)
 	}
+	if s.Revision != params.ExpectedRevision {
+		return store.Scene{}, store.ErrRevisionConflict
+	}
+	s.Revision++
 	if params.Name != nil {
 		s.Name = *params.Name
 	}
@@ -551,6 +555,13 @@ func (m *mockStore) CreateAutomation(_ context.Context, params store.CreateAutom
 		Name:    params.Name,
 		Enabled: params.Enabled,
 	}
+	for _, n := range params.Nodes {
+		m.automationNodes[params.ID] = append(m.automationNodes[params.ID], store.AutomationNode{ID: n.ID, AutomationID: params.ID, Type: n.Type, Config: n.Config, PositionX: n.PositionX, PositionY: n.PositionY})
+	}
+	for _, e := range params.Edges {
+		m.automationEdges[params.ID] = append(m.automationEdges[params.ID], store.AutomationEdge{AutomationID: params.ID, FromNodeID: e.FromNodeID, ToNodeID: e.ToNodeID})
+	}
+
 	m.automations[params.ID] = a
 	return a, nil
 }
@@ -587,21 +598,34 @@ func (m *mockStore) ListEnabledAutomations(_ context.Context) ([]store.Automatio
 	return out, nil
 }
 
-func (m *mockStore) UpdateAutomation(_ context.Context, id string, _ store.UpdateAutomationParams) (store.Automation, error) {
-	return store.Automation{ID: id}, nil
-}
-
-func (m *mockStore) UpdateAutomationEnabled(_ context.Context, id string, enabled bool) error {
+func (m *mockStore) UpdateAutomation(ctx context.Context, id string, params store.UpdateAutomationParams) (store.Automation, error) {
+	if params.Nodes != nil && params.Edges != nil {
+		if err := m.ReplaceAutomationGraph(ctx, id, *params.Nodes, *params.Edges); err != nil {
+			return store.Automation{}, err
+		}
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.toggleCalled = true
-	a, ok := m.automations[id]
-	if !ok {
-		return fmt.Errorf("automation %q not found", id)
+	a := m.automations[id]
+	if a.Revision != params.ExpectedRevision {
+		return store.Automation{}, store.ErrRevisionConflict
 	}
-	a.Enabled = enabled
+	a.Revision++
+	if params.Name != nil {
+		a.Name = *params.Name
+	}
+	if params.Enabled != nil {
+		m.toggleCalled = true
+		a.Enabled = *params.Enabled
+	}
+	if params.Definitions != nil {
+		a.Definitions = *params.Definitions
+	}
+	if params.SetIcon {
+		a.Icon = params.Icon
+	}
 	m.automations[id] = a
-	return nil
+	return a, nil
 }
 
 func (m *mockStore) DeleteAutomation(_ context.Context, id string) error {
@@ -1237,9 +1261,6 @@ func (m *mockStore) UpdateUserProfile(_ context.Context, params store.UpdateUser
 	if params.Theme != nil {
 		u.Theme = *params.Theme
 	}
-	if params.AvatarPath != nil {
-		u.AvatarPath = params.AvatarPath
-	}
 	if params.HapticsEnabled != nil {
 		u.HapticsEnabled = *params.HapticsEnabled
 	}
@@ -1545,13 +1566,22 @@ func (m *mockStore) ListEffects(_ context.Context) ([]store.Effect, error) {
 	return out, nil
 }
 
-func (m *mockStore) UpdateEffect(_ context.Context, id string, params store.UpdateEffectParams) (store.Effect, error) {
+func (m *mockStore) UpdateEffect(ctx context.Context, id string, params store.UpdateEffectParams) (store.Effect, error) {
+	if params.Tracks != nil {
+		if err := m.SaveEffectTracks(ctx, id, *params.Tracks); err != nil {
+			return store.Effect{}, err
+		}
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	e, ok := m.effects[id]
 	if !ok {
 		return store.Effect{}, fmt.Errorf("effect %q not found", id)
 	}
+	if e.Revision != params.ExpectedRevision {
+		return store.Effect{}, store.ErrRevisionConflict
+	}
+	e.Revision++
 	if params.Name != nil {
 		e.Name = *params.Name
 	}
@@ -1652,7 +1682,7 @@ func (m *mockStore) LoadEffect(ctx context.Context, id string) (effect.Effect, e
 	for _, tr := range row.Tracks {
 		clips := make([]effect.Clip, 0, len(tr.Clips))
 		for _, cl := range tr.Clips {
-			cfg, err := effect.UnmarshalClipConfig(cl.Kind, []byte(cl.ConfigJSON))
+			cfg, err := effect.DecodeClipConfig(cl.Kind, []byte(cl.ConfigJSON))
 			if err != nil {
 				return effect.Effect{}, err
 			}
@@ -1817,4 +1847,52 @@ func (m *mockEffectRunner) Stop(target effect.Target) bool {
 		m.store.mu.Unlock()
 	}
 	return true
+}
+
+func (m *mockStore) UpdateDeviceMetadata(ctx context.Context, p store.UpdateDeviceMetadataParams) (device.Device, error) {
+	d, err := m.GetDevice(ctx, p.ID)
+	if err != nil {
+		return d, err
+	}
+	if p.SetRoles {
+		d, err = m.UpdateDevice(ctx, store.UpdateDeviceParams{ID: p.ID, Available: d.Available, Removed: d.Removed, LastSeen: d.LastSeen, SetRoles: true, Roles: p.Roles})
+		if err != nil {
+			return d, err
+		}
+	}
+	if p.SetName {
+		d, err = m.SetDeviceName(ctx, p.ID, p.Name)
+		if err != nil {
+			return d, err
+		}
+	}
+	if p.SetIcon {
+		d, err = m.UpdateDeviceIcon(ctx, store.UpdateDeviceIconParams{ID: p.ID, SetIcon: true, Icon: p.Icon})
+		if err != nil {
+			return d, err
+		}
+	}
+	if p.SetColor {
+		d, err = m.UpdateDeviceDisplayColor(ctx, store.UpdateDeviceDisplayColorParams{ID: p.ID, SetColor: true, Color: p.Color})
+		if err != nil {
+			return d, err
+		}
+	}
+	if p.SetBrightness {
+		d, err = m.UpdateDeviceDisplayBrightness(ctx, store.UpdateDeviceDisplayBrightnessParams{ID: p.ID, SetBrightness: true, Brightness: p.Brightness})
+		if err != nil {
+			return d, err
+		}
+	}
+	if p.Disabled != nil {
+		d, err = m.SetDeviceDisabled(ctx, p.ID, *p.Disabled)
+	}
+	return d, err
+}
+
+func (m *mockStore) UpdateSetting(ctx context.Context, key, value string, expectedRevision int64) (store.Setting, error) {
+	if err := m.UpsertSetting(ctx, key, value); err != nil {
+		return store.Setting{}, err
+	}
+	return store.Setting{Key: key, Value: value, Revision: expectedRevision + 1}, nil
 }

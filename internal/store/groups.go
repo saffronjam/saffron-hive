@@ -53,6 +53,7 @@ func (s *DB) GetGroup(ctx context.Context, id string) (Group, error) {
 	}
 	return Group{
 		ID:              row.ID,
+		Revision:        row.Revision,
 		Name:            row.Name,
 		FriendlyName:    row.FriendlyName,
 		Icon:            row.Icon,
@@ -93,6 +94,7 @@ func (s *DB) ListGroups(ctx context.Context) ([]Group, error) {
 	for _, r := range rows {
 		groups = append(groups, Group{
 			ID:              r.ID,
+			Revision:        r.Revision,
 			Name:            r.Name,
 			FriendlyName:    r.FriendlyName,
 			Icon:            r.Icon,
@@ -112,7 +114,17 @@ func (s *DB) ListGroups(ctx context.Context) ([]Group, error) {
 // Icon is updated only when params.SetIcon is true; a nil params.Icon clears the column.
 // Tags are replaced wholesale only when params.SetTags is true; an empty Tags slice clears all tags.
 func (s *DB) UpdateGroup(ctx context.Context, params UpdateGroupParams) (Group, error) {
-	err := s.execTx(ctx, func(q *sqlite.Queries) error {
+	var result Group
+	err := s.atomic(ctx, func(s *DB) error {
+		q := s.q
+		changed, err := q.ClaimGroupRevision(ctx, sqlite.ClaimGroupRevisionParams{ID: params.ID, ExpectedRevision: params.ExpectedRevision})
+		if err != nil {
+			return err
+		}
+		if changed != 1 {
+			return ErrRevisionConflict
+		}
+
 		if params.SetName {
 			if err := q.UpdateGroupName(ctx, sqlite.UpdateGroupNameParams{
 				Name: params.Name,
@@ -148,12 +160,18 @@ func (s *DB) UpdateGroup(ctx context.Context, params UpdateGroupParams) (Group, 
 				}
 			}
 		}
-		return nil
+		if params.Members != nil {
+			if err := s.replaceMembership(ctx, Membership{device.TargetGroup, params.ID}, *params.Members); err != nil {
+				return err
+			}
+		}
+		result, err = s.GetGroup(ctx, params.ID)
+		return err
 	})
 	if err != nil {
 		return Group{}, err
 	}
-	return s.GetGroup(ctx, params.ID)
+	return result, nil
 }
 
 // dedupeGroupTags removes duplicate and unrecognised tags, preserving the
@@ -249,22 +267,33 @@ func (s *DB) BatchDeleteGroups(ctx context.Context, ids []string) (int64, error)
 
 // AddGroupMember inserts a new group member. Returns the created member.
 // The caller is responsible for circular dependency checking before calling this method.
-func (s *DB) AddGroupMember(ctx context.Context, params AddGroupMemberParams) (GroupMember, error) {
-	if err := s.q.AddGroupMember(ctx, sqlite.AddGroupMemberParams{
-		ID:         params.ID,
-		GroupID:    params.GroupID,
-		MemberType: params.MemberType,
-		MemberID:   params.MemberID,
-	}); err != nil {
-		return GroupMember{}, fmt.Errorf("add group member: %w", err)
-	}
-	return GroupMember{
-		ID:               params.ID,
-		GroupID:          params.GroupID,
-		MemberType:       params.MemberType,
-		MemberID:         params.MemberID,
-		ProviderEndpoint: nil,
-	}, nil
+func (s *DB) AddGroupMember(ctx context.Context, params AddGroupMemberParams) (result GroupMember, err error) {
+	err = s.atomic(ctx, func(s *DB) error {
+		var writeErr error
+		result, writeErr = func() (GroupMember, error) {
+			if err := ValidateMembership(ctx, s, Membership{device.TargetGroup, params.GroupID}, Membership{device.TargetType(params.MemberType), params.MemberID}); err != nil {
+				return GroupMember{}, err
+			}
+
+			if err := s.q.AddGroupMember(ctx, sqlite.AddGroupMemberParams{
+				ID:         params.ID,
+				GroupID:    params.GroupID,
+				MemberType: params.MemberType,
+				MemberID:   params.MemberID,
+			}); err != nil {
+				return GroupMember{}, fmt.Errorf("add group member: %w", err)
+			}
+			return GroupMember{
+				ID:               params.ID,
+				GroupID:          params.GroupID,
+				MemberType:       params.MemberType,
+				MemberID:         params.MemberID,
+				ProviderEndpoint: nil,
+			}, nil
+		}()
+		return writeErr
+	})
+	return result, err
 }
 
 // BatchAddGroupDevices adds the listed devices as members of a group. Devices
@@ -276,9 +305,19 @@ func (s *DB) BatchAddGroupDevices(ctx context.Context, groupID string, deviceIDs
 		return 0, nil
 	}
 	var added int64
-	err := s.execTx(ctx, func(q *sqlite.Queries) error {
+	err := s.atomic(ctx, func(tx *DB) error {
+		g, err := tx.GetGroup(ctx, groupID)
+		if err != nil {
+			return err
+		}
+		if g.Provider != GroupProviderHive {
+			return fmt.Errorf("provider group membership is read-only")
+		}
 		for _, did := range deviceIDs {
-			n, err := q.AddGroupMemberIfMissing(ctx, sqlite.AddGroupMemberIfMissingParams{
+			if err := ValidateMembership(ctx, tx, Membership{device.TargetGroup, groupID}, Membership{device.TargetDevice, did}); err != nil {
+				return err
+			}
+			n, err := tx.q.AddGroupMemberIfMissing(ctx, sqlite.AddGroupMemberIfMissingParams{
 				ID:         uuid.New().String(),
 				GroupID:    groupID,
 				MemberType: device.GroupMemberDevice,
@@ -348,6 +387,7 @@ func (s *DB) ListGroupsContainingMember(ctx context.Context, memberType device.G
 	for _, r := range rows {
 		groups = append(groups, Group{
 			ID:              r.ID,
+			Revision:        r.Revision,
 			Name:            r.Name,
 			FriendlyName:    r.FriendlyName,
 			Icon:            r.Icon,

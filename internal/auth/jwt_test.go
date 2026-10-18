@@ -83,3 +83,28 @@ func TestSignGuestCarriesGuestIdentityAndHardExpiry(t *testing.T) {
 		t.Fatalf("guest claim details = %+v", claims)
 	}
 }
+
+func TestTTLAppliesToSubsequentTokens(t *testing.T) {
+	s := NewService([]byte("test-secret"), time.Hour)
+	first, err := s.SignUser("u", "user", "User", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.SetTTL(2 * time.Hour)
+	second, err := s.SignUser("u", "user", "User", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		token    string
+		duration time.Duration
+	}{{first, time.Hour}, {second, 2 * time.Hour}} {
+		claims, err := s.Parse(tc.token)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := claims.ExpiresAt.Sub(claims.IssuedAt.Time); got != tc.duration {
+			t.Fatalf("lifetime=%v want %v", got, tc.duration)
+		}
+	}
+}

@@ -59,78 +59,42 @@ func (r *mutationResolver) UpdateLocalizedNameSet(ctx context.Context, input mod
 
 // UpdateDevice is the resolver for the updateDevice field.
 func (r *mutationResolver) UpdateDevice(ctx context.Context, id string, input model.UpdateDeviceInput) (*model.Device, error) {
-	deviceID := device.DeviceID(id)
-	d, err := r.Store.GetDevice(ctx, deviceID)
-	if err != nil {
-		return nil, fmt.Errorf("device %q not found: %w", id, err)
+	if input.Disabled.IsSet() && input.Disabled.Value() == nil {
+		return nil, fmt.Errorf("disabled must not be null")
 	}
-	d, err = r.Store.UpdateDevice(ctx, store.UpdateDeviceParams{
-		ID:        deviceID,
-		Available: d.Available,
-		Removed:   d.Removed,
-		LastSeen:  d.LastSeen,
-		SetRoles:  input.Roles.IsSet(),
-		Roles:     deviceRolesFromModel(input.Roles.Value()),
+
+	if v := input.DisplayBrightness.Value(); v != nil && (*v < 0 || *v > 254) {
+		return nil, fmt.Errorf("display brightness must be between 0 and 254")
+	}
+	name, setName := input.Name.ValueOK()
+	if name != nil {
+		value := strings.TrimSpace(*name)
+		name = &value
+		if value == "" {
+			name = nil
+		}
+	}
+	icon, setIcon := input.Icon.ValueOK()
+	color, setColor := input.DisplayColor.ValueOK()
+	if color != nil && *color == "" {
+		color = nil
+	}
+	brightness, setBrightness := input.DisplayBrightness.ValueOK()
+	var brightness64 *int64
+	if brightness != nil {
+		value := int64(*brightness)
+		brightness64 = &value
+	}
+	d, err := r.Store.UpdateDeviceMetadata(ctx, store.UpdateDeviceMetadataParams{
+		ExpectedRevision: int64(input.ExpectedRevision),
+		ID:               device.DeviceID(id), SetName: setName, Name: name, SetIcon: setIcon, Icon: icon,
+		SetColor: setColor, Color: color, SetBrightness: setBrightness, Brightness: brightness64,
+		SetRoles: input.Roles.IsSet(), Roles: deviceRolesFromModel(input.Roles.Value()), Disabled: input.Disabled.Value(),
 	})
 	if err != nil {
 		return nil, err
 	}
-	// ValueOK separates "field omitted" from "field set to null", which is what
-	// lets an explicit null clear the override rather than leaving it alone. An
-	// empty string clears it too, so an emptied rename field behaves the same.
-	if n, ok := input.Name.ValueOK(); ok {
-		if n != nil && *n == "" {
-			n = nil
-		}
-		d, err = r.Store.SetDeviceName(ctx, deviceID, n)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if icon, ok := input.Icon.ValueOK(); ok {
-		d, err = r.Store.UpdateDeviceIcon(ctx, store.UpdateDeviceIconParams{
-			ID:      deviceID,
-			SetIcon: true,
-			Icon:    icon,
-		})
-		if err != nil {
-			return nil, err
-		}
-	}
-	if brightness, ok := input.DisplayBrightness.ValueOK(); ok {
-		var v *int64
-		if brightness != nil {
-			n := int64(*brightness)
-			v = &n
-		}
-		d, err = r.Store.UpdateDeviceDisplayBrightness(ctx, store.UpdateDeviceDisplayBrightnessParams{
-			ID:            deviceID,
-			SetBrightness: true,
-			Brightness:    v,
-		})
-		if err != nil {
-			return nil, err
-		}
-	}
-	if color, ok := input.DisplayColor.ValueOK(); ok {
-		if color != nil && *color == "" {
-			color = nil
-		}
-		d, err = r.Store.UpdateDeviceDisplayColor(ctx, store.UpdateDeviceDisplayColorParams{
-			ID:       deviceID,
-			SetColor: true,
-			Color:    color,
-		})
-		if err != nil {
-			return nil, err
-		}
-	}
-	if disabled, ok := input.Disabled.ValueOK(); ok && disabled != nil {
-		d, err = r.Store.SetDeviceDisabled(ctx, deviceID, *disabled)
-		if err != nil {
-			return nil, err
-		}
-	}
+
 	r.EventBus.Publish(eventbus.Event{
 		Type:      eventbus.EventDeviceUpdated,
 		DeviceID:  string(d.ID),
@@ -359,11 +323,15 @@ func (r *mutationResolver) DeactivateScene(ctx context.Context, sceneID string) 
 
 // CreateScene is the resolver for the createScene field.
 func (r *mutationResolver) CreateScene(ctx context.Context, input model.CreateSceneInput) (*model.Scene, error) {
+	input.Name = strings.TrimSpace(input.Name)
+	if input.Name == "" {
+		return nil, fmt.Errorf("name is required")
+	}
 	definition, err := sceneDefinitionFromInput(input.Definition, nil)
 	if err != nil {
 		return nil, err
 	}
-	if err := validateSceneReferences(ctx, r.Resolver, definition); err != nil {
+	if err := validateSceneReferences(ctx, r.Resolver, definition, nil); err != nil {
 		return nil, err
 	}
 	sceneID := uuid.New().String()
@@ -381,12 +349,25 @@ func (r *mutationResolver) CreateScene(ctx context.Context, input model.CreateSc
 
 // UpdateScene is the resolver for the updateScene field.
 func (r *mutationResolver) UpdateScene(ctx context.Context, id string, input model.UpdateSceneInput) (*model.Scene, error) {
+	if input.Name.IsSet() && input.Name.Value() == nil {
+		return nil, fmt.Errorf("name must not be null")
+	}
+	if input.Definition.IsSet() && input.Definition.Value() == nil {
+		return nil, fmt.Errorf("definition must not be null")
+	}
+
+	if name := input.Name.Value(); name != nil {
+		*name = strings.TrimSpace(*name)
+		if *name == "" {
+			return nil, fmt.Errorf("name is required")
+		}
+	}
 	existing, err := r.Store.GetScene(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("scene %q not found: %w", id, err)
 	}
 
-	params := store.UpdateSceneParams{}
+	params := store.UpdateSceneParams{ExpectedRevision: int64(input.ExpectedRevision)}
 	updateScene := false
 	if name, ok := input.Name.ValueOK(); ok {
 		params.Name = name
@@ -402,7 +383,7 @@ func (r *mutationResolver) UpdateScene(ctx context.Context, id string, input mod
 		if err != nil {
 			return nil, err
 		}
-		if err := validateSceneReferences(ctx, r.Resolver, definition); err != nil {
+		if err := validateSceneReferences(ctx, r.Resolver, definition, &existing.Definition); err != nil {
 			return nil, err
 		}
 		params.Definition = &definition
@@ -440,16 +421,27 @@ func (r *mutationResolver) DeleteScene(ctx context.Context, id string) (bool, er
 
 // CreateAutomation is the resolver for the createAutomation field.
 func (r *mutationResolver) CreateAutomation(ctx context.Context, input model.CreateAutomationInput) (*model.AutomationGraph, error) {
+	input.Name = strings.TrimSpace(input.Name)
+	if input.Name == "" {
+		return nil, fmt.Errorf("name is required")
+	}
 	definitions := ""
 	if value, ok := input.Definitions.ValueOK(); ok && value != nil {
 		definitions = *value
 	}
-	if err := validateAutomationInput(ctx, r.Store, definitions, input.Nodes, input.Edges); err != nil {
+	compiledNodes, err := compileAutomationNodes(input.Nodes)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateAutomationSave(ctx, r.Store, definitions, compiledNodes, input.Edges, input.Enabled); err != nil {
 		return nil, err
 	}
 
+	nodeParams, edgeParams := automationGraphParams(compiledNodes, input.Edges)
+
 	autoID := uuid.New().String()
-	_, err := r.Store.CreateAutomation(ctx, store.CreateAutomationParams{
+	_, err = r.Store.CreateAutomation(ctx, store.CreateAutomationParams{
+		Nodes: nodeParams, Edges: edgeParams,
 		ID:          autoID,
 		Name:        input.Name,
 		Enabled:     input.Enabled,
@@ -458,31 +450,6 @@ func (r *mutationResolver) CreateAutomation(ctx context.Context, input model.Cre
 	})
 	if err != nil {
 		return nil, err
-	}
-
-	for _, n := range input.Nodes {
-		_, err := r.Store.CreateAutomationNode(ctx, store.CreateAutomationNodeParams{
-			ID:           n.ID,
-			AutomationID: autoID,
-			Type:         n.Type,
-			Config:       n.Config,
-			PositionX:    n.PositionX,
-			PositionY:    n.PositionY,
-		})
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	for _, e := range input.Edges {
-		_, err := r.Store.CreateAutomationEdge(ctx, store.CreateAutomationEdgeParams{
-			AutomationID: autoID,
-			FromNodeID:   e.FromNodeID,
-			ToNodeID:     e.ToNodeID,
-		})
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	if r.AutomationReloader != nil {
@@ -495,36 +462,67 @@ func (r *mutationResolver) CreateAutomation(ctx context.Context, input model.Cre
 	if err != nil {
 		return nil, err
 	}
-	return mapAutomationGraph(graph, r.pendingHolds(graph.Automation.ID)), nil
+	return r.mapAutomationGraph(ctx, graph, r.pendingHolds(graph.Automation.ID)), nil
 }
 
 // UpdateAutomation is the resolver for the updateAutomation field.
 func (r *mutationResolver) UpdateAutomation(ctx context.Context, id string, input model.UpdateAutomationInput) (*model.AutomationGraph, error) {
+	if input.Name.IsSet() && input.Name.Value() == nil {
+		return nil, fmt.Errorf("name must not be null")
+	}
+	if input.Enabled.IsSet() && input.Enabled.Value() == nil {
+		return nil, fmt.Errorf("enabled must not be null")
+	}
+	if input.Definitions.IsSet() && input.Definitions.Value() == nil {
+		return nil, fmt.Errorf("definitions must not be null")
+	}
+	if input.Nodes.IsSet() && input.Nodes.Value() == nil {
+		return nil, fmt.Errorf("nodes must not be null")
+	}
+	if input.Edges.IsSet() && input.Edges.Value() == nil {
+		return nil, fmt.Errorf("edges must not be null")
+	}
+
+	if name := input.Name.Value(); name != nil {
+		*name = strings.TrimSpace(*name)
+		if *name == "" {
+			return nil, fmt.Errorf("name is required")
+		}
+	}
 	existing, err := r.Store.GetAutomationGraph(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("automation %q not found: %w", id, err)
 	}
 
 	nodes, nodesSet := input.Nodes.ValueOK()
-	edges, _ := input.Edges.ValueOK()
+	edges, edgesSet := input.Edges.ValueOK()
 	definitions, definitionsSet := input.Definitions.ValueOK()
 	definitionsSet = definitionsSet && definitions != nil
 
-	if nodesSet || definitionsSet {
-		effectiveDefinitions := existing.Automation.Definitions
-		if definitionsSet {
-			effectiveDefinitions = *definitions
-		}
-		effectiveNodes := nodes
-		if !nodesSet {
-			effectiveNodes = automationNodeInputs(existing)
-		}
-		if err := validateAutomationMacros(effectiveDefinitions, effectiveNodes); err != nil {
+	effectiveDefinitions := existing.Automation.Definitions
+	if definitionsSet {
+		effectiveDefinitions = *definitions
+	}
+	effectiveNodes := storedAutomationNodes(existing)
+	if nodesSet {
+		effectiveNodes, err = compileAutomationNodes(nodes)
+		if err != nil {
 			return nil, err
 		}
 	}
+	effectiveEdges := edges
+	if !edgesSet {
+		effectiveEdges = automationEdgeInputs(existing)
+	}
+	enabled := existing.Automation.Enabled
+	if v := input.Enabled.Value(); v != nil {
+		enabled = *v
+	}
+	if err := validateAutomationSave(ctx, r.Store, effectiveDefinitions, effectiveNodes, effectiveEdges, enabled); err != nil {
+		return nil, err
+	}
 
-	aParams := store.UpdateAutomationParams{}
+	aParams := store.UpdateAutomationParams{ExpectedRevision: int64(input.ExpectedRevision)}
 	updateAutomation := false
 	if definitionsSet {
 		aParams.Definitions = definitions
@@ -543,33 +541,14 @@ func (r *mutationResolver) UpdateAutomation(ctx context.Context, id string, inpu
 		aParams.Enabled = enabled
 		updateAutomation = true
 	}
+	if nodesSet || edgesSet {
+		nodeParams, edgeParams := automationGraphParams(effectiveNodes, effectiveEdges)
+		aParams.Nodes = &nodeParams
+		aParams.Edges = &edgeParams
+		updateAutomation = true
+	}
 	if updateAutomation {
 		if _, err := r.Store.UpdateAutomation(ctx, id, aParams); err != nil {
-			return nil, err
-		}
-	}
-
-	if nodesSet {
-		nodeParams := make([]store.CreateAutomationNodeParams, len(nodes))
-		for i, n := range nodes {
-			nodeParams[i] = store.CreateAutomationNodeParams{
-				ID:           n.ID,
-				AutomationID: id,
-				Type:         n.Type,
-				Config:       n.Config,
-				PositionX:    n.PositionX,
-				PositionY:    n.PositionY,
-			}
-		}
-		edgeParams := make([]store.CreateAutomationEdgeParams, len(edges))
-		for i, e := range edges {
-			edgeParams[i] = store.CreateAutomationEdgeParams{
-				AutomationID: id,
-				FromNodeID:   e.FromNodeID,
-				ToNodeID:     e.ToNodeID,
-			}
-		}
-		if err := r.Store.ReplaceAutomationGraph(ctx, id, nodeParams, edgeParams); err != nil {
 			return nil, err
 		}
 	}
@@ -584,7 +563,7 @@ func (r *mutationResolver) UpdateAutomation(ctx context.Context, id string, inpu
 	if err != nil {
 		return nil, err
 	}
-	return mapAutomationGraph(graph, r.pendingHolds(graph.Automation.ID)), nil
+	return r.mapAutomationGraph(ctx, graph, r.pendingHolds(graph.Automation.ID)), nil
 }
 
 // DeleteAutomation is the resolver for the deleteAutomation field.
@@ -602,12 +581,22 @@ func (r *mutationResolver) DeleteAutomation(ctx context.Context, id string) (boo
 }
 
 // ToggleAutomation is the resolver for the toggleAutomation field.
-func (r *mutationResolver) ToggleAutomation(ctx context.Context, id string, enabled bool) (*model.AutomationGraph, error) {
+func (r *mutationResolver) ToggleAutomation(ctx context.Context, id string, enabled bool, expectedRevision int) (*model.AutomationGraph, error) {
 	prior, err := r.Store.GetAutomation(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if err := r.Store.UpdateAutomationEnabled(ctx, id, enabled); err != nil {
+	if enabled {
+		graph, err := r.Store.GetAutomationGraph(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if err := validateAutomationSave(ctx, r.Store, graph.Automation.Definitions, storedAutomationNodes(graph), automationEdgeInputs(graph), true); err != nil {
+			return nil, err
+		}
+	}
+
+	if _, err := r.Store.UpdateAutomation(ctx, id, store.UpdateAutomationParams{Enabled: &enabled, ExpectedRevision: int64(expectedRevision)}); err != nil {
 		return nil, err
 	}
 
@@ -630,7 +619,7 @@ func (r *mutationResolver) ToggleAutomation(ctx context.Context, id string, enab
 	if err != nil {
 		return nil, err
 	}
-	return mapAutomationGraph(graph, r.pendingHolds(graph.Automation.ID)), nil
+	return r.mapAutomationGraph(ctx, graph, r.pendingHolds(graph.Automation.ID)), nil
 }
 
 // FireAutomationTrigger is the resolver for the fireAutomationTrigger field.
@@ -675,7 +664,8 @@ func (r *mutationResolver) UpdateWebhookEndpoint(ctx context.Context, id string,
 		return nil, err
 	}
 	row, err := r.Store.UpdateWebhookEndpoint(ctx, store.UpdateWebhookEndpointParams{
-		ID: id, Name: input.Name, Enabled: input.Enabled,
+		ExpectedRevision: int64(input.ExpectedRevision),
+		ID:               id, Name: input.Name, Enabled: input.Enabled,
 		RateLimitCount: input.RateLimitCount, RateLimitWindowMs: input.RateLimitWindowMs,
 	})
 	if err != nil {
@@ -712,6 +702,10 @@ func (r *mutationResolver) BatchDeleteWebhookEndpoints(ctx context.Context, ids 
 
 // CreateGroup is the resolver for the createGroup field.
 func (r *mutationResolver) CreateGroup(ctx context.Context, input model.CreateGroupInput) (*model.Group, error) {
+	if strings.TrimSpace(input.Name) == "" {
+		return nil, fmt.Errorf("group name is required")
+	}
+	input.Name = strings.TrimSpace(input.Name)
 	groupID := uuid.New().String()
 	params := store.CreateGroupParams{
 		ID:        groupID,
@@ -730,6 +724,10 @@ func (r *mutationResolver) CreateGroup(ctx context.Context, input model.CreateGr
 
 // UpdateGroup is the resolver for the updateGroup field.
 func (r *mutationResolver) UpdateGroup(ctx context.Context, id string, input model.UpdateGroupInput) (*model.Group, error) {
+	if input.Tags.IsSet() && input.Tags.Value() == nil {
+		return nil, fmt.Errorf("tags must not be null")
+	}
+
 	g, err := r.Store.GetGroup(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("group %q not found: %w", id, err)
@@ -742,9 +740,10 @@ func (r *mutationResolver) UpdateGroup(ctx context.Context, id string, input mod
 		return nil, fmt.Errorf("group name is required")
 	}
 	gParams := store.UpdateGroupParams{
-		ID:      id,
-		Name:    nameInput,
-		SetName: setName,
+		ExpectedRevision: int64(input.ExpectedRevision),
+		ID:               id,
+		Name:             nameInput,
+		SetName:          setName,
 	}
 	if icon, ok := input.Icon.ValueOK(); ok {
 		gParams.SetIcon = true
@@ -754,6 +753,20 @@ func (r *mutationResolver) UpdateGroup(ctx context.Context, id string, input mod
 		gParams.SetTags = true
 		gParams.Tags = groupTagsFromModel(tags)
 	}
+	if input.Members.IsSet() {
+		if input.Members.Value() == nil {
+			return nil, fmt.Errorf("members must not be null")
+		}
+		members := make([]store.Membership, 0, len(input.Members.Value()))
+		for _, member := range input.Members.Value() {
+			if err := validateEntityReference(ctx, r.Store, member.MemberType, member.MemberID); err != nil {
+				return nil, err
+			}
+			members = append(members, store.Membership{Type: device.TargetType(member.MemberType), ID: member.MemberID})
+		}
+		gParams.Members = &members
+	}
+
 	g, err = r.Store.UpdateGroup(ctx, gParams)
 	if err != nil {
 		return nil, err
@@ -761,6 +774,9 @@ func (r *mutationResolver) UpdateGroup(ctx context.Context, id string, input mod
 	members, err := r.Store.ListGroupMembers(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	if gParams.Members != nil {
+		r.publishGroupMembershipChanged()
 	}
 	return mapGroup(ctx, r.StateReader, r.Store, g, members), nil
 }
@@ -784,19 +800,25 @@ func (r *mutationResolver) AddGroupMember(ctx context.Context, input model.AddGr
 	if _, err := requireHiveGroup(ctx, r.Store, input.GroupID); err != nil {
 		return nil, err
 	}
+	if err := validateEntityReference(ctx, r.Store, "group", input.GroupID); err != nil {
+		return nil, err
+	}
+	if err := validateEntityReference(ctx, r.Store, input.MemberType, input.MemberID); err != nil {
+		return nil, err
+	}
 	memberType := device.GroupMemberType(input.MemberType)
 	if memberType != device.GroupMemberDevice && memberType != device.GroupMemberGroup && memberType != device.GroupMemberRoom {
 		return nil, fmt.Errorf("invalid member type %q: must be %q, %q, or %q", input.MemberType, device.GroupMemberDevice, device.GroupMemberGroup, device.GroupMemberRoom)
 	}
 
-	parent := entityRef{kind: "group", id: input.GroupID}
+	parent := store.Membership{Type: device.TargetGroup, ID: input.GroupID}
 	switch memberType {
 	case device.GroupMemberGroup:
-		if err := r.checkCircularDependency(ctx, parent, entityRef{kind: "group", id: input.MemberID}); err != nil {
+		if err := store.ValidateMembership(ctx, r.Store, parent, store.Membership{Type: device.TargetGroup, ID: input.MemberID}); err != nil {
 			return nil, err
 		}
 	case device.GroupMemberRoom:
-		if err := r.checkCircularDependency(ctx, parent, entityRef{kind: "room", id: input.MemberID}); err != nil {
+		if err := store.ValidateMembership(ctx, r.Store, parent, store.Membership{Type: device.TargetRoom, ID: input.MemberID}); err != nil {
 			return nil, err
 		}
 	}
@@ -832,6 +854,10 @@ func (r *mutationResolver) RemoveGroupMember(ctx context.Context, id string) (*m
 
 // CreateRoom is the resolver for the createRoom field.
 func (r *mutationResolver) CreateRoom(ctx context.Context, input model.CreateRoomInput) (*model.Room, error) {
+	input.Name = strings.TrimSpace(input.Name)
+	if input.Name == "" {
+		return nil, fmt.Errorf("name is required")
+	}
 	roomID := uuid.New().String()
 	rm, err := r.Store.CreateRoom(ctx, store.CreateRoomParams{
 		ID:        roomID,
@@ -847,6 +873,16 @@ func (r *mutationResolver) CreateRoom(ctx context.Context, input model.CreateRoo
 
 // UpdateRoom is the resolver for the updateRoom field.
 func (r *mutationResolver) UpdateRoom(ctx context.Context, id string, input model.UpdateRoomInput) (*model.Room, error) {
+	if input.Name.IsSet() && input.Name.Value() == nil {
+		return nil, fmt.Errorf("name must not be null")
+	}
+
+	if name := input.Name.Value(); name != nil {
+		*name = strings.TrimSpace(*name)
+		if *name == "" {
+			return nil, fmt.Errorf("name is required")
+		}
+	}
 	rm, err := r.Store.GetRoom(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("room %q not found: %w", id, err)
@@ -856,16 +892,34 @@ func (r *mutationResolver) UpdateRoom(ctx context.Context, id string, input mode
 		name = *n
 	}
 	rParams := store.UpdateRoomParams{
-		ID:   id,
-		Name: name,
+		ExpectedRevision: int64(input.ExpectedRevision),
+		ID:               id,
+		Name:             name,
 	}
 	if icon, ok := input.Icon.ValueOK(); ok {
 		rParams.SetIcon = true
 		rParams.Icon = icon
 	}
+	if input.Members.IsSet() {
+		if input.Members.Value() == nil {
+			return nil, fmt.Errorf("members must not be null")
+		}
+		members := make([]store.Membership, 0, len(input.Members.Value()))
+		for _, member := range input.Members.Value() {
+			if err := validateEntityReference(ctx, r.Store, member.MemberType, member.MemberID); err != nil {
+				return nil, err
+			}
+			members = append(members, store.Membership{Type: device.TargetType(member.MemberType), ID: member.MemberID})
+		}
+		rParams.Members = &members
+	}
+
 	rm, err = r.Store.UpdateRoom(ctx, rParams)
 	if err != nil {
 		return nil, err
+	}
+	if rParams.Members != nil {
+		r.publishRoomMembershipChanged()
 	}
 	return mapRoom(ctx, r.StateReader, r.Store, rm), nil
 }
@@ -881,15 +935,21 @@ func (r *mutationResolver) DeleteRoom(ctx context.Context, id string) (bool, err
 
 // AddRoomMember is the resolver for the addRoomMember field.
 func (r *mutationResolver) AddRoomMember(ctx context.Context, input model.AddRoomMemberInput) (*model.Room, error) {
+	if err := validateEntityReference(ctx, r.Store, "room", input.RoomID); err != nil {
+		return nil, err
+	}
+	if err := validateEntityReference(ctx, r.Store, input.MemberType, input.MemberID); err != nil {
+		return nil, err
+	}
 	memberType := device.RoomMemberType(input.MemberType)
 	if memberType != device.RoomMemberDevice && memberType != device.RoomMemberGroup {
 		return nil, fmt.Errorf("%w %q: must be %q or %q", device.ErrInvalidRoomMemberType, input.MemberType, device.RoomMemberDevice, device.RoomMemberGroup)
 	}
 
 	if memberType == device.RoomMemberGroup {
-		parent := entityRef{kind: "room", id: input.RoomID}
-		child := entityRef{kind: "group", id: input.MemberID}
-		if err := r.checkCircularDependency(ctx, parent, child); err != nil {
+		parent := store.Membership{Type: device.TargetRoom, ID: input.RoomID}
+		child := store.Membership{Type: device.TargetGroup, ID: input.MemberID}
+		if err := store.ValidateMembership(ctx, r.Store, parent, child); err != nil {
 			return nil, err
 		}
 	}
@@ -927,15 +987,16 @@ func (r *mutationResolver) UpdateFloorplan(ctx context.Context, input model.Upda
 	}
 
 	params := store.ReplaceFloorplanParams{
-		ID:           input.ID,
-		Name:         input.Name,
-		Vertices:     make([]store.FloorplanVertex, len(input.Vertices)),
-		Walls:        make([]store.FloorplanWall, len(input.Walls)),
-		Openings:     make([]store.FloorplanOpening, len(input.Openings)),
-		DoorBindings: make([]store.FloorplanDoorBinding, len(input.DoorBindings)),
-		Rooms:        make([]store.FloorplanRoom, len(input.Rooms)),
-		Placements:   make([]store.FloorplanPlacement, len(input.Placements)),
-		Furniture:    make([]store.FloorplanFurniture, len(input.Furniture)),
+		ExpectedRevision: int64(input.ExpectedRevision),
+		ID:               input.ID,
+		Name:             input.Name,
+		Vertices:         make([]store.FloorplanVertex, len(input.Vertices)),
+		Walls:            make([]store.FloorplanWall, len(input.Walls)),
+		Openings:         make([]store.FloorplanOpening, len(input.Openings)),
+		DoorBindings:     make([]store.FloorplanDoorBinding, len(input.DoorBindings)),
+		Rooms:            make([]store.FloorplanRoom, len(input.Rooms)),
+		Placements:       make([]store.FloorplanPlacement, len(input.Placements)),
+		Furniture:        make([]store.FloorplanFurniture, len(input.Furniture)),
 	}
 	for i, v := range input.Vertices {
 		params.Vertices[i] = store.FloorplanVertex{ID: v.ID, X: v.X, Y: v.Y}
@@ -1014,7 +1075,7 @@ func (r *mutationResolver) UpdateFloorplan(ctx context.Context, input model.Upda
 // Connection and scan-schedule changes reconfigure the adapter. Traffic-rate
 // changes update the output controller without interrupting subscriptions.
 // The row is persisted even when a reconnect fails.
-func (r *mutationResolver) UpdateZigbee2MqttConfig(ctx context.Context, input model.Zigbee2MqttConfigInput) (*model.Zigbee2MqttConfig, error) {
+func (r *mutationResolver) UpdateZigbee2MqttConfig(ctx context.Context, input model.Zigbee2MqttConfigInput, expectedRevision int) (*model.Zigbee2MqttConfigResult, error) {
 	if input.InteractiveCommandsPerSecond < 1 || input.InteractiveCommandsPerSecond > 50 {
 		return nil, fmt.Errorf("interactive command rate must be between 1 and 50 per second")
 	}
@@ -1041,7 +1102,7 @@ func (r *mutationResolver) UpdateZigbee2MqttConfig(ctx context.Context, input mo
 		return nil, err
 	}
 	cfg := store.Zigbee2MQTTConfig{
-		Broker:                       strings.TrimSpace(input.Broker),
+		Revision: int64(expectedRevision), Broker: strings.TrimSpace(input.Broker),
 		FrontendURL:                  frontendURL,
 		Username:                     strings.TrimSpace(input.Username),
 		Password:                     password,
@@ -1056,14 +1117,17 @@ func (r *mutationResolver) UpdateZigbee2MqttConfig(ctx context.Context, input mo
 	if err := r.Store.UpsertZigbee2MQTTConfig(ctx, cfg); err != nil {
 		return nil, err
 	}
+	cfg.Revision++
+	application := &model.ConnectionTestResult{Success: true, Code: model.ConnectionTestCodeConnected}
 	if r.Zigbee2MQTT != nil {
 		if existing != nil && zigbee2MQTTConnectionUnchanged(*existing, cfg) {
 			r.Zigbee2MQTT.UpdateZigbee2MQTTCommandRates(input.InteractiveCommandsPerSecond, input.ContinuousCommandsPerSecond)
 		} else if err := r.Zigbee2MQTT.ReconnectZigbee2MQTT(ctx); err != nil {
-			return nil, fmt.Errorf("saved config but failed to reconnect Zigbee2MQTT: %w", err)
+			diagnostic := err.Error()
+			application = &model.ConnectionTestResult{Success: false, Code: connectionTestCode(err), Diagnostic: &diagnostic}
 		}
 	}
-	return mapZigbee2MQTTConfig(cfg, r.zigbee2MQTTScanStartedAt(ctx), r.activeContinuousDeviceIDs(device.SourceZigbee2MQTT)), nil
+	return &model.Zigbee2MqttConfigResult{Config: mapZigbee2MQTTConfig(cfg, r.zigbee2MQTTScanStartedAt(ctx), r.activeContinuousDeviceIDs(device.SourceZigbee2MQTT)), Application: application}, nil
 }
 
 // TestZigbee2MqttConnection is the resolver for the testZigbee2MqttConnection field.
@@ -1104,7 +1168,7 @@ func (r *mutationResolver) ScanZigbee2MqttNetwork(ctx context.Context) (bool, er
 }
 
 // UpdateTuyaConfig is the resolver for the updateTuyaConfig field.
-func (r *mutationResolver) UpdateTuyaConfig(ctx context.Context, input model.TuyaConfigInput) (*model.TuyaConfig, error) {
+func (r *mutationResolver) UpdateTuyaConfig(ctx context.Context, input model.TuyaConfigInput, expectedRevision int) (*model.TuyaConfigResult, error) {
 	secret := input.AccessSecret
 	if secret == redactedPasswordSentinel {
 		existing, err := r.Store.GetTuyaConfig(ctx)
@@ -1118,7 +1182,7 @@ func (r *mutationResolver) UpdateTuyaConfig(ctx context.Context, input model.Tuy
 		}
 	}
 	cfg := store.TuyaConfig{
-		AccessID:     strings.TrimSpace(input.AccessID),
+		Revision: int64(expectedRevision), AccessID: strings.TrimSpace(input.AccessID),
 		AccessSecret: secret,
 		Region:       strings.TrimSpace(input.Region),
 		Enabled:      input.Enabled,
@@ -1126,12 +1190,15 @@ func (r *mutationResolver) UpdateTuyaConfig(ctx context.Context, input model.Tuy
 	if err := r.Store.UpsertTuyaConfig(ctx, cfg); err != nil {
 		return nil, err
 	}
+	cfg.Revision++
+	application := &model.ConnectionTestResult{Success: true, Code: model.ConnectionTestCodeConnected}
 	if r.Tuya != nil {
 		if err := r.Tuya.ReconnectTuya(ctx); err != nil {
-			return nil, fmt.Errorf("saved config but failed to reconnect Tuya: %w", err)
+			diagnostic := err.Error()
+			application = &model.ConnectionTestResult{Success: false, Code: connectionTestCode(err), Diagnostic: &diagnostic}
 		}
 	}
-	return mapTuyaConfig(cfg), nil
+	return &model.TuyaConfigResult{Config: mapTuyaConfig(cfg), Application: application}, nil
 }
 
 // TestTuyaConnection is the resolver for the testTuyaConnection field.
@@ -1180,6 +1247,9 @@ func (r *mutationResolver) SyncTuyaDevices(ctx context.Context) ([]*model.Device
 
 // DeleteIntegration is the resolver for the deleteIntegration field.
 func (r *mutationResolver) DeleteIntegration(ctx context.Context, provider string) (int, error) {
+	if provider == "claude" && r.Assistant != nil {
+		return 0, r.Assistant.DeleteConfig(ctx)
+	}
 	if r.Integrations == nil {
 		return 0, errors.New("integration manager is not configured")
 	}
@@ -1190,7 +1260,23 @@ func (r *mutationResolver) DeleteIntegration(ctx context.Context, provider strin
 // keys (auth.IsInternalSettingKey) are rejected so a caller cannot overwrite
 // secrets that the public settings surface intentionally hides — see the doc
 // comment on IsInternalSettingKey.
-func (r *mutationResolver) UpdateSetting(ctx context.Context, key string, value string) (*model.Setting, error) {
+func (r *mutationResolver) UpdateSetting(ctx context.Context, key string, value string, expectedRevision int) (*model.Setting, error) {
+	switch key {
+	case "log_level":
+		if _, ok := logging.ParseLevel(value); !ok {
+			return nil, fmt.Errorf("invalid log level %q", value)
+		}
+		value = strings.ToUpper(value)
+	case "history.retention_days", auth.SettingTokenTTLHours:
+		n, err := strconv.Atoi(value)
+		if err != nil || n < 1 || strconv.Itoa(n) != value || key == auth.SettingTokenTTLHours && n > 720 {
+			return nil, fmt.Errorf("%s requires a positive whole number within its allowed range", key)
+		}
+	case "timezone", "i18n.default_content_language", "i18n.translate_standard_room_names":
+	default:
+		return nil, fmt.Errorf("setting %q is not editable", key)
+	}
+
 	if auth.IsInternalSettingKey(key) {
 		return nil, fmt.Errorf("setting %q is read-only", key)
 	}
@@ -1208,7 +1294,8 @@ func (r *mutationResolver) UpdateSetting(ctx context.Context, key string, value 
 		}
 		location = loaded
 	}
-	if err := r.Store.UpsertSetting(ctx, key, value); err != nil {
+	setting, err := r.Store.UpdateSetting(ctx, key, value, int64(expectedRevision))
+	if err != nil {
 		return nil, err
 	}
 
@@ -1218,13 +1305,18 @@ func (r *mutationResolver) UpdateSetting(ctx context.Context, key string, value 
 		}
 	}
 
+	if key == auth.SettingTokenTTLHours && r.Auth != nil {
+		hours, _ := strconv.Atoi(value)
+		r.Auth.SetTTL(time.Duration(hours) * time.Hour)
+	}
+
 	if key == "log_level" {
-		if lvl, ok := logging.ParseLevel(value); ok {
+		if lvl, ok := logging.ParseLevel(value); ok && r.LevelVar != nil {
 			r.LevelVar.Set(lvl)
 		}
 	}
 
-	return &model.Setting{Key: key, Value: value}, nil
+	return &model.Setting{Key: setting.Key, Value: setting.Value, Revision: int(setting.Revision)}, nil
 }
 
 // Login is the resolver for the login field. Every attempt passes through the
@@ -1498,11 +1590,30 @@ func (r *mutationResolver) BatchDeleteGuests(ctx context.Context, ids []string) 
 // profile. Currently covers display name and theme; avatar changes go through
 // the POST /api/avatars upload endpoint.
 func (r *mutationResolver) UpdateCurrentUser(ctx context.Context, input model.UpdateCurrentUserInput) (*model.User, error) {
+	if input.Name.IsSet() && input.Name.Value() == nil {
+		return nil, fmt.Errorf("name must not be null")
+	}
+	if input.Theme.IsSet() && input.Theme.Value() == nil {
+		return nil, fmt.Errorf("theme must not be null")
+	}
+	if input.TimeFormat.IsSet() && input.TimeFormat.Value() == nil {
+		return nil, fmt.Errorf("timeFormat must not be null")
+	}
+	if input.TemperatureUnit.IsSet() && input.TemperatureUnit.Value() == nil {
+		return nil, fmt.Errorf("temperatureUnit must not be null")
+	}
+	if input.HapticsEnabled.IsSet() && input.HapticsEnabled.Value() == nil {
+		return nil, fmt.Errorf("hapticsEnabled must not be null")
+	}
+	if input.Language.IsSet() && input.Language.Value() == nil {
+		return nil, fmt.Errorf("language must not be null")
+	}
+
 	cu, ok := auth.PrincipalFromContext(ctx)
 	if !ok {
 		return nil, fmt.Errorf("authentication required")
 	}
-	params := store.UpdateUserProfileParams{ID: cu.ID}
+	params := store.UpdateUserProfileParams{ID: cu.ID, ExpectedRevision: int64(input.ExpectedRevision)}
 	if namePtr, ok := input.Name.ValueOK(); ok && namePtr != nil {
 		trimmed := strings.TrimSpace(*namePtr)
 		if trimmed == "" {
@@ -1857,6 +1968,15 @@ func (r *mutationResolver) BatchDeleteUsers(ctx context.Context, ids []string) (
 
 // BatchAddRoomMembers is the resolver for the batchAddRoomMembers field.
 func (r *mutationResolver) BatchAddRoomMembers(ctx context.Context, roomID string, members []*model.RoomMemberInput) (*model.Room, error) {
+	if err := validateEntityReference(ctx, r.Store, "room", roomID); err != nil {
+		return nil, err
+	}
+	for _, member := range members {
+		if err := validateEntityReference(ctx, r.Store, member.MemberType, member.MemberID); err != nil {
+			return nil, err
+		}
+	}
+
 	inputs := make([]store.RoomMemberInput, 0, len(members))
 	for _, m := range members {
 		memberType := device.RoomMemberType(m.MemberType)
@@ -1864,9 +1984,9 @@ func (r *mutationResolver) BatchAddRoomMembers(ctx context.Context, roomID strin
 			return nil, fmt.Errorf("%w %q: must be %q or %q", device.ErrInvalidRoomMemberType, m.MemberType, device.RoomMemberDevice, device.RoomMemberGroup)
 		}
 		if memberType == device.RoomMemberGroup {
-			parent := entityRef{kind: "room", id: roomID}
-			child := entityRef{kind: "group", id: m.MemberID}
-			if err := r.checkCircularDependency(ctx, parent, child); err != nil {
+			parent := store.Membership{Type: device.TargetRoom, ID: roomID}
+			child := store.Membership{Type: device.TargetGroup, ID: m.MemberID}
+			if err := store.ValidateMembership(ctx, r.Store, parent, child); err != nil {
 				return nil, err
 			}
 		}
@@ -1893,6 +2013,11 @@ func (r *mutationResolver) BatchAddGroupDevices(ctx context.Context, groupID str
 	if _, err := requireHiveGroup(ctx, r.Store, groupID); err != nil {
 		return nil, err
 	}
+	for _, id := range deviceIds {
+		if err := validateEntityReference(ctx, r.Store, "device", id); err != nil {
+			return nil, err
+		}
+	}
 	if _, err := r.Store.BatchAddGroupDevices(ctx, groupID, deviceIds); err != nil {
 		return nil, err
 	}
@@ -1909,6 +2034,10 @@ func (r *mutationResolver) BatchAddGroupDevices(ctx context.Context, groupID str
 
 // CreateEffect is the resolver for the createEffect field.
 func (r *mutationResolver) CreateEffect(ctx context.Context, input model.CreateEffectInput) (*model.Effect, error) {
+	input.Name = strings.TrimSpace(input.Name)
+	if input.Name == "" {
+		return nil, fmt.Errorf("name is required")
+	}
 	nativeName := input.NativeName.Value()
 	if err := validateEffectInput(input.Kind, nativeName, input.Loop, input.DurationMs, input.Tracks); err != nil {
 		return nil, err
@@ -1943,28 +2072,62 @@ func (r *mutationResolver) CreateEffect(ctx context.Context, input model.CreateE
 
 // UpdateEffect is the resolver for the updateEffect field.
 func (r *mutationResolver) UpdateEffect(ctx context.Context, input model.UpdateEffectInput) (*model.Effect, error) {
+	if input.Name.IsSet() && input.Name.Value() == nil {
+		return nil, fmt.Errorf("name must not be null")
+	}
+	if input.Loop.IsSet() && input.Loop.Value() == nil {
+		return nil, fmt.Errorf("loop must not be null")
+	}
+	if input.DurationMs.IsSet() && input.DurationMs.Value() == nil {
+		return nil, fmt.Errorf("durationMs must not be null")
+	}
+	if input.Tracks.IsSet() && input.Tracks.Value() == nil {
+		return nil, fmt.Errorf("tracks must not be null")
+	}
+
+	if name := input.Name.Value(); name != nil {
+		*name = strings.TrimSpace(*name)
+		if *name == "" {
+			return nil, fmt.Errorf("name is required")
+		}
+	}
 	existing, err := r.Store.GetEffect(ctx, input.ID)
 	if err != nil {
 		return nil, fmt.Errorf("effect %q not found: %w", input.ID, err)
 	}
 
 	tracksValue, tracksGiven := input.Tracks.ValueOK()
-	if tracksGiven {
-		loop := existing.Loop
-		if v, ok := input.Loop.ValueOK(); ok && v != nil {
-			loop = *v
-		}
-		duration := existing.DurationMs
-		if v, ok := input.DurationMs.ValueOK(); ok && v != nil {
-			duration = *v
-		}
-		nativeName := input.NativeName.Value()
-		if err := validateEffectInput(modelKindFromStore(existing.Kind), nativeName, loop, duration, tracksValue); err != nil {
-			return nil, err
+	loop := existing.Loop
+	if v := input.Loop.Value(); v != nil {
+		loop = *v
+	}
+	duration := existing.DurationMs
+	if v := input.DurationMs.Value(); v != nil {
+		duration = *v
+	}
+	nativeName := existing.NativeName
+	if v, set := input.NativeName.ValueOK(); set {
+		nativeName = v
+	}
+	effectiveTracks := tracksValue
+	if !tracksGiven {
+		for _, track := range existing.Tracks {
+			clips := make([]*model.EffectClipInput, 0, len(track.Clips))
+			for _, clip := range track.Clips {
+				config, err := effect.DecodeClipConfig(clip.Kind, []byte(clip.ConfigJSON))
+				if err != nil {
+					return nil, err
+				}
+				clips = append(clips, &model.EffectClipInput{StartMs: clip.StartMs, TransitionMinMs: clip.TransitionMinMs, TransitionMaxMs: clip.TransitionMaxMs, Kind: clipKindToModel(clip.Kind), Config: &config})
+			}
+			effectiveTracks = append(effectiveTracks, &model.EffectTrackInput{Name: track.Name, Clips: clips})
 		}
 	}
+	if err := validateEffectInput(modelKindFromStore(existing.Kind), nativeName, loop, duration, effectiveTracks); err != nil {
+		return nil, err
+	}
 
-	params := store.UpdateEffectParams{}
+	params := store.UpdateEffectParams{ExpectedRevision: int64(input.ExpectedRevision)}
 	if name, ok := input.Name.ValueOK(); ok && name != nil {
 		params.Name = name
 	}
@@ -1982,18 +2145,15 @@ func (r *mutationResolver) UpdateEffect(ctx context.Context, input model.UpdateE
 		params.SetNativeName = true
 		params.NativeName = nativeName
 	}
-	if _, err := r.Store.UpdateEffect(ctx, input.ID, params); err != nil {
-		return nil, err
-	}
-
 	if tracksGiven {
-		newTracks, err := buildEffectTrackInputs(tracksValue)
+		tracks, err := buildEffectTrackInputs(tracksValue)
 		if err != nil {
 			return nil, err
 		}
-		if err := r.Store.SaveEffectTracks(ctx, input.ID, newTracks); err != nil {
-			return nil, err
-		}
+		params.Tracks = &tracks
+	}
+	if _, err := r.Store.UpdateEffect(ctx, input.ID, params); err != nil {
+		return nil, err
 	}
 
 	row, err := r.Store.GetEffect(ctx, input.ID)
@@ -2278,7 +2438,7 @@ func (r *queryResolver) Automations(ctx context.Context) ([]*model.AutomationGra
 		if err != nil {
 			return nil, err
 		}
-		result[i] = mapAutomationGraph(graph, r.pendingHolds(graph.Automation.ID))
+		result[i] = r.mapAutomationGraph(ctx, graph, r.pendingHolds(graph.Automation.ID))
 	}
 	return result, nil
 }
@@ -2289,7 +2449,20 @@ func (r *queryResolver) Automation(ctx context.Context, id string) (*model.Autom
 	if err != nil {
 		return nil, err
 	}
-	return mapAutomationGraph(graph, r.pendingHolds(graph.Automation.ID)), nil
+	return r.mapAutomationGraph(ctx, graph, r.pendingHolds(graph.Automation.ID)), nil
+}
+
+// ValidateAutomation is the resolver for the validateAutomation field.
+func (r *queryResolver) ValidateAutomation(ctx context.Context, input model.CreateAutomationInput) (*model.ConfigurationValidation, error) {
+	definitions := ""
+	if input.Definitions.Value() != nil {
+		definitions = *input.Definitions.Value()
+	}
+	nodes, err := compileAutomationNodes(input.Nodes)
+	if err != nil {
+		return nil, err
+	}
+	return automationValidation(ctx, r.Store, definitions, nodes, input.Edges), nil
 }
 
 // WebhookEndpoints is the resolver for the webhookEndpoints field.
@@ -2683,8 +2856,21 @@ func (r *queryResolver) Integrations(ctx context.Context) ([]*model.Integration,
 	tuyaConfigured := tuyaCfg != nil && tuyaCfg.AccessID != "" && tuyaCfg.AccessSecret != "" && tuyaCfg.Region != ""
 	tuyaEnabled := tuyaConfigured && tuyaCfg.Enabled
 
+	claudeConfigured, claudeEnabled, claudeReady := false, false, false
+	if r.Assistant != nil {
+		cfg, err := r.Assistant.Config(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if cfg != nil {
+			claudeConfigured = cfg.Token != ""
+			claudeEnabled = cfg.Enabled
+			claudeReady = r.Assistant.Ready()
+		}
+	}
 	return []*model.Integration{
 		{
+			Kind:        model.IntegrationKindDeviceProvider,
 			Provider:    string(device.SourceZigbee2MQTT),
 			Name:        "Zigbee2MQTT",
 			Configured:  z2mConfigured,
@@ -2693,6 +2879,7 @@ func (r *queryResolver) Integrations(ctx context.Context) ([]*model.Integration,
 			DeviceCount: countBySource[device.SourceZigbee2MQTT],
 		},
 		{
+			Kind:        model.IntegrationKindDeviceProvider,
 			Provider:    string(device.SourceTuya),
 			Name:        "Tuya",
 			Configured:  tuyaConfigured,
@@ -2700,6 +2887,7 @@ func (r *queryResolver) Integrations(ctx context.Context) ([]*model.Integration,
 			Connected:   tuyaEnabled && r.Tuya != nil && r.Tuya.TuyaConnected(),
 			DeviceCount: countBySource[device.SourceTuya],
 		},
+		{Provider: "claude", Name: "Claude", Kind: model.IntegrationKindAssistant, Configured: claudeConfigured, Enabled: claudeEnabled, Connected: claudeEnabled && claudeReady},
 	}, nil
 }
 
@@ -2754,7 +2942,7 @@ func (r *queryResolver) Settings(ctx context.Context) ([]*model.Setting, error) 
 		if auth.IsInternalSettingKey(s.Key) {
 			continue
 		}
-		result = append(result, &model.Setting{Key: s.Key, Value: s.Value})
+		result = append(result, &model.Setting{Key: s.Key, Value: s.Value, Revision: int(s.Revision)})
 	}
 	return result, nil
 }

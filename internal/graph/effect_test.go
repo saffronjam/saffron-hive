@@ -19,7 +19,7 @@ func TestMutationCreateEffectTimeline(t *testing.T) {
 	resp := env.query(t, `mutation($input: CreateEffectInput!) {
         createEffect(input: $input) {
           id name kind loop durationMs
-          tracks { index clips { startMs transitionMinMs transitionMaxMs kind config } }
+          tracks { index clips { startMs transitionMinMs transitionMaxMs kind config { setBrightness { value } setColor { mode rgb { r g b } } } } }
           requiredCapabilities
         }
       }`,
@@ -33,8 +33,8 @@ func TestMutationCreateEffectTimeline(t *testing.T) {
 					{
 						"name": "Pulse track",
 						"clips": []map[string]any{
-							{"startMs": 0, "transitionMinMs": 500, "transitionMaxMs": 500, "kind": "SET_BRIGHTNESS", "config": `{"value":255}`},
-							{"startMs": 1500, "transitionMinMs": 500, "transitionMaxMs": 500, "kind": "SET_BRIGHTNESS", "config": `{"value":50}`},
+							{"startMs": 0, "transitionMinMs": 500, "transitionMaxMs": 500, "kind": "SET_BRIGHTNESS", "config": json.RawMessage(`{"setBrightness":{"value":254}}`)},
+							{"startMs": 1500, "transitionMinMs": 500, "transitionMaxMs": 500, "kind": "SET_BRIGHTNESS", "config": json.RawMessage(`{"setBrightness":{"value":50}}`)},
 						},
 					},
 				},
@@ -54,11 +54,11 @@ func TestMutationCreateEffectTimeline(t *testing.T) {
 			Tracks     []struct {
 				Index int `json:"index"`
 				Clips []struct {
-					StartMs         int    `json:"startMs"`
-					TransitionMinMs int    `json:"transitionMinMs"`
-					TransitionMaxMs int    `json:"transitionMaxMs"`
-					Kind            string `json:"kind"`
-					Config          string `json:"config"`
+					StartMs         int             `json:"startMs"`
+					TransitionMinMs int             `json:"transitionMinMs"`
+					TransitionMaxMs int             `json:"transitionMaxMs"`
+					Kind            string          `json:"kind"`
+					Config          json.RawMessage `json:"config"`
 				} `json:"clips"`
 			} `json:"tracks"`
 			RequiredCapabilities []string `json:"requiredCapabilities"`
@@ -108,13 +108,13 @@ func TestMutationCreateEffectMultiTrack(t *testing.T) {
 					{
 						"name": "Color",
 						"clips": []map[string]any{
-							{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 1000, "kind": "SET_COLOR", "config": `{"mode":"rgb","rgb":{"r":255,"g":0,"b":0}}`},
+							{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 1000, "kind": "SET_COLOR", "config": json.RawMessage(`{"setColor":{"mode":"rgb","rgb":{"r":255,"g":0,"b":0}}}`)},
 						},
 					},
 					{
 						"name": "Brightness",
 						"clips": []map[string]any{
-							{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 1000, "kind": "SET_BRIGHTNESS", "config": `{"value":150}`},
+							{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 1000, "kind": "SET_BRIGHTNESS", "config": json.RawMessage(`{"setBrightness":{"value":150}}`)},
 						},
 					},
 				},
@@ -182,8 +182,8 @@ func TestMutationCreateEffectRejectsOverlappingClips(t *testing.T) {
 				"durationMs": 2000,
 				"tracks": []map[string]any{
 					{"clips": []map[string]any{
-						{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 1000, "kind": "SET_BRIGHTNESS", "config": `{"value":100}`},
-						{"startMs": 500, "transitionMinMs": 0, "transitionMaxMs": 200, "kind": "SET_BRIGHTNESS", "config": `{"value":200}`},
+						{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 1000, "kind": "SET_BRIGHTNESS", "config": json.RawMessage(`{"setBrightness":{"value":100}}`)},
+						{"startMs": 500, "transitionMinMs": 0, "transitionMaxMs": 200, "kind": "SET_BRIGHTNESS", "config": json.RawMessage(`{"setBrightness":{"value":200}}`)},
 					}},
 				},
 			},
@@ -205,7 +205,7 @@ func TestMutationCreateEffectRejectsClipPastDurationOnLoop(t *testing.T) {
 				"durationMs": 500,
 				"tracks": []map[string]any{
 					{"clips": []map[string]any{
-						{"startMs": 100, "transitionMinMs": 0, "transitionMaxMs": 1000, "kind": "SET_BRIGHTNESS", "config": `{"value":100}`},
+						{"startMs": 100, "transitionMinMs": 0, "transitionMaxMs": 1000, "kind": "SET_BRIGHTNESS", "config": json.RawMessage(`{"setBrightness":{"value":100}}`)},
 					}},
 				},
 			},
@@ -277,14 +277,14 @@ func TestMutationUpdateEffect(t *testing.T) {
         updateEffect(input: $input) { id name loop durationMs tracks { index clips { kind } } }
       }`,
 		map[string]any{
-			"input": map[string]any{
+			"input": map[string]any{"expectedRevision": 0,
 				"id":         "e1",
 				"name":       "New",
 				"loop":       true,
 				"durationMs": 500,
 				"tracks": []map[string]any{
 					{"name": "Updated", "clips": []map[string]any{
-						{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 200, "kind": "SET_COLOR", "config": `{"mode":"rgb","rgb":{"r":255,"g":0,"b":0}}`},
+						{"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 200, "kind": "SET_COLOR", "config": json.RawMessage(`{"setColor":{"mode":"rgb","rgb":{"r":255,"g":0,"b":0}}}`)},
 					}},
 				},
 			},

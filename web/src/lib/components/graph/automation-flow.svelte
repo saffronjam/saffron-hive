@@ -89,6 +89,10 @@
 
 	const isValidConnection: IsValidConnection = (connection) => {
 		if (connection.source === connection.target) return false;
+        const source = nodes.find((node) => node.id === connection.source);
+        const target = nodes.find((node) => node.id === connection.target);
+        if (!source || !target || source.type === "action" || target.type === "trigger") return false;
+        if (edges.some((edge) => edge.source === connection.source && edge.target === connection.target)) return false;
 		return !wouldCreateCycle(connection.source, connection.target, edges);
 	};
 

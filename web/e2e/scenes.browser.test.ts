@@ -459,9 +459,27 @@ describe("advanced Scene browser journeys", () => {
     await page.getByRole("button", { name: "Add", exact: true }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByText("Lava Lamp", { exact: true }).click();
-    await dialog.getByRole("button", { name: "Add 1 item" }).click();
+    let releaseAuthoring!: () => void;
+    const authoringGate = new Promise<void>((resolve) => { releaseAuthoring = resolve; });
+    let requested = false;
+    await page.route("**/graphql*", async (route) => {
+      if (`${route.request().url()} ${route.request().postData() ?? ""}`.includes("SceneAuthoring")) {
+        requested = true;
+        await authoringGate;
+      }
+      await route.continue();
+    });
+    try {
+      await dialog.getByRole("button", { name: "Add 1 item" }).click();
+      await expect.poll(() => requested).toBe(true);
+      expect(await page.getByRole("button", { name: "Continue", exact: true }).isDisabled()).toBe(true);
+    } finally {
+      releaseAuthoring();
+    }
     await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page.unroute("**/graphql*");
     await finishCreation("Browser Individual Scene");
+    await page.screenshot({ path: "/tmp/hive-authoring-scene.png", animations: "disabled" });
     await page.getByRole("heading", { name: "Targets", exact: true }).waitFor();
     await page.getByRole("heading", { name: "Supporting devices", exact: true }).waitFor();
     await page.getByText(ROOM_NAME, { exact: true }).waitFor();

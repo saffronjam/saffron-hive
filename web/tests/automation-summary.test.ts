@@ -146,7 +146,7 @@ describe("summarizeCondition with functions and macros", () => {
     expect(any).toContain("Kitchen");
     expect(any).not.toContain("any_of");
     expect(summarizeCondition({ mode: "macro", macro: "night", negate: true }, lookups).text).toContain(
-      "!$night",
+      "NOT (Uses $night)",
     );
   });
 });

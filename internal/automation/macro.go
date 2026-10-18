@@ -124,10 +124,10 @@ func (d Definitions) ExpandNodeConfig(nodeType NodeType, config string) (string,
 				return "", err
 			}
 			expression := def.Expr
-			if use.Negate {
-				expression = "!(" + expression + ")"
-			}
-			raw, _ := json.Marshal(map[string]string{"expr": expression})
+			raw, _ := json.Marshal(struct {
+				Expr   string `json:"expr"`
+				Negate bool   `json:"negate,omitempty"`
+			}{expression, use.Negate})
 			config = string(raw)
 		}
 		return d.expandConfigExpr(config, "expr")

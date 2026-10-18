@@ -218,24 +218,10 @@ func TestExprStateTriggerMatchesOnlyChangedDeviceAndField(t *testing.T) {
 	}
 }
 
-func TestExprDeviceNotFound(t *testing.T) {
-	reader := newMockStateReader()
-
-	result, err := evalTestExpr(t, `device("nonexistent").brightness > 0`, reader, eventbus.Event{}, time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result {
-		t.Fatal("expected false for nonexistent device")
-	}
-}
-
-func TestExprDeviceNotFoundNoError(t *testing.T) {
-	reader := newMockStateReader()
-
-	_, err := evalTestExpr(t, `device("nonexistent").brightness > 0`, reader, eventbus.Event{}, time.Now())
-	if err != nil {
-		t.Fatal("expected no error for nonexistent device, got:", err)
+func TestExprDeviceNotFoundBlocksWithError(t *testing.T) {
+	result, err := evalTestExpr(t, `device("nonexistent").brightness > 0`, newMockStateReader(), eventbus.Event{}, time.Now())
+	if result || err == nil {
+		t.Fatalf("missing value: result=%v err=%v", result, err)
 	}
 }
 
@@ -344,12 +330,10 @@ func TestExprGroupAccessor_NonOnPropertyMissing(t *testing.T) {
 		{MemberType: device.GroupMemberDevice, MemberID: "light-1"},
 	})
 
-	// Group accessor exposes only `on`. brightness is intentionally absent;
-	// expression evaluation against a missing field returns nil, so a
-	// numeric comparison short-circuits to false.
+	// Missing numeric fields must report an error so inversion cannot pass them.
 	result, err := evalTestExprWithStore(t, `device("Living").brightness > 100`, reader, s, eventbus.Event{}, time.Now())
-	if err != nil {
-		t.Fatal(err)
+	if err == nil {
+		t.Fatal("expected evaluation error")
 	}
 	if result {
 		t.Fatal("expected false (groups expose only `on`, not brightness)")
@@ -362,8 +346,8 @@ func TestExprTypeError(t *testing.T) {
 	reader.setDeviceState("light-1", &device.DeviceState{Brightness: device.Ptr(200)})
 
 	result, err := evalTestExpr(t, `device("light-1").brightness > "hello"`, reader, eventbus.Event{}, time.Now())
-	if err != nil {
-		t.Fatal(err)
+	if err == nil {
+		t.Fatal("expected evaluation error")
 	}
 	if result {
 		t.Fatal("expected false for type mismatch comparison")

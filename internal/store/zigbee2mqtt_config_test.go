@@ -32,6 +32,7 @@ func TestZigbee2MQTTConfigRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get after upsert: %v", err)
 	}
+	want.Revision++
 	if got == nil || *got != want {
 		t.Fatalf("round trip mismatch: want %+v, got %+v", want, got)
 	}
@@ -49,6 +50,7 @@ func TestZigbee2MQTTConfigFrontendURLRoundTrip(t *testing.T) {
 	if err != nil || got == nil || got.FrontendURL == nil || *got.FrontendURL != frontendURL {
 		t.Fatalf("frontend URL = %+v, %v", got, err)
 	}
+	want.Revision = got.Revision
 	want.FrontendURL = nil
 	if err := s.UpsertZigbee2MQTTConfig(ctx, want); err != nil {
 		t.Fatal(err)
@@ -73,7 +75,7 @@ func TestZigbee2MQTTConfigUpsertReplaces(t *testing.T) {
 		t.Fatalf("first upsert: %v", err)
 	}
 
-	second := Zigbee2MQTTConfig{
+	second := Zigbee2MQTTConfig{Revision: 1,
 		Broker:   "second.example.com:1883",
 		Username: "u",
 		Password: "p",
@@ -88,6 +90,7 @@ func TestZigbee2MQTTConfigUpsertReplaces(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
+	second.Revision++
 	if got == nil || *got != second {
 		t.Fatalf("want %+v after replace, got %+v", second, got)
 	}

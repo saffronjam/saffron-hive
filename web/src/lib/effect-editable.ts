@@ -1,3 +1,4 @@
+import type { EffectClipConfig, EffectClipConfigInput } from "$lib/gql/graphql";
 import {
   EffectClipKind,
   EffectKind,
@@ -129,73 +130,37 @@ export function newEditableTrack(): EditableTrack {
   return { uid: crypto.randomUUID(), name: "", clips: [] };
 }
 
-function safeJsonParse(raw: string): unknown {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
-function num(v: unknown, fallback: number): number {
-  return typeof v === "number" && Number.isFinite(v) ? v : fallback;
-}
-
-function bool(v: unknown, fallback: boolean): boolean {
-  return typeof v === "boolean" ? v : fallback;
-}
-
-function str(v: unknown, fallback: string): string {
-  return typeof v === "string" ? v : fallback;
-}
-
-export function parseClipConfig(kind: ClipKind, raw: string): ClipConfig {
-  const parsed = safeJsonParse(raw);
-  const obj = isRecord(parsed) ? parsed : {};
+export function parseClipConfig(kind: ClipKind, config: EffectClipConfig): ClipConfig {
   switch (kind) {
     case "set_on_off":
-      return { kind: "set_on_off", config: { value: bool(obj.value, true) } };
+      return { kind, config: { value: config.setOnOff!.value } };
     case "set_brightness":
-      return {
-        kind: "set_brightness",
-        config: { value: Math.min(254, Math.max(0, Math.round(num(obj.value, 200)))) },
-      };
+      return { kind, config: { value: config.setBrightness!.value } };
     case "set_color": {
-      const mode = str(obj.mode, "rgb") === "temp" ? "temp" : "rgb";
-      if (mode === "rgb") {
-        const rgbObj = isRecord(obj.rgb) ? obj.rgb : {};
-        return {
-          kind: "set_color",
-          config: {
-            mode: "rgb",
-            rgb: {
-              r: Math.min(255, Math.max(0, Math.round(num(rgbObj.r, 255)))),
-              g: Math.min(255, Math.max(0, Math.round(num(rgbObj.g, 0)))),
-              b: Math.min(255, Math.max(0, Math.round(num(rgbObj.b, 0)))),
-            },
-          },
-        };
-      }
-      const tempObj = isRecord(obj.temp) ? obj.temp : {};
-      return {
-        kind: "set_color",
-        config: {
-          mode: "temp",
-          temp: { mireds: Math.max(0, Math.round(num(tempObj.mireds, 370))) },
-        },
-      };
+      const color = config.setColor!;
+      return color.mode === "rgb"
+        ? {
+            kind,
+            config: { mode: "rgb", rgb: { r: color.rgb!.r, g: color.rgb!.g, b: color.rgb!.b } },
+          }
+        : { kind, config: { mode: "temp", temp: { mireds: color.temp!.mireds } } };
     }
     case "native_effect":
-      return { kind: "native_effect", config: { name: str(obj.name, "") } };
+      return { kind, config: { name: config.nativeEffect!.name } };
   }
 }
 
-export function stringifyClipConfig(c: ClipConfig): string {
-  return JSON.stringify(c.config);
+export function clipConfigInput(c: ClipConfig): EffectClipConfigInput {
+  switch (c.kind) {
+    case "set_on_off":
+      return { setOnOff: c.config };
+    case "set_brightness":
+      return { setBrightness: c.config };
+    case "set_color":
+      return { setColor: c.config };
+    case "native_effect":
+      return { nativeEffect: c.config };
+  }
 }
 
 type EffectTrackData = Pick<EffectTrack, "id" | "index" | "name"> & {
@@ -231,11 +196,12 @@ export function effectToEditable(effect: EffectInputData): EditableTrack[] {
 }
 
 export interface ClipInputDto {
+  id: string;
   startMs: number;
   transitionMinMs: number;
   transitionMaxMs: number;
   kind: EffectClipKind;
-  config: string;
+  config: EffectClipConfigInput;
 }
 
 export interface TrackInputDto {
@@ -252,11 +218,12 @@ export function editableToInputTracks(tracks: readonly EditableTrack[]): TrackIn
       .slice()
       .sort((a, b) => a.startMs - b.startMs)
       .map((c) => ({
+        id: c.uid,
         startMs: c.startMs,
         transitionMinMs: c.transitionMinMs,
         transitionMaxMs: c.transitionMaxMs,
         kind: stringToGqlKind(c.kind),
-        config: stringifyClipConfig(c.config),
+        config: clipConfigInput(c.config),
       })),
   }));
 }
@@ -314,6 +281,7 @@ export interface EffectValidationError {
 export type EffectValidationCode =
   | "name_required"
   | "duration_negative"
+  | "loop_duration_positive"
   | "clip_start_negative"
   | "clip_transition_invalid"
   | "clip_config_invalid"
@@ -355,9 +323,10 @@ export function validateTimelineEffect(
   tracks: readonly EditableTrack[],
 ): EffectValidationError | null {
   if (name.trim() === "") return { field: "name", code: "name_required" };
-  if (!Number.isFinite(durationMs) || durationMs < 0) {
+  if (!Number.isInteger(durationMs) || durationMs < 0) {
     return { field: "duration", code: "duration_negative" };
   }
+  if (loop && durationMs === 0) return { field: "duration", code: "loop_duration_positive" };
   for (let ti = 0; ti < tracks.length; ti++) {
     const track = tracks[ti];
     const sorted = track.clips.slice().sort((a, b) => a.startMs - b.startMs);

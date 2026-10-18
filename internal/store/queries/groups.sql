@@ -4,7 +4,7 @@
 INSERT INTO groups (id, name, friendly_name, created_by) VALUES (?, ?, '', ?);
 
 -- name: GetGroup :one
-SELECT g.id, g.name, g.friendly_name, g.icon, g.provider, g.provider_group_id, g.removed,
+SELECT g.revision, g.id, g.name, g.friendly_name, g.icon, g.provider, g.provider_group_id, g.removed,
        g.created_at, g.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
@@ -14,7 +14,7 @@ LEFT JOIN users u ON u.id = g.created_by
 WHERE g.id = ?;
 
 -- name: ListGroups :many
-SELECT g.id, g.name, g.friendly_name, g.icon, g.provider, g.provider_group_id, g.removed,
+SELECT g.revision, g.id, g.name, g.friendly_name, g.icon, g.provider, g.provider_group_id, g.removed,
        g.created_at, g.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
@@ -66,7 +66,7 @@ SELECT group_id FROM group_members WHERE id = ?;
 DELETE FROM group_members WHERE id = ?;
 
 -- name: ListGroupsContainingMember :many
-SELECT g.id, g.name, g.friendly_name, g.icon, g.provider, g.provider_group_id, g.removed,
+SELECT g.revision, g.id, g.name, g.friendly_name, g.icon, g.provider, g.provider_group_id, g.removed,
        g.created_at, g.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
@@ -131,3 +131,6 @@ VALUES (?, ?, 'device', ?, ?);
 -- group_members.member_id is polymorphic so no FK; mirror the same intent.
 -- name: RemoveGroupMembersByRoom :exec
 DELETE FROM group_members WHERE member_type = 'room' AND member_id = ?;
+
+-- name: ClaimGroupRevision :execrows
+UPDATE groups SET revision = revision + 1 WHERE id = sqlc.arg('id') AND revision = sqlc.arg('expected_revision');

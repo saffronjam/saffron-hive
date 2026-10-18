@@ -126,7 +126,11 @@ func TestGuestSchemaAllowlist(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	schema, err := gqlparser.LoadSchema(&ast.Source{Name: "schema.graphql", Input: string(data)})
+	authoring, err := os.ReadFile("../../api/authoring.graphql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema, err := gqlparser.LoadSchema(&ast.Source{Name: "schema.graphql", Input: string(data)}, &ast.Source{Name: "authoring.graphql", Input: string(authoring)})
 	if err != nil {
 		t.Fatal(err)
 	}

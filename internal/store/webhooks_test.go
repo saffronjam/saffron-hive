@@ -59,7 +59,7 @@ func TestWebhookEndpointStoreLifecycleAndReferences(t *testing.T) {
 	if _, err := s.CreateAutomation(ctx, CreateAutomationParams{ID: "automation-1", Name: "Failure light"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
+	if _, err := s.createAutomationNode(ctx, CreateAutomationNodeParams{
 		ID:           "trigger-1",
 		AutomationID: "automation-1",
 		Type:         "trigger",

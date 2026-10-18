@@ -119,32 +119,138 @@
       "path": "src/lib/components/graph/trigger-node.svelte",
       "text": "SS",
       "reason": "Locale-neutral second input mask"
+    },
+    {
+      "path": "src/routes/integrations/claude/+page.svelte",
+      "text": "Claude",
+      "reason": "Provider or model name"
+    },
+    {
+      "path": "src/lib/components/icons/claude-icon.svelte",
+      "text": "Claude",
+      "reason": "Provider icon accessible name"
     }
   ],
   "unusedMessages": [
-    { "path": "messages/en.json", "key": "automation_operator_delay", "reason": "Reserved automation vocabulary" },
-    { "path": "messages/en.json", "key": "automation_webhook_filters", "reason": "Reserved automation vocabulary" },
-    { "path": "messages/en.json", "key": "automation_webhook_operator", "reason": "Reserved automation vocabulary" },
-    { "path": "messages/en.json", "key": "automation_webhook_path", "reason": "Reserved automation vocabulary" },
-    { "path": "messages/en.json", "key": "automation_webhook_value", "reason": "Reserved automation vocabulary" },
-    { "path": "messages/en.json", "key": "common_clear", "reason": "Shared component vocabulary" },
-    { "path": "messages/en.json", "key": "common_error_try_again", "reason": "Shared recovery vocabulary" },
-    { "path": "messages/en.json", "key": "device_type_unknown", "reason": "Forward-compatible device fallback" },
-    { "path": "messages/en.json", "key": "settings_save_failed", "reason": "Settings error fallback" },
-    { "path": "messages/en.json", "key": "shared_choose_icon", "reason": "Shared icon-picker vocabulary" },
-    { "path": "messages/en.json", "key": "shared_date_from", "reason": "Shared calendar vocabulary" },
-    { "path": "messages/en.json", "key": "shared_date_range", "reason": "Shared calendar vocabulary" },
-    { "path": "messages/en.json", "key": "shared_date_to", "reason": "Shared calendar vocabulary" },
-    { "path": "messages/en.json", "key": "shared_next_month", "reason": "Shared calendar vocabulary" },
-    { "path": "messages/en.json", "key": "shared_no_results", "reason": "Shared empty-state vocabulary" },
-    { "path": "messages/en.json", "key": "shared_number_decrease", "reason": "Shared numeric-input vocabulary" },
-    { "path": "messages/en.json", "key": "shared_number_increase", "reason": "Shared numeric-input vocabulary" },
-    { "path": "messages/en.json", "key": "shared_previous_month", "reason": "Shared calendar vocabulary" },
-    { "path": "messages/en.json", "key": "shared_select_all", "reason": "Shared selection vocabulary" },
-    { "path": "messages/en.json", "key": "static_app_description", "reason": "Consumed by static metadata generation" },
-    { "path": "messages/en.json", "key": "translation_names", "reason": "Multilingual editor heading" },
-    { "path": "messages/en.json", "key": "translation_source_language", "reason": "Multilingual editor vocabulary" },
-    { "path": "messages/en.json", "key": "webhooks_delete_description", "reason": "Webhook destructive-action fallback" },
-    { "path": "messages/en.json", "key": "zigbee_pan_id", "reason": "Protocol vocabulary" }
+    {
+      "path": "messages/en.json",
+      "key": "automation_operator_delay",
+      "reason": "Reserved automation vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "automation_webhook_filters",
+      "reason": "Reserved automation vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "automation_webhook_operator",
+      "reason": "Reserved automation vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "automation_webhook_path",
+      "reason": "Reserved automation vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "automation_webhook_value",
+      "reason": "Reserved automation vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "common_clear",
+      "reason": "Shared component vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "common_error_try_again",
+      "reason": "Shared recovery vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "device_type_unknown",
+      "reason": "Forward-compatible device fallback"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "settings_save_failed",
+      "reason": "Settings error fallback"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "shared_choose_icon",
+      "reason": "Shared icon-picker vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "shared_date_from",
+      "reason": "Shared calendar vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "shared_date_range",
+      "reason": "Shared calendar vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "shared_date_to",
+      "reason": "Shared calendar vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "shared_next_month",
+      "reason": "Shared calendar vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "shared_no_results",
+      "reason": "Shared empty-state vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "shared_number_decrease",
+      "reason": "Shared numeric-input vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "shared_number_increase",
+      "reason": "Shared numeric-input vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "shared_previous_month",
+      "reason": "Shared calendar vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "shared_select_all",
+      "reason": "Shared selection vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "static_app_description",
+      "reason": "Consumed by static metadata generation"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "translation_names",
+      "reason": "Multilingual editor heading"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "translation_source_language",
+      "reason": "Multilingual editor vocabulary"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "webhooks_delete_description",
+      "reason": "Webhook destructive-action fallback"
+    },
+    {
+      "path": "messages/en.json",
+      "key": "zigbee_pan_id",
+      "reason": "Protocol vocabulary"
+    }
   ]
 }

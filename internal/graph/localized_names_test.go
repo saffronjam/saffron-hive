@@ -37,7 +37,7 @@ func TestLocalizedNameSetQueryAndMutation(t *testing.T) {
 	response = env.query(t, `mutation($input: LocalizedNameSetInput!) {
 		updateLocalizedNameSet(input: $input) { entityId sourceLanguage translations { language value } }
 	}`, map[string]any{
-		"input": map[string]any{
+		"input": map[string]any{"expectedRevision": 0,
 			"entityType":     "room",
 			"entityId":       "room-1",
 			"sourceLanguage": "EN",

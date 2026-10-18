@@ -45,8 +45,8 @@ func TestUpdateCurrentUserLanguage(t *testing.T) {
 	if stored.Language != "sv" {
 		t.Fatalf("stored language = %q, want sv", stored.Language)
 	}
-	if ref := mapUserRef(&store.UserRef{ID: "u-1", Username: "alice", Name: "Alice"}); ref.Language != nil {
-		t.Fatalf("attribution language = %v, want nil", ref.Language)
+	if ref := mapUserRef(&store.UserRef{ID: "u-1", Username: "alice", Name: "Alice"}); ref.Name != "Alice" || ref.ID != "u-1" {
+		t.Fatalf("attribution = %+v", ref)
 	}
 }
 

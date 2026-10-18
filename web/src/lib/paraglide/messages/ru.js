@@ -95,6 +95,45 @@
 /** @typedef {{}} Alarms_Severity_LowInputs */
 /** @typedef {{}} Alarms_Severity_MediumInputs */
 /** @typedef {{}} Alarms_TitleInputs */
+/** @typedef {{}} Assistant_AcknowledgeInputs */
+/** @typedef {{}} Assistant_AttachInputs */
+/** @typedef {{}} Assistant_ClassifyingInputs */
+/** @typedef {{}} Assistant_CompletedInputs */
+/** @typedef {{}} Assistant_ConfigureInputs */
+/** @typedef {{}} Assistant_ContinueInputs */
+/** @typedef {{}} Assistant_DeleteInputs */
+/** @typedef {{}} Assistant_Delete_DescriptionInputs */
+/** @typedef {{}} Assistant_DescriptionInputs */
+/** @typedef {{}} Assistant_DisabledInputs */
+/** @typedef {{}} Assistant_EmptyInputs */
+/** @typedef {{}} Assistant_ErrorInputs */
+/** @typedef {{}} Assistant_ExecutingInputs */
+/** @typedef {{}} Assistant_FailedInputs */
+/** @typedef {{}} Assistant_HintInputs */
+/** @typedef {{}} Assistant_HistoryInputs */
+/** @typedef {{}} Assistant_Image_LimitInputs */
+/** @typedef {{}} Assistant_InterruptedInputs */
+/** @typedef {{}} Assistant_Name_HintInputs */
+/** @typedef {{}} Assistant_NewInputs */
+/** @typedef {{}} Assistant_PlaceholderInputs */
+/** @typedef {{}} Assistant_PrivateInputs */
+/** @typedef {{}} Assistant_Private_InputInputs */
+/** @typedef {{}} Assistant_QueuedInputs */
+/** @typedef {{}} Assistant_ReadingInputs */
+/** @typedef {{}} Assistant_RejectInputs */
+/** @typedef {{}} Assistant_RejectedInputs */
+/** @typedef {{}} Assistant_Remove_ImageInputs */
+/** @typedef {{}} Assistant_RenameInputs */
+/** @typedef {{}} Assistant_RetryingInputs */
+/** @typedef {{}} Assistant_RevealInputs */
+/** @typedef {{}} Assistant_SendInputs */
+/** @typedef {{}} Assistant_StaleInputs */
+/** @typedef {{}} Assistant_StopInputs */
+/** @typedef {{}} Assistant_StoppedInputs */
+/** @typedef {{}} Assistant_ThinkingInputs */
+/** @typedef {{}} Assistant_TitleInputs */
+/** @typedef {{}} Assistant_WaitingInputs */
+/** @typedef {{}} Assistant_WritingInputs */
 /** @typedef {{ path: NonNullable<unknown> }} Auth_Bootstrap_HelpInputs */
 /** @typedef {{}} Auth_Bootstrap_TokenInputs */
 /** @typedef {{}} Auth_Choose_PasswordInputs */
@@ -195,6 +234,8 @@
 /** @typedef {{}} Automation_Condition_Custom_DescriptionInputs */
 /** @typedef {{}} Automation_Condition_Device_StateInputs */
 /** @typedef {{}} Automation_Condition_Device_State_DescriptionInputs */
+/** @typedef {{}} Automation_Condition_InvertInputs */
+/** @typedef {{ condition: NonNullable<unknown> }} Automation_Condition_InvertedInputs */
 /** @typedef {{}} Automation_Condition_Time_WindowInputs */
 /** @typedef {{}} Automation_Condition_Time_Window_DescriptionInputs */
 /** @typedef {{}} Automation_Condition_WeekdayInputs */
@@ -224,6 +265,8 @@
 /** @typedef {{}} Automation_Editor_SortInputs */
 /** @typedef {{}} Automation_Editor_UnlockInputs */
 /** @typedef {{}} Automation_Editor_VisualInputs */
+/** @typedef {{}} Automation_Graph_Input_RequiredInputs */
+/** @typedef {{}} Automation_Graph_Invalid_OperatorInputs */
 /** @typedef {{}} Automation_Node_ActionInputs */
 /** @typedef {{}} Automation_Node_Add_SceneInputs */
 /** @typedef {{}} Automation_Node_AdvancedInputs */
@@ -300,7 +343,6 @@
 /** @typedef {{}} Automation_Node_Webhook_EnabledInputs */
 /** @typedef {{}} Automation_Operator_AndInputs */
 /** @typedef {{}} Automation_Operator_DelayInputs */
-/** @typedef {{}} Automation_Operator_NotInputs */
 /** @typedef {{}} Automation_Operator_OrInputs */
 /** @typedef {{}} Automation_Operator_TitleInputs */
 /** @typedef {{}} Automation_Panel_CloseInputs */
@@ -464,6 +506,17 @@
 /** @typedef {{ time: NonNullable<unknown> }} Button_Last_SeenInputs */
 /** @typedef {{}} Button_No_ActionInputs */
 /** @typedef {{}} Button_StatusInputs */
+/** @typedef {{}} Claude_Choose_ModelInputs */
+/** @typedef {{}} Claude_Connect_ModelInputs */
+/** @typedef {{}} Claude_Connect_SaveInputs */
+/** @typedef {{}} Claude_Connect_TokenInputs */
+/** @typedef {{}} Claude_ConnectingInputs */
+/** @typedef {{}} Claude_EnabledInputs */
+/** @typedef {{}} Claude_ModelInputs */
+/** @typedef {{}} Claude_Models_FailedInputs */
+/** @typedef {{}} Claude_TestInputs */
+/** @typedef {{}} Claude_TokenInputs */
+/** @typedef {{}} Claude_Token_KeepInputs */
 /** @typedef {{}} Color_Picker_AriaInputs */
 /** @typedef {{}} Common_Add_ToInputs */
 /** @typedef {{}} Common_Brand_NameInputs */
@@ -639,6 +692,8 @@
 /** @typedef {{ name: NonNullable<unknown> }} Devices_Restore_NamedInputs */
 /** @typedef {{}} Devices_SearchInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Devices_Trigger_EventInputs */
+/** @typedef {{}} Editor_Changed_ElsewhereInputs */
+/** @typedef {{}} Editor_Reload_SavedInputs */
 /** @typedef {{}} Effect_Action_RunInputs */
 /** @typedef {{}} Effect_BackInputs */
 /** @typedef {{}} Effect_Cap_BrightnessInputs */
@@ -702,6 +757,7 @@
 /** @typedef {{}} Effect_Validation_Clip_Start_NegativeInputs */
 /** @typedef {{}} Effect_Validation_Config_InvalidInputs */
 /** @typedef {{}} Effect_Validation_Duration_NegativeInputs */
+/** @typedef {{}} Effect_Validation_Loop_Duration_PositiveInputs */
 /** @typedef {{}} Effect_Validation_Name_RequiredInputs */
 /** @typedef {{}} Effect_Validation_Native_RequiredInputs */
 /** @typedef {{}} Effect_Validation_OverlapInputs */
@@ -2266,6 +2322,162 @@ export const alarms_title = /** @type {(inputs: Alarms_TitleInputs) => Localized
 	return /** @type {LocalizedString} */ (`Оповещения`)
 };
 
+export const assistant_acknowledge = /** @type {(inputs: Assistant_AcknowledgeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Я понимаю последствия и хочу продолжить.`)
+};
+
+export const assistant_attach = /** @type {(inputs: Assistant_AttachInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Прикрепить изображения`)
+};
+
+export const assistant_classifying = /** @type {(inputs: Assistant_ClassifyingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Анализирует ваш запрос`)
+};
+
+export const assistant_completed = /** @type {(inputs: Assistant_CompletedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Выполнено`)
+};
+
+export const assistant_configure = /** @type {(inputs: Assistant_ConfigureInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Настроить Claude`)
+};
+
+export const assistant_continue = /** @type {(inputs: Assistant_ContinueInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Продолжить`)
+};
+
+export const assistant_delete = /** @type {(inputs: Assistant_DeleteInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Удалить чат`)
+};
+
+export const assistant_delete_description = /** @type {(inputs: Assistant_Delete_DescriptionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Чат и его изображения будут удалены. Уже внесённые изменения в доме сохранятся.`)
+};
+
+export const assistant_description = /** @type {(inputs: Assistant_DescriptionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Управляйте домом в чате с Claude.`)
+};
+
+export const assistant_disabled = /** @type {(inputs: Assistant_DisabledInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Включите Claude в интеграциях, чтобы начать чат.`)
+};
+
+export const assistant_empty = /** @type {(inputs: Assistant_EmptyInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Что должен сделать ваш дом?`)
+};
+
+export const assistant_error = /** @type {(inputs: Assistant_ErrorInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Не удалось выполнить запрос. Попробуйте ещё раз.`)
+};
+
+export const assistant_executing = /** @type {(inputs: Assistant_ExecutingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Применяет изменения`)
+};
+
+export const assistant_failed = /** @type {(inputs: Assistant_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Ошибка`)
+};
+
+export const assistant_hint = /** @type {(inputs: Assistant_HintInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Настройте автоматизацию, создайте сцену по фото или проверьте освещение.`)
+};
+
+export const assistant_history = /** @type {(inputs: Assistant_HistoryInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Ваши чаты`)
+};
+
+export const assistant_image_limit = /** @type {(inputs: Assistant_Image_LimitInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Прикрепите до четырёх изображений JPEG, PNG или WebP.`)
+};
+
+export const assistant_interrupted = /** @type {(inputs: Assistant_InterruptedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Прервано. Выполненные действия сохранены; отправьте сообщение для продолжения.`)
+};
+
+export const assistant_name_hint = /** @type {(inputs: Assistant_Name_HintInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Оставьте поле пустым, чтобы использовать автоматическое название.`)
+};
+
+export const assistant_new = /** @type {(inputs: Assistant_NewInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Новый чат`)
+};
+
+export const assistant_placeholder = /** @type {(inputs: Assistant_PlaceholderInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Спросите Hive…`)
+};
+
+export const assistant_private = /** @type {(inputs: Assistant_PrivateInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Эти чаты видны только вам.`)
+};
+
+export const assistant_private_input = /** @type {(inputs: Assistant_Private_InputInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Эти значения передаются прямо в Hive и недоступны Claude.`)
+};
+
+export const assistant_queued = /** @type {(inputs: Assistant_QueuedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`В очереди`)
+};
+
+export const assistant_reading = /** @type {(inputs: Assistant_ReadingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Проверяю…`)
+};
+
+export const assistant_reject = /** @type {(inputs: Assistant_RejectInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Отклонить`)
+};
+
+export const assistant_rejected = /** @type {(inputs: Assistant_RejectedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Отклонено`)
+};
+
+export const assistant_remove_image = /** @type {(inputs: Assistant_Remove_ImageInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Удалить изображение`)
+};
+
+export const assistant_rename = /** @type {(inputs: Assistant_RenameInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Переименовать чат`)
+};
+
+export const assistant_retrying = /** @type {(inputs: Assistant_RetryingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Ожидает Claude`)
+};
+
+export const assistant_reveal = /** @type {(inputs: Assistant_RevealInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Показать приватный результат (доступен 10 минут)`)
+};
+
+export const assistant_send = /** @type {(inputs: Assistant_SendInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Отправить сообщение`)
+};
+
+export const assistant_stale = /** @type {(inputs: Assistant_StaleInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Затронутые объекты изменились. Подтверждение больше недействительно.`)
+};
+
+export const assistant_stop = /** @type {(inputs: Assistant_StopInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Остановить`)
+};
+
+export const assistant_stopped = /** @type {(inputs: Assistant_StoppedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Остановлено`)
+};
+
+export const assistant_thinking = /** @type {(inputs: Assistant_ThinkingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Обрабатывает ваш запрос`)
+};
+
+export const assistant_title = /** @type {(inputs: Assistant_TitleInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Ассистент`)
+};
+
+export const assistant_waiting = /** @type {(inputs: Assistant_WaitingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Ожидает вашего решения`)
+};
+
+export const assistant_writing = /** @type {(inputs: Assistant_WritingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Пишу…`)
+};
+
 export const auth_bootstrap_help = /** @type {(inputs: Auth_Bootstrap_HelpInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`Токен выводится в журнал сервера при первом запуске. Его также можно прочитать из файла ${i?.path} на сервере.`)
 };
@@ -2670,6 +2882,14 @@ export const automation_condition_device_state_description = /** @type {(inputs:
 	return /** @type {LocalizedString} */ (`Проверяет текущее состояние устройства, группы или комнаты`)
 };
 
+export const automation_condition_invert = /** @type {(inputs: Automation_Condition_InvertInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Инвертировать условие`)
+};
+
+export const automation_condition_inverted = /** @type {(inputs: Automation_Condition_InvertedInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`НЕ (${i?.condition})`)
+};
+
 export const automation_condition_time_window = /** @type {(inputs: Automation_Condition_Time_WindowInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Окно времени`)
 };
@@ -2784,6 +3004,14 @@ export const automation_editor_unlock = /** @type {(inputs: Automation_Editor_Un
 
 export const automation_editor_visual = /** @type {(inputs: Automation_Editor_VisualInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Визуальный`)
+};
+
+export const automation_graph_input_required = /** @type {(inputs: Automation_Graph_Input_RequiredInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Подключите вход к пути от триггера`)
+};
+
+export const automation_graph_invalid_operator = /** @type {(inputs: Automation_Graph_Invalid_OperatorInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Неподдерживаемый оператор`)
 };
 
 export const automation_node_action = /** @type {(inputs: Automation_Node_ActionInputs) => LocalizedString} */ () => {
@@ -3088,10 +3316,6 @@ export const automation_operator_and = /** @type {(inputs: Automation_Operator_A
 
 export const automation_operator_delay = /** @type {(inputs: Automation_Operator_DelayInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Задержка`)
-};
-
-export const automation_operator_not = /** @type {(inputs: Automation_Operator_NotInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`НЕ`)
 };
 
 export const automation_operator_or = /** @type {(inputs: Automation_Operator_OrInputs) => LocalizedString} */ () => {
@@ -3780,6 +4004,50 @@ export const button_no_action = /** @type {(inputs: Button_No_ActionInputs) => L
 
 export const button_status = /** @type {(inputs: Button_StatusInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Статус кнопки`)
+};
+
+export const claude_choose_model = /** @type {(inputs: Claude_Choose_ModelInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Выберите модель`)
+};
+
+export const claude_connect_model = /** @type {(inputs: Claude_Connect_ModelInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`2. Выберите модель из списка, предоставленного Claude.`)
+};
+
+export const claude_connect_save = /** @type {(inputs: Claude_Connect_SaveInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`3. Включите и сохраните интеграцию, чтобы Ассистент появился в боковом меню.`)
+};
+
+export const claude_connect_token = /** @type {(inputs: Claude_Connect_TokenInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`1. Выполните claude setup-token на компьютере и вставьте токен здесь.`)
+};
+
+export const claude_connecting = /** @type {(inputs: Claude_ConnectingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Как подключиться`)
+};
+
+export const claude_enabled = /** @type {(inputs: Claude_EnabledInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Включить Claude`)
+};
+
+export const claude_model = /** @type {(inputs: Claude_ModelInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Модель ассистента`)
+};
+
+export const claude_models_failed = /** @type {(inputs: Claude_Models_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Не удалось загрузить модели Claude. Повторите попытку.`)
+};
+
+export const claude_test = /** @type {(inputs: Claude_TestInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Проверить подключение`)
+};
+
+export const claude_token = /** @type {(inputs: Claude_TokenInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Токен настройки`)
+};
+
+export const claude_token_keep = /** @type {(inputs: Claude_Token_KeepInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Токен сохранён — оставьте поле пустым, чтобы сохранить его`)
 };
 
 export const color_picker_aria = /** @type {(inputs: Color_Picker_AriaInputs) => LocalizedString} */ () => {
@@ -4576,6 +4844,14 @@ export const devices_trigger_event = /** @type {(inputs: Devices_Trigger_EventIn
 	return /** @type {LocalizedString} */ (`Вызвать событие ${i?.name}`)
 };
 
+export const editor_changed_elsewhere = /** @type {(inputs: Editor_Changed_ElsewhereInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Объект изменён в другом месте. Ваши несохранённые правки сохранены.`)
+};
+
+export const editor_reload_saved = /** @type {(inputs: Editor_Reload_SavedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Загрузить сохранённую версию (отменить правки)`)
+};
+
 export const effect_action_run = /** @type {(inputs: Effect_Action_RunInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Запустить`)
 };
@@ -4834,6 +5110,10 @@ export const effect_validation_config_invalid = /** @type {(inputs: Effect_Valid
 
 export const effect_validation_duration_negative = /** @type {(inputs: Effect_Validation_Duration_NegativeInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Продолжительность должна быть нулевой или положительной.`)
+};
+
+export const effect_validation_loop_duration_positive = /** @type {(inputs: Effect_Validation_Loop_Duration_PositiveInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Для повторяющегося эффекта нужна положительная длительность.`)
 };
 
 export const effect_validation_name_required = /** @type {(inputs: Effect_Validation_Name_RequiredInputs) => LocalizedString} */ () => {

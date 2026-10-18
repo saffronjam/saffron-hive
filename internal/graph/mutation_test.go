@@ -141,7 +141,7 @@ func TestMutationUpdateDeviceUsesStoreMetadata(t *testing.T) {
 		updateDevice(id: $id, input: $input) { id name roles { controlledLoad contact } }
 	}`, map[string]any{
 		"id":    "ac",
-		"input": map[string]any{"name": "AC", "roles": map[string]any{"controlledLoad": "LIGHT"}},
+		"input": map[string]any{"expectedRevision": 0, "name": "AC", "roles": map[string]any{"controlledLoad": "LIGHT"}},
 	})
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
@@ -355,7 +355,7 @@ func TestMutationUpdateScene(t *testing.T) {
 	resp := env.query(t, `mutation($id: ID!, $input: UpdateSceneInput!) { updateScene(id: $id, input: $input) { id targets { targetType targetId } } }`,
 		map[string]any{
 			"id": "s1",
-			"input": map[string]any{
+			"input": map[string]any{"expectedRevision": 0,
 				"definition": map[string]any{
 					"targets": []map[string]any{{"targetType": "device", "targetId": "d2"}},
 					"lighting": map[string]any{
@@ -411,15 +411,16 @@ func TestMutationDeleteScene(t *testing.T) {
 
 func TestMutationCreateAutomation(t *testing.T) {
 	env := newTestEnv(t)
+	env.store.putDevice(device.Device{ID: "light-1", Type: device.Light})
 
-	resp := env.query(t, `mutation($input: CreateAutomationInput!) { createAutomation(input: $input) { id name enabled nodes { id type config } } }`,
+	resp := env.query(t, `mutation($input: CreateAutomationInput!) { createAutomation(input: $input) { id name enabled nodes { id type config { trigger { mode } action { actionType } } } } }`,
 		map[string]any{
 			"input": map[string]any{
 				"name":    "Night Lights",
 				"enabled": true,
 				"nodes": []map[string]any{
-					{"id": "t1", "type": "trigger", "config": `{"event_type":"device.state_changed","filter_expr":"true"}`},
-					{"id": "a1", "type": "action", "config": `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":false}"}`},
+					{"id": "t1", "type": "trigger", "config": json.RawMessage(`{"trigger":{"mode":"custom","eventType":"device.state_changed","customExpr":"true"}}`)},
+					{"id": "a1", "type": "action", "config": json.RawMessage(`{"action":{"actionType":"set_device_state","targetType":"device","targetId":"light-1","payload":{"on":false}}}`)},
 				},
 				"edges": []map[string]any{
 					{"fromNodeId": "t1", "toNodeId": "a1"},
@@ -436,9 +437,9 @@ func TestMutationCreateAutomation(t *testing.T) {
 			Name    string `json:"name"`
 			Enabled bool   `json:"enabled"`
 			Nodes   []struct {
-				ID     string `json:"id"`
-				Type   string `json:"type"`
-				Config string `json:"config"`
+				ID     string          `json:"id"`
+				Type   string          `json:"type"`
+				Config json.RawMessage `json:"config"`
 			} `json:"nodes"`
 		} `json:"createAutomation"`
 	}
@@ -458,19 +459,20 @@ func TestMutationCreateAutomation(t *testing.T) {
 
 func TestMutationUpdateAutomationPersistsDraftAndReportsCompilability(t *testing.T) {
 	env := newTestEnv(t)
+	env.store.putDevice(device.Device{ID: "light-1", Type: device.Light})
 	env.store.automations["a1"] = store.Automation{ID: "a1", Name: "Draft"}
 
 	mutation := `mutation($id: ID!, $input: UpdateAutomationInput!) {
-		updateAutomation(id: $id, input: $input) { id compilable nodes { id } }
+		updateAutomation(id: $id, input: $input) { id validation { valid } nodes { id } }
 	}`
 	baseNodes := []map[string]any{
-		{"id": "t1", "type": "trigger", "config": `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
-		{"id": "a1", "type": "action", "config": `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
-		{"id": "op1", "type": "operator", "config": `{"kind":"and"}`},
+		{"id": "t1", "type": "trigger", "config": json.RawMessage(`{"trigger":{"mode":"custom","eventType":"test.fire","customExpr":"true"}}`)},
+		{"id": "a1", "type": "action", "config": json.RawMessage(`{"action":{"actionType":"set_device_state","targetType":"device","targetId":"light-1","payload":{"on":true}}}`)},
+		{"id": "op1", "type": "operator", "config": json.RawMessage(`{"operator":{"kind":"and"}}`)},
 	}
 	variables := map[string]any{
 		"id": "a1",
-		"input": map[string]any{
+		"input": map[string]any{"expectedRevision": 0,
 			"nodes": baseNodes,
 			"edges": []map[string]any{{"fromNodeId": "t1", "toNodeId": "a1"}},
 		},
@@ -482,8 +484,10 @@ func TestMutationUpdateAutomationPersistsDraftAndReportsCompilability(t *testing
 	}
 	var saved struct {
 		UpdateAutomation struct {
-			Compilable bool `json:"compilable"`
-			Nodes      []struct {
+			Validation struct {
+				Valid bool `json:"valid"`
+			} `json:"validation"`
+			Nodes []struct {
 				ID string `json:"id"`
 			} `json:"nodes"`
 		} `json:"updateAutomation"`
@@ -491,14 +495,14 @@ func TestMutationUpdateAutomationPersistsDraftAndReportsCompilability(t *testing
 	if err := json.Unmarshal(resp.Data, &saved); err != nil {
 		t.Fatalf("unmarshal draft response: %v", err)
 	}
-	if !saved.UpdateAutomation.Compilable {
-		t.Fatal("isolated operator should not prevent compilation")
+	if saved.UpdateAutomation.Validation.Valid {
+		t.Fatal("isolated operator must prevent enabling the draft")
 	}
 	if len(saved.UpdateAutomation.Nodes) != 3 {
 		t.Fatalf("expected all draft nodes to persist, got %d", len(saved.UpdateAutomation.Nodes))
 	}
 
-	variables["input"] = map[string]any{
+	variables["input"] = map[string]any{"expectedRevision": 1,
 		"nodes": baseNodes,
 		"edges": []map[string]any{
 			{"fromNodeId": "t1", "toNodeId": "a1"},
@@ -512,7 +516,7 @@ func TestMutationUpdateAutomationPersistsDraftAndReportsCompilability(t *testing
 	if err := json.Unmarshal(resp.Data, &saved); err != nil {
 		t.Fatalf("unmarshal non-compilable response: %v", err)
 	}
-	if saved.UpdateAutomation.Compilable {
+	if saved.UpdateAutomation.Validation.Valid {
 		t.Fatal("cyclic graph should report compilable=false")
 	}
 }
@@ -525,7 +529,7 @@ func TestMutationToggleAutomation(t *testing.T) {
 		Enabled: true,
 	}
 
-	resp := env.query(t, `mutation { toggleAutomation(id: "a1", enabled: false) { id enabled } }`, nil)
+	resp := env.query(t, `mutation { toggleAutomation(id: "a1", enabled: false, expectedRevision: 0) { id enabled } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors: %v", resp.Errors)
 	}
@@ -571,7 +575,7 @@ func TestMutationDisableDeviceBlocksCommands(t *testing.T) {
 	updates := env.bus.Subscribe(eventbus.EventDeviceUpdated)
 	defer env.bus.Unsubscribe(updates)
 
-	resp := env.query(t, `mutation { updateDevice(id: "ac", input: {disabled: true}) { id disabled } }`, nil)
+	resp := env.query(t, `mutation { updateDevice(id: "ac", input: {expectedRevision:0, disabled: true}) { id disabled } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors disabling: %v", resp.Errors)
 	}
@@ -607,7 +611,7 @@ func TestMutationDisableDeviceBlocksCommands(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 
-	resp = env.query(t, `mutation { updateDevice(id: "ac", input: {disabled: false}) { id disabled } }`, nil)
+	resp = env.query(t, `mutation { updateDevice(id: "ac", input: {expectedRevision:0, disabled: false}) { id disabled } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("unexpected errors re-enabling: %v", resp.Errors)
 	}
@@ -653,7 +657,7 @@ func TestMutationDeleteRestoreDevice(t *testing.T) {
 	if len(resp.Errors) == 0 || !strings.Contains(resp.Errors[0].Message, "deleted") {
 		t.Fatalf("deleted command error = %v", resp.Errors)
 	}
-	resp = env.query(t, `mutation { updateDevice(id: "lamp", input: {disabled: false}) { id } }`, nil)
+	resp = env.query(t, `mutation { updateDevice(id: "lamp", input: {expectedRevision:0, disabled: false}) { id } }`, nil)
 	if len(resp.Errors) == 0 || !strings.Contains(resp.Errors[0].Message, "restore") {
 		t.Fatalf("enable deleted device error = %v", resp.Errors)
 	}

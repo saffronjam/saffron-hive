@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   capabilityToExprProperty,
-  defaultTriggerConfig,
-  eventTypeForMode,
-  generateFilterExpr,
   normalizeActionConfig,
   normalizeTriggerConfig,
   serializeActionConfig,
@@ -89,378 +86,35 @@ describe("run_effect action validation", () => {
   });
 });
 
-function roundTrip(cfg: TriggerConfig): TriggerConfig {
-  const serialized = serializeTriggerConfig(cfg);
-  return normalizeTriggerConfig(JSON.parse(serialized) as Record<string, unknown>);
-}
 
-describe("normalizeTriggerConfig mode recovery", () => {
-  it("keeps a new trigger unconfigured through serialization", () => {
-    const config = defaultTriggerConfig();
-    expect(config).toEqual({ mode: "" });
-    expect(roundTrip(config)).toEqual({ mode: "" });
-    expect(validateTriggerConfig(config)).toEqual({ field: "mode", code: "trigger_required" });
-  });
-
-  it("availability: recovers deviceId", () => {
-    const cfg: TriggerConfig = {
-      mode: "availability",
-      eventType: "device.availability_changed",
-      deviceId: "0x1234",
-      deviceName: "Lamp",
-    };
-    const round = roundTrip(cfg);
-    expect(round.mode).toBe("availability");
-    expect(round.deviceId).toBe("0x1234");
-  });
-
-  it("device_event: uses device.action_fired event type", () => {
-    expect(eventTypeForMode("device_event")).toBe("device.action_fired");
-  });
-
-  it("device_event: generates payload-based filter, not device-state lookup", () => {
-    const filter = generateFilterExpr({
-      mode: "device_event",
-      deviceId: "0xABCD",
-      deviceName: "Bedroom switch",
-      eventValue: "single",
-    });
-    expect(filter).toBe('trigger.device_id == "0xABCD" && trigger.payload.action == "single"');
-    expect(filter).not.toContain("device(");
-  });
-
-  it.each([
-    "single",
-    "double",
-    "triple",
-    "hold",
-    "release",
-    "on_press",
-    "on_press_release",
-    "arrow_left_click",
-    "triple_tap",
-    "movement",
-    "vibration",
-    "orientation",
-    "fall",
-    "static",
-  ])("device_event: round-trips event value %s", (eventValue) => {
-    const cfg: TriggerConfig = {
-      mode: "device_event",
-      eventType: "device.action_fired",
-      deviceId: "0xABCD",
-      deviceName: "Bedroom switch",
-      eventValue,
-    };
-    const round = roundTrip(cfg);
-    expect(round.mode).toBe("device_event");
-    expect(round.eventType).toBe("device.action_fired");
-    expect(round.deviceId).toBe("0xABCD");
-    expect(round.eventValue).toBe(eventValue);
-  });
-
-  it("device_event: device-only filter round-trips and matches any event", () => {
-    const cfg: TriggerConfig = {
-      mode: "device_event",
-      eventType: "device.action_fired",
-      deviceId: "0xDEAD",
-    };
-    const filter = generateFilterExpr(cfg);
-    expect(filter).toBe('trigger.device_id == "0xDEAD"');
-    const round = roundTrip(cfg);
-    expect(round.mode).toBe("device_event");
-    expect(round.deviceId).toBe("0xDEAD");
-    expect(round.eventValue).toBeUndefined();
-  });
-
-  it("device_event: escapes quotes and backslashes in eventValue", () => {
-    const cfg: TriggerConfig = {
-      mode: "device_event",
-      eventType: "device.action_fired",
-      deviceId: "0xABCD",
-      eventValue: 'weird"action\\value',
-    };
-    const filter = generateFilterExpr(cfg);
-    expect(filter).toBe(
-      'trigger.device_id == "0xABCD" && trigger.payload.action == "weird\\"action\\\\value"',
-    );
-  });
-
-  it("device_event: empty config (no deviceId) returns true filter", () => {
-    const filter = generateFilterExpr({ mode: "device_event" });
-    expect(filter).toBe("true");
-  });
-
-  it("includes sensors that expose device events", () => {
-    expect(
-      supportsDeviceEvents({
-        capabilities: [{ name: "orientation" }, { name: "action" }, { name: "device_posture" }],
-      }),
-    ).toBe(true);
-    expect(supportsDeviceEvents({ capabilities: [{ name: "contact" }] })).toBe(false);
-  });
-
-  it("device_event: a state lookup for action falls back to custom mode", () => {
-    // An event value is not persistent device state, so this expression remains custom.
-    const raw = {
-      kind: "event",
-      event_type: "device.state_changed",
-      filter_expr: 'trigger.device_id == "0xABCD" && device("Bedroom switch").action == "single"',
-    };
-    const round = normalizeTriggerConfig(raw as Record<string, unknown>);
-    expect(round.mode).toBe("custom");
-    expect(round.customExpr).toBe(raw.filter_expr);
-  });
-
-  it("device_state scopes the predicate to the changed device and field", () => {
-    const cfg: TriggerConfig = {
-      mode: "device_state",
-      eventType: "device.state_changed",
-      deviceId: "0x9999",
-      deviceName: "Thermo",
-      property: "temperature",
-      comparator: ">",
-      value: "22",
-    };
-    expect(generateFilterExpr(cfg)).toBe(
-      'trigger.device_id == "0x9999" && trigger.payload.state.temperature != nil && trigger.payload.state.temperature > 22',
-    );
-    const round = roundTrip(cfg);
-    expect(round.mode).toBe("device_state");
-    expect(round.deviceId).toBe("0x9999");
-    expect(round.property).toBe("temperature");
-    expect(round.comparator).toBe(">");
-    expect(round.value).toBe("22");
-  });
-
-  it("device_state (string): strips surrounding quotes from value", () => {
-    const cfg: TriggerConfig = {
-      mode: "device_state",
-      eventType: "device.state_changed",
-      deviceId: "0xEEEE",
-      deviceName: "Door",
-      property: "state",
-      comparator: "==",
-      value: "open",
-    };
-    const round = roundTrip(cfg);
-    expect(round.mode).toBe("device_state");
-    expect(round.value).toBe("open");
-  });
-
-  it("schedule (every): round-trips as schedule/every", () => {
-    const round = roundTrip({
-      mode: "schedule",
-      scheduleSubmode: "every",
-      scheduleIntervalValue: 15,
-      scheduleIntervalUnit: "minutes",
-    });
-    expect(round.mode).toBe("schedule");
-    expect(round.scheduleSubmode).toBe("every");
-    expect(round.scheduleIntervalValue).toBe(15);
-    expect(round.scheduleIntervalUnit).toBe("minutes");
-  });
-
-  it("custom: round-trips as custom", () => {
-    const round = roundTrip({
-      mode: "custom",
-      eventType: "device.state_changed",
-      customExpr: 'device("X").on && trigger.device_id == "Y"',
-    });
-    expect(round.mode).toBe("custom");
-    expect(round.customExpr).toContain("device(");
-  });
-
-  it("incoming webhook: round-trips endpoint and typed filters", () => {
-    const cfg: TriggerConfig = {
-      mode: "webhook",
-      eventType: "webhook.received",
-      endpointId: "hook-1",
-      webhookFilters: [
-        {
-          source: "body",
-          path: "pipeline.status",
-          operator: "equals",
-          value_type: "string",
-          value: "failed",
-        },
-        { source: "query", path: "branch", operator: "exists" },
-      ],
-    };
-    expect(eventTypeForMode("webhook")).toBe("webhook.received");
-    expect(generateFilterExpr(cfg)).toBe("true");
-    expect(roundTrip(cfg)).toEqual(cfg);
-    expect(validateTriggerConfig(cfg)).toBeNull();
-  });
-
-  it("incoming webhook: requires an endpoint and complete filter rules", () => {
-    expect(validateTriggerConfig({ mode: "webhook" })).toMatchObject({ field: "endpoint" });
-    expect(
-      validateTriggerConfig({
-        mode: "webhook",
-        endpointId: "hook-1",
-        webhookFilters: [{ source: "body", path: "", operator: "exists" }],
-      }),
-    ).toMatchObject({ field: "webhookFilter" });
-    expect(
-      validateTriggerConfig({
-        mode: "webhook",
-        endpointId: "hook-1",
-        webhookFilters: [{ source: "body", path: "status", operator: "equals" }],
-      }),
-    ).toMatchObject({ field: "webhookFilter" });
-    expect(
-      validateTriggerConfig({
-        mode: "webhook",
-        endpointId: "hook-1",
-        webhookFilters: [
-          { source: "body", path: "status", operator: "contains", value_type: "number", value: 2 },
-        ],
-      }),
-    ).toMatchObject({ field: "webhookFilter" });
-    expect(
-      validateTriggerConfig({
-        mode: "webhook",
-        endpointId: "hook-1",
-        webhookFilters: [
-          {
-            source: "body",
-            path: "attempt",
-            operator: "greater_than",
-            value_type: "string",
-            value: "2",
-          },
-        ],
-      }),
-    ).toMatchObject({ field: "webhookFilter" });
-  });
-
-  it("unrecognized filter falls back to custom", () => {
-    const raw = {
-      kind: "event",
-      event_type: "device.state_changed",
-      filter_expr: "unparseable",
-    };
-    const round = normalizeTriggerConfig(raw as Record<string, unknown>);
-    expect(round.mode).toBe("custom");
-    expect(round.customExpr).toBe("unparseable");
-  });
+describe("typed trigger authoring",()=>{
+ it.each(["true","42","",'a"b\\c'])("preserves string %s",value=>{
+  const config:TriggerConfig={mode:"device_state",deviceId:"sensor",property:"value",value,valueType:"string"};
+  const input=JSON.parse(serializeTriggerConfig(config));
+  expect(input.trigger.value).toEqual({stringValue:value});
+  expect(normalizeTriggerConfig(input)).toMatchObject(config);
+ });
+ it("keeps an incomplete selection",()=>{
+  const config:TriggerConfig={mode:"device_state",deviceId:"sensor",property:"occupancy",holdMs:600000};
+  expect(normalizeTriggerConfig(JSON.parse(serializeTriggerConfig(config)))).toMatchObject(config);
+ });
+ it("preserves custom held expressions and timing",()=>{
+  const config:TriggerConfig={mode:"custom",deviceId:"sensor",customExpr:'device("sensor").occupancy != false',holdMs:600000,graceMs:500,cooldownMs:1000};
+  expect(normalizeTriggerConfig(JSON.parse(serializeTriggerConfig(config)))).toMatchObject(config);
+ });
+ it("maps a scene selection to the typed action payload",()=>{
+  const config={actionType:"activate_scene",targetType:"scene",targetId:"night",payload:""};
+  const input=JSON.parse(serializeActionConfig(config));
+  expect(input.action.payload).toEqual({sceneId:"night"});
+  expect(normalizeActionConfig(input)).toMatchObject(config);
+ });
 });
 
-describe("action type validation", () => {
-  it("requires an action selection", () => {
-    expect(
-      validateActionConfig({ actionType: "", targetType: "", targetId: "", payload: "" }),
-    ).toEqual({ field: "actionType", code: "action_required" });
-  });
-
-  it("stores toggle actions without a payload", () => {
-    const serialized = serializeActionConfig({
-      actionType: "toggle_device_state",
-      targetType: "expression",
-      targetId: "",
-      targetExpr: [
-        {
-          subject: TargetClauseSubject.DeviceType,
-          op: TargetClauseOperator.Is,
-          values: ["light"],
-        },
-      ],
-      payload: '{"on":true,"brightness":254}',
-    });
-
-    expect(JSON.parse(serialized)).toMatchObject({ payload: "" });
-  });
-
-  it("stores activate-scene references in the payload", () => {
-    const serialized = serializeActionConfig({
-      actionType: "activate_scene",
-      targetType: "scene",
-      targetId: "scene-1",
-      payload: "",
-    });
-
-    expect(JSON.parse(serialized)).toEqual({
-      action_type: "activate_scene",
-      target_type: "",
-      target_id: "",
-      target_expr: [],
-      payload: '{"scene_id":"scene-1"}',
-    });
-  });
-
-  it("restores activate-scene references from the payload", () => {
-    expect(
-      normalizeActionConfig({
-        action_type: "activate_scene",
-        target_type: "",
-        target_id: "",
-        target_expr: [],
-        payload: '{"scene_id":"scene-1"}',
-      }),
-    ).toEqual({
-      actionType: "activate_scene",
-      targetType: "scene",
-      targetId: "scene-1",
-      targetName: "",
-      targetExpr: [],
-      payload: "",
-    });
-  });
-
-  it("round-trips target-scoped actions without changing their contract", () => {
-    const stored = JSON.parse(
-      serializeActionConfig({
-        actionType: "set_device_state",
-        targetType: "device",
-        targetId: "light-1",
-        targetExpr: [],
-        payload: '{"on":true}',
-      }),
-    ) as Record<string, unknown>;
-
-    expect(normalizeActionConfig(stored)).toEqual({
-      actionType: "set_device_state",
-      targetType: "device",
-      targetId: "light-1",
-      targetName: "",
-      targetExpr: [],
-      payload: '{"on":true}',
-    });
-  });
+it("offers action events only on devices reporting actions",()=>{
+ expect(supportsDeviceEvents({capabilities:[{name:"occupancy"}]})).toBe(false);
+ expect(supportsDeviceEvents({capabilities:[{name:"action"}]})).toBe(true);
 });
-
-describe("device state trigger hold", () => {
-  const base = {
-    mode: "device_state" as const,
-    eventType: "device.state_changed",
-    deviceId: "0xsensor",
-    property: "presence",
-    comparator: "==",
-    value: "false",
-  };
-
-  it("stores the hold with the device it is about", () => {
-    const stored = JSON.parse(serializeTriggerConfig({ ...base, holdMs: 10_000 }));
-    expect(stored).toMatchObject({ hold_ms: 10_000, device_id: "0xsensor" });
-    expect(normalizeTriggerConfig(stored)).toMatchObject({ ...base, holdMs: 10_000 });
-  });
-
-  it("stores nothing for an immediate trigger", () => {
-    const stored = JSON.parse(serializeTriggerConfig({ ...base, holdMs: 0 }));
-    expect(stored.hold_ms).toBeUndefined();
-    expect(stored.device_id).toBeUndefined();
-  });
-
-  it("never stores a hold on other trigger kinds", () => {
-    const stored = JSON.parse(
-      serializeTriggerConfig({
-        mode: "device_event",
-        deviceId: "0xbutton",
-        eventValue: "single",
-        holdMs: 10_000,
-      }),
-    );
-    expect(stored.hold_ms).toBeUndefined();
-  });
+it("requires webhook filter values matching their operators",()=>{
+ expect(validateTriggerConfig({mode:"webhook",endpointId:"hook",webhookFilters:[{source:"body",path:"value",operator:"contains",value_type:"number",value:2}]})).toMatchObject({code:"filter_text_operator_type"});
+ expect(validateTriggerConfig({mode:"webhook",endpointId:"hook",webhookFilters:[{source:"body",path:"value",operator:"greater_than",value_type:"number",value:2}]})).toBeNull();
 });

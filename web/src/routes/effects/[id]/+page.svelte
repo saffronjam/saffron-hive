@@ -1,4 +1,44 @@
 <script lang="ts">
+	import { onExternalChanges } from "$lib/external-changes";
+	import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
+	let externalConflict = $state(false);
+	function effectFingerprint(data: EffectData): string {
+		return JSON.stringify({
+			name: data.name,
+			icon: data.icon,
+			loop: data.loop,
+			durationMs: data.durationMs,
+			tracks: data.tracks.map((t) => ({
+				id: t.id,
+				index: t.index,
+				name: t.name,
+				clips: t.clips.map((c) => ({
+					id: c.id,
+					startMs: c.startMs,
+					transitionMinMs: c.transitionMinMs,
+					transitionMaxMs: c.transitionMaxMs,
+					kind: c.kind,
+					config: c.config,
+				})),
+			})),
+		});
+	}
+	async function checkExternalChange() {
+		if (saving || loading || !effectData) return;
+		const r = await clientRef
+			.query<EffectQueryResult>(EFFECT_QUERY, { id: effectId }, { requestPolicy: "network-only" })
+			.toPromise();
+		if (r.error || saving) return;
+		if (!r.data?.effect || effectFingerprint(r.data.effect) !== effectFingerprint(effectData)) {
+			if (isDirty) externalConflict = true;
+			else await fetchEffect();
+		}
+	}
+	onExternalChanges(() => {
+		void checkExternalChange();
+	});
+
+
 	import { page } from "$app/state";
 	import FieldError from "$lib/components/field-error.svelte";
 	import { goto } from "$app/navigation";
@@ -40,6 +80,7 @@
 	const UPDATE_EFFECT = graphql(`
 		mutation EffectEditUpdate($input: UpdateEffectInput!) {
 			updateEffect(input: $input) {
+ revision
 				id
 				name
 				icon
@@ -56,7 +97,7 @@
 						transitionMinMs
 						transitionMaxMs
 						kind
-						config
+						config { ...EffectClipConfigFields }
 					}
 				}
 			}
@@ -71,7 +112,7 @@
 
 	type EffectData = Pick<
 		Effect,
-		"id" | "name" | "icon" | "kind" | "nativeName" | "loop" | "durationMs" | "requiredCapabilities"
+		"revision" | "id" | "name" | "icon" | "kind" | "nativeName" | "loop" | "durationMs" | "requiredCapabilities"
 	> & {
 		tracks: EffectTrackData[];
 	};
@@ -83,7 +124,7 @@
 	interface UpdateEffectResult {
 		updateEffect: Pick<
 			Effect,
-			"id" | "name" | "icon" | "loop" | "durationMs" | "requiredCapabilities"
+			"revision" | "id" | "name" | "icon" | "loop" | "durationMs" | "requiredCapabilities"
 		> & {
 			tracks: EffectTrackData[];
 		};
@@ -164,14 +205,14 @@
 				icon: Save,
 				saving,
 				onclick: handleSave,
-				disabled: saving || !effectData || !effectName.trim() || !isDirty,
+				disabled: saving || externalConflict || !effectData || !effectName.trim() || !isDirty,
 				hideLabelOnMobile: true,
 			},
 		];
 	});
 
 	async function fetchEffect() {
-		const result = await clientRef.query<EffectQueryResult>(EFFECT_QUERY, { id: effectId }).toPromise();
+		const result = await clientRef.query<EffectQueryResult>(EFFECT_QUERY, { id: effectId },{requestPolicy:"network-only"}).toPromise();
 		loading = false;
 
 		if (result.error) {
@@ -193,6 +234,7 @@
 			return;
 		}
 
+		externalConflict = false;
 		effectData = data as EffectData;
 		effectName = data.name;
 		effectIcon = data.icon ?? null;
@@ -213,7 +255,7 @@
 	}
 
 	async function handleSave() {
-		if (!effectData || saving) return;
+		if (!effectData || saving || externalConflict) return;
 		errors.clear();
 
 		nameError = null;
@@ -231,6 +273,7 @@
 			.mutation<UpdateEffectResult>(UPDATE_EFFECT, {
 				input: {
 					id: effectData.id,
+ expectedRevision: effectData.revision,
 					name: effectName.trim(),
 					icon: effectIcon,
 					loop,
@@ -298,6 +341,9 @@
 </script>
 
 <UnsavedGuard dirty={isDirty} />
+{#if externalConflict}
+	<ExternalChangeBanner onreload={() => { void fetchEffect(); }} />
+{/if}
 
 <div>
 	{#if errors.message}

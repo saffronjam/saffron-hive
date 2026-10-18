@@ -285,7 +285,7 @@ func TestGroups_UpdateGroup(t *testing.T) {
 		updateGroup(id: $id, input: $input) { id name }
 	}`, map[string]any{
 		"id":    groupID,
-		"input": map[string]any{"name": "After Update"},
+		"input": map[string]any{"expectedRevision": configurationRevision(t, "group", groupID), "name": "After Update"},
 	})
 	if err != nil {
 		t.Fatalf("update group: %v", err)
@@ -310,7 +310,7 @@ func TestGroups_UpdateGroup_InvalidID(t *testing.T) {
 		updateGroup(id: $id, input: $input) { id name }
 	}`, map[string]any{
 		"id":    "nonexistent-group-id",
-		"input": map[string]any{"name": "Nope"},
+		"input": map[string]any{"expectedRevision": 0, "name": "Nope"},
 	})
 	if err != nil {
 		t.Fatalf("expected GraphQL error for invalid group ID, got: %v", err)

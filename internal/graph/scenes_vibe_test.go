@@ -17,7 +17,7 @@ func TestSceneReferencesKeepSensorsOutOfSupportingStates(t *testing.T) {
 	env.store.putDevice(device.Device{ID: "sensor", Type: device.Sensor})
 	err := validateSceneReferences(context.Background(), env.resolver, store.SceneDefinition{
 		Supporting: []store.SceneSupportingState{{DeviceID: "sensor", State: store.DesiredState{On: device.Ptr(true)}}},
-	})
+	}, nil)
 	if err == nil {
 		t.Fatal("sensor supporting state was accepted")
 	}
@@ -31,7 +31,7 @@ func TestSceneReferencesRequireLightOverrides(t *testing.T) {
 			DeviceID: "plug", Kind: store.SceneLightOverrideState,
 			State: &store.DesiredState{On: device.Ptr(true)},
 		}}},
-	})
+	}, nil)
 	if err == nil {
 		t.Fatal("non-light override was accepted")
 	}

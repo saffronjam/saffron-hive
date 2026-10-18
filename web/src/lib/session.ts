@@ -1,3 +1,4 @@
+import { assistantAvailability } from "$lib/stores/assistant-availability.svelte";
 import { clearStateHistory } from "$lib/stores/state-history.svelte";
 import { clearAllSnapshots } from "$lib/entity-cache";
 import { clearAllSessionSnapshots } from "$lib/session-cache";
@@ -28,6 +29,7 @@ import { clearDeviceImageCache } from "$lib/device-image-cache";
  * data.
  */
 export function sessionTeardown(): void {
+  assistantAvailability.clear();
   clearStateHistory();
   alarmsStore.stop();
   maintenanceStore.stop();

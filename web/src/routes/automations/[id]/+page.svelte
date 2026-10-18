@@ -1,4 +1,72 @@
 <script lang="ts">
+ import {AUTOMATION_NODE_PREVIEW} from "$lib/graphql/authoring";
+ import {authoringInput} from "$lib/automation-authoring";
+ import type {AutomationConfigInput} from "$lib/gql/graphql";
+	import { onExternalChanges } from "$lib/external-changes";
+	import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
+	let externalConflict = $state(false);
+	let savedGraphFingerprint = "";
+ let savedRevision=$state(0);
+	function graphFingerprint(a: AutomationData): string {
+		return JSON.stringify({
+			name: a.name,
+			icon: a.icon,
+			enabled: a.enabled,
+			definitions: a.definitions,
+			nodes: a.nodes.map((n) => ({
+				id: n.id,
+				type: n.type,
+				config: n.config,
+				positionX: n.positionX,
+				positionY: n.positionY,
+			})),
+			edges: a.edges.map((e) => ({ fromNodeId: e.fromNodeId, toNodeId: e.toNodeId })),
+		});
+	}
+	async function refreshExternalGraph(discard = false) {
+		if (saving || loading || !savedGraphFingerprint) return;
+		const r = await client
+			.query<AutomationQueryResult>(
+				AUTOMATION_QUERY,
+				{ id: automationId },
+				{ requestPolicy: "network-only" },
+			)
+			.toPromise();
+		if (r.error || saving) return;
+		const auto = r.data?.automation;
+		if (!auto) {
+			if (isDirty && !discard) externalConflict = true;
+			else void goto("/automations");
+			return;
+		}
+		if (graphFingerprint(auto) === savedGraphFingerprint && !discard) return;
+		if (isDirty && !discard) {
+			externalConflict = true;
+			return;
+		}
+		automationName = auto.name;
+		automationIcon = auto.icon ?? null;
+		automationEnabled = auto.enabled;
+		savedAutomationEnabled = auto.enabled;
+		automationDefinitions = auto.definitions;
+		savedRevision=auto.revision;
+ automationValid = auto.validation.valid;
+ savedIssues = auto.validation.issues;
+		flowNodes = automationNodesToFlowNodes(auto.nodes, auto.edges, editMode, activatedNodes);
+		flowEdges = automationEdgesToFlowEdges(auto.edges);
+		jsonString = codeText();
+		history.stack = [];
+		history.cursor = -1;
+		takeSnapshot();
+		savedCursor = history.cursor;
+		savedGraphFingerprint = graphFingerprint(auto);
+		externalConflict = false;
+	}
+	onExternalChanges(() => {
+		void refreshExternalGraph();
+	});
+
+
 	import { page } from "$app/state";
 	import { deviceDisplayName, deviceSourceName, groupDisplayName, groupSourceName } from "$lib/utils";
 	import { goto } from "$app/navigation";
@@ -28,7 +96,8 @@
 	import type { FlowApi } from "$lib/components/graph/flow-bridge.svelte";
 	import AutomationNodePanel from "$lib/components/graph/automation-node-panel.svelte";
 	import type { SummaryLookups } from "$lib/components/graph/automation-summary";
-	import type { GraphNodeData } from "$lib/components/graph/node-data";
+	import { graphConnectionErrors } from "$lib/components/graph/graph-validation";
+	import { setGraphEditorContext, type GraphNodeData } from "$lib/components/graph/node-data";
 	import { webhooksStore } from "$lib/stores/webhooks.svelte";
 	import JsonEditor from "$lib/components/json-editor.svelte";
 	import { autocompletion } from "@codemirror/autocomplete";
@@ -98,7 +167,6 @@
 		defaultTriggerConfig,
 		normalizeTriggerConfig,
 		serializeTriggerConfig,
-		generateFilterExpr,
 		serializeOperatorConfig,
 		normalizeActionConfig,
 		serializeActionConfig,
@@ -131,7 +199,7 @@
 	interface AutomationNodeData {
 		id: string;
 		type: string;
-		config: string;
+		config: AutomationConfigInput;
 		positionX: number;
 		positionY: number;
 		runtimeState: string;
@@ -144,11 +212,12 @@
 	}
 
 	interface AutomationData {
+ revision:number;
 		id: string;
 		name: string;
 		icon?: string | null;
 		enabled: boolean;
-		compilable: boolean;
+		validation: { valid: boolean; issues: { code: string; path: string; nodeId?: string | null; severity: string; message: string }[] };
 		definitions: string;
 		nodes: AutomationNodeData[];
 		edges: AutomationEdgeData[];
@@ -202,16 +271,17 @@
 	const UPDATE_AUTOMATION = graphql(`
 		mutation AutomationEditUpdate($id: ID!, $input: UpdateAutomationInput!) {
 			updateAutomation(id: $id, input: $input) {
+ revision
 				id
 				name
 				icon
 				enabled
-				compilable
+				validation { valid issues { code path nodeId severity message } }
 				definitions
 				nodes {
 					id
 					type
-					config
+					config { ...AutomationConfigFields }
 					positionX
 					positionY
 					runtimeState
@@ -310,7 +380,7 @@
 				label: m.common_save({}, messageOptions),
 				saving,
 				onclick: handleSave,
-				disabled: !editMode || saving || !isDirty,
+				disabled: !editMode || saving || externalConflict || !isDirty || (automationEnabled && hasValidationErrors),
 				hideLabelOnMobile: true,
 			},
 			{ label: m.common_delete({}, messageOptions), icon: Trash2, variant: "destructive" as const, onclick: () => (deleteConfirmOpen = true), disabled: !editMode, hideLabelOnMobile: true },
@@ -318,9 +388,10 @@
 	});
 	let automationEnabled = $state(false);
 	let savedAutomationEnabled = $state(false);
-	let automationCompilable = $state(false);
-	let flowNodes = $state<Node[]>([]);
-	let flowEdges = $state<Edge[]>([]);
+	let automationValid = $state(false);
+ let savedIssues = $state<AutomationData["validation"]["issues"]>([]);
+	let flowNodes = $state.raw<Node[]>([]);
+	let flowEdges = $state.raw<Edge[]>([]);
 
 	let editMode = $state(true);
 	let placementMode = $state<"free" | "auto">("auto");
@@ -360,10 +431,16 @@
 		effects,
 		webhooks: webhooksStore.items,
 	});
-	const getSummaryLookups = () => summaryLookups;
 
 	/** The node open in the edit panel, or null when the panel is closed. */
 	let activeNodeId = $state<string | null>(null);
+	const connectionErrors = $derived(graphConnectionErrors(flowNodes, flowEdges));
+	setGraphEditorContext({
+		lookups: () => summaryLookups,
+		isActive: (id) => activeNodeId === id,
+		activate: activateNode,
+		connectionError: (id) => connectionErrors.get(id),
+	});
 	const activeNode = $derived(
 		activeNodeId ? (flowNodes.find((node) => node.id === activeNodeId) ?? null) : null,
 	);
@@ -468,7 +545,7 @@
 	let toolbarDrag = $state<{ nodeType: AutomationNodeType; x: number; y: number } | null>(null);
 	let suppressToolbarClick = false;
 	// In-editor copy buffer for duplicating selected nodes.
-	let copyBuffer = $state<{ nodes: Node[]; edges: Edge[] } | null>(null);
+	let copyBuffer = $state.raw<{ nodes: Node[]; edges: Edge[] } | null>(null);
 	const anyNodeSelected = $derived(flowNodes.some((n) => n.selected));
 	let restoringSnapshot = false;
 
@@ -489,6 +566,7 @@
 	const isDirty = $derived(history.cursor !== savedCursor);
 
 	const hasValidationErrors = $derived.by(() => {
+		if (connectionErrors.size > 0) return true;
 		for (const n of flowNodes) {
 			const nodeType = n.type ?? "";
 			const config = (n.data as Record<string, unknown>).config;
@@ -502,23 +580,15 @@
 	});
 
 	const liveDisabled = $derived(
-		saving || isDirty || hasValidationErrors || !automationCompilable,
+		saving || isDirty || hasValidationErrors || !automationValid,
 	);
 
 	function cloneNodes(nodes: Node[]): Node[] {
-		return nodes.map((n) => {
-			const data = n.data as Record<string, unknown>;
-			const clonedData: Record<string, unknown> = {};
-			for (const key of Object.keys(data)) {
-				if (typeof data[key] !== "function") {
-					clonedData[key] = data[key];
-				}
-			}
-			if (typeof data.config === "object" && data.config !== null) {
-				clonedData.config = JSON.parse(JSON.stringify(data.config));
-			}
-			return { ...n, position: { ...n.position }, data: clonedData };
-		}) as Node[];
+		return nodes.map((n) => ({
+			...n,
+			position: { ...n.position },
+			data: structuredClone($state.snapshot(n.data)),
+		}));
 	}
 
 	function cloneEdges(edges: Edge[]): Edge[] {
@@ -556,15 +626,15 @@
 		automationIcon = snap.icon;
 		automationEnabled = snap.enabled;
 		automationDefinitions = snap.definitions;
-		flowNodes = snap.nodes.map((n) => {
+		flowNodes = cloneNodes(snap.nodes).map((n) => {
 			const config = (n.data as Record<string, unknown>).config as NodeConfig;
 			return {
 				...n,
 				draggable: lockedDraggable(n.id),
-				data: makeNodeData(config, editMode, false, n.id),
+				data: makeNodeData(config, editMode, false),
 			};
 		}) as Node[];
-		flowEdges = snap.edges;
+		flowEdges = cloneEdges(snap.edges);
 		restoringSnapshot = false;
 		if (placementMode === "auto") scheduleAutoLayout();
 	}
@@ -627,8 +697,7 @@
 					: { x: n.position.x + offset, y: n.position.y + offset },
 				draggable: undefined,
 				selected: true,
-				// Rebuild data so isActive and onActivate close over the new id.
-				data: makeNodeData(config, editMode, false, newId),
+				data: makeNodeData(config, editMode, false),
 			};
 		});
 		const newEdges: Edge[] = copyBuffer.edges.map((e) => ({
@@ -672,17 +741,18 @@
 		// shortcuts only fire when focus is on the canvas (or nothing).
 		if (isEditableTarget(e.target)) return;
 		const mod = e.metaKey || e.ctrlKey;
-		if (mod && e.key === "z" && !e.shiftKey) {
+		const key = e.key.toLowerCase();
+		if (mod && key === "z" && !e.shiftKey) {
 			e.preventDefault();
 			handleUndo();
-		} else if (mod && (e.key === "Z" || e.key === "y")) {
+		} else if (mod && ((key === "z" && e.shiftKey) || key === "y")) {
 			e.preventDefault();
 			handleRedo();
-		} else if (mod && e.key === "c") {
+		} else if (mod && key === "c") {
 			if (!anyNodeSelected) return;
 			e.preventDefault();
 			handleCopy();
-		} else if (mod && e.key === "v") {
+		} else if (mod && key === "v") {
 			if (!copyBuffer) return;
 			e.preventDefault();
 			handlePaste();
@@ -736,9 +806,9 @@
 		return `${prefix}${n}`;
 	}
 
-	function parseConfig(nodeType: string, configJson: string): NodeConfig {
+	function parseConfig(nodeType: string, configJson: string | AutomationConfigInput): NodeConfig {
 		try {
-			const raw = JSON.parse(configJson) as Record<string, unknown>;
+			const raw = (typeof configJson === "string" ? JSON.parse(configJson) : configJson) as Record<string, unknown>;
 			if (nodeType === "trigger") {
 				return enrichTriggerConfigWithDevice(normalizeTriggerConfig(raw));
 			}
@@ -746,7 +816,7 @@
 				return enrichConditionConfigWithTarget(normalizeConditionConfig(raw));
 			}
 			if (nodeType === "operator") {
-				return { operator: ((raw.kind as string) ?? (raw.operator as string) ?? "AND").toUpperCase() };
+				return { operator: (((raw.operator as {kind?:string})?.kind) ?? "AND").toUpperCase() };
 			}
 			if (nodeType === "action") {
 				return normalizeActionConfig(raw);
@@ -780,7 +850,6 @@
 		config: NodeConfig,
 		isEditable: boolean,
 		isActivated: boolean,
-		nodeId: string,
 		runtimeState: string = "{}",
 	): GraphNodeData<NodeConfig> {
 		return {
@@ -788,9 +857,6 @@
 			readOnly: !isEditable,
 			activated: isActivated,
 			runtimeState,
-			lookups: getSummaryLookups,
-			isActive: () => activeNodeId === nodeId,
-			onActivate: activateNode,
 		};
 	}
 
@@ -964,7 +1030,7 @@
 	});
 
 	function automationNodesToFlowNodes(
-		nodes: AutomationNodeData[],
+		nodes: (Omit<AutomationNodeData,"config"> & {config:string|AutomationConfigInput})[],
 		edges: AutomationEdgeData[],
 		isEditable: boolean,
 		activatedSet: Map<string, ReturnType<typeof setTimeout>>
@@ -977,7 +1043,7 @@
 				type: n.type,
 				position: { x: n.positionX, y: n.positionY },
 				data: {
-					...makeNodeData(config, isEditable, activatedSet.has(n.id), n.id, n.runtimeState),
+					...makeNodeData(config, isEditable, activatedSet.has(n.id), n.runtimeState),
 					pendingUntil: n.pendingUntil ?? null,
 				},
 			};
@@ -1109,7 +1175,7 @@
 			const wire = compiled.automation;
 			const positions = new Map(flowNodes.map((node) => [node.id, node.position]));
 			const placed: Node[] = [];
-			const nodes: AutomationNodeData[] = wire.nodes.map((node) => {
+			const nodes = wire.nodes.map((node) => {
 				const position =
 					positions.get(node.id) ??
 					nextPositionForType(placed, node.type as (typeof COLUMN_ORDER)[number]);
@@ -1177,7 +1243,7 @@
 			id: tempId,
 			type: nodeType,
 			position: position ?? nextPositionForType(flowNodes, nodeType),
-			data: makeNodeData(config, editMode, false, tempId),
+			data: makeNodeData(config, editMode, false),
 		};
 
 		flowNodes = [...flowNodes, newNode];
@@ -1545,7 +1611,9 @@
 		graphContextMenuState = null;
 		if (node?.type !== "trigger") return;
 		const config = (node.data as Record<string, unknown>).config as TriggerConfig;
-		await navigator.clipboard.writeText(generateFilterExpr(config));
+		const result=await client.query(AUTOMATION_NODE_PREVIEW,{type:"trigger",config:authoringInput(JSON.parse(serializeTriggerConfig(config)))},{requestPolicy:"network-only"}).toPromise();
+ if(result.error){errors.setWithAutoDismiss(result.error.message);return;}
+ if(result.data) await navigator.clipboard.writeText(result.data.automationNodePreview.expression);
 	}
 
 	function handleConnect(_connection: Connection) {
@@ -1641,14 +1709,9 @@
 	}
 
 	$effect(() => {
-		// Track dependencies, then recompute imperatively so we don't race with
-		// xyflow's own edge mutations.
 		void activatedNodes;
 		void editMode;
-		void flowEdges.length;
-		// Selection state lives inside each edge's `selected` field, which xyflow
-		// mutates on click. Summing selections gives us a reactive dep.
-		void flowEdges.reduce((acc, e) => acc + (e.selected ? 1 : 0), 0);
+		void flowEdges;
 		untrack(updateEdgeStyles);
 	});
 
@@ -1720,7 +1783,7 @@
 
 	async function handleSave() {
 		if (!client) return;
-		if (saving) return;
+		if (saving || externalConflict) return;
 		saving = true;
 		errors.clear();
 
@@ -1728,11 +1791,12 @@
 			.mutation<UpdateAutomationResult>(UPDATE_AUTOMATION, {
 				id: automationId,
 				input: {
+ expectedRevision:savedRevision,
 					name: automationName,
 					icon: automationIcon,
 					enabled: automationEnabled,
 					definitions: automationDefinitions,
-					nodes: flowNodesToAutomationNodes(flowNodes),
+					nodes: flowNodesToAutomationNodes(flowNodes).map(n=>({...n,config:authoringInput(JSON.parse(n.config))})),
 					edges: flowEdgesToAutomationEdges(flowEdges, flowNodes),
 				},
 			})
@@ -1748,19 +1812,23 @@
 
 		if (result.data) {
 			const auto = result.data.updateAutomation;
+			savedGraphFingerprint = graphFingerprint(auto);
 			const cached = automationsStore.byId.get(auto.id);
 			automationsStore.upsert({
 				id: auto.id,
+ revision:auto.revision,
 				name: auto.name,
 				icon: auto.icon,
 				enabled: auto.enabled,
 				lastFiredAt: cached?.lastFiredAt ?? null,
-				nodes: auto.nodes.map(({ id, type, config }) => ({ id, type, config })),
+				nodes: auto.nodes.map(({ id, type, config }) => ({ id, type, config:config as import("$lib/gql/graphql").AutomationConfig })),
 				edges: auto.edges,
 				createdBy: cached?.createdBy ?? null,
 			});
 			savedAutomationEnabled = auto.enabled;
-			automationCompilable = auto.compilable;
+			savedRevision=auto.revision;
+ automationValid = auto.validation.valid;
+ savedIssues = auto.validation.issues;
 			const oldIds = flowNodes.map((n) => n.id);
 			const newIds = auto.nodes.map((n) => n.id);
 			const idsChanged = oldIds.length !== newIds.length || oldIds.some((id, i) => id !== newIds[i]);
@@ -1804,11 +1872,14 @@
 			.then((result) => {
 				if (result.data?.automation) {
 					const auto = result.data.automation;
+			savedGraphFingerprint = graphFingerprint(auto);
 					automationName = auto.name;
 					automationIcon = auto.icon ?? null;
 					automationEnabled = auto.enabled;
 					savedAutomationEnabled = auto.enabled;
-					automationCompilable = auto.compilable;
+					savedRevision=auto.revision;
+ automationValid = auto.validation.valid;
+ savedIssues = auto.validation.issues;
 					automationDefinitions = auto.definitions;
 					flowNodes = automationNodesToFlowNodes(auto.nodes, auto.edges, editMode, activatedNodes);
 					flowEdges = automationEdgesToFlowEdges(auto.edges);
@@ -1912,11 +1983,19 @@
 
 <svelte:window onkeydown={handleKeydown} oncontextmenu={handleOpenGraphContextMenu} />
 <UnsavedGuard dirty={isDirty} />
+{#if externalConflict}
+	<ExternalChangeBanner onreload={() => { void refreshExternalGraph(true); }} />
+{/if}
 
 <div class="flex h-[calc(100vh-6rem)] flex-col">
 	{#if errors.message}
 		<ErrorBanner class="mb-2" message={errors.message} ondismiss={() => errors.clear()} />
-	{/if}
+ {/if}
+{#if !isDirty}
+ {#each savedIssues.filter((issue) => issue.severity === "error") as issue}
+ <ErrorBanner class="mb-2" message={issue.nodeId ? `${issue.nodeId}: ${issue.message}` : issue.message} />
+ {/each}
+ {/if}
 
 	<div class="flex flex-wrap items-center gap-2 pb-3">
 		{#if loading}
@@ -1949,7 +2028,7 @@
 			<Switch
 				checked={automationEnabled}
 				onCheckedChange={handleToggle}
-				disabled={!editMode}
+				disabled={!editMode || (!automationEnabled && hasValidationErrors)}
 			/>
 
 			<div class="ml-auto flex items-center gap-2">

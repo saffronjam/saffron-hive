@@ -68,6 +68,7 @@ func (s *DB) GetEffect(ctx context.Context, id string) (Effect, error) {
 	}
 	return Effect{
 		ID:         row.ID,
+		Revision:   row.Revision,
 		Name:       row.Name,
 		Icon:       row.Icon,
 		Kind:       effect.Kind(row.Kind),
@@ -98,6 +99,7 @@ func (s *DB) ListEffects(ctx context.Context) ([]Effect, error) {
 		}
 		out = append(out, Effect{
 			ID:         r.ID,
+			Revision:   r.Revision,
 			Name:       r.Name,
 			Icon:       r.Icon,
 			Kind:       effect.Kind(r.Kind),
@@ -113,48 +115,68 @@ func (s *DB) ListEffects(ctx context.Context) ([]Effect, error) {
 	return out, nil
 }
 
-// UpdateEffect updates an effect's mutable fields. Tracks are not touched
-// here; use SaveEffectTracks to atomically replace the timeline.
-func (s *DB) UpdateEffect(ctx context.Context, id string, params UpdateEffectParams) (Effect, error) {
-	clearIcon := params.SetIcon && params.Icon == nil
-	clearNativeName := params.SetNativeName && params.NativeName == nil
+// UpdateEffect commits metadata and supplied tracks against a persisted revision.
+func (s *DB) UpdateEffect(ctx context.Context, id string, params UpdateEffectParams) (result Effect, err error) {
+	err = s.atomic(ctx, func(s *DB) error {
+		changed, err := s.q.ClaimEffectRevision(ctx, sqlite.ClaimEffectRevisionParams{ID: id, ExpectedRevision: params.ExpectedRevision})
+		if err != nil {
+			return err
+		}
+		if changed != 1 {
+			return ErrRevisionConflict
+		}
+		var writeErr error
+		result, writeErr = func() (Effect, error) {
+			clearIcon := params.SetIcon && params.Icon == nil
+			clearNativeName := params.SetNativeName && params.NativeName == nil
 
-	args := sqlite.UpdateEffectParams{
-		Name: params.Name,
-		ID:   id,
-	}
-	if params.SetIcon && params.Icon != nil {
-		args.Icon = params.Icon
-	}
-	if params.Kind != nil {
-		k := string(*params.Kind)
-		args.Kind = &k
-	}
-	if params.SetNativeName && params.NativeName != nil {
-		args.NativeName = params.NativeName
-	}
-	if params.Loop != nil {
-		v := boolToInt64(*params.Loop)
-		args.Loop = &v
-	}
-	if params.DurationMs != nil {
-		v := int64(*params.DurationMs)
-		args.DurationMs = &v
-	}
-	if err := s.q.UpdateEffect(ctx, args); err != nil {
-		return Effect{}, fmt.Errorf("update effect: %w", err)
-	}
-	if clearIcon {
-		if err := s.q.ClearEffectIcon(ctx, id); err != nil {
-			return Effect{}, fmt.Errorf("clear effect icon: %w", err)
-		}
-	}
-	if clearNativeName {
-		if err := s.q.ClearEffectNativeName(ctx, id); err != nil {
-			return Effect{}, fmt.Errorf("clear effect native_name: %w", err)
-		}
-	}
-	return s.GetEffect(ctx, id)
+			args := sqlite.UpdateEffectParams{
+				Name: params.Name,
+				ID:   id,
+			}
+			if params.SetIcon && params.Icon != nil {
+				args.Icon = params.Icon
+			}
+			if params.Kind != nil {
+				k := string(*params.Kind)
+				args.Kind = &k
+			}
+			if params.SetNativeName && params.NativeName != nil {
+				args.NativeName = params.NativeName
+			}
+			if params.Loop != nil {
+				v := boolToInt64(*params.Loop)
+				args.Loop = &v
+			}
+			if params.DurationMs != nil {
+				v := int64(*params.DurationMs)
+				args.DurationMs = &v
+			}
+			if err := s.q.UpdateEffect(ctx, args); err != nil {
+				return Effect{}, fmt.Errorf("update effect: %w", err)
+			}
+			if clearIcon {
+				if err := s.q.ClearEffectIcon(ctx, id); err != nil {
+					return Effect{}, fmt.Errorf("clear effect icon: %w", err)
+				}
+			}
+			if clearNativeName {
+				if err := s.q.ClearEffectNativeName(ctx, id); err != nil {
+					return Effect{}, fmt.Errorf("clear effect native_name: %w", err)
+				}
+			}
+			if params.Tracks != nil {
+				if err := s.saveEffectTracks(ctx, id, *params.Tracks); err != nil {
+					return Effect{}, err
+				}
+			}
+
+			return s.GetEffect(ctx, id)
+
+		}()
+		return writeErr
+	})
+	return result, err
 }
 
 // DeleteEffect deletes an effect by its ID. Cascading deletes remove the
@@ -183,9 +205,9 @@ func (s *DB) BatchDeleteEffects(ctx context.Context, ids []string) (int64, error
 	return n, nil
 }
 
-// SaveEffectTracks atomically replaces the timeline of an effect with the
+// saveEffectTracks atomically replaces the timeline of an effect with the
 // given track and clip set while retaining matching track identities.
-func (s *DB) SaveEffectTracks(ctx context.Context, effectID string, tracks []EffectTrackInput) error {
+func (s *DB) saveEffectTracks(ctx context.Context, effectID string, tracks []EffectTrackInput) error {
 	ids := make([]string, len(tracks))
 	seenIDs := make(map[string]struct{}, len(tracks))
 	for i, track := range tracks {
@@ -247,18 +269,6 @@ func (s *DB) SaveEffectTracks(ctx context.Context, effectID string, tracks []Eff
 	})
 }
 
-// UpdateEffectDuration sets the effect's duration_ms column. Used by the
-// editor when the End line is dragged.
-func (s *DB) UpdateEffectDuration(ctx context.Context, effectID string, durationMs int) error {
-	if err := s.q.UpdateEffectDuration(ctx, sqlite.UpdateEffectDurationParams{
-		DurationMs: int64(durationMs),
-		ID:         effectID,
-	}); err != nil {
-		return fmt.Errorf("update effect duration: %w", err)
-	}
-	return nil
-}
-
 // LoadEffect retrieves an effect by ID and returns it as a domain effect.Effect
 // with each clip's ClipConfig parsed from its on-disk JSON. The runner uses
 // this to fetch a ready-to-walk effect without depending on the
@@ -272,7 +282,7 @@ func (s *DB) LoadEffect(ctx context.Context, id string) (effect.Effect, error) {
 	for _, tr := range row.Tracks {
 		clips := make([]effect.Clip, 0, len(tr.Clips))
 		for _, cl := range tr.Clips {
-			cfg, err := effect.UnmarshalClipConfig(cl.Kind, []byte(cl.ConfigJSON))
+			cfg, err := effect.DecodeClipConfig(cl.Kind, []byte(cl.ConfigJSON))
 			if err != nil {
 				return effect.Effect{}, fmt.Errorf("load effect %q clip %q: %w", id, cl.ID, err)
 			}

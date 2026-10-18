@@ -237,7 +237,7 @@ describe("groups", () => {
     const updated = await graphqlClient
       .mutation(UPDATE_GROUP, {
         id,
-        input: { name: "Updated Name" },
+        input: { expectedRevision:1, name: "Updated Name" },
       })
       .toPromise();
 

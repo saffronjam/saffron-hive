@@ -73,7 +73,7 @@ func TestSceneDynamicSourceRoundTripAndAtomicReplacement(t *testing.T) {
 			},
 		},
 	}
-	if err := s.SaveSceneDefinition(context.Background(), "scene-1", definition); err != nil {
+	if err := saveSceneDefinition(t, s, context.Background(), "scene-1", definition); err != nil {
 		t.Fatal(err)
 	}
 	loaded, err := s.GetScene(context.Background(), "scene-1")
@@ -83,7 +83,7 @@ func TestSceneDynamicSourceRoundTripAndAtomicReplacement(t *testing.T) {
 
 	broken := definition
 	broken.Lighting.Overrides = []SceneLightOverride{{DeviceID: "d1", Kind: SceneLightOverrideEffect, EffectID: "missing"}}
-	if err := s.SaveSceneDefinition(context.Background(), "scene-1", broken); err == nil {
+	if err := saveSceneDefinition(t, s, context.Background(), "scene-1", broken); err == nil {
 		t.Fatal("missing effect reference saved")
 	}
 	after, _ := s.GetScene(context.Background(), "scene-1")
@@ -242,4 +242,14 @@ func TestActiveSceneRunReplacementIsAtomic(t *testing.T) {
 	if err != nil || len(runs) != 0 {
 		t.Fatalf("delete cascade runs = %#v, %v", runs, err)
 	}
+}
+
+func saveSceneDefinition(t *testing.T, s *DB, ctx context.Context, id string, definition SceneDefinition) error {
+	t.Helper()
+	current, err := s.GetScene(ctx, id)
+	if err != nil {
+		return err
+	}
+	_, err = s.UpdateScene(ctx, id, UpdateSceneParams{ExpectedRevision: current.Revision, Definition: &definition})
+	return err
 }

@@ -337,7 +337,7 @@
 	async function handleRename(a: Automation, newName: string) {
 		errors.clear();
 		try {
-			await automationsStore.update(client, a.id, { name: newName });
+			await automationsStore.update(client, a.id, { expectedRevision:a.revision, name: newName });
 		} catch (e) {
 			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.automations_error_rename({}, locale.messageOptions())));
 		}
@@ -346,7 +346,7 @@
 	async function handleIconChange(a: Automation, icon: string | null) {
 		errors.clear();
 		try {
-			await automationsStore.update(client, a.id, { icon });
+			await automationsStore.update(client, a.id, { expectedRevision:a.revision, icon });
 		} catch (e) {
 			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.automations_error_icon({}, locale.messageOptions())));
 		}

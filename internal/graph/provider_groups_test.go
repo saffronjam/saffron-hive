@@ -23,7 +23,7 @@ func TestProviderGroupMutationOwnership(t *testing.T) {
 		MemberID:   "a",
 	}}
 
-	resp := env.query(t, `mutation { updateGroup(id: "z2m", input: {icon: "lucide:lamp", tags: [LIGHT]}) { id source } }`, nil)
+	resp := env.query(t, `mutation { updateGroup(id: "z2m", input: {expectedRevision:0, icon: "lucide:lamp", tags: [LIGHT]}) { id source } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("Hive-owned metadata update failed: %v", resp.Errors)
 	}
@@ -35,7 +35,7 @@ func TestProviderGroupMutationOwnership(t *testing.T) {
 		t.Fatalf("updated provider group = %+v", updated)
 	}
 
-	resp = env.query(t, `mutation { updateGroup(id: "z2m", input: {name: "Upstairs"}) { id name friendlyName } }`, nil)
+	resp = env.query(t, `mutation { updateGroup(id: "z2m", input: {expectedRevision:0, name: "Upstairs"}) { id name friendlyName } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("provider display-name update failed: %v", resp.Errors)
 	}
@@ -43,7 +43,7 @@ func TestProviderGroupMutationOwnership(t *testing.T) {
 	if err != nil || updated.Name == nil || *updated.Name != "Upstairs" || updated.FriendlyName != "Hall lights" {
 		t.Fatalf("renamed provider group = %+v, %v", updated, err)
 	}
-	resp = env.query(t, `mutation { updateGroup(id: "z2m", input: {name: null}) { id name friendlyName } }`, nil)
+	resp = env.query(t, `mutation { updateGroup(id: "z2m", input: {expectedRevision:0, name: null}) { id name friendlyName } }`, nil)
 	if len(resp.Errors) > 0 {
 		t.Fatalf("provider display-name clear failed: %v", resp.Errors)
 	}

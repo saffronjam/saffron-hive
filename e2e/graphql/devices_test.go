@@ -259,7 +259,7 @@ func TestDevices_DeleteAndRestore(t *testing.T) {
 		}`, map[string]any{"id": deviceID})
 		_, _ = graphqlMutation(`mutation($id: ID!, $input: UpdateDeviceInput!) {
 			updateDevice(id: $id, input: $input) { id }
-		}`, map[string]any{"id": deviceID, "input": map[string]any{"disabled": false}})
+		}`, map[string]any{"id": deviceID, "input": map[string]any{"expectedRevision": configurationRevision(t, "device", deviceID), "disabled": false}})
 	}()
 
 	data, err := graphqlMutation(`mutation($id: ID!) {
@@ -317,7 +317,7 @@ func TestDevices_DeleteAndRestore(t *testing.T) {
 
 	if err := graphqlMutationExpectError(`mutation($id: ID!, $input: UpdateDeviceInput!) {
 		updateDevice(id: $id, input: $input) { id }
-	}`, map[string]any{"id": deviceID, "input": map[string]any{"disabled": false}}); err != nil {
+	}`, map[string]any{"id": deviceID, "input": map[string]any{"expectedRevision": configurationRevision(t, "device", deviceID), "disabled": false}}); err != nil {
 		t.Fatalf("deleted device was enabled without restoration: %v", err)
 	}
 
@@ -362,7 +362,7 @@ func TestDevices_UpdateDeviceName(t *testing.T) {
 			updateDevice(id: $id, input: $input) { id name }
 		}`, map[string]any{
 			"id":    deviceID,
-			"input": map[string]any{"name": name},
+			"input": map[string]any{"expectedRevision": configurationRevision(t, "device", deviceID), "name": name},
 		}); err != nil {
 			t.Fatalf("rename to %v: %v", name, err)
 		}
@@ -373,7 +373,7 @@ func TestDevices_UpdateDeviceName(t *testing.T) {
 		updateDevice(id: $id, input: $input) { id name }
 	}`, map[string]any{
 		"id":    deviceID,
-		"input": map[string]any{"name": "Renamed Bedroom Light"},
+		"input": map[string]any{"expectedRevision": configurationRevision(t, "device", deviceID), "name": "Renamed Bedroom Light"},
 	})
 	if err != nil {
 		t.Fatalf("updateDevice: %v", err)

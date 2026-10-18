@@ -1,6 +1,6 @@
 import type { Clause as TargetClause } from "$lib/target-resolve";
 
-/** A node as stored: its config is the JSON the engine reads. */
+/** A node carrying a serialized typed authoring configuration. */
 export interface WireNode {
   id: string;
   type: "trigger" | "condition" | "operator" | "action";
@@ -12,7 +12,7 @@ export interface WireEdge {
   toNodeId: string;
 }
 
-/** An automation as stored, without layout. */
+/** An automation authoring document without layout. */
 export interface WireAutomation {
   name: string;
   nodes: WireNode[];

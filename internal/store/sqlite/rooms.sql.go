@@ -72,6 +72,23 @@ func (q *Queries) BatchDeleteRooms(ctx context.Context, idsJson string) (int64, 
 	return result.RowsAffected()
 }
 
+const claimRoomRevision = `-- name: ClaimRoomRevision :execrows
+UPDATE rooms SET revision = revision + 1 WHERE id = ?1 AND revision = ?2
+`
+
+type ClaimRoomRevisionParams struct {
+	ID               string
+	ExpectedRevision int64
+}
+
+func (q *Queries) ClaimRoomRevision(ctx context.Context, arg ClaimRoomRevisionParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, claimRoomRevision, arg.ID, arg.ExpectedRevision)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const clearRoomIcon = `-- name: ClearRoomIcon :exec
 UPDATE rooms SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `
@@ -114,7 +131,7 @@ func (q *Queries) DeleteRoom(ctx context.Context, id string) error {
 }
 
 const getRoom = `-- name: GetRoom :one
-SELECT r.id, r.name, r.icon, r.created_at, r.updated_at,
+SELECT r.revision, r.id, r.name, r.icon, r.created_at, r.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -124,6 +141,7 @@ WHERE r.id = ?
 `
 
 type GetRoomRow struct {
+	Revision        int64
 	ID              string
 	Name            string
 	Icon            *string
@@ -138,6 +156,7 @@ func (q *Queries) GetRoom(ctx context.Context, id string) (GetRoomRow, error) {
 	row := q.db.QueryRowContext(ctx, getRoom, id)
 	var i GetRoomRow
 	err := row.Scan(
+		&i.Revision,
 		&i.ID,
 		&i.Name,
 		&i.Icon,
@@ -239,7 +258,7 @@ func (q *Queries) ListRoomMemberships(ctx context.Context) ([]ListRoomMembership
 }
 
 const listRooms = `-- name: ListRooms :many
-SELECT r.id, r.name, r.icon, r.created_at, r.updated_at,
+SELECT r.revision, r.id, r.name, r.icon, r.created_at, r.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -248,6 +267,7 @@ LEFT JOIN users u ON u.id = r.created_by
 `
 
 type ListRoomsRow struct {
+	Revision        int64
 	ID              string
 	Name            string
 	Icon            *string
@@ -268,6 +288,7 @@ func (q *Queries) ListRooms(ctx context.Context) ([]ListRoomsRow, error) {
 	for rows.Next() {
 		var i ListRoomsRow
 		if err := rows.Scan(
+			&i.Revision,
 			&i.ID,
 			&i.Name,
 			&i.Icon,
@@ -291,7 +312,7 @@ func (q *Queries) ListRooms(ctx context.Context) ([]ListRoomsRow, error) {
 }
 
 const listRoomsContainingMember = `-- name: ListRoomsContainingMember :many
-SELECT r.id, r.name, r.icon, r.created_at, r.updated_at,
+SELECT r.revision, r.id, r.name, r.icon, r.created_at, r.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -307,6 +328,7 @@ type ListRoomsContainingMemberParams struct {
 }
 
 type ListRoomsContainingMemberRow struct {
+	Revision        int64
 	ID              string
 	Name            string
 	Icon            *string
@@ -327,6 +349,7 @@ func (q *Queries) ListRoomsContainingMember(ctx context.Context, arg ListRoomsCo
 	for rows.Next() {
 		var i ListRoomsContainingMemberRow
 		if err := rows.Scan(
+			&i.Revision,
 			&i.ID,
 			&i.Name,
 			&i.Icon,

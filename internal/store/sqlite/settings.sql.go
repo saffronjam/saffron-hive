@@ -10,18 +10,18 @@ import (
 )
 
 const getSetting = `-- name: GetSetting :one
-SELECT key, value FROM settings WHERE key = ?
+SELECT key, value, revision FROM settings WHERE key = ?
 `
 
 func (q *Queries) GetSetting(ctx context.Context, key string) (Setting, error) {
 	row := q.db.QueryRowContext(ctx, getSetting, key)
 	var i Setting
-	err := row.Scan(&i.Key, &i.Value)
+	err := row.Scan(&i.Key, &i.Value, &i.Revision)
 	return i, err
 }
 
 const listSettings = `-- name: ListSettings :many
-SELECT key, value FROM settings
+SELECT key, value, revision FROM settings
 `
 
 func (q *Queries) ListSettings(ctx context.Context) ([]Setting, error) {
@@ -33,7 +33,7 @@ func (q *Queries) ListSettings(ctx context.Context) ([]Setting, error) {
 	var items []Setting
 	for rows.Next() {
 		var i Setting
-		if err := rows.Scan(&i.Key, &i.Value); err != nil {
+		if err := rows.Scan(&i.Key, &i.Value, &i.Revision); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -47,9 +47,29 @@ func (q *Queries) ListSettings(ctx context.Context) ([]Setting, error) {
 	return items, nil
 }
 
+const updateSetting = `-- name: UpdateSetting :execrows
+INSERT INTO settings (revision, key,value)
+SELECT CAST(?1 AS INTEGER)+1, ?2, ?3 WHERE ?1=0 OR EXISTS(SELECT 1 FROM settings WHERE key=?2 AND revision=?1)
+ON CONFLICT(key) DO UPDATE SET value=excluded.value, revision=settings.revision+1 WHERE settings.revision=excluded.revision-1
+`
+
+type UpdateSettingParams struct {
+	ExpectedRevision int64
+	Key              string
+	Value            string
+}
+
+func (q *Queries) UpdateSetting(ctx context.Context, arg UpdateSettingParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateSetting, arg.ExpectedRevision, arg.Key, arg.Value)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const upsertSetting = `-- name: UpsertSetting :exec
 INSERT INTO settings (key, value) VALUES (?, ?)
-ON CONFLICT(key) DO UPDATE SET value = excluded.value
+ON CONFLICT(key) DO UPDATE SET value = excluded.value, revision=settings.revision+1
 `
 
 type UpsertSettingParams struct {

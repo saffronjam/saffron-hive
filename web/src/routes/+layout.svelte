@@ -1,5 +1,7 @@
 <script lang="ts">
 	import "../app.css";
+	import ApplicationObserver from "$lib/components/application-observer.svelte";
+	import { assistantAvailability } from "$lib/stores/assistant-availability.svelte";
 	import AppSidebar from "$lib/components/app-sidebar.svelte";
 	import { SidebarInset, SidebarProvider, SidebarTrigger } from "$lib/components/ui/sidebar/index.js";
 	import { Toaster } from "$lib/components/ui/sonner/index.js";
@@ -111,6 +113,8 @@
 						? dashboardRefreshes
 						: [
 								...dashboardRefreshes,
+								assistantAvailability.refresh(client),
+								me.refresh(client),
 								automationsStore.refresh(client),
 								effectsStore.refresh(client),
 								webhooksStore.refresh(client),
@@ -367,6 +371,7 @@
 	<div class="min-h-screen bg-background"></div>
 {:else if auth.isGuest()}
 	<GuestSessionGuard />
+	<ApplicationObserver onchange={() => { void reconcileAppState(); }} />
 	<div class="flex min-h-screen flex-col bg-background {dashboardWorkstation ? 'h-dvh overflow-hidden' : ''}">
 		<main class="min-w-0 flex-1 p-6 {dashboardWorkstation ? 'flex min-h-0 flex-col overflow-hidden' : ''}">
 			<DashboardPage visible={true} guest={true} onworkstationchange={(value) => dashboardWorkstation = value} />
@@ -390,6 +395,7 @@
 		</main>
 	</div>
 {:else}
+	<ApplicationObserver onchange={() => { void reconcileAppState(); }} />
 	<SidebarProvider>
 		<AppSidebar />
 		<SidebarInset class="min-w-0 {workstationActive ? 'h-dvh overflow-hidden' : ''}">

@@ -11,6 +11,7 @@ import { deviceSourceName, groupSourceName } from "$lib/utils";
 import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 
 const names: LocalizedNameSet = {
+ revision:1,
   entityType: "room",
   entityId: "room-1",
   sourceLanguage: "en",

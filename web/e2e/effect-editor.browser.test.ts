@@ -1,3 +1,4 @@
+import { revision } from "./revision";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   chromium,
@@ -25,8 +26,8 @@ const DELETE_EFFECT = graphql(`
 `);
 
 const SET_LANGUAGE = graphql(`
-  mutation BrowserEditorSetLanguage($language: Language!) {
-    updateCurrentUser(input: { language: $language }) {
+  mutation BrowserEditorSetLanguage($language: Language!, $expectedRevision:Int!) {
+    updateCurrentUser(input: { language: $language, expectedRevision:$expectedRevision }) {
       language
     }
   }
@@ -45,7 +46,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   pageErrors = [];
   const { graphqlClient, token, appUrl } = getContext();
-  await graphqlClient.mutation(SET_LANGUAGE, { language: Language.En }).toPromise();
+  await graphqlClient.mutation(SET_LANGUAGE, { expectedRevision:await revision(graphqlClient,"me"), language: Language.En }).toPromise();
   const created = await graphqlClient
     .mutation(CREATE_EFFECT, {
       input: {
@@ -88,7 +89,7 @@ afterEach(async () => {
   const { graphqlClient } = getContext();
   if (effectId) await graphqlClient.mutation(DELETE_EFFECT, { id: effectId }).toPromise();
   effectId = null;
-  await graphqlClient.mutation(SET_LANGUAGE, { language: Language.En }).toPromise();
+  await graphqlClient.mutation(SET_LANGUAGE, { expectedRevision:await revision(graphqlClient,"me"), language: Language.En }).toPromise();
   expect(pageErrors).toEqual([]);
 });
 
@@ -130,7 +131,7 @@ describe("effect timeline context menus", () => {
     await page.getByRole("button", { name: "Save", exact: true }).click();
     expect((await (await saved).json()).errors).toBeUndefined();
     const { graphqlClient, appUrl } = getContext();
-    await graphqlClient.mutation(SET_LANGUAGE, { language: Language.Sv }).toPromise();
+    await graphqlClient.mutation(SET_LANGUAGE, { expectedRevision:await revision(graphqlClient,"me"), language: Language.Sv }).toPromise();
     for (const dark of [true, false]) {
       await page.goto(`${appUrl}/effects/${effectId}`, { waitUntil: "domcontentloaded" });
       const editorChip = page.locator('[data-slot="badge"]:visible').filter({ hasText: "Färg" });
@@ -241,6 +242,8 @@ describe("effect timeline context menus", () => {
     await page.reload();
     await clips.first().waitFor();
     expect(await clips.count()).toBe(1);
+    expect(await clips.first().getAttribute("data-clip-uid")).toBe(originalId);
+    await page.screenshot({ path: "/tmp/hive-authoring-effect.png", animations: "disabled" });
   });
 
   it("reopens at valid targets and suppresses the browser menu when dismissing elsewhere", async () => {
@@ -297,7 +300,7 @@ describe("effect timeline context menus", () => {
     "renders %s menus and settings help in both themes",
     async (language, add, paste, defaultHelp, roomHelp) => {
       const { graphqlClient, appUrl } = getContext();
-      await graphqlClient.mutation(SET_LANGUAGE, { language }).toPromise();
+      await graphqlClient.mutation(SET_LANGUAGE, { expectedRevision:await revision(graphqlClient,"me"), language }).toPromise();
       await page.reload();
       await page.locator('[role="region"]').last().waitFor();
       const timeline = page.locator('[role="region"]').last();

@@ -21,6 +21,7 @@ vi.stubGlobal(
 
 function light(id: string, brightness: number): Device {
   return {
+    revision: 1,
     id,
     name: id,
     friendlyName: id,

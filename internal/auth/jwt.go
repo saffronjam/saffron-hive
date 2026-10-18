@@ -3,6 +3,7 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -31,16 +32,21 @@ type Claims struct {
 // Service signs and verifies HS256 JWTs backed by a symmetric secret.
 type Service struct {
 	secret []byte
-	ttl    time.Duration
+	ttl    atomic.Int64
 }
 
 // NewService constructs a JWT service with the given secret and token lifetime.
 func NewService(secret []byte, ttl time.Duration) *Service {
-	return &Service{secret: secret, ttl: ttl}
+	s := &Service{secret: secret}
+	s.SetTTL(ttl)
+	return s
 }
 
 // TTL returns the token lifetime currently configured on the service.
-func (s *Service) TTL() time.Duration { return s.ttl }
+func (s *Service) TTL() time.Duration { return time.Duration(s.ttl.Load()) }
+
+// SetTTL sets the lifetime of subsequently issued user tokens.
+func (s *Service) SetTTL(ttl time.Duration) { s.ttl.Store(int64(ttl)) }
 
 // SignUser produces a signed JWT for the given user. tokenVersion must match the
 // user row's current token_version, so middleware can reject tokens whose
@@ -55,7 +61,7 @@ func (s *Service) SignUser(userID, username, name string, tokenVersion int64) (s
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID,
 			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(s.ttl)),
+			ExpiresAt: jwt.NewNumericDate(now.Add(s.TTL())),
 		},
 	}
 	return s.sign(claims)

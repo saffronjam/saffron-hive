@@ -19,6 +19,7 @@ func (s *DB) GetTuyaConfig(ctx context.Context) (*TuyaConfig, error) {
 		return nil, fmt.Errorf("get tuya config: %w", err)
 	}
 	return &TuyaConfig{
+		Revision:     row.Revision,
 		AccessID:     row.AccessID,
 		AccessSecret: row.AccessSecret,
 		Region:       row.Region,
@@ -28,13 +29,18 @@ func (s *DB) GetTuyaConfig(ctx context.Context) (*TuyaConfig, error) {
 
 // UpsertTuyaConfig inserts or replaces the singleton Tuya configuration row.
 func (s *DB) UpsertTuyaConfig(ctx context.Context, cfg TuyaConfig) error {
-	if err := s.q.UpsertTuyaConfig(ctx, sqlite.UpsertTuyaConfigParams{
-		AccessID:     cfg.AccessID,
-		AccessSecret: cfg.AccessSecret,
-		Region:       cfg.Region,
-		Enabled:      cfg.Enabled,
-	}); err != nil {
+	n, err := s.q.UpsertTuyaConfig(ctx, sqlite.UpsertTuyaConfigParams{
+		ExpectedRevision: cfg.Revision,
+		AccessID:         cfg.AccessID,
+		AccessSecret:     cfg.AccessSecret,
+		Region:           cfg.Region,
+		Enabled:          cfg.Enabled,
+	})
+	if err != nil {
 		return fmt.Errorf("upsert tuya config: %w", err)
+	}
+	if n != 1 {
+		return ErrRevisionConflict
 	}
 	return nil
 }

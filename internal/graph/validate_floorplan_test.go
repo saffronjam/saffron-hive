@@ -33,6 +33,7 @@ func linkedRoomInput(id, roomID string) *model.FloorplanRoomInput {
 // a case only has to state what makes it invalid.
 func openingInput(openings ...*model.FloorplanOpeningInput) model.UpdateFloorplanInput {
 	input := floorplanInput(nil, nil)
+	input.Vertices = []*model.FloorplanVertexInput{{ID: "vtx-a", X: 0, Y: 0}, {ID: "vtx-b", X: 4, Y: 0}}
 	input.Walls = []*model.FloorplanWallInput{
 		{ID: "wall-1", VertexA: "vtx-a", VertexB: "vtx-b", Thickness: 0.1},
 	}
@@ -331,7 +332,7 @@ func TestUpdateFloorplan_RejectsInvalidInputBeforeSaving(t *testing.T) {
 			updateFloorplan(input: $input) { id }
 		}
 	`, map[string]any{
-		"input": map[string]any{
+		"input": map[string]any{"expectedRevision": 0,
 			"id":           "fp-1",
 			"name":         "Home",
 			"vertices":     []any{},

@@ -371,3 +371,34 @@ func TestValidateTriggerHold(t *testing.T) {
 		}
 	}
 }
+
+func TestHoldExpiryPassesThroughCurrentConditionAfterReload(t *testing.T) {
+	for _, pass := range []bool{false, true} {
+		t.Run(fmt.Sprint(pass), func(t *testing.T) {
+			f := newHoldFixture(t, 600000, 0)
+			auto, nodes, _ := holdAutomation("auto-1", 600000, 0)
+			nodes = append(nodes, store.AutomationNode{ID: "gate", AutomationID: "auto-1", Type: "condition", Config: `{"expr":"device(\"lamp\").brightness > 100"}`})
+			f.store.addAutomationGraph(auto, nodes, []store.AutomationEdge{{FromNodeID: "t1", ToNodeID: "gate"}, {FromNodeID: "gate", ToNodeID: "a1"}})
+			f.reader.setDeviceState("lamp", &device.DeviceState{On: device.Ptr(true), Brightness: device.Ptr(0)})
+			f.reload(t)
+			f.report("sensor", device.DeviceState{Presence: device.Ptr(false)})
+			first := f.timers.running()[0]
+			f.reload(t)
+			if f.timers.running()[0] != first {
+				t.Fatal("reload restarted an unchanged hold")
+			}
+			brightness := 0
+			if pass {
+				brightness = 200
+			}
+			f.reader.setDeviceState("lamp", &device.DeviceState{On: device.Ptr(true), Brightness: device.Ptr(brightness)})
+			f.clock = f.clock.Add(10 * time.Minute)
+			f.timers.expire(t)
+			if pass {
+				f.expectCommand(t)
+			} else {
+				f.expectNoCommand(t)
+			}
+		})
+	}
+}

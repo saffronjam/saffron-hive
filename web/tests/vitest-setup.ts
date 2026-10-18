@@ -1,5 +1,9 @@
 import { vi } from "vitest";
 
+declare const jsdom: { window: Window };
+Object.defineProperty(globalThis, "localStorage", { configurable: true, value: jsdom.window.localStorage });
+Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: jsdom.window.sessionStorage });
+
 Object.defineProperty(window, "matchMedia", {
   configurable: true,
   writable: true,

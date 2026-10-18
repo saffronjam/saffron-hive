@@ -1,4 +1,5 @@
 <script lang="ts">
+ import {authorSceneStates} from "$lib/scene-authoring";
 	import { onMount, tick } from "svelte";
 	import { goto, pushState, replaceState } from "$app/navigation";
 	import { page } from "$app/state";
@@ -27,10 +28,8 @@
 		resolveSceneTargets,
 	} from "$lib/scene-capability-summary";
 	import {
-		capturedSceneState,
-		defaultDesiredState,
 		editorDefinitionInput,
-		initialSupportingState,
+		isSceneSupportingDevice,
 		newTargetUid,
 		sceneStateInput,
 		type DynamicLighting,
@@ -100,6 +99,22 @@
 	`);
 
 	const client = getContextClient();
+
+    let authoringRequests = $state(0);
+    let editorAuthoringBusy = $state(false);
+    async function authoredStates(ids: string[], source: "current" | "defaults", fallback = false) {
+        authoringRequests++;
+        try {
+            error = null;
+            return await authorSceneStates(client, ids, source, fallback);
+        } catch (caught) {
+            error = caught instanceof Error ? caught.message : String(caught);
+            return new Map<string, import("$lib/scene-editable").DesiredSceneState>();
+        } finally {
+            authoringRequests--;
+        }
+    }
+
 	const devices = $derived(Object.values($deviceStore).filter(isRuntimeEnabledDevice));
 	const groups = $derived(groupsStore.items);
 	const rooms = $derived(roomsStore.items);
@@ -167,7 +182,7 @@
 		capabilitySummary.dimming.length + capabilitySummary.switchOnly.length,
 	);
 	const canContinueTargets = $derived(
-		(targets.length > 0 || supportingStates.size > 0) && (kind === "individual" || eligibleVibeCount > 0),
+		authoringRequests === 0 && (targets.length > 0 || supportingStates.size > 0) && (kind === "individual" || eligibleVibeCount > 0),
 	);
 	const dirty = $derived(!saved && (stage !== "start" || name.trim() !== "" || targets.length > 0 || supportingStates.size > 0));
 	const creationEditor = $derived.by((): EditorState => ({
@@ -269,7 +284,7 @@
 	const supportingDrawerGroups = $derived.by((): DrawerGroup<"device">[] => [{
 		heading: m.scene_editor_supporting_devices({}, locale.messageOptions()),
 		items: devices
-			.filter((device) => !isLightControlDevice(device) && initialSupportingState(device) !== null && !supportingStates.has(device.id))
+			.filter((device) => !isLightControlDevice(device) && isSceneSupportingDevice(device) && !supportingStates.has(device.id))
 			.map((device) => ({
 				type: "device" as const,
 				id: device.id,
@@ -417,7 +432,7 @@
 		if (await requestPreview(nextSource)) moveTo("targets");
 	}
 
-	function addTarget(type: DirectTargetKind, id: string) {
+	async function addTarget(type: DirectTargetKind, id: string) {
 		let label = id;
 		let icon: string | null | undefined;
 		let deviceType: string | undefined;
@@ -428,8 +443,10 @@
 			icon = device.icon;
 			deviceType = device.type;
 			if (kind === "individual") {
-				const next = new Map(overrides);
-				next.set(device.id, { kind: "state", deviceId: device.id, state: capturedSceneState(device) ?? defaultDesiredState(device) });
+				const state=(await authoredStates([device.id],"current",true)).get(device.id);
+                if(!state)return;
+                const next = new Map(overrides);
+                next.set(device.id,{kind:"state",deviceId:device.id,state});
 				overrides = next;
 			}
 		} else if (type === "group") {
@@ -443,6 +460,7 @@
 			label = room.name;
 			icon = room.icon;
 		}
+        if (targets.some((target) => target.type === type && target.id === id)) return;
 		targets = [...targets, { uid: newTargetUid(), type, id, name: label, icon, deviceType }];
 	}
 
@@ -478,10 +496,10 @@
 		}
 	}
 
-	function addSupporting(_type: "device", id: string) {
+	async function addSupporting(_type: "device", id: string) {
 		const device = devices.find((candidate) => candidate.id === id);
 		if (!device) return;
-		const state = initialSupportingState(device);
+		const state = (await authoredStates([device.id],"current",true)).get(device.id);
 		if (!state) return;
 		const next = new Map(supportingStates);
 		next.set(id, { deviceId: id, state });
@@ -520,6 +538,7 @@
 	}
 
 	async function save() {
+        if (authoringRequests > 0 || editorAuthoringBusy) return;
 		if (!name.trim() || !kind) return;
 		saving = true;
 		error = null;
@@ -715,6 +734,7 @@
 			<h1 class="text-2xl font-semibold">{m.scene_create_adjust_lighting({}, locale.messageOptions())}</h1>
 		</div>
 		<SceneEditor
+            bind:authoringBusy={editorAuthoringBusy}
 			editor={creationEditor}
 			preview={preview ?? emptyPreview}
 			{devices}
@@ -724,19 +744,19 @@
 			onchange={updateCreationEditor}
 			onpreviewchange={(value) => (preview = value)}
 		/>
-		<div class="flex justify-end"><Button onclick={() => moveTo("name")}>{m.common_continue({}, locale.messageOptions())}</Button></div>
+		<div class="flex justify-end"><Button onclick={() => moveTo("name")} disabled={editorAuthoringBusy}>{m.common_continue({}, locale.messageOptions())}</Button></div>
 	{:else if stage === "name"}
 		<div>
 			<h1 class="text-2xl font-semibold">{m.scene_create_name_title({}, locale.messageOptions())}</h1>
 		</div>
 		<div class="space-y-4">
 			<Input id="scene-name" bind:value={name} placeholder={m.scene_create_name_placeholder({}, locale.messageOptions())} aria-label={m.scene_name_aria({}, locale.messageOptions())} autofocus />
-			<div class="flex justify-end"><Button onclick={save} disabled={saving || !name.trim()}>{#if saving}<Loader2 class="size-4 animate-spin" />{/if}{saving ? m.scene_create_creating({}, locale.messageOptions()) : m.scenes_create({}, locale.messageOptions())}</Button></div>
+			<div class="flex justify-end"><Button onclick={save} disabled={saving || authoringRequests > 0 || editorAuthoringBusy || !name.trim()}>{#if saving}<Loader2 class="size-4 animate-spin" />{/if}{saving ? m.scene_create_creating({}, locale.messageOptions()) : m.scenes_create({}, locale.messageOptions())}</Button></div>
 		</div>
 	{/if}
 	</div>
 	{/if}
 </div>
 
-<HiveDrawer bind:open={targetDrawerOpen} title={m.scene_editor_add_lighting_targets({}, locale.messageOptions())} description={m.scene_editor_choose_targets({}, locale.messageOptions())} multiple groups={targetDrawerGroups} onselect={addTarget} />
-<HiveDrawer bind:open={supportingDrawerOpen} title={m.scene_editor_add_supporting({}, locale.messageOptions())} description={m.scene_create_supporting_description({}, locale.messageOptions())} multiple groups={supportingDrawerGroups} onselect={addSupporting} />
+<HiveDrawer bind:open={targetDrawerOpen} title={m.scene_editor_add_lighting_targets({}, locale.messageOptions())} description={m.scene_editor_choose_targets({}, locale.messageOptions())} multiple groups={targetDrawerGroups} disabled={authoringRequests > 0} onselect={addTarget} />
+<HiveDrawer bind:open={supportingDrawerOpen} title={m.scene_editor_add_supporting({}, locale.messageOptions())} description={m.scene_create_supporting_description({}, locale.messageOptions())} multiple groups={supportingDrawerGroups} disabled={authoringRequests > 0} onselect={addSupporting} />

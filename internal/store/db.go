@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
@@ -27,6 +28,9 @@ func New(db *sql.DB) *DB {
 // and rolling back on error. The fn receives a *sqlite.Queries bound to the
 // tx so follow-up statements stay inside the same transaction.
 func (s *DB) execTx(ctx context.Context, fn func(*sqlite.Queries) error) error {
+	if s.db == nil {
+		return fn(s.q)
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -37,3 +41,10 @@ func (s *DB) execTx(ctx context.Context, fn func(*sqlite.Queries) error) error {
 	}
 	return tx.Commit()
 }
+
+func (s *DB) atomic(ctx context.Context, fn func(*DB) error) error {
+	return s.execTx(ctx, func(q *sqlite.Queries) error { return fn(&DB{q: q}) })
+}
+
+// ErrRevisionConflict prevents a stale snapshot from overwriting a configuration.
+var ErrRevisionConflict = errors.New("configuration changed; reload before saving")

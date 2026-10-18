@@ -58,7 +58,7 @@
 
 	type EffectSummary = Pick<
 		Effect,
-		"id" | "name" | "source" | "icon" | "kind" | "nativeName" | "loop" | "durationMs" | "requiredCapabilities"
+		"revision" | "id" | "name" | "source" | "icon" | "kind" | "nativeName" | "loop" | "durationMs" | "requiredCapabilities"
 	> & {
 		tracks: { id: string; clips: { id: string }[] }[];
 	};
@@ -152,7 +152,7 @@
 		if (!clientRef) return;
 		errors.clear();
 		try {
-			await effectsStore.update(clientRef, { id: effect.id, name: newName });
+			await effectsStore.update(clientRef, { expectedRevision:effect.revision, id: effect.id, name: newName });
 		} catch (e) {
 			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.effects_error_rename({}, locale.messageOptions())));
 		}
@@ -162,7 +162,7 @@
 		if (!clientRef) return;
 		errors.clear();
 		try {
-			await effectsStore.update(clientRef, { id: effect.id, icon });
+			await effectsStore.update(clientRef, { expectedRevision:effect.revision, id: effect.id, icon });
 		} catch (e) {
 			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.effects_error_icon({}, locale.messageOptions())));
 		}

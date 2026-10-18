@@ -5,7 +5,7 @@ INSERT INTO webhook_endpoints (
 ) VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetWebhookEndpoint :one
-SELECT w.id, w.name, w.enabled,
+SELECT w.revision, w.id, w.name, w.enabled,
        w.rate_limit_count, w.rate_limit_window_ms,
        w.created_at, w.updated_at,
        u.id AS creator_id, u.username AS creator_username, u.name AS creator_name,
@@ -26,7 +26,7 @@ FROM webhook_endpoints
 WHERE secret_hash = ?;
 
 -- name: ListWebhookEndpoints :many
-SELECT w.id, w.name, w.enabled,
+SELECT w.revision, w.id, w.name, w.enabled,
        w.rate_limit_count, w.rate_limit_window_ms,
        w.created_at, w.updated_at,
        u.id AS creator_id, u.username AS creator_username, u.name AS creator_name,
@@ -118,3 +118,6 @@ WHERE webhook_deliveries.endpoint_id = sqlc.arg('endpoint_id')
       ORDER BY kept.received_at DESC, kept.id DESC
       LIMIT -1 OFFSET sqlc.arg('keep_count')
   );
+
+-- name: ClaimWebhookEndpointRevision :execrows
+UPDATE webhook_endpoints SET revision = revision + 1 WHERE id = sqlc.arg('id') AND revision = sqlc.arg('expected_revision');

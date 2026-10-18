@@ -6,17 +6,17 @@ describe("webhook automation references", () => {
     expect(
       referencedWebhookEndpointIds({
         type: "trigger",
-        config: JSON.stringify({ event_type: "webhook.received", endpoint_id: "hook-1" }),
+        config: {trigger:{mode:"webhook",endpointId:"hook-1"}},
       }),
     ).toEqual(["hook-1"]);
     expect(
       referencedWebhookEndpointIds({
         type: "trigger",
-        config: JSON.stringify({ event_type: "device.state_changed", endpoint_id: "hook-1" }),
+        config: {trigger:{mode:"device_state",endpointId:"hook-1"}},
       }),
     ).toEqual([]);
-    expect(referencedWebhookEndpointIds({ type: "action", config: "{}" })).toEqual([]);
-    expect(referencedWebhookEndpointIds({ type: "trigger", config: "not-json" })).toEqual([]);
+    expect(referencedWebhookEndpointIds({ type: "action", config: {action:{actionType:""}} })).toEqual([]);
+    expect(referencedWebhookEndpointIds({ type: "trigger", config: {trigger:{mode:"unset"}} })).toEqual([]);
   });
 
   it("groups each automation once per endpoint", () => {
@@ -26,11 +26,11 @@ describe("webhook automation references", () => {
       nodes: [
         {
           type: "trigger",
-          config: JSON.stringify({ event_type: "webhook.received", endpoint_id: "hook-1" }),
+          config: {trigger:{mode:"webhook",endpointId:"hook-1"}},
         },
         {
           type: "trigger",
-          config: JSON.stringify({ event_type: "webhook.received", endpoint_id: "hook-1" }),
+          config: {trigger:{mode:"webhook",endpointId:"hook-1"}},
         },
       ],
     };
@@ -40,11 +40,11 @@ describe("webhook automation references", () => {
       nodes: [
         {
           type: "trigger",
-          config: JSON.stringify({ event_type: "webhook.received", endpoint_id: "hook-1" }),
+          config: {trigger:{mode:"webhook",endpointId:"hook-1"}},
         },
         {
           type: "trigger",
-          config: JSON.stringify({ event_type: "webhook.received", endpoint_id: "hook-2" }),
+          config: {trigger:{mode:"webhook",endpointId:"hook-2"}},
         },
       ],
     };

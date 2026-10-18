@@ -8,6 +8,7 @@ import { graphql } from "$lib/gql";
 export const SET_DISPLAY_COLOR = graphql(`
   mutation MapPageSetDisplayColor($id: ID!, $input: UpdateDeviceInput!) {
     updateDevice(id: $id, input: $input) {
+      revision
       id
       displayColor
       displayBrightness

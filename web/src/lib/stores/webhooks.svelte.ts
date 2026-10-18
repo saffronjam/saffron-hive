@@ -11,6 +11,7 @@ export type WebhookEndpoint = WebhookEndpointsStoreQuery["webhookEndpoints"][num
 
 graphql(`
   fragment WebhookEndpointFields on WebhookEndpoint {
+    revision
     id
     name
     enabled
@@ -90,7 +91,7 @@ const WEBHOOK_DELIVERY_RECORDED = graphql(`
 export function createWebhooksStore() {
   const base = createEntityStore<WebhookEndpoint, WebhookEndpointsStoreQuery>({
     name: "webhooks",
-    version: 2,
+    version: 3,
     query: WEBHOOK_ENDPOINTS_QUERY,
     select: (data) => data.webhookEndpoints,
   });

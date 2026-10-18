@@ -10,7 +10,7 @@
 INSERT INTO rooms (id, name, created_by) VALUES (?, ?, ?);
 
 -- name: GetRoom :one
-SELECT r.id, r.name, r.icon, r.created_at, r.updated_at,
+SELECT r.revision, r.id, r.name, r.icon, r.created_at, r.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -19,7 +19,7 @@ LEFT JOIN users u ON u.id = r.created_by
 WHERE r.id = ?;
 
 -- name: ListRooms :many
-SELECT r.id, r.name, r.icon, r.created_at, r.updated_at,
+SELECT r.revision, r.id, r.name, r.icon, r.created_at, r.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -65,7 +65,7 @@ SELECT room_id FROM room_members WHERE id = ?;
 DELETE FROM room_members WHERE id = ?;
 
 -- name: ListRoomsContainingMember :many
-SELECT r.id, r.name, r.icon, r.created_at, r.updated_at,
+SELECT r.revision, r.id, r.name, r.icon, r.created_at, r.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -84,3 +84,6 @@ INNER JOIN rooms r ON r.id = rm.room_id;
 -- member_id is polymorphic.
 -- name: RemoveRoomMembersByGroup :exec
 DELETE FROM room_members WHERE member_type = 'group' AND member_id = ?;
+
+-- name: ClaimRoomRevision :execrows
+UPDATE rooms SET revision = revision + 1 WHERE id = sqlc.arg('id') AND revision = sqlc.arg('expected_revision');

@@ -23,6 +23,23 @@ func (q *Queries) BatchDeleteAutomations(ctx context.Context, idsJson string) (i
 	return result.RowsAffected()
 }
 
+const claimAutomationRevision = `-- name: ClaimAutomationRevision :execrows
+UPDATE automations SET revision = revision + 1 WHERE id = ?1 AND revision = ?2
+`
+
+type ClaimAutomationRevisionParams struct {
+	ID               string
+	ExpectedRevision int64
+}
+
+func (q *Queries) ClaimAutomationRevision(ctx context.Context, arg ClaimAutomationRevisionParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, claimAutomationRevision, arg.ID, arg.ExpectedRevision)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const clearAutomationIcon = `-- name: ClearAutomationIcon :exec
 UPDATE automations SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `
@@ -130,7 +147,7 @@ func (q *Queries) DeleteAutomationNodesByAutomation(ctx context.Context, automat
 }
 
 const getAutomation = `-- name: GetAutomation :one
-SELECT a.id, a.name, a.icon, a.enabled, a.definitions, a.last_fired_at, a.created_at, a.updated_at,
+SELECT a.revision, a.id, a.name, a.icon, a.enabled, a.definitions, a.last_fired_at, a.created_at, a.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -140,6 +157,7 @@ WHERE a.id = ?
 `
 
 type GetAutomationRow struct {
+	Revision        int64
 	ID              string
 	Name            string
 	Icon            *string
@@ -157,6 +175,7 @@ func (q *Queries) GetAutomation(ctx context.Context, id string) (GetAutomationRo
 	row := q.db.QueryRowContext(ctx, getAutomation, id)
 	var i GetAutomationRow
 	err := row.Scan(
+		&i.Revision,
 		&i.ID,
 		&i.Name,
 		&i.Icon,
@@ -247,7 +266,7 @@ func (q *Queries) ListAutomationNodes(ctx context.Context, automationID string) 
 }
 
 const listAutomations = `-- name: ListAutomations :many
-SELECT a.id, a.name, a.icon, a.enabled, a.definitions, a.last_fired_at, a.created_at, a.updated_at,
+SELECT a.revision, a.id, a.name, a.icon, a.enabled, a.definitions, a.last_fired_at, a.created_at, a.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -256,6 +275,7 @@ LEFT JOIN users u ON u.id = a.created_by
 `
 
 type ListAutomationsRow struct {
+	Revision        int64
 	ID              string
 	Name            string
 	Icon            *string
@@ -279,6 +299,7 @@ func (q *Queries) ListAutomations(ctx context.Context) ([]ListAutomationsRow, er
 	for rows.Next() {
 		var i ListAutomationsRow
 		if err := rows.Scan(
+			&i.Revision,
 			&i.ID,
 			&i.Name,
 			&i.Icon,
@@ -305,7 +326,7 @@ func (q *Queries) ListAutomations(ctx context.Context) ([]ListAutomationsRow, er
 }
 
 const listEnabledAutomations = `-- name: ListEnabledAutomations :many
-SELECT a.id, a.name, a.icon, a.enabled, a.definitions, a.last_fired_at, a.created_at, a.updated_at,
+SELECT a.revision, a.id, a.name, a.icon, a.enabled, a.definitions, a.last_fired_at, a.created_at, a.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -315,6 +336,7 @@ WHERE a.enabled = true
 `
 
 type ListEnabledAutomationsRow struct {
+	Revision        int64
 	ID              string
 	Name            string
 	Icon            *string
@@ -338,6 +360,7 @@ func (q *Queries) ListEnabledAutomations(ctx context.Context) ([]ListEnabledAuto
 	for rows.Next() {
 		var i ListEnabledAutomationsRow
 		if err := rows.Scan(
+			&i.Revision,
 			&i.ID,
 			&i.Name,
 			&i.Icon,
@@ -361,20 +384,6 @@ func (q *Queries) ListEnabledAutomations(ctx context.Context) ([]ListEnabledAuto
 		return nil, err
 	}
 	return items, nil
-}
-
-const updateAutomationEnabled = `-- name: UpdateAutomationEnabled :exec
-UPDATE automations SET enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
-`
-
-type UpdateAutomationEnabledParams struct {
-	Enabled bool
-	ID      string
-}
-
-func (q *Queries) UpdateAutomationEnabled(ctx context.Context, arg UpdateAutomationEnabledParams) error {
-	_, err := q.db.ExecContext(ctx, updateAutomationEnabled, arg.Enabled, arg.ID)
-	return err
 }
 
 const updateAutomationFields = `-- name: UpdateAutomationFields :exec

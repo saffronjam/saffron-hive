@@ -1,4 +1,7 @@
 <script lang="ts">
+ import ErrorBanner from "$lib/components/error-banner.svelte";
+ let authoringError=$state<string|null>(null);
+ import {authorSceneStates} from "$lib/scene-authoring";
 	import { onMount, tick } from "svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
@@ -34,9 +37,8 @@
 	import EffectPickerDrawer, { type EffectPickerSelection } from "$lib/components/effect-picker-drawer.svelte";
 	import DeviceStateEditor from "$lib/components/graph/device-state-editor.svelte";
 	import {
-		capturedSceneState,
-		defaultDesiredState,
-		initialSupportingState,
+		displayedSceneState,
+		isSceneSupportingDevice,
 		newTargetUid,
 		resolveSceneTargetLights,
 		stateEmpty,
@@ -114,6 +116,7 @@
 		onpreviewchange?: (preview: ScenePreview) => void;
 		vibePickerOpen?: boolean;
 		showAddVibeInTargets?: boolean;
+        authoringBusy?: boolean;
 	}
 
 	let {
@@ -127,8 +130,26 @@
 		onpreviewchange,
 		vibePickerOpen = $bindable(false),
 		showAddVibeInTargets = true,
+        authoringBusy = $bindable(false),
 	}: Props = $props();
 	const client = getContextClient();
+
+    let authoringRequests = 0;
+    async function authoredStates(ids: string[], source: "current" | "defaults", fallback = false) {
+        authoringRequests++;
+        authoringBusy = true;
+        try {
+            authoringError = null;
+            return await authorSceneStates(client, ids, source, fallback);
+        } catch (caught) {
+            authoringError = caught instanceof Error ? caught.message : String(caught);
+            return new Map<string, DesiredSceneState>();
+        } finally {
+            authoringRequests--;
+            authoringBusy = authoringRequests > 0;
+        }
+    }
+
 	let targetDrawerOpen = $state(false);
 	let supportingDrawerOpen = $state(false);
 	let effectPicker = $state<{ deviceId: string; caps: string[] } | null>(null);
@@ -261,7 +282,7 @@
 
 	const supportingGroups = $derived.by((): DrawerGroup<"device">[] => [{
 		heading: m.scene_editor_devices({}, locale.messageOptions()),
-		items: devices.filter((device) => !isLightControlDevice(device) && initialSupportingState(device) !== null && !editor.supportingStates.has(device.id)).map((device) => ({
+		items: devices.filter((device) => !isLightControlDevice(device) && isSceneSupportingDevice(device) && !editor.supportingStates.has(device.id)).map((device) => ({
 			type: "device" as const,
 			id: device.id,
 			name: deviceDisplayName(device),
@@ -414,10 +435,11 @@
 		if (current) clearOverride(device.id);
 	}
 
-	function captureAllTargets() {
-		const overrides = new Map(editor.overrides);
+	async function captureAllTargets() {
+        const states=await authoredStates(resolvedLights.map(d=>d.id),"current");
+        const overrides = new Map(editor.overrides);
 		for (const device of resolvedLights) {
-			const state = capturedSceneState(device);
+			const state = states.get(device.id);
 			if (state) overrides.set(device.id, { kind: "state", deviceId: device.id, state });
 		}
 		update({ overrides });
@@ -461,10 +483,10 @@
 		effectPicker = null;
 	}
 
-	function addSupporting(_type: "device", id: string) {
+	async function addSupporting(_type: "device", id: string) {
 		const device = devices.find((candidate) => candidate.id === id);
 		if (!device) return;
-		const state = initialSupportingState(device);
+		const state = (await authoredStates([device.id],"current",true)).get(device.id);
 		if (!state) return;
 		const supportingStates = new Map(editor.supportingStates);
 		supportingStates.set(id, { deviceId: id, state });
@@ -486,9 +508,9 @@
 		update({ supportingStates });
 	}
 
-	function captureSupporting(device: Device) {
-		const state = capturedSceneState(device);
-		if (!state) return;
+	async function captureSupporting(device: Device) {
+		const state = (await authoredStates([device.id],"current")).get(device.id);
+		if (!state || !editor.supportingStates.has(device.id)) return;
 		const supportingStates = new Map(editor.supportingStates);
 		supportingStates.set(device.id, { deviceId: device.id, state });
 		update({ supportingStates });
@@ -526,7 +548,7 @@
 	}
 
 	function displayState(device: Device): DesiredSceneState {
-		if (targetLiveMode) return capturedSceneState(device) ?? {};
+		if (targetLiveMode) return displayedSceneState(device) ?? {};
 		return stateOverride(device.id);
 	}
 
@@ -593,7 +615,7 @@
 					<Button
 						variant={state.brightness != null ? "secondary" : "outline"}
 						size="xs"
-						onclick={() => state.brightness != null ? clearStateField(device.id, "brightness") : updateStateOverride(device.id, { brightness: defaultDesiredState(device).brightness ?? 200 })}
+						onclick={async () => state.brightness != null ? clearStateField(device.id, "brightness") : updateStateOverride(device.id, { brightness: (await authoredStates([device.id],"defaults")).get(device.id)?.brightness })}
 					>{m.scene_editor_brightness({}, locale.messageOptions())}</Button>
 				{/if}
 				{#if capabilities.hasColor || capabilities.hasColorTemp}
@@ -762,7 +784,7 @@
 					out:fly={{ x: reducedMotion ? 0 : -6, duration: reducedMotion ? 0 : 130, easing: cubicIn }}
 				>
 					{#if targetActionMode === "live"}
-						<Button variant="outline" size="sm" onclick={captureAllTargets}>{m.scene_editor_capture_all({}, locale.messageOptions())}</Button>
+						<Button variant="outline" size="sm" onclick={captureAllTargets} disabled={authoringBusy}>{m.scene_editor_capture_all({}, locale.messageOptions())}</Button>
 					{:else}
 						<DropdownMenu>
 							<DropdownMenuTrigger>
@@ -803,13 +825,15 @@
 			{@const device = devices.find((candidate) => candidate.id === supporting.deviceId) ?? $deviceStore[supporting.deviceId]}
 			{#if device}
 				<div class="rounded-lg bg-muted px-3 py-2" in:slide={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 180, easing: cubicOut }} out:slide={{ duration: reducedMotion || !rowTransitionsReady ? 0 : 150, easing: cubicIn }}>
-					<div class="flex items-center justify-between gap-3"><div class="flex items-center gap-2"><Lightbulb class="size-4 text-muted-foreground" /><div><p class="text-sm font-medium">{deviceDisplayName(device)}</p>{#if supportingLiveMode}<p class="text-xs text-muted-foreground">{device.state?.on === false ? m.scene_editor_off({}, locale.messageOptions()) : m.scene_editor_live({}, locale.messageOptions())}</p>{/if}</div></div><div class="flex gap-1">{#if supportingLiveMode}<Button variant="outline" size="xs" onclick={() => captureSupporting(device)}>{m.scene_editor_capture({}, locale.messageOptions())}</Button>{/if}<Button variant="ghost" size="icon-sm" onclick={() => removeSupporting(device.id)} aria-label={m.scene_editor_remove_item({ name: deviceDisplayName(device) }, locale.messageOptions())}><Trash2 class="size-4" /></Button></div></div>
+					<div class="flex items-center justify-between gap-3"><div class="flex items-center gap-2"><Lightbulb class="size-4 text-muted-foreground" /><div><p class="text-sm font-medium">{deviceDisplayName(device)}</p>{#if supportingLiveMode}<p class="text-xs text-muted-foreground">{device.state?.on === false ? m.scene_editor_off({}, locale.messageOptions()) : m.scene_editor_live({}, locale.messageOptions())}</p>{/if}</div></div><div class="flex gap-1">{#if supportingLiveMode}<Button variant="outline" size="xs" onclick={() => captureSupporting(device)} disabled={authoringBusy}>{m.scene_editor_capture({}, locale.messageOptions())}</Button>{/if}<Button variant="ghost" size="icon-sm" onclick={() => removeSupporting(device.id)} aria-label={m.scene_editor_remove_item({ name: deviceDisplayName(device) }, locale.messageOptions())}><Trash2 class="size-4" /></Button></div></div>
 					{#if !supportingLiveMode}<div class="mt-2"><DeviceStateEditor target={null} capabilities={device.capabilities} value={JSON.stringify(supporting.state)} onchange={(payload) => updateSupportingPayload(device.id, payload)} {devices} {groups} {rooms} compact /></div>{/if}
 				</div>
 			{/if}
 		{/each}
 	</div>
 {/snippet}
+
+{#if authoringError}<ErrorBanner message={authoringError} ondismiss={()=>authoringError=null} />{/if}
 
 {#if editor.dynamicSource}
 	<div class="grid items-start gap-6 xl:grid-cols-[minmax(42rem,1fr)_minmax(30rem,32rem)]">

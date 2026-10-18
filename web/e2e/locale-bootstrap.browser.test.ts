@@ -1,3 +1,4 @@
+import { revision, settingRevision } from "./revision";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 import { graphql } from "$lib/gql";
@@ -21,16 +22,16 @@ const BOOTSTRAP_STATE = graphql(`
 `);
 
 const UPDATE_LANGUAGE = graphql(`
-  mutation LocaleBootstrapUpdateLanguage($language: Language!) {
-    updateCurrentUser(input: { language: $language }) {
+  mutation LocaleBootstrapUpdateLanguage($language: Language!, $expectedRevision:Int!) {
+    updateCurrentUser(input: { language: $language, expectedRevision:$expectedRevision }) {
       language
     }
   }
 `);
 
 const UPDATE_SETTING = graphql(`
-  mutation LocaleBootstrapUpdateSetting($key: String!, $value: String!) {
-    updateSetting(key: $key, value: $value) {
+  mutation LocaleBootstrapUpdateSetting($key: String!, $value: String!, $expectedRevision:Int!) {
+    updateSetting(key: $key, value: $value, expectedRevision:$expectedRevision) {
       key
       value
     }
@@ -102,12 +103,12 @@ beforeAll(async () => {
   }
 
   const updates = await Promise.all([
-    graphqlClient.mutation(UPDATE_LANGUAGE, { language: Language.Sv }).toPromise(),
+    graphqlClient.mutation(UPDATE_LANGUAGE, { expectedRevision:await revision(graphqlClient,"me"), language: Language.Sv }).toPromise(),
     graphqlClient
-      .mutation(UPDATE_SETTING, { key: "i18n.default_content_language", value: "en" })
+      .mutation(UPDATE_SETTING, { key: "i18n.default_content_language", expectedRevision:await settingRevision(graphqlClient,"i18n.default_content_language"), value: "en" })
       .toPromise(),
     graphqlClient
-      .mutation(UPDATE_SETTING, { key: "i18n.translate_standard_room_names", value: "true" })
+      .mutation(UPDATE_SETTING, { key: "i18n.translate_standard_room_names", expectedRevision:await settingRevision(graphqlClient,"i18n.translate_standard_room_names"), value: "true" })
       .toPromise(),
   ]);
   const updateError = updates.find((result) => result.error)?.error;
@@ -194,16 +195,16 @@ afterAll(async () => {
   if (sceneId) await graphqlClient.mutation(DELETE_SCENE, { id: sceneId }).toPromise();
   if (roomId) await graphqlClient.mutation(DELETE_ROOM, { id: roomId }).toPromise();
   await Promise.all([
-    graphqlClient.mutation(UPDATE_LANGUAGE, { language: originalLanguage }).toPromise(),
+    graphqlClient.mutation(UPDATE_LANGUAGE, { expectedRevision:await revision(graphqlClient,"me"), language: originalLanguage }).toPromise(),
     graphqlClient
       .mutation(UPDATE_SETTING, {
-        key: "i18n.default_content_language",
+        key: "i18n.default_content_language", expectedRevision:await settingRevision(graphqlClient,"i18n.default_content_language"),
         value: originalContentLanguage,
       })
       .toPromise(),
     graphqlClient
       .mutation(UPDATE_SETTING, {
-        key: "i18n.translate_standard_room_names",
+        key: "i18n.translate_standard_room_names", expectedRevision:await settingRevision(graphqlClient,"i18n.translate_standard_room_names"),
         value: originalTranslateStandardRoomNames,
       })
       .toPromise(),
@@ -272,7 +273,7 @@ describe("locale bootstrap", () => {
     await row.getByRole("link", { name: "Kök", exact: true }).waitFor();
     const changed = await graphqlClient
       .mutation(UPDATE_SETTING, {
-        key: "i18n.translate_standard_room_names",
+        key: "i18n.translate_standard_room_names", expectedRevision:await settingRevision(graphqlClient,"i18n.translate_standard_room_names"),
         value: "false",
       })
       .toPromise();

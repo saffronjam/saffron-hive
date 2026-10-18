@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { measureMount } from "$lib/perf";
 	import { deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
 	import { getContextClient } from "@urql/svelte";
@@ -151,7 +152,8 @@
 	const UPDATE_DEVICE = graphql(`
 		mutation UpdateDevice($id: ID!, $input: UpdateDeviceInput!) {
 			updateDevice(id: $id, input: $input) {
-				id
+ revision
+ id
 				name
 				icon
 				roles {
@@ -276,20 +278,21 @@
 
 	async function handleRename(id: string, newName: string) {
 		const result = await client
-			.mutation(UPDATE_DEVICE, { id, input: { name: newName } })
+			.mutation(UPDATE_DEVICE, { id, input: { expectedRevision:$deviceStore[id].revision, name: newName } })
 			.toPromise();
+		if (result.error) throw result.error;
 		if (result.data) {
-			deviceStore.updateName(id, result.data.updateDevice.name ?? null);
+			deviceStore.updateMetadata(id, result.data.updateDevice);
 		}
 	}
 
 	async function handleIconChange(id: string, icon: string | null) {
-		deviceStore.updateIcon(id, icon);
 		const result = await client
-			.mutation(UPDATE_DEVICE, { id, input: { icon } })
+			.mutation(UPDATE_DEVICE, { id, input: { expectedRevision:$deviceStore[id].revision, icon } })
 			.toPromise();
+		if (result.error) { operationError = graphqlErrorMessage(result.error, m.common_error_generic({}, locale.messageOptions())); return; }
 		if (result.data) {
-			deviceStore.updateIcon(id, result.data.updateDevice.icon ?? null);
+			deviceStore.updateMetadata(id, result.data.updateDevice);
 		}
 	}
 
@@ -298,12 +301,13 @@
 		const next = !device.disabled;
 		deviceStore.updateDisabled(device.id, next);
 		const result = await client
-			.mutation(UPDATE_DEVICE, { id: device.id, input: { disabled: next } })
+			.mutation(UPDATE_DEVICE, { id: device.id, input: { expectedRevision:device.revision, disabled: next } })
 			.toPromise();
 		if (result.data) {
-			deviceStore.updateDisabled(device.id, result.data.updateDevice.disabled);
+			deviceStore.updateMetadata(device.id, result.data.updateDevice);
 		} else {
 			deviceStore.updateDisabled(device.id, device.disabled);
+			operationError = graphqlErrorMessage(result.error, m.common_error_generic({}, locale.messageOptions()));
 		}
 	}
 

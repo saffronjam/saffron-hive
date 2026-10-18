@@ -46,8 +46,8 @@ func TestAutomations_HoldFiresOnlyAfterConditionLasts(t *testing.T) {
 			"name":    "Hold Test",
 			"enabled": true,
 			"nodes": []map[string]any{
-				{"id": "hold-t1", "type": "trigger", "config": string(triggerConfig)},
-				{"id": "hold-a1", "type": "action", "config": string(actionConfig)},
+				{"id": "hold-t1", "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)},
+				{"id": "hold-a1", "type": "action", "config": authoredNode(t, "action", actionConfig)},
 			},
 			"edges": []map[string]any{{"fromNodeId": "hold-t1", "toNodeId": "hold-a1"}},
 		},

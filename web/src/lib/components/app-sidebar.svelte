@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { onMount } from "svelte";
+	import { getContextClient } from "@urql/svelte";
+	import { assistantAvailability } from "$lib/stores/assistant-availability.svelte";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import {
@@ -18,6 +21,7 @@
 	import { Collapsible } from "bits-ui";
 	import HiveLogo from "$lib/components/icons/hive-logo.svelte";
 	import {
+		MessageCircle,
 		LayoutDashboard,
 		Lightbulb,
 		Clapperboard,
@@ -49,6 +53,10 @@
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
 
+	const client = getContextClient();
+	onMount(() => {
+		void assistantAvailability.refresh(client);
+	});
 	interface NavItem {
 		href?: string;
 		label: string;
@@ -66,6 +74,9 @@
 			{
 				items: [
 					{ href: "/", label: m.nav_dashboard({}, options), icon: LayoutDashboard },
+					...(assistantAvailability.enabled && !auth.isGuest()
+						? [{ href: "/assistant", label: m.assistant_title({}, options), icon: MessageCircle }]
+						: []),
 					{ href: "/map", label: m.nav_map({}, options), icon: MapIcon },
 				],
 			},

@@ -1,4 +1,7 @@
 <script lang="ts">
+ import { graphqlErrorMessage } from "$lib/graphql-error";
+ import {createEditorRefresh} from "$lib/editor-refresh.svelte";
+ import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
 	import { page } from "$app/stores";
 	import { onDestroy, untrack } from "svelte";
 	import { fly } from "svelte/transition";
@@ -101,6 +104,7 @@
 	// metadataName holds only the override, so "" is a real state meaning
 	// "unset"; fallbackName is what the device shows when it is empty.
 	let metadataName = $state("");
+	let savedMetadataRevision=$state(0);
 	let savedMetadataName = $state("");
 	let metadataIcon = $state<string | null>(null);
 	let savedMetadataIcon = $state<string | null>(null);
@@ -149,7 +153,7 @@
 					{
 						label: m.common_save({}, locale.messageOptions()),
 						onclick: saveMetadata,
-						disabled: !metadataDirty || savingMetadata,
+						disabled: refreshGuard.conflict || !metadataDirty || savingMetadata,
 						saving: savingMetadata,
 						hideLabelOnMobile: true,
 					},
@@ -207,7 +211,8 @@
 	const UPDATE_DEVICE = graphql(`
 		mutation DeviceDetailUpdateDevice($id: ID!, $input: UpdateDeviceInput!) {
 			updateDevice(id: $id, input: $input) {
-				id
+ revision
+ id
 				name
 				icon
 				roles {
@@ -247,7 +252,8 @@
 				frontendUrl
 			}
 			device(id: $id) {
-				id
+ revision
+ id
 				source
 				zigbee2Mqtt {
 					imageCandidate
@@ -483,7 +489,7 @@
 	}
 
 	async function saveMetadata() {
-		if (!clientRef || !device) return;
+		if (!clientRef || !device || refreshGuard.conflict) return;
 		// An empty name is the valid way to clear the override, so there is nothing
 		// to validate here.
 		const name = metadataName.trim();
@@ -498,6 +504,7 @@
 		error = null;
 		const currentDeviceId = device.id;
 		const input: {
+ expectedRevision:number;
 			name?: string;
 			icon?: string | null;
 			roles?: {
@@ -505,7 +512,7 @@
 				contact?: ContactRole | null;
 			};
 			disabled?: boolean;
-		} = {};
+		} = {expectedRevision:savedMetadataRevision};
 		if (name !== savedMetadataName) input.name = name;
 		if (metadataIcon !== savedMetadataIcon) input.icon = metadataIcon;
 		if (!rolesEqual(metadataRoles, savedMetadataRoles)) {
@@ -522,16 +529,18 @@
 
 		if (result.error) {
 			console.error(result.error);
-			error = m.device_save_failed({}, locale.messageOptions());
+			error = graphqlErrorMessage(result.error, m.device_save_failed({}, locale.messageOptions()));
 			return;
 		}
 
 		if (result.data?.updateDevice) {
+ deviceStore.updateMetadata(currentDeviceId, result.data.updateDevice);
 			const updatedName = result.data.updateDevice.name ?? null;
 			const updatedIcon = result.data.updateDevice.icon ?? null;
 			const updatedRoles = { ...result.data.updateDevice.roles } as DeviceRoles;
 			const updatedDisabled = result.data.updateDevice.disabled;
 			if (metadataName.trim() === submitted.name) metadataName = updatedName ?? "";
+			savedMetadataRevision=result.data.updateDevice.revision;
 			savedMetadataName = updatedName ?? "";
 			if (metadataIcon === submitted.icon) metadataIcon = updatedIcon;
 			savedMetadataIcon = updatedIcon;
@@ -541,6 +550,7 @@
 			savedMetadataRoles = { ...updatedRoles };
 			if (metadataDisabled === submitted.disabled) metadataDisabled = updatedDisabled;
 			savedMetadataDisabled = updatedDisabled;
+ refreshGuard.accept({revision:savedMetadataRevision,name:savedMetadataName,icon:savedMetadataIcon,roles:savedMetadataRoles,disabled:savedMetadataDisabled});
 			deviceStore.updateName(currentDeviceId, updatedName);
 			deviceStore.updateIcon(currentDeviceId, updatedIcon);
 			deviceStore.updateRoles(currentDeviceId, updatedRoles);
@@ -676,20 +686,18 @@
 		});
 	});
 
-	// Seed the metadata form from the store once the device is known.
-	let metadataSeeded = false;
-	$effect(() => {
-		if (metadataSeeded || !device) return;
-		metadataSeeded = true;
-		metadataName = device.name ?? "";
-		savedMetadataName = device.name ?? "";
-		metadataIcon = device.icon ?? null;
-		savedMetadataIcon = device.icon ?? null;
-		metadataRoles = { ...device.roles };
-		savedMetadataRoles = { ...device.roles };
-		metadataDisabled = device.disabled;
-		savedMetadataDisabled = device.disabled;
-	});
+
+ function metadataSnapshot(value:NonNullable<typeof device>){return {revision:value.revision,name:value.name??"",icon:value.icon??null,roles:{...value.roles},disabled:value.disabled};}
+ function applyMetadata(value:ReturnType<typeof metadataSnapshot>|null){
+ if(!value)return;
+ savedMetadataRevision=value.revision;metadataName=savedMetadataName=value.name;metadataIcon=savedMetadataIcon=value.icon;metadataRoles={...value.roles};savedMetadataRoles={...value.roles};metadataDisabled=savedMetadataDisabled=value.disabled;
+ }
+ const refreshGuard=createEditorRefresh({
+ read:async()=>{if(!clientRef)throw new Error("client unavailable");if(!await deviceStore.refresh(clientRef))throw new Error("refresh failed");const value=$deviceStore[deviceId];return value?metadataSnapshot(value):null;},
+ apply:applyMetadata,dirty:()=>metadataDirty,busy:()=>savingMetadata||!device,
+ });
+ let seededDeviceId="";
+ $effect(()=>{if(!device||seededDeviceId===device.id)return;seededDeviceId=device.id;const snapshot=metadataSnapshot(device);applyMetadata(snapshot);refreshGuard.accept(snapshot);});
 
 	$effect(() => {
 		if (!device?.deleted) return;
@@ -707,6 +715,7 @@
 <div>
 
 	{#if error}
+		{#if refreshGuard.conflict}<ExternalChangeBanner onreload={()=>refreshGuard.refresh(true)} />{/if}
 		<ErrorBanner class="mb-4" message={error} />
 	{/if}
 

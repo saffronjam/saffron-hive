@@ -9,7 +9,7 @@ import {
   newEditableClip,
   newEditableTrack,
   parseClipConfig,
-  stringifyClipConfig,
+  clipConfigInput,
   validateTimelineEffect,
   type EditableClip,
   type EditableTrack,
@@ -54,10 +54,10 @@ describe("defaultClipConfig", () => {
   });
 });
 
-describe("parseClipConfig / stringifyClipConfig", () => {
+describe("parseClipConfig / clipConfigInput", () => {
   it("round-trips a set_brightness config", () => {
     const c = defaultClipConfig("set_brightness");
-    const raw = stringifyClipConfig(c);
+    const raw = clipConfigInput(c);
     expect(parseClipConfig("set_brightness", raw)).toEqual(c);
   });
 
@@ -66,7 +66,7 @@ describe("parseClipConfig / stringifyClipConfig", () => {
       kind: "set_color" as const,
       config: { mode: "rgb" as const, rgb: { r: 12, g: 34, b: 56 } },
     };
-    expect(parseClipConfig("set_color", stringifyClipConfig(c))).toEqual(c);
+    expect(parseClipConfig("set_color", clipConfigInput(c))).toEqual(c);
   });
 
   it("round-trips a set_color temp config", () => {
@@ -74,21 +74,15 @@ describe("parseClipConfig / stringifyClipConfig", () => {
       kind: "set_color" as const,
       config: { mode: "temp" as const, temp: { mireds: 250 } },
     };
-    expect(parseClipConfig("set_color", stringifyClipConfig(c))).toEqual(c);
+    expect(parseClipConfig("set_color", clipConfigInput(c))).toEqual(c);
   });
 
-  it("clamps brightness out of range", () => {
-    const out = parseClipConfig("set_brightness", JSON.stringify({ value: 9999 }));
-    expect(out).toEqual({ kind: "set_brightness", config: { value: 254 } });
+  it("preserves out-of-range brightness for validation", () => {
+    const out = parseClipConfig("set_brightness", {setBrightness:{value:9999}});
+    expect(out).toEqual({ kind: "set_brightness", config: { value: 9999 } });
   });
 
-  it("falls back on invalid JSON", () => {
-    const out = parseClipConfig("set_color", "not-json");
-    expect(out).toEqual({
-      kind: "set_color",
-      config: { mode: "rgb", rgb: { r: 255, g: 0, b: 0 } },
-    });
-  });
+
 });
 
 describe("effectToEditable / editableToInputTracks", () => {
@@ -106,7 +100,7 @@ describe("effectToEditable / editableToInputTracks", () => {
               transitionMinMs: 200,
               transitionMaxMs: 400,
               kind: EffectClipKind.SetBrightness,
-              config: JSON.stringify({ value: 200 }),
+              config: {setBrightness:{value:200}},
             },
             {
               id: "c1",
@@ -114,7 +108,7 @@ describe("effectToEditable / editableToInputTracks", () => {
               transitionMinMs: 100,
               transitionMaxMs: 100,
               kind: EffectClipKind.SetOnOff,
-              config: JSON.stringify({ value: true }),
+              config: {setOnOff:{value:true}},
             },
           ],
         },

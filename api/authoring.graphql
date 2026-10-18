@@ -1,0 +1,358 @@
+"""Structured macro arguments. Other authoring fields use concrete types."""
+scalar JSON
+
+type AutomationLiteral {
+  stringValue: String
+  numberValue: Float
+  booleanValue: Boolean
+  nullValue: Boolean
+}
+
+input AutomationLiteralInput {
+  stringValue: String
+  numberValue: Float
+  booleanValue: Boolean
+  nullValue: Boolean
+}
+
+type AutomationConfig {
+  trigger: AutomationTrigger
+  condition: AutomationCondition
+  operator: AutomationOperator
+  action: AutomationAction
+  macro: AutomationMacro
+}
+
+input AutomationConfigInput {
+  trigger: AutomationTriggerInput
+  condition: AutomationConditionInput
+  operator: AutomationOperatorInput
+  action: AutomationActionInput
+  macro: AutomationMacroInput
+}
+
+type AutomationTrigger {
+  mode: String!
+  deviceId: String!
+  property: String!
+  comparator: String!
+  value: AutomationLiteral
+  eventValue: String!
+  eventType: String!
+  customExpr: String!
+  endpointId: String!
+  webhookFilters: [AutomationWebhookFilter!]!
+  scheduleSubmode: String!
+  cronExpr: String!
+  scheduleHour: Int!
+  scheduleMinute: Int!
+  scheduleSecond: Int!
+  scheduleWeekdays: [String!]!
+  scheduleIntervalValue: Int!
+  scheduleIntervalUnit: String!
+  graceMs: Int!
+  cooldownMs: Int!
+  holdMs: Int!
+}
+
+input AutomationTriggerInput {
+  mode: String!
+  deviceId: String
+  property: String
+  comparator: String
+  value: AutomationLiteralInput
+  eventValue: String
+  eventType: String
+  customExpr: String
+  endpointId: String
+  webhookFilters: [AutomationWebhookFilterInput!]
+  scheduleSubmode: String
+  cronExpr: String
+  scheduleHour: Int
+  scheduleMinute: Int
+  scheduleSecond: Int
+  scheduleWeekdays: [String!]
+  scheduleIntervalValue: Int
+  scheduleIntervalUnit: String
+  graceMs: Int
+  cooldownMs: Int
+  holdMs: Int
+}
+
+type AutomationWebhookFilter {
+  source: String!
+  path: String!
+  operator: String!
+  value: AutomationLiteral
+}
+
+input AutomationWebhookFilterInput {
+  source: String
+  path: String
+  operator: String
+  value: AutomationLiteralInput
+}
+
+type AutomationCondition {
+  negate: Boolean!
+  mode: String!
+  afterHour: Int
+  afterMinute: Int
+  beforeHour: Int
+  beforeMinute: Int
+  weekdays: [String!]!
+  targetType: String!
+  targetId: String!
+  property: String!
+  comparator: String!
+  value: AutomationLiteral
+  customExpr: String!
+}
+
+input AutomationConditionInput {
+  negate: Boolean = false
+  mode: String!
+  afterHour: Int
+  afterMinute: Int
+  beforeHour: Int
+  beforeMinute: Int
+  weekdays: [String!]
+  targetType: String
+  targetId: String
+  property: String
+  comparator: String
+  value: AutomationLiteralInput
+  customExpr: String
+}
+
+type AutomationOperator {
+  kind: String!
+}
+
+input AutomationOperatorInput {
+  kind: String!
+}
+
+type AutomationMacro {
+  name: String!
+  negate: Boolean!
+  arguments: [JSON!]!
+}
+
+input AutomationMacroInput {
+  name: String!
+  negate: Boolean
+  arguments: [JSON!]
+}
+
+type AutomationAction {
+  actionType: String!
+  targetType: String!
+  targetId: String!
+  targetExpr: [AuthoringClause!]!
+  payload: AutomationActionPayload
+}
+
+input AutomationActionInput {
+  actionType: String!
+  targetType: String
+  targetId: String
+  targetExpr: [AuthoringClauseInput!]
+  payload: AutomationActionPayloadInput
+}
+
+type AutomationActionPayload {
+  on: Boolean
+  brightness: Int
+  colorTemp: Int
+  color: AuthoringColor
+  transition: Float
+  targetTemperature: Float
+  hvacMode: String
+  fanMode: String
+  swing: String
+  sceneId: String
+  scenes: [String!]!
+  effectId: String
+  nativeName: String
+  field: String
+  delta: Float
+  mode: String
+  settings: [AuthoringAttribute!]!
+  alarmId: String
+  severity: String
+  kind: String
+  message: String
+}
+
+input AutomationActionPayloadInput {
+  on: Boolean
+  brightness: Int
+  colorTemp: Int
+  color: AuthoringColorInput
+  transition: Float
+  targetTemperature: Float
+  hvacMode: String
+  fanMode: String
+  swing: String
+  sceneId: String
+  scenes: [String!]
+  effectId: String
+  nativeName: String
+  field: String
+  delta: Float
+  mode: String
+  settings: [AuthoringAttributeInput!]
+  alarmId: String
+  severity: String
+  kind: String
+  message: String
+}
+
+type AuthoringClause {
+  connector: AuthoringConnector!
+  subject: AuthoringClauseSubject!
+  op: AuthoringClauseOp!
+  values: [String!]!
+}
+
+input AuthoringClauseInput {
+  connector: AuthoringConnector
+  subject: AuthoringClauseSubject!
+  op: AuthoringClauseOp!
+  values: [String!]
+}
+
+type AuthoringColor {
+  r: Int!
+  g: Int!
+  b: Int!
+  x: Float!
+  y: Float!
+}
+
+input AuthoringColorInput {
+  r: Int!
+  g: Int!
+  b: Int!
+  x: Float
+  y: Float
+}
+
+type AuthoringAttribute {
+  capability: String!
+  booleanValue: Boolean
+  numberValue: Float
+  stringValue: String
+}
+
+input AuthoringAttributeInput {
+  capability: String!
+  booleanValue: Boolean
+  numberValue: Float
+  stringValue: String
+}
+
+type EffectClipConfig {
+  setOnOff: EffectSetOnOffClipConfig
+  setBrightness: EffectSetBrightnessClipConfig
+  setColor: EffectSetColorClipConfig
+  nativeEffect: EffectNativeEffectClipConfig
+}
+
+input EffectClipConfigInput {
+  setOnOff: EffectSetOnOffClipConfigInput
+  setBrightness: EffectSetBrightnessClipConfigInput
+  setColor: EffectSetColorClipConfigInput
+  nativeEffect: EffectNativeEffectClipConfigInput
+}
+
+type EffectSetOnOffClipConfig {
+  value: Boolean!
+}
+
+input EffectSetOnOffClipConfigInput {
+  value: Boolean!
+}
+
+type EffectSetBrightnessClipConfig {
+  value: Int!
+}
+
+input EffectSetBrightnessClipConfigInput {
+  value: Int!
+}
+
+type EffectSetColorClipConfig {
+  mode: EffectColorMode!
+  rgb: EffectSetColorRGBValue
+  temp: EffectSetColorTempValue
+}
+
+input EffectSetColorClipConfigInput {
+  mode: EffectColorMode!
+  rgb: EffectSetColorRGBValueInput
+  temp: EffectSetColorTempValueInput
+}
+
+type EffectSetColorRGBValue {
+  r: Int!
+  g: Int!
+  b: Int!
+}
+
+input EffectSetColorRGBValueInput {
+  r: Int!
+  g: Int!
+  b: Int!
+}
+
+type EffectSetColorTempValue {
+  mireds: Int!
+}
+
+input EffectSetColorTempValueInput {
+  mireds: Int!
+}
+
+type EffectNativeEffectClipConfig {
+  name: String!
+}
+
+input EffectNativeEffectClipConfigInput {
+  name: String!
+}
+
+scalar AuthoringConnector
+scalar AuthoringClauseSubject
+scalar AuthoringClauseOp
+scalar EffectColorMode
+
+"""Read-only compiled expression for the editor's preview and copy commands."""
+type AutomationNodePreview {
+  expression: String!
+  cron: String!
+}
+
+extend type Query {
+  automationNodePreview(type: String!, config: AutomationConfigInput!): AutomationNodePreview! @auth
+}
+
+enum SceneStateSource { DEFAULTS CURRENT }
+input SceneAuthoringInput {
+  targets: [SceneTargetInput!]!
+  source: SceneStateSource! = DEFAULTS
+  """Used when CURRENT has no writable reported state."""
+  fallbackToDefaults: Boolean! = false
+  """Explicit desired values applied after selecting defaults or current state."""
+  desired: DesiredSceneStateInput
+}
+type SceneAuthoredState {
+  deviceId: ID!
+  lighting: Boolean!
+  state: DesiredSceneState!
+}
+extend type Query {
+  """Resolve targets once and construct capability-filtered Scene states without sending commands."""
+  sceneAuthoring(input: SceneAuthoringInput!): [SceneAuthoredState!]! @auth
+}

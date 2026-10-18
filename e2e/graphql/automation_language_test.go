@@ -60,12 +60,12 @@ func TestAutomations_MacrosAndFunctions(t *testing.T) {
 	})
 	actionConfig, _ := json.Marshal(map[string]any{"use": "dim", "args": []int{66}})
 	nodes := []map[string]any{
-		{"id": "t1", "type": "trigger", "config": string(triggerConfig)},
-		{"id": "c1", "type": "condition", "config": string(conditionConfig)},
-		{"id": "a1", "type": "action", "config": string(actionConfig)},
+		{"id": "t1", "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)},
+		{"id": "c1", "type": "condition", "config": authoredNode(t, "condition", conditionConfig)},
+		{"id": "a1", "type": "action", "config": authoredNode(t, "action", actionConfig)},
 	}
 	data, err := graphqlMutation(`mutation($input: CreateAutomationInput!) {
-		createAutomation(input: $input) { id compilable definitions }
+		createAutomation(input: $input) { id validation { valid } definitions }
 	}`, map[string]any{
 		"input": map[string]any{
 			"name":        "Language Test",
@@ -83,16 +83,16 @@ func TestAutomations_MacrosAndFunctions(t *testing.T) {
 	}
 	var created struct {
 		CreateAutomation struct {
-			ID          string `json:"id"`
-			Compilable  bool   `json:"compilable"`
-			Definitions string `json:"definitions"`
+			ID          string               `json:"id"`
+			Validation  struct{ Valid bool } `json:"validation"`
+			Definitions string               `json:"definitions"`
 		} `json:"createAutomation"`
 	}
 	_ = json.Unmarshal(data, &created)
 	t.Cleanup(func() {
 		_, _ = graphqlMutation(`mutation($id: ID!) { deleteAutomation(id: $id) }`, map[string]any{"id": created.CreateAutomation.ID})
 	})
-	if !created.CreateAutomation.Compilable {
+	if !created.CreateAutomation.Validation.Valid {
 		t.Fatal("automation with macros should compile")
 	}
 	if !strings.Contains(created.CreateAutomation.Definitions, `"dim"`) {
@@ -134,12 +134,12 @@ func TestAutomations_MacrosAndFunctions(t *testing.T) {
 		updateAutomation(id: $id, input: $input) { id }
 	}`, map[string]any{
 		"id":    created.CreateAutomation.ID,
-		"input": map[string]any{"definitions": "{}"},
+		"input": map[string]any{"expectedRevision": configurationRevision(t, "automation", created.CreateAutomation.ID), "definitions": "{}"},
 	})
 	if err != nil {
 		t.Fatalf("update: %v", err)
 	}
-	if len(resp.Errors) == 0 || !strings.Contains(resp.Errors[0].Message, "unknown macro") {
+	if len(resp.Errors) == 0 || resp.Errors[0].Message != "configuration is invalid" {
 		t.Fatalf("removing a used macro should be rejected, got %+v", resp.Errors)
 	}
 }

@@ -332,15 +332,15 @@ func TestSubscriptions_DeviceUpdated(t *testing.T) {
 
 	time.Sleep(200 * time.Millisecond)
 
-	if _, err := graphqlMutation(`mutation($id: ID!) {
-		updateDevice(id: $id, input: { name: "Renamed From Another Tab" }) { id name }
-	}`, map[string]any{"id": deviceID}); err != nil {
+	if _, err := graphqlMutation(`mutation($id: ID!, $revision: Int!) {
+		updateDevice(id: $id, input: { expectedRevision: $revision, name: "Renamed From Another Tab" }) { id name }
+	}`, map[string]any{"id": deviceID, "revision": configurationRevision(t, "device", deviceID)}); err != nil {
 		t.Fatalf("rename: %v", err)
 	}
 	t.Cleanup(func() {
-		_, _ = graphqlMutation(`mutation($id: ID!) {
-			updateDevice(id: $id, input: { name: null }) { id }
-		}`, map[string]any{"id": deviceID})
+		_, _ = graphqlMutation(`mutation($id: ID!, $revision: Int!) {
+			updateDevice(id: $id, input: { expectedRevision: $revision, name: null }) { id }
+		}`, map[string]any{"id": deviceID, "revision": configurationRevision(t, "device", deviceID)})
 	})
 
 	ok := pollUntil(5*time.Second, 50*time.Millisecond, func() bool {

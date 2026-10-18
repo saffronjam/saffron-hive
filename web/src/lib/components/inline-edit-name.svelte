@@ -1,4 +1,8 @@
 <script lang="ts">
+ import { graphqlErrorMessage } from "$lib/graphql-error";
+	import {toast} from "svelte-sonner";
+ import {m} from "$lib/i18n/messages";
+ import type {LocalizedNameSet} from "$lib/i18n/names";
 	import { getContextClient } from "@urql/svelte";
 	import { locale } from "$lib/i18n/locale.svelte";
 	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
@@ -6,7 +10,7 @@
 	interface Props {
 		name: string;
 		class?: string;
-		onsave: (newName: string) => void;
+		onsave: (newName: string) => void | Promise<void>;
 		entityType?: string;
 		entityId?: string;
 	}
@@ -15,6 +19,8 @@
 	const client = getContextClient();
 
 	let editing = $state(false);
+ let originalName="";
+ let originalNames:LocalizedNameSet|undefined;
 	let editValue = $state("");
 	let optimisticName = $state<string | null>(null);
 	let inputEl = $state<HTMLInputElement | null>(null);
@@ -28,6 +34,8 @@
 	});
 
 	function startEditing() {
+		originalName=displayName;
+ originalNames=entityType&&entityId?structuredClone($state.snapshot(localizedNamesStore.get(entityType,entityId))):undefined;
 		editValue = displayName;
 		editing = true;
 		requestAnimationFrame(() => {
@@ -37,9 +45,11 @@
 	}
 
 	async function commit() {
+ if (!editing) return;
 		editing = false;
 		const trimmed = editValue.trim();
-		const names = entityType && entityId ? localizedNamesStore.get(entityType, entityId) : undefined;
+		const names=originalNames;
+ if(name!==originalName&&optimisticName===null){toast.error(m.editor_changed_elsewhere({},locale.messageOptions()));return;}
 		if (names && locale.currentLanguage !== names.sourceLanguage) {
 			const current = names.translations[locale.currentLanguage]?.trim() ?? "";
 			if (trimmed === current || (!trimmed && !current)) return;
@@ -54,7 +64,13 @@
 		}
 		if (trimmed && trimmed !== name) {
 			optimisticName = trimmed;
-			onsave(trimmed);
+			try {
+				await onsave(trimmed);
+			} catch (error) {
+				toast.error(graphqlErrorMessage(error, m.common_error_generic({}, locale.messageOptions())));
+			} finally {
+				optimisticName = null;
+			}
 		}
 	}
 

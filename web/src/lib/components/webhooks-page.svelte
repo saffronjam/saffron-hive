@@ -148,6 +148,7 @@
 		errors.clear();
 		try {
 			await webhooksStore.update(client, endpoint.id, {
+ expectedRevision:endpoint.revision,
 				name: endpoint.name,
 				enabled,
 				rateLimitCount: endpoint.rateLimitCount,
@@ -162,6 +163,7 @@
 		errors.clear();
 		try {
 			await webhooksStore.update(client, endpoint.id, {
+ expectedRevision:endpoint.revision,
 				name,
 				enabled: endpoint.enabled,
 				rateLimitCount: endpoint.rateLimitCount,

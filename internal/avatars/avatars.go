@@ -17,7 +17,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/logging"
-	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
 var logger = logging.Named("avatars")
@@ -38,7 +37,7 @@ var allowedMIMEs = map[string]string{
 // ProfileWriter is the store surface needed to persist the new filename, clear
 // it, and look up the previous one. *store.DB satisfies it structurally.
 type ProfileWriter interface {
-	UpdateUserProfile(ctx context.Context, params store.UpdateUserProfileParams) (store.User, error)
+	SetUserAvatar(ctx context.Context, id, path string) error
 	GetUserAvatarPath(ctx context.Context, id string) (*string, error)
 	ClearUserAvatar(ctx context.Context, id string) error
 }
@@ -63,17 +62,22 @@ func NewUploadHandler(dir string, writer ProfileWriter) http.Handler {
 			return
 		}
 
-		r.Body = http.MaxBytesReader(w, r.Body, MaxUploadBytes)
+		r.Body = http.MaxBytesReader(w, r.Body, MaxUploadBytes+1<<20)
 		if err := r.ParseMultipartForm(MaxUploadBytes); err != nil {
 			http.Error(w, "file too large (max 10 MB) or invalid multipart form", http.StatusBadRequest)
 			return
 		}
-		file, _, err := r.FormFile("file")
+		defer func() { _ = r.MultipartForm.RemoveAll() }()
+		file, header, err := r.FormFile("file")
 		if err != nil {
 			http.Error(w, "missing file field", http.StatusBadRequest)
 			return
 		}
 		defer func() { _ = file.Close() }()
+		if header.Size > MaxUploadBytes {
+			http.Error(w, "file too large (max 10 MB)", http.StatusBadRequest)
+			return
+		}
 
 		head := make([]byte, 512)
 		n, err := io.ReadFull(file, head)
@@ -131,10 +135,7 @@ func NewUploadHandler(dir string, writer ProfileWriter) http.Handler {
 
 		prev, _ := writer.GetUserAvatarPath(r.Context(), cu.ID)
 
-		if _, err := writer.UpdateUserProfile(r.Context(), store.UpdateUserProfileParams{
-			ID:         cu.ID,
-			AvatarPath: &filename,
-		}); err != nil {
+		if err := writer.SetUserAvatar(r.Context(), cu.ID, filename); err != nil {
 			_ = os.Remove(fullPath)
 			logger.Error("persist avatar path failed", "user_id", cu.ID, "error", err)
 			http.Error(w, "server error", http.StatusInternalServerError)

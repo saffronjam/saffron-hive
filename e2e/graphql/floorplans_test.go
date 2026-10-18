@@ -78,6 +78,7 @@ type floorplanResult struct {
 
 func saveFloorplan(t *testing.T, input map[string]any) floorplanResult {
 	t.Helper()
+	input["expectedRevision"] = configurationRevision(t, "floorplan", "")
 	data, err := graphqlMutation(`mutation($input: UpdateFloorplanInput!) {
 		updateFloorplan(input: $input) {`+floorplanFields+`}
 	}`, map[string]any{"input": input})
@@ -110,8 +111,9 @@ func queryFloorplan(t *testing.T) *floorplanResult {
 
 func squareFloorplanInput(placements ...map[string]any) map[string]any {
 	input := map[string]any{
-		"id":   "fplan-e2e",
-		"name": "Home",
+		"expectedRevision": 0,
+		"id":               "fplan-e2e",
+		"name":             "Home",
 		"vertices": []map[string]any{
 			{"id": "vtx-a", "x": 0.0, "y": 0.0},
 			{"id": "vtx-b", "x": 4.0, "y": 0.0},
@@ -295,10 +297,10 @@ func TestFloorplan_DoorBindingRoundtripAndIntegrity(t *testing.T) {
 		t.Fatalf("door binding = %+v", binding)
 	}
 
-	_, err = graphqlMutation(`mutation($id: ID!) {
-		updateDevice(id: $id, input: { roles: { contact: WINDOW } }) { id }
-	}`, map[string]any{"id": string(d.ID)})
-	if err == nil || !strings.Contains(err.Error(), "Detach this sensor from its map door") {
+	_, err = graphqlMutation(`mutation($id: ID!, $revision: Int!) {
+		updateDevice(id: $id, input: { expectedRevision: $revision, roles: { contact: WINDOW } }) { id }
+	}`, map[string]any{"id": string(d.ID), "revision": configurationRevision(t, "device", string(d.ID))})
+	if err == nil || !strings.Contains(err.Error(), "detach this sensor from its map door") {
 		t.Fatalf("role update error = %v", err)
 	}
 

@@ -14,6 +14,7 @@ export type GroupMember = Group["members"][number];
 
 graphql(`
   fragment GroupFields on Group {
+    revision
     id
     name
     friendlyName
@@ -97,7 +98,7 @@ const REMOVE_GROUP_MEMBER = graphql(`
 
 const base = createEntityStore<Group, GroupsStoreQuery>({
   name: "groups",
-  version: 3,
+  version: 4,
   query: GROUPS_QUERY,
   select: (data) => data.groups,
 });

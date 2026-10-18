@@ -41,16 +41,16 @@ ON CONFLICT(id) DO UPDATE SET
     removed       = false;
 
 -- name: GetDevice :one
-SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
+SELECT revision, id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
 FROM devices
 WHERE id = ?;
 
 -- name: ListDevices :many
-SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
+SELECT revision, id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
 FROM devices;
 
 -- name: ListDevicesBySource :many
-SELECT id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
+SELECT revision, id, name, friendly_name, icon, display_color, display_brightness, source, type, controlled_load_role, contact_role, capabilities, available, removed, disabled, deleted, seen, last_seen
 FROM devices
 WHERE source = ?;
 
@@ -122,3 +122,6 @@ UPDATE devices SET display_brightness = NULL WHERE id = ?;
 
 -- name: PurgeDevice :exec
 DELETE FROM devices WHERE id = ?;
+
+-- name: ClaimDeviceRevision :execrows
+UPDATE devices SET revision = revision + 1 WHERE id = sqlc.arg('id') AND revision = sqlc.arg('expected_revision');

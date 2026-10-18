@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"github.com/saffronjam/saffron-hive/internal/device"
 	"testing"
 )
 
@@ -43,7 +44,7 @@ func TestCreateAutomationGraphAndRetrieve(t *testing.T) {
 		t.Fatalf("create automation: %v", err)
 	}
 
-	_, err = s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
+	_, err = s.createAutomationNode(ctx, CreateAutomationNodeParams{
 		ID: "n1", AutomationID: "auto-1", Type: "trigger",
 		Config: `{"event_type":"device.state_changed","filter_expr":"true"}`,
 	})
@@ -51,7 +52,7 @@ func TestCreateAutomationGraphAndRetrieve(t *testing.T) {
 		t.Fatalf("create node: %v", err)
 	}
 
-	_, err = s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
+	_, err = s.createAutomationNode(ctx, CreateAutomationNodeParams{
 		ID: "n2", AutomationID: "auto-1", Type: "action",
 		Config: `{"action_type":"set_device_state","payload":"{\"on\":true}"}`,
 	})
@@ -59,7 +60,7 @@ func TestCreateAutomationGraphAndRetrieve(t *testing.T) {
 		t.Fatalf("create node: %v", err)
 	}
 
-	_, err = s.CreateAutomationEdge(ctx, CreateAutomationEdgeParams{
+	_, err = s.createAutomationEdge(ctx, CreateAutomationEdgeParams{
 		AutomationID: "auto-1", FromNodeID: "n1", ToNodeID: "n2",
 	})
 	if err != nil {
@@ -96,7 +97,7 @@ func TestDeleteAutomationCascadesNodesAndEdges(t *testing.T) {
 		t.Fatalf("create automation: %v", err)
 	}
 
-	_, err = s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
+	_, err = s.createAutomationNode(ctx, CreateAutomationNodeParams{
 		ID: "n1", AutomationID: "auto-1", Type: "trigger",
 		Config: `{"event_type":"device.state_changed"}`,
 	})
@@ -104,7 +105,7 @@ func TestDeleteAutomationCascadesNodesAndEdges(t *testing.T) {
 		t.Fatalf("create node: %v", err)
 	}
 
-	_, err = s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
+	_, err = s.createAutomationNode(ctx, CreateAutomationNodeParams{
 		ID: "n2", AutomationID: "auto-1", Type: "action",
 		Config: `{"action_type":"set_device_state","payload":"{}"}`,
 	})
@@ -112,7 +113,7 @@ func TestDeleteAutomationCascadesNodesAndEdges(t *testing.T) {
 		t.Fatalf("create node: %v", err)
 	}
 
-	_, err = s.CreateAutomationEdge(ctx, CreateAutomationEdgeParams{
+	_, err = s.createAutomationEdge(ctx, CreateAutomationEdgeParams{
 		AutomationID: "auto-1", FromNodeID: "n1", ToNodeID: "n2",
 	})
 	if err != nil {
@@ -180,7 +181,7 @@ func TestToggleAutomation(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 
-	if err := s.UpdateAutomationEnabled(ctx, "auto-1", false); err != nil {
+	if _, err := s.UpdateAutomation(ctx, "auto-1", UpdateAutomationParams{ExpectedRevision: 1, Enabled: device.Ptr(false)}); err != nil {
 		t.Fatalf("toggle: %v", err)
 	}
 
@@ -203,19 +204,19 @@ func TestReplaceAutomationGraph(t *testing.T) {
 		t.Fatalf("create automation: %v", err)
 	}
 
-	if _, err := s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
+	if _, err := s.createAutomationNode(ctx, CreateAutomationNodeParams{
 		ID: "old-n1", AutomationID: "auto-1", Type: "trigger",
 		Config: `{"event_type":"device.state_changed"}`,
 	}); err != nil {
 		t.Fatalf("seed node: %v", err)
 	}
-	if _, err := s.CreateAutomationNode(ctx, CreateAutomationNodeParams{
+	if _, err := s.createAutomationNode(ctx, CreateAutomationNodeParams{
 		ID: "old-n2", AutomationID: "auto-1", Type: "action",
 		Config: `{"action_type":"set_device_state","payload":"{}"}`,
 	}); err != nil {
 		t.Fatalf("seed node: %v", err)
 	}
-	if _, err := s.CreateAutomationEdge(ctx, CreateAutomationEdgeParams{
+	if _, err := s.createAutomationEdge(ctx, CreateAutomationEdgeParams{
 		AutomationID: "auto-1", FromNodeID: "old-n1", ToNodeID: "old-n2",
 	}); err != nil {
 		t.Fatalf("seed edge: %v", err)
@@ -228,7 +229,7 @@ func TestReplaceAutomationGraph(t *testing.T) {
 	edges := []CreateAutomationEdgeParams{
 		{FromNodeID: "n1", ToNodeID: "n2"},
 	}
-	if err := s.ReplaceAutomationGraph(ctx, "auto-1", nodes, edges); err != nil {
+	if err := s.replaceAutomationGraph(ctx, "auto-1", nodes, edges); err != nil {
 		t.Fatalf("replace graph: %v", err)
 	}
 
@@ -253,7 +254,7 @@ func TestReplaceAutomationGraph(t *testing.T) {
 		t.Errorf("got edges %+v, want single n1->n2", gotEdges)
 	}
 
-	if err := s.ReplaceAutomationGraph(ctx, "auto-1", nil, nil); err != nil {
+	if err := s.replaceAutomationGraph(ctx, "auto-1", nil, nil); err != nil {
 		t.Fatalf("replace with empty: %v", err)
 	}
 	if nodes, _ := s.ListAutomationNodes(ctx, "auto-1"); len(nodes) != 0 {

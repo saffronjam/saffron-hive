@@ -1,10 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   buildTargetInfo,
-  capturedSceneState,
-  defaultDesiredState,
+  displayedSceneState,
   editorDefinitionInput,
-  initialSupportingState,
   sceneControllableDeviceCount,
   sceneToEditorState,
   type EditorState,
@@ -84,6 +82,7 @@ describe("typed scene editing", () => {
 
   it("maps the lighting layers into the editor state", () => {
     const scene: SceneData = {
+      revision: 1,
       id: "scene-1",
       name: "Sky",
       targets: [],
@@ -177,35 +176,23 @@ describe("typed scene editing", () => {
     expect(definition.lighting.dynamicSource).not.toHaveProperty("shuffle");
   });
 
-  it("uses only writable lighting fields for a default state", () => {
-    const state = defaultDesiredState({
-      id: "d",
-      capabilities: [
-        { name: "on_off", canSet: true },
-        { name: "brightness", canSet: false },
-        { name: "color_temp", canSet: true },
-      ],
-    } as never);
-    expect(state).toEqual({ on: true, colorTemp: 370 });
-  });
-
   it("captures only writable fields that a scene can command", () => {
     expect(
-      capturedSceneState({
+      displayedSceneState({
         capabilities: [{ name: "sensitivity", canSet: true }],
         state: { temperature: 21.5 },
       } as never),
     ).toBeNull();
 
     expect(
-      capturedSceneState({
+      displayedSceneState({
         capabilities: [{ name: "on_off", canSet: true }],
         state: { on: false, power: 12 },
       } as never),
     ).toEqual({ on: false });
 
     expect(
-      capturedSceneState({
+      displayedSceneState({
         capabilities: [
           { name: "target_temperature", canSet: true },
           { name: "hvac_mode", canSet: true },
@@ -214,35 +201,6 @@ describe("typed scene editing", () => {
         state: { targetTemperature: 21, hvacMode: "heat", fanMode: "auto" },
       } as never),
     ).toEqual({ targetTemperature: 21, hvacMode: "heat" });
-  });
-
-  it("offers a safe initial state only for commandable supporting devices", () => {
-    expect(
-      initialSupportingState({
-        type: "switch",
-        roles: {},
-        capabilities: [{ name: "on_off", canSet: true }],
-        state: null,
-      } as never),
-    ).toEqual({ on: true });
-
-    expect(
-      initialSupportingState({
-        type: "sensor",
-        roles: {},
-        capabilities: [{ name: "sensitivity", canSet: true }],
-        state: { temperature: 21.5 },
-      } as never),
-    ).toBeNull();
-
-    expect(
-      initialSupportingState({
-        type: "sensor",
-        roles: {},
-        capabilities: [{ name: "on_off", canSet: true }],
-        state: { on: true },
-      } as never),
-    ).toBeNull();
   });
 
   it("counts only outputs the Scene runtime can control", () => {

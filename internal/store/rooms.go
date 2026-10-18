@@ -31,6 +31,7 @@ func (s *DB) GetRoom(ctx context.Context, id string) (Room, error) {
 	}
 	return Room{
 		ID:        row.ID,
+		Revision:  row.Revision,
 		Name:      row.Name,
 		Icon:      row.Icon,
 		CreatedAt: row.CreatedAt,
@@ -62,6 +63,7 @@ func (s *DB) ListRooms(ctx context.Context) ([]Room, error) {
 	for _, r := range rows {
 		rooms = append(rooms, Room{
 			ID:        r.ID,
+			Revision:  r.Revision,
 			Name:      r.Name,
 			Icon:      r.Icon,
 			CreatedAt: r.CreatedAt,
@@ -74,28 +76,48 @@ func (s *DB) ListRooms(ctx context.Context) ([]Room, error) {
 
 // UpdateRoom updates a room's name and (optionally) its icon, returning the updated room.
 // Icon is updated only when params.SetIcon is true; a nil params.Icon clears the column.
-func (s *DB) UpdateRoom(ctx context.Context, params UpdateRoomParams) (Room, error) {
-	if err := s.q.UpdateRoomName(ctx, sqlite.UpdateRoomNameParams{
-		Name: params.Name,
-		ID:   params.ID,
-	}); err != nil {
-		return Room{}, fmt.Errorf("update room name: %w", err)
-	}
-	if params.SetIcon {
-		if params.Icon == nil {
-			if err := s.q.ClearRoomIcon(ctx, params.ID); err != nil {
-				return Room{}, fmt.Errorf("clear room icon: %w", err)
+func (s *DB) UpdateRoom(ctx context.Context, params UpdateRoomParams) (result Room, err error) {
+	err = s.atomic(ctx, func(s *DB) error {
+		var writeErr error
+		result, writeErr = func() (Room, error) {
+			changed, err := s.q.ClaimRoomRevision(ctx, sqlite.ClaimRoomRevisionParams{ID: params.ID, ExpectedRevision: params.ExpectedRevision})
+			if err != nil {
+				return Room{}, err
 			}
-		} else {
-			if err := s.q.UpdateRoomIcon(ctx, sqlite.UpdateRoomIconParams{
-				Icon: params.Icon,
+			if changed != 1 {
+				return Room{}, ErrRevisionConflict
+			}
+
+			if err := s.q.UpdateRoomName(ctx, sqlite.UpdateRoomNameParams{
+				Name: params.Name,
 				ID:   params.ID,
 			}); err != nil {
-				return Room{}, fmt.Errorf("update room icon: %w", err)
+				return Room{}, fmt.Errorf("update room name: %w", err)
 			}
-		}
-	}
-	return s.GetRoom(ctx, params.ID)
+			if params.SetIcon {
+				if params.Icon == nil {
+					if err := s.q.ClearRoomIcon(ctx, params.ID); err != nil {
+						return Room{}, fmt.Errorf("clear room icon: %w", err)
+					}
+				} else {
+					if err := s.q.UpdateRoomIcon(ctx, sqlite.UpdateRoomIconParams{
+						Icon: params.Icon,
+						ID:   params.ID,
+					}); err != nil {
+						return Room{}, fmt.Errorf("update room icon: %w", err)
+					}
+				}
+			}
+			if params.Members != nil {
+				if err := s.replaceMembership(ctx, Membership{device.TargetRoom, params.ID}, *params.Members); err != nil {
+					return Room{}, err
+				}
+			}
+			return s.GetRoom(ctx, params.ID)
+		}()
+		return writeErr
+	})
+	return result, err
 }
 
 // DeleteRoom deletes a room and any group_members rows that pointed to it.
@@ -159,21 +181,32 @@ func (s *DB) BatchDeleteRooms(ctx context.Context, ids []string) (int64, error) 
 
 // AddRoomMember inserts a new room member. Returns the created membership.
 // The caller is responsible for circular dependency checking before calling this method.
-func (s *DB) AddRoomMember(ctx context.Context, params AddRoomMemberParams) (RoomMember, error) {
-	if err := s.q.AddRoomMember(ctx, sqlite.AddRoomMemberParams{
-		ID:         params.ID,
-		RoomID:     params.RoomID,
-		MemberType: params.MemberType,
-		MemberID:   params.MemberID,
-	}); err != nil {
-		return RoomMember{}, fmt.Errorf("add room member: %w", err)
-	}
-	return RoomMember{
-		ID:         params.ID,
-		RoomID:     params.RoomID,
-		MemberType: params.MemberType,
-		MemberID:   params.MemberID,
-	}, nil
+func (s *DB) AddRoomMember(ctx context.Context, params AddRoomMemberParams) (result RoomMember, err error) {
+	err = s.atomic(ctx, func(s *DB) error {
+		var writeErr error
+		result, writeErr = func() (RoomMember, error) {
+			if err := ValidateMembership(ctx, s, Membership{device.TargetRoom, params.RoomID}, Membership{device.TargetType(params.MemberType), params.MemberID}); err != nil {
+				return RoomMember{}, err
+			}
+
+			if err := s.q.AddRoomMember(ctx, sqlite.AddRoomMemberParams{
+				ID:         params.ID,
+				RoomID:     params.RoomID,
+				MemberType: params.MemberType,
+				MemberID:   params.MemberID,
+			}); err != nil {
+				return RoomMember{}, fmt.Errorf("add room member: %w", err)
+			}
+			return RoomMember{
+				ID:         params.ID,
+				RoomID:     params.RoomID,
+				MemberType: params.MemberType,
+				MemberID:   params.MemberID,
+			}, nil
+		}()
+		return writeErr
+	})
+	return result, err
 }
 
 // BatchAddRoomMembers adds the listed members to a room. Members already
@@ -184,9 +217,12 @@ func (s *DB) BatchAddRoomMembers(ctx context.Context, roomID string, members []R
 		return 0, nil
 	}
 	var added int64
-	err := s.execTx(ctx, func(q *sqlite.Queries) error {
+	err := s.atomic(ctx, func(tx *DB) error {
 		for _, m := range members {
-			n, err := q.AddRoomMemberIfMissing(ctx, sqlite.AddRoomMemberIfMissingParams{
+			if err := ValidateMembership(ctx, tx, Membership{device.TargetRoom, roomID}, Membership{device.TargetType(m.MemberType), m.MemberID}); err != nil {
+				return err
+			}
+			n, err := tx.q.AddRoomMemberIfMissing(ctx, sqlite.AddRoomMemberIfMissingParams{
 				ID:         uuid.New().String(),
 				RoomID:     roomID,
 				MemberType: m.MemberType,
@@ -257,6 +293,7 @@ func (s *DB) ListRoomsContainingMember(ctx context.Context, memberType device.Ro
 	for _, r := range rows {
 		rooms = append(rooms, Room{
 			ID:        r.ID,
+			Revision:  r.Revision,
 			Name:      r.Name,
 			Icon:      r.Icon,
 			CreatedAt: r.CreatedAt,

@@ -212,7 +212,7 @@ async function loginForE2E(graphqlUrl: string): Promise<string> {
 // Failing loudly here beats letting waitForDevices time out with no explanation.
 async function configureZigbee2MQTT(graphqlUrl: string, token: string): Promise<void> {
   const query = `mutation E2EConfigureZigbee2Mqtt($input: Zigbee2MqttConfigInput!) {
-    updateZigbee2MqttConfig(input: $input) { broker }
+    updateZigbee2MqttConfig(input: $input, expectedRevision:0) { config { broker } }
   }`;
   const res = await fetch(graphqlUrl, {
     method: "POST",
@@ -240,7 +240,7 @@ async function configureZigbee2MQTT(graphqlUrl: string, token: string): Promise<
     throw new Error(`Configuring the Zigbee2MQTT integration failed: HTTP ${res.status}`);
   }
   const json = (await res.json()) as {
-    data?: { updateZigbee2MqttConfig?: { broker: string } };
+    data?: { updateZigbee2MqttConfig?: { config: { broker: string } } };
     errors?: Array<{ message: string }>;
   };
   if (json.errors?.length) {
@@ -248,7 +248,7 @@ async function configureZigbee2MQTT(graphqlUrl: string, token: string): Promise<
       `Configuring the Zigbee2MQTT integration failed: ${json.errors.map((e) => e.message).join("; ")}`,
     );
   }
-  if (!json.data?.updateZigbee2MqttConfig?.broker) {
+  if (!json.data?.updateZigbee2MqttConfig?.config.broker) {
     throw new Error("Configuring the Zigbee2MQTT integration returned no broker");
   }
 }

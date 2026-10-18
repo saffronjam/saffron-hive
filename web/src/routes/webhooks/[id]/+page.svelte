@@ -1,4 +1,6 @@
 <script lang="ts">
+ import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
+ let externalConflict=$state(false);
 	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
 	import { getContextClient } from "@urql/svelte";
@@ -167,15 +169,18 @@
 		return JSON.stringify({ name, enabled, rateLimitCount, rateLimitWindowMs });
 	}
 
-	$effect(() => {
-		if (!endpoint || loadedID === endpoint.id) return;
-		name = endpoint.name;
-		enabled = endpoint.enabled;
-		rateLimitCount = endpoint.rateLimitCount;
-		rateLimitWindowMs = endpoint.rateLimitWindowMs;
-		original = snapshot();
-		loadedID = endpoint.id;
-	});
+ function applyEndpoint() {
+  if(!endpoint)return;
+  name=endpoint.name;enabled=endpoint.enabled;rateLimitCount=endpoint.rateLimitCount;rateLimitWindowMs=endpoint.rateLimitWindowMs;
+  original=snapshot();loadedID=endpoint.id;externalConflict=false;
+ }
+ $effect(() => {
+  if(!endpoint || saving)return;
+  const remote=JSON.stringify({name:endpoint.name,enabled:endpoint.enabled,rateLimitCount:endpoint.rateLimitCount,rateLimitWindowMs:endpoint.rateLimitWindowMs});
+  if(loadedID===endpoint.id && remote===original)return;
+  if(loadedID===endpoint.id && snapshot()!==original){externalConflict=true;return;}
+  applyEndpoint();
+ });
 
 	const draftReady = $derived(endpoint !== undefined && loadedID === endpoint.id);
 	const nameError = $derived(draftReady && name.trim() === "" ? m.webhooks_validation_name({}, messageOptions) : null);
@@ -207,17 +212,18 @@
 		pageHeader.viewToggle = null;
 		pageHeader.actions = [
 			{ label: m.webhooks_rotate_url({}, messageOptions), mobileLabel: m.webhooks_rotate_short({}, messageOptions), icon: RotateCw, variant: "outline", disabled: !draftReady, onclick: () => (rotateConfirm = true) },
-			{ label: m.common_save({}, messageOptions), icon: Save, saving, disabled: !isDirty || !isValid, onclick: save },
+			{ label: m.common_save({}, messageOptions), icon: Save, saving, disabled: externalConflict || !isDirty || !isValid, onclick: save },
 			{ label: m.common_delete({}, messageOptions), icon: Trash2, variant: "destructive", disabled: !draftReady || usedBy.length > 0, onclick: () => (deleteConfirm = true) },
 		];
 	});
 
 	async function save() {
-		if (!endpoint || !isValid || rateLimitCount === null || rateLimitWindowMs === null) return;
+		if (externalConflict || !endpoint || !isValid || rateLimitCount === null || rateLimitWindowMs === null) return;
 		saving = true;
 		errors.clear();
 		try {
 			await webhooksStore.update(client, endpoint.id, {
+ expectedRevision:endpoint.revision,
 				name: name.trim(),
 				enabled,
 				rateLimitCount,
@@ -310,6 +316,7 @@
 		}
 	}
 </script>
+{#if externalConflict}<ExternalChangeBanner onreload={applyEndpoint} />{/if}
 
 <UnsavedGuard dirty={isDirty} />
 

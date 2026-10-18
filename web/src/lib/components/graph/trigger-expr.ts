@@ -1,3 +1,11 @@
+import {
+  fromLiteral,
+  toLiteral,
+  readValueType,
+  actionPayloadFromAPI,
+  actionPayloadToAPI,
+} from "$lib/automation-authoring";
+import type { AutomationConfigInput, AutomationTriggerInput } from "$lib/gql/graphql";
 import type { Clause } from "$lib/target-resolve";
 import { m } from "$lib/i18n/messages";
 import { locale } from "$lib/i18n/locale.svelte";
@@ -48,6 +56,7 @@ export interface TriggerConfig {
   property?: string;
   comparator?: string;
   value?: string;
+  valueType?: "string" | "number" | "boolean" | "null";
   eventValue?: string;
   customExpr?: string;
   endpointId?: string;
@@ -127,175 +136,6 @@ export function supportsDeviceEvents(device: {
   return device.capabilities.some((capability) => capability.name === "action");
 }
 
-function escapeExprString(s: string): string {
-  return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-}
-
-function isNumericString(s: string): boolean {
-  return s !== "" && !isNaN(Number(s));
-}
-
-// generateFilterExpr composes the event-payload filter expression for an event
-// trigger. It never applies to schedule triggers.
-export function generateFilterExpr(config: TriggerConfig): string {
-  switch (config.mode) {
-    case "device_state": {
-      if (!config.deviceId || !config.property) return "true";
-      const prop = `trigger.payload.state.${config.property}`;
-      const cmp = config.comparator ?? "==";
-      const val = config.value ?? "";
-      if (val === "") return "true";
-      let formatted: string;
-      if (val === "true" || val === "false") {
-        formatted = val;
-      } else if (isNumericString(val)) {
-        formatted = val;
-      } else {
-        formatted = `"${escapeExprString(val)}"`;
-      }
-      return `trigger.device_id == "${escapeExprString(config.deviceId)}" && ${prop} != nil && ${prop} ${cmp} ${formatted}`;
-    }
-    case "device_event": {
-      if (!config.deviceId) return "true";
-      const parts: string[] = [];
-      parts.push(`trigger.device_id == "${escapeExprString(config.deviceId)}"`);
-      if (config.eventValue) {
-        parts.push(`trigger.payload.action == "${escapeExprString(config.eventValue)}"`);
-      }
-      return parts.join(" && ");
-    }
-    case "availability": {
-      if (!config.deviceId) return "true";
-      return `trigger.device_id == "${escapeExprString(config.deviceId)}"`;
-    }
-    case "webhook":
-      return "true";
-    case "custom":
-      return config.customExpr || "true";
-    default:
-      return "true";
-  }
-}
-
-const WEEKDAY_CODES = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
-
-function padN(n: number | undefined, fallback: number): number {
-  return n ?? fallback;
-}
-
-// generateCronExpr composes a 6-field cron expression from the schedule fields.
-// Sub-mode "custom" returns the raw cronExpr unchanged.
-export function generateCronExpr(config: TriggerConfig): string {
-  const submode = config.scheduleSubmode ?? "at";
-  if (submode === "custom") {
-    return config.cronExpr ?? "";
-  }
-  if (submode === "every") {
-    const n = config.scheduleIntervalValue ?? 0;
-    const unit = config.scheduleIntervalUnit ?? "seconds";
-    if (n <= 0) return "";
-    if (unit === "seconds") {
-      if (n === 1) return "* * * * * *";
-      return `*/${n} * * * * *`;
-    }
-    if (unit === "minutes") {
-      if (n === 1) return "0 * * * * *";
-      return `0 */${n} * * * *`;
-    }
-    // hours
-    if (n === 1) return "0 0 * * * *";
-    return `0 0 */${n} * * *`;
-  }
-  // "at"
-  const sec = padN(config.scheduleSecond, 0);
-  const min = padN(config.scheduleMinute, 0);
-  const hr = padN(config.scheduleHour, 0);
-  const weekdays = config.scheduleWeekdays ?? [];
-  const dow = weekdays.length === 0 || weekdays.length === 7 ? "*" : weekdays.join(",");
-  return `${sec} ${min} ${hr} * * ${dow}`;
-}
-
-export function humanizeCron(cronExpr: string): string {
-  const options = locale.messageOptions();
-  const atMatch = cronExpr.match(/^(\d+) (\d+) (\d+) \* \* (\S+)$/);
-  if (atMatch) {
-    const [, s, minute, h, dow] = atMatch;
-    const time = `${h.padStart(2, "0")}:${minute.padStart(2, "0")}:${s.padStart(2, "0")}`;
-    if (dow === "*") return m.automation_schedule_every_day_at({ time }, options);
-    return m.automation_schedule_at_days(
-      { time, days: formatList(dow.split(",").map((code) => weekdayLabel(code))) },
-      options,
-    );
-  }
-  const everySec = cronExpr.match(/^\*\/(\d+) \* \* \* \* \*$/);
-  if (everySec) return m.automation_schedule_every_seconds({ count: Number(everySec[1]) }, options);
-  if (cronExpr === "* * * * * *") return m.automation_schedule_every_seconds({ count: 1 }, options);
-  const everyMin = cronExpr.match(/^0 \*\/(\d+) \* \* \* \*$/);
-  if (everyMin) return m.automation_schedule_every_minutes({ count: Number(everyMin[1]) }, options);
-  if (cronExpr === "0 * * * * *") return m.automation_schedule_every_minutes({ count: 1 }, options);
-  const everyHr = cronExpr.match(/^0 0 \*\/(\d+) \* \* \*$/);
-  if (everyHr) return m.automation_schedule_every_hours({ count: Number(everyHr[1]) }, options);
-  if (cronExpr === "0 0 * * * *") return m.automation_schedule_every_hours({ count: 1 }, options);
-  return cronExpr || m.automation_schedule_not_set({}, options);
-}
-
-export function weekdayLabel(code: string, style: "long" | "short" | "narrow" = "long"): string {
-  const offsets: Record<string, number> = {
-    MON: 0,
-    TUE: 1,
-    WED: 2,
-    THU: 3,
-    FRI: 4,
-    SAT: 5,
-    SUN: 6,
-  };
-  const offset = offsets[code];
-  if (offset === undefined) return code;
-  const date = new Date(Date.UTC(2024, 0, 1 + offset));
-  return new Intl.DateTimeFormat(locale.intlLocale, { weekday: style, timeZone: "UTC" }).format(
-    date,
-  );
-}
-
-// parseAtModeFromCron returns {hour, minute, second, weekdays} if cron matches
-// the "at" sub-mode pattern, otherwise null.
-export function parseAtModeFromCron(cron: string): {
-  hour: number;
-  minute: number;
-  second: number;
-  weekdays: string[];
-} | null {
-  const m = cron.match(/^(\d+) (\d+) (\d+) \* \* (\S+)$/);
-  if (!m) return null;
-  const [, s, mm, hh, dow] = m;
-  const weekdays = dow === "*" ? [] : dow.split(",").filter((d) => WEEKDAY_CODES.includes(d));
-  if (dow !== "*" && weekdays.length !== dow.split(",").length) return null;
-  return {
-    hour: Number(hh),
-    minute: Number(mm),
-    second: Number(s),
-    weekdays,
-  };
-}
-
-// parseEveryModeFromCron returns {value, unit} if cron matches the "every"
-// sub-mode pattern, otherwise null.
-export function parseEveryModeFromCron(cron: string): {
-  value: number;
-  unit: ScheduleIntervalUnit;
-} | null {
-  let m = cron.match(/^\*\/(\d+) \* \* \* \* \*$/);
-  if (m) return { value: Number(m[1]), unit: "seconds" };
-  if (cron === "* * * * * *") return { value: 1, unit: "seconds" };
-  m = cron.match(/^0 \*\/(\d+) \* \* \* \*$/);
-  if (m) return { value: Number(m[1]), unit: "minutes" };
-  if (cron === "0 * * * * *") return { value: 1, unit: "minutes" };
-  m = cron.match(/^0 0 \*\/(\d+) \* \* \*$/);
-  if (m) return { value: Number(m[1]), unit: "hours" };
-  if (cron === "0 0 * * * *") return { value: 1, unit: "hours" };
-  return null;
-}
-
 export function eventTypeForMode(mode: TriggerMode): string {
   switch (mode) {
     case "":
@@ -320,201 +160,51 @@ export function defaultTriggerConfig(): TriggerConfig {
 }
 
 export function normalizeTriggerConfig(raw: Record<string, unknown>): TriggerConfig {
-  const graceMs = typeof raw.grace_ms === "number" ? raw.grace_ms : undefined;
-  const cooldownMs = typeof raw.cooldown_ms === "number" ? raw.cooldown_ms : undefined;
-  const holdMs = typeof raw.hold_ms === "number" ? raw.hold_ms : undefined;
-
-  // If the raw object already looks like our internal TS shape (has `mode`),
-  // just coerce it.
-  if ("mode" in raw && typeof raw.mode === "string") {
-    return raw as unknown as TriggerConfig;
-  }
-
-  // Schedule trigger
-  if (raw.kind === "schedule" || (typeof raw.cron_expr === "string" && raw.cron_expr !== "")) {
-    const cron = (raw.cron_expr as string) ?? "";
-    // Try to detect sub-mode
-    const atParts = parseAtModeFromCron(cron);
-    if (atParts) {
-      return {
-        mode: "schedule",
-        scheduleSubmode: "at",
-        cronExpr: cron,
-        scheduleHour: atParts.hour,
-        scheduleMinute: atParts.minute,
-        scheduleSecond: atParts.second,
-        scheduleWeekdays: atParts.weekdays,
-        graceMs,
-        cooldownMs,
-      };
-    }
-    const every = parseEveryModeFromCron(cron);
-    if (every) {
-      return {
-        mode: "schedule",
-        scheduleSubmode: "every",
-        cronExpr: cron,
-        scheduleIntervalValue: every.value,
-        scheduleIntervalUnit: every.unit,
-        graceMs,
-        cooldownMs,
-      };
-    }
-    return {
-      mode: "schedule",
-      scheduleSubmode: "custom",
-      cronExpr: cron,
-      graceMs,
-      cooldownMs,
-    };
-  }
-
-  // Event-trigger fields can arrive in either persisted or in-memory casing.
-  const eventType =
-    (raw.event_type as string) ?? (raw.eventType as string) ?? "device.state_changed";
-  const filter =
-    (raw.filter_expr as string) ??
-    (raw.condition_expr as string) ??
-    (raw.condition as string) ??
-    (raw.customExpr as string) ??
-    "";
-
-  if (eventType === "webhook.received") {
-    const filters = Array.isArray(raw.webhook_filters)
-      ? (raw.webhook_filters as WebhookFilterRule[])
-      : [];
-    return {
-      mode: "webhook",
-      eventType,
-      endpointId: typeof raw.endpoint_id === "string" ? raw.endpoint_id : undefined,
-      webhookFilters: filters,
-      graceMs,
-      cooldownMs,
-    };
-  }
-
-  // Derive the UI mode from the filter expression shape.
-  // deviceName can't be recovered from `trigger.device_id ==`-only filters;
-  // the UI will fill it by looking up deviceId in the devices list.
-  if (eventType === "device.availability_changed") {
-    const m = filter.match(/^trigger\.device_id == "([^"]+)"$/);
-    if (m) {
-      return { mode: "availability", eventType, deviceId: m[1], graceMs, cooldownMs };
-    }
-  }
-  if (eventType === "device.action_fired") {
-    const eventWithValue = filter.match(
-      /^trigger\.device_id == "([^"]+)" && trigger\.payload\.action == "([^"]+)"$/,
-    );
-    if (eventWithValue) {
-      return {
-        mode: "device_event",
-        eventType,
-        deviceId: eventWithValue[1],
-        eventValue: eventWithValue[2],
-        graceMs,
-        cooldownMs,
-      };
-    }
-    const eventDeviceOnly = filter.match(/^trigger\.device_id == "([^"]+)"$/);
-    if (eventDeviceOnly) {
-      return {
-        mode: "device_event",
-        eventType,
-        deviceId: eventDeviceOnly[1],
-        graceMs,
-        cooldownMs,
-      };
-    }
-  }
-  if (eventType === "device.state_changed") {
-    const scoped = filter.match(
-      /^trigger\.device_id == "([^"]+)" && trigger\.payload\.state\.(\w+) != nil && trigger\.payload\.state\.\2\s*(==|!=|<=|>=|<|>)\s*(.+)$/,
-    );
-    if (scoped) {
-      let val = scoped[4].trim();
-      if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
-      return {
-        mode: "device_state",
-        eventType,
-        deviceId: scoped[1],
-        property: scoped[2],
-        comparator: scoped[3],
-        value: val,
-        graceMs,
-        cooldownMs,
-        holdMs,
-      };
-    }
-    const ds = filter.match(/^device\("([^"]+)"\)\.(\w+)\s*(==|!=|<=|>=|<|>)\s*(.+)$/);
-    if (ds) {
-      let val = ds[4].trim();
-      if (val.startsWith('"') && val.endsWith('"')) {
-        val = val.slice(1, -1);
-      }
-      return {
-        mode: "device_state",
-        eventType,
-        deviceName: ds[1],
-        property: ds[2],
-        comparator: ds[3],
-        value: val,
-        graceMs,
-        cooldownMs,
-      };
-    }
-  }
-
+  const t = (raw as AutomationConfigInput).trigger;
+  if (!t) return defaultTriggerConfig();
+  const { value, webhookFilters, ...rest } = t;
   return {
-    mode: "custom",
-    eventType,
-    customExpr: filter || "true",
-    graceMs,
-    cooldownMs,
-  };
+    ...Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== null)),
+    mode: t.mode === "unset" ? "" : t.mode,
+    value: fromLiteral(value),
+    valueType: readValueType(value),
+    webhookFilters: webhookFilters?.map((f) => ({
+      source: f.source,
+      path: f.path,
+      operator: f.operator,
+      value_type: readValueType(f.value),
+      value: f.value ? literalValue(f.value) : undefined,
+    })),
+  } as TriggerConfig;
+}
+
+function literalValue(
+  value: NonNullable<AutomationTriggerInput["value"]>,
+): string | number | boolean | null {
+  return value.stringValue ?? value.numberValue ?? value.booleanValue ?? null;
 }
 
 export function serializeTriggerConfig(config: TriggerConfig): string {
-  if (config.mode === "") return JSON.stringify({ mode: "" });
-
-  const timing: { grace_ms?: number; cooldown_ms?: number } = {};
-  if (config.graceMs && config.graceMs > 0) timing.grace_ms = config.graceMs;
-  if (config.cooldownMs && config.cooldownMs > 0) timing.cooldown_ms = config.cooldownMs;
-
-  if (config.mode === "schedule") {
-    return JSON.stringify({
-      kind: "schedule",
-      cron_expr: generateCronExpr(config),
-      ...timing,
-    });
-  }
-  if (config.mode === "webhook") {
-    return JSON.stringify({
-      kind: "event",
-      event_type: "webhook.received",
-      filter_expr: "true",
-      endpoint_id: config.endpointId ?? "",
-      webhook_filters: config.webhookFilters ?? [],
-      ...timing,
-    });
-  }
-  const hold =
-    config.mode === "device_state" && config.holdMs && config.holdMs > 0 && config.deviceId
-      ? { hold_ms: config.holdMs, device_id: config.deviceId }
-      : {};
-  return JSON.stringify({
-    kind: "event",
-    event_type: config.eventType ?? eventTypeForMode(config.mode),
-    filter_expr: generateFilterExpr(config),
-    ...timing,
-    ...hold,
-  });
+  const { deviceName: _name, value, valueType, webhookFilters, ...rest } = config;
+  const trigger: AutomationTriggerInput = {
+    ...rest,
+    mode: config.mode || "unset",
+    value: toLiteral(value, valueType),
+    webhookFilters: (webhookFilters ?? []).map((f) => ({
+      source: f.source,
+      path: f.path,
+      operator: f.operator,
+      value: f.value_type ? toLiteral(String(f.value ?? ""), f.value_type) : undefined,
+    })),
+    scheduleWeekdays: config.scheduleWeekdays ?? [],
+  };
+  return JSON.stringify({ trigger } satisfies AutomationConfigInput);
 }
 
 export function serializeOperatorConfig(config: { operator: string }): string {
   return JSON.stringify({
-    kind: config.operator.toLowerCase(),
-  });
+    operator: { kind: config.operator.toLowerCase() },
+  } satisfies AutomationConfigInput);
 }
 
 export interface ActionConfigShape {
@@ -538,15 +228,6 @@ export interface ActionMacroCall {
   args: unknown[];
 }
 
-function sceneIdFromPayload(payload: string): string {
-  try {
-    const parsed = JSON.parse(payload) as { scene_id?: unknown };
-    return typeof parsed.scene_id === "string" ? parsed.scene_id : "";
-  } catch {
-    return "";
-  }
-}
-
 /** The macro call stored in an action's payload, or null. */
 export function actionMacroCall(config: ActionConfigShape): ActionMacroCall | null {
   if (config.actionType !== MACRO_ACTION) return null;
@@ -559,50 +240,53 @@ export function actionMacroCall(config: ActionConfigShape): ActionMacroCall | nu
 }
 
 export function normalizeActionConfig(raw: Record<string, unknown>): NormalizedActionConfig {
-  if (typeof raw.use === "string") {
+  const c = raw as AutomationConfigInput;
+  if (c.macro)
     return {
       actionType: MACRO_ACTION,
       targetType: "",
       targetId: "",
       targetName: "",
       targetExpr: [],
-      payload: JSON.stringify({ use: raw.use, args: Array.isArray(raw.args) ? raw.args : [] }),
+      payload: JSON.stringify({ use: c.macro.name, args: c.macro.arguments ?? [] }),
     };
-  }
-  const actionType = (raw.action_type as string) ?? (raw.actionType as string) ?? "";
-  const targetType = (raw.target_type as string) ?? (raw.targetType as string) ?? "";
-  const targetId = (raw.target_id as string) ?? (raw.targetId as string) ?? "";
-  const payload = (raw.payload as string) ?? "";
-  const activatesScene = actionType === "activate_scene";
+  const a = c.action;
+  if (!a)
+    return {
+      actionType: "",
+      targetType: "",
+      targetId: "",
+      targetName: "",
+      targetExpr: [],
+      payload: "",
+    };
+  const scene = a.actionType === "activate_scene";
   return {
-    actionType,
-    targetType: activatesScene ? "scene" : targetType,
-    targetId: activatesScene ? sceneIdFromPayload(payload) : targetId,
-    targetName: (raw.target_name as string) ?? (raw.targetName as string) ?? "",
-    targetExpr:
-      (raw.target_expr as NormalizedActionConfig["targetExpr"]) ??
-      (raw.targetExpr as NormalizedActionConfig["targetExpr"]) ??
-      [],
-    payload: activatesScene ? "" : payload,
+    actionType: a.actionType ?? "",
+    targetType: scene ? "scene" : (a.targetType ?? ""),
+    targetId: scene ? (a.payload?.sceneId ?? "") : (a.targetId ?? ""),
+    targetName: "",
+    targetExpr: (a.targetExpr ?? []) as Clause[],
+    payload: scene ? "" : JSON.stringify(actionPayloadFromAPI(a.payload)),
   };
 }
 
 export function serializeActionConfig(config: ActionConfigShape): string {
   const macro = actionMacroCall(config);
-  if (macro) return JSON.stringify(macro.args.length ? macro : { use: macro.use });
-  const activatesScene = config.actionType === "activate_scene";
+  if (macro)
+    return JSON.stringify({
+      macro: { name: macro.use, arguments: macro.args },
+    } satisfies AutomationConfigInput);
+  const scene = config.actionType === "activate_scene";
   return JSON.stringify({
-    action_type: config.actionType,
-    target_type: activatesScene ? "" : config.targetType,
-    target_id: activatesScene ? "" : config.targetId,
-    target_expr: activatesScene ? [] : (config.targetExpr ?? []),
-    payload:
-      config.actionType === "toggle_device_state"
-        ? ""
-        : activatesScene
-          ? JSON.stringify({ scene_id: config.targetId })
-          : config.payload,
-  });
+    action: {
+      actionType: config.actionType,
+      targetType: scene ? "" : config.targetType,
+      targetId: scene ? "" : config.targetId,
+      targetExpr: scene ? [] : (config.targetExpr ?? []),
+      payload: scene ? { sceneId: config.targetId } : actionPayloadToAPI(config.payload),
+    },
+  } satisfies AutomationConfigInput);
 }
 
 export type TriggerField =
@@ -655,17 +339,17 @@ export type AutomationValidationCode =
 
 export function validateTriggerConfig(config: TriggerConfig): ValidationError<TriggerField> | null {
   if (!config.mode) return { field: "mode", code: "trigger_required" };
+  if (config.holdMs && !config.deviceId) return { field: "device", code: "device_required" };
   switch (config.mode) {
     case "device_state":
       if (!config.deviceId) return { field: "device", code: "device_required" };
       if (!config.property) return { field: "property", code: "property_required" };
-      if (config.value === undefined || config.value === "") {
+      if (config.value === undefined || (config.value === "" && config.valueType !== "string")) {
         return { field: "value", code: "value_required" };
       }
       return null;
     case "device_event":
       if (!config.deviceId) return { field: "device", code: "device_required" };
-      if (!config.eventValue) return { field: "eventValue", code: "event_required" };
       return null;
     case "availability":
       if (!config.deviceId) return { field: "device", code: "device_required" };
@@ -854,4 +538,73 @@ export function validateActionConfig(
   }
   if (!targetSelected(config)) return targetError(config);
   return null;
+}
+
+export function summarizeSchedule(config: TriggerConfig): string {
+  const options = locale.messageOptions();
+  switch (config.scheduleSubmode) {
+    case "at": {
+      const pad = (value: number | undefined) => String(value ?? 0).padStart(2, "0");
+      const time = `${pad(config.scheduleHour)}:${pad(config.scheduleMinute)}:${pad(config.scheduleSecond)}`;
+      const days = config.scheduleWeekdays ?? [];
+      return days.length
+        ? m.automation_schedule_at_days(
+            { time, days: formatList(days.map((code) => weekdayLabel(code))) },
+            options,
+          )
+        : m.automation_schedule_every_day_at({ time }, options);
+    }
+    case "every": {
+      const count = config.scheduleIntervalValue ?? 1;
+      if (config.scheduleIntervalUnit === "hours")
+        return m.automation_schedule_every_hours({ count }, options);
+      if (config.scheduleIntervalUnit === "seconds")
+        return m.automation_schedule_every_seconds({ count }, options);
+      return m.automation_schedule_every_minutes({ count }, options);
+    }
+    default:
+      return humanizeCron(config.cronExpr ?? "");
+  }
+}
+
+export function humanizeCron(cronExpr: string): string {
+  const options = locale.messageOptions();
+  const atMatch = cronExpr.match(/^(\d+) (\d+) (\d+) \* \* (\S+)$/);
+  if (atMatch) {
+    const [, s, minute, h, dow] = atMatch;
+    const time = `${h.padStart(2, "0")}:${minute.padStart(2, "0")}:${s.padStart(2, "0")}`;
+    if (dow === "*") return m.automation_schedule_every_day_at({ time }, options);
+    return m.automation_schedule_at_days(
+      { time, days: formatList(dow.split(",").map((code) => weekdayLabel(code))) },
+      options,
+    );
+  }
+  const everySec = cronExpr.match(/^\*\/(\d+) \* \* \* \* \*$/);
+  if (everySec) return m.automation_schedule_every_seconds({ count: Number(everySec[1]) }, options);
+  if (cronExpr === "* * * * * *") return m.automation_schedule_every_seconds({ count: 1 }, options);
+  const everyMin = cronExpr.match(/^0 \*\/(\d+) \* \* \* \*$/);
+  if (everyMin) return m.automation_schedule_every_minutes({ count: Number(everyMin[1]) }, options);
+  if (cronExpr === "0 * * * * *") return m.automation_schedule_every_minutes({ count: 1 }, options);
+  const everyHr = cronExpr.match(/^0 0 \*\/(\d+) \* \* \*$/);
+  if (everyHr) return m.automation_schedule_every_hours({ count: Number(everyHr[1]) }, options);
+  if (cronExpr === "0 0 * * * *") return m.automation_schedule_every_hours({ count: 1 }, options);
+  return cronExpr || m.automation_schedule_not_set({}, options);
+}
+
+export function weekdayLabel(code: string, style: "long" | "short" | "narrow" = "long"): string {
+  const offsets: Record<string, number> = {
+    MON: 0,
+    TUE: 1,
+    WED: 2,
+    THU: 3,
+    FRI: 4,
+    SAT: 5,
+    SUN: 6,
+  };
+  const offset = offsets[code];
+  if (offset === undefined) return code;
+  const date = new Date(Date.UTC(2024, 0, 1 + offset));
+  return new Intl.DateTimeFormat(locale.intlLocale, { weekday: style, timeZone: "UTC" }).format(
+    date,
+  );
 }

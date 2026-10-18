@@ -1,3 +1,4 @@
+import { revision } from "./revision";
 import { describe, it, expect } from "vitest";
 import { graphql } from "$lib/gql";
 import { pipe, subscribe } from "wonka";
@@ -266,21 +267,32 @@ describe("devices", () => {
     expect(unsupported.data?.device?.zigbee2Mqtt?.supported).toBe(false);
     expect(unsupported.data?.device?.zigbee2Mqtt?.definition).toBeNull();
 
-    const coordinator = await graphqlClient
-      .query(ZIGBEE_METADATA_QUERY, { id: "0x00124b0000000000" }, { requestPolicy: "network-only" })
-      .toPromise();
-    expect(coordinator.error).toBeUndefined();
-    expect(coordinator.data?.device?.zigbee2Mqtt?.bridgeInfo).toEqual({
-      adapterType: "ZStack3x0",
-      firmwareVersion: "20240710",
-      channel: 20,
-      panId: 6754,
-      extendedPanId: "0x00124b000000abcd",
-      zigbee2MqttVersion: "2.7.2",
-      zigbee2MqttCommit: "a1b2c3d",
-      zigbeeHerdsmanVersion: "6.1.4",
-      zigbeeHerdsmanConvertersVersion: "25.30.0",
-    });
+    await expect
+      .poll(
+        async () => {
+          const coordinator = await graphqlClient
+            .query(
+              ZIGBEE_METADATA_QUERY,
+              { id: "0x00124b0000000000" },
+              { requestPolicy: "network-only" },
+            )
+            .toPromise();
+          expect(coordinator.error).toBeUndefined();
+          return coordinator.data?.device?.zigbee2Mqtt?.bridgeInfo;
+        },
+        { timeout: 10_000 },
+      )
+      .toEqual({
+        adapterType: "ZStack3x0",
+        firmwareVersion: "20240710",
+        channel: 20,
+        panId: 6754,
+        extendedPanId: "0x00124b000000abcd",
+        zigbee2MqttVersion: "2.7.2",
+        zigbee2MqttCommit: "a1b2c3d",
+        zigbeeHerdsmanVersion: "6.1.4",
+        zigbeeHerdsmanConvertersVersion: "25.30.0",
+      });
   });
 
   it("should reflect state changes after MQTT publish", async () => {
@@ -396,7 +408,7 @@ describe("devices", () => {
     const updateResult = await graphqlClient
       .mutation(UPDATE_DEVICE, {
         id: device.id,
-        input: { name: newName },
+        input: { expectedRevision:await revision(graphqlClient,"device",device.id),name: newName },
       })
       .toPromise();
 
@@ -413,7 +425,7 @@ describe("devices", () => {
     await graphqlClient
       .mutation(UPDATE_DEVICE, {
         id: device.id,
-        input: { name: originalName },
+        input: { expectedRevision:await revision(graphqlClient,"device",device.id),name: originalName },
       })
       .toPromise();
   });

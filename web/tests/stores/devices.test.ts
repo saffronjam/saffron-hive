@@ -67,6 +67,7 @@ function makeDevice(
   type = "light",
 ): Device {
   return {
+    revision: 1,
     id,
     name,
     friendlyName: "",

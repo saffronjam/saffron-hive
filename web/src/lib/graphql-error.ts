@@ -42,8 +42,11 @@ export function graphqlErrorMessage(error: unknown, requestedFallback?: string):
       return m.error_invalid_bootstrap_token({}, options);
     case "NOT_FOUND":
       return m.error_not_found({}, options);
+    case "REVISION_CONFLICT":
+      return m.editor_changed_elsewhere({}, options);
     case "CONFLICT":
       return m.error_conflict({}, options);
+    case "CONFIGURATION_INVALID":
     case "VALIDATION_FAILED":
       return m.error_validation({}, options);
     default:

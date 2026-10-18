@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -29,7 +31,6 @@ type compiledGraph struct {
 	nodes        map[NodeID]Node
 	topoOrder    []NodeID
 	incomingMap  map[NodeID][]NodeID
-	outgoingMap  map[NodeID][]NodeID
 	conditions   map[NodeID]*vm.Program
 }
 
@@ -484,67 +485,13 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 		active[id] = result
 	}
 
-	// Two-tier reachability gate.
-	//
-	// forwardReachable: nodes downstream of a fired trigger. These are the
-	// nodes the event actually drove. Operators and actions only fire when
-	// they sit in this set — their "active" state is meaningful only as a
-	// consequence of an event flowing through them.
-	//
-	// reachable: forwardReachable plus the ancestors of those nodes. The
-	// backward pass pulls in inputs that operators in the forward set need
-	// to evaluate (e.g. a side condition on an AND with a firing trigger
-	// as its other input). Conditions in this expanded set get evaluated;
-	// operators in this set but not in forwardReachable are NOT evaluated
-	// and stay at their zero-value active=false. Without this distinction
-	// a NOT pulled in purely for backward eval would invert a zero-value
-	// trigger to true and propagate that bogus state down to a forward-
-	// reachable action, firing it for an event it has no logical relation
-	// to.
-	forwardReachable := make(map[NodeID]bool)
-	fwdQueue := make([]NodeID, 0, len(triggerResults))
-	for id, fired := range triggerResults {
-		if fired {
-			forwardReachable[id] = true
-			fwdQueue = append(fwdQueue, id)
-		}
-	}
-	for len(fwdQueue) > 0 {
-		id := fwdQueue[0]
-		fwdQueue = fwdQueue[1:]
-		for _, next := range cg.outgoingMap[id] {
-			if !forwardReachable[next] {
-				forwardReachable[next] = true
-				fwdQueue = append(fwdQueue, next)
-			}
-		}
-	}
-	reachable := make(map[NodeID]bool, len(forwardReachable))
-	for id := range forwardReachable {
-		reachable[id] = true
-	}
-	backQueue := make([]NodeID, 0, len(reachable))
-	for id := range reachable {
-		backQueue = append(backQueue, id)
-	}
-	for len(backQueue) > 0 {
-		id := backQueue[0]
-		backQueue = backQueue[1:]
-		for _, prev := range cg.incomingMap[id] {
-			if !reachable[prev] {
-				reachable[prev] = true
-				backQueue = append(backQueue, prev)
-			}
-		}
-	}
-
 	anyActionFired := false
 
 	for _, nodeID := range cg.topoOrder {
-		if !reachable[nodeID] {
+		node := cg.nodes[nodeID]
+		if node.Type != NodeTrigger && !evaluateOperator(OperatorOr, cg.incomingMap[nodeID], active) {
 			continue
 		}
-		node := cg.nodes[nodeID]
 
 		switch node.Type {
 		case NodeTrigger:
@@ -560,15 +507,16 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 			result, err := evalExpr(prog, env)
 			if err != nil {
 				logger.Error("condition eval error", "graph_id", cg.automationID, "node_id", nodeID, "error", err)
+				e.publishNodeActivation(cg.automationID, nodeID, false)
 				continue
+			}
+			if node.Config.(ConditionConfig).Negate {
+				result = !result
 			}
 			active[nodeID] = result
 			e.publishNodeActivation(cg.automationID, nodeID, result)
 
 		case NodeOperator:
-			if !forwardReachable[nodeID] {
-				continue
-			}
 			opCfg, ok := node.Config.(OperatorConfig)
 			if !ok {
 				continue
@@ -579,20 +527,10 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 			e.publishNodeActivation(cg.automationID, nodeID, nodeActive)
 
 		case NodeAction:
-			incoming := cg.incomingMap[nodeID]
-			anyActive := false
-			for _, src := range incoming {
-				if active[src] {
-					anyActive = true
-					break
-				}
-			}
-			if anyActive {
-				active[nodeID] = true
-				e.publishNodeActivation(cg.automationID, nodeID, true)
-				e.executeAction(node, cg.automationID)
-				anyActionFired = true
-			}
+			active[nodeID] = true
+			e.publishNodeActivation(cg.automationID, nodeID, true)
+			e.executeAction(node, cg.automationID)
+			anyActionFired = true
 		}
 	}
 
@@ -618,11 +556,6 @@ func evaluateOperator(kind OperatorKind, incoming []NodeID, active map[NodeID]bo
 			}
 		}
 		return false
-	case OperatorNot:
-		if len(incoming) != 1 {
-			return false
-		}
-		return !active[incoming[0]]
 	default:
 		return false
 	}
@@ -768,10 +701,8 @@ func compileGraph(g AutomationGraph) (compiledGraph, []compiledTrigger, error) {
 	}
 
 	incomingMap := make(map[NodeID][]NodeID, len(g.Nodes))
-	outgoingMap := make(map[NodeID][]NodeID, len(g.Nodes))
 	for _, e := range g.Edges {
 		incomingMap[e.ToNodeID] = append(incomingMap[e.ToNodeID], e.FromNodeID)
-		outgoingMap[e.FromNodeID] = append(outgoingMap[e.FromNodeID], e.ToNodeID)
 	}
 
 	order, err := topoSort(g.Nodes, g.Edges)
@@ -828,7 +759,6 @@ func compileGraph(g AutomationGraph) (compiledGraph, []compiledTrigger, error) {
 		nodes:        nodeMap,
 		topoOrder:    order,
 		incomingMap:  incomingMap,
-		outgoingMap:  outgoingMap,
 		conditions:   conditions,
 	}
 
@@ -923,10 +853,10 @@ func (d Definitions) ParseNodeConfig(nodeType NodeType, configJSON string) (Node
 	if err != nil {
 		return nil, err
 	}
-	return parseNodeConfig(nodeType, expanded), nil
+	return parseNodeConfig(nodeType, expanded)
 }
 
-func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
+func parseNodeConfig(nodeType NodeType, configJSON string) (NodeConfig, error) {
 	switch nodeType {
 	case NodeTrigger:
 		var raw struct {
@@ -941,9 +871,8 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			EndpointID     string               `json:"endpoint_id"`
 			WebhookFilters []webhook.FilterRule `json:"webhook_filters"`
 		}
-		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
-			logger.Error("failed to parse trigger config", "error", err)
-			return TriggerConfig{}
+		if err := decodeNodeConfig(configJSON, &raw); err != nil {
+			return nil, fmt.Errorf("invalid trigger config: %w", err)
 		}
 		kind := TriggerKind(raw.Kind)
 		if kind == "" {
@@ -964,25 +893,24 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			HoldDeviceID:   raw.HoldDeviceID,
 			EndpointID:     raw.EndpointID,
 			WebhookFilters: raw.WebhookFilters,
-		}
+		}, nil
 	case NodeCondition:
 		var raw struct {
-			Expr string `json:"expr"`
+			Expr   string `json:"expr"`
+			Negate bool   `json:"negate"`
 		}
-		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
-			logger.Error("failed to parse condition config", "error", err)
-			return ConditionConfig{}
+		if err := decodeNodeConfig(configJSON, &raw); err != nil {
+			return nil, fmt.Errorf("invalid condition config: %w", err)
 		}
-		return ConditionConfig{Expr: raw.Expr}
+		return ConditionConfig{Expr: raw.Expr, Negate: raw.Negate}, nil
 	case NodeOperator:
 		var raw struct {
 			Kind string `json:"kind"`
 		}
-		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
-			logger.Error("failed to parse operator config", "error", err)
-			return OperatorConfig{}
+		if err := decodeNodeConfig(configJSON, &raw); err != nil {
+			return nil, fmt.Errorf("invalid operator config: %w", err)
 		}
-		return OperatorConfig{Kind: OperatorKind(raw.Kind)}
+		return OperatorConfig{Kind: OperatorKind(raw.Kind)}, nil
 	case NodeAction:
 		var raw struct {
 			ActionType string          `json:"action_type"`
@@ -991,9 +919,8 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			TargetExpr []device.Clause `json:"target_expr"`
 			Payload    string          `json:"payload"`
 		}
-		if err := json.Unmarshal([]byte(configJSON), &raw); err != nil {
-			logger.Error("failed to parse action config", "error", err)
-			return ActionConfig{}
+		if err := decodeNodeConfig(configJSON, &raw); err != nil {
+			return nil, fmt.Errorf("invalid action config: %w", err)
 		}
 		tt := TargetType(raw.TargetType)
 		if tt == "" {
@@ -1005,8 +932,65 @@ func parseNodeConfig(nodeType NodeType, configJSON string) NodeConfig {
 			TargetID:   raw.TargetID,
 			TargetExpr: raw.TargetExpr,
 			Payload:    raw.Payload,
-		}
+		}, nil
 	default:
-		return nil
+		return nil, fmt.Errorf("unknown node type %q", nodeType)
 	}
+}
+
+func decodeNodeConfig[T any](raw string, value *T) error {
+	if !strings.HasPrefix(strings.TrimSpace(raw), "{") {
+		return fmt.Errorf("config must be a JSON object")
+	}
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(value); err != nil {
+		return err
+	}
+	var trailing json.RawMessage
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return fmt.Errorf("config must contain one JSON object")
+	}
+	return nil
+}
+
+// ValidateNodeShape checks serialized types while allowing incomplete draft values.
+func ValidateNodeShape(nodeType NodeType, raw string) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &fields); err != nil || fields == nil {
+		return fmt.Errorf("config must be a JSON object")
+	}
+	if draft, ok := fields["draft"]; ok {
+		if len(fields) != 1 {
+			return fmt.Errorf("draft cannot include executable configuration")
+		}
+		var c AuthoringConfig
+		if err := decodeNodeConfig(string(draft), &c); err != nil {
+			return err
+		}
+		if !incompleteAuthoring(c) {
+			return fmt.Errorf("draft must be incomplete")
+		}
+		_, err := CompileAuthoring(nodeType, c)
+		return err
+	}
+	if _, ok := fields["use"]; ok {
+		var ref struct {
+			Use    string            `json:"use"`
+			Negate bool              `json:"negate,omitempty"`
+			Args   []json.RawMessage `json:"args"`
+		}
+		return decodeNodeConfig(raw, &ref)
+	}
+	config, err := parseNodeConfig(nodeType, raw)
+	if err != nil {
+		return err
+	}
+	if action, ok := config.(ActionConfig); ok && action.Payload != "" {
+		var payload map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(action.Payload), &payload); err != nil || payload == nil {
+			return fmt.Errorf("action payload must be a JSON object")
+		}
+	}
+	return nil
 }

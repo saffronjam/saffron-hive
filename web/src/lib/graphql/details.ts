@@ -9,16 +9,28 @@ import { graphql } from "$lib/gql";
 export const AUTOMATION_DETAIL_QUERY = graphql(`
   query Automation($id: ID!) {
     automation(id: $id) {
+      revision
       id
       name
       icon
       enabled
-      compilable
+      validation {
+        valid
+        issues {
+          code
+          path
+          nodeId
+          severity
+          message
+        }
+      }
       definitions
       nodes {
         id
         type
-        config
+        config {
+          ...AutomationConfigFields
+        }
         positionX
         positionY
         runtimeState
@@ -35,6 +47,7 @@ export const AUTOMATION_DETAIL_QUERY = graphql(`
 export const EFFECT_DETAIL_QUERY = graphql(`
   query EffectEdit($id: ID!) {
     effect(id: $id) {
+      revision
       id
       name
       icon
@@ -53,7 +66,9 @@ export const EFFECT_DETAIL_QUERY = graphql(`
           transitionMinMs
           transitionMaxMs
           kind
-          config
+          config {
+            ...EffectClipConfigFields
+          }
         }
       }
     }

@@ -38,7 +38,7 @@ func (q *Queries) BumpUserTokenVersion(ctx context.Context, id string) error {
 }
 
 const clearUserAvatar = `-- name: ClearUserAvatar :exec
-UPDATE users SET avatar_path = NULL WHERE id = ?
+UPDATE users SET avatar_path = NULL, revision=revision+1 WHERE id = ?
 `
 
 func (q *Queries) ClearUserAvatar(ctx context.Context, id string) error {
@@ -158,12 +158,13 @@ func (q *Queries) GetUserAvatarPathsByIDs(ctx context.Context, idsJson string) (
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, language, must_change_password, token_version, created_at
+SELECT revision, id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, language, must_change_password, token_version, created_at
 FROM users
 WHERE id = ?
 `
 
 type GetUserByIDRow struct {
+	Revision           int64
 	ID                 string
 	Username           string
 	Name               string
@@ -183,6 +184,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, e
 	row := q.db.QueryRowContext(ctx, getUserByID, id)
 	var i GetUserByIDRow
 	err := row.Scan(
+		&i.Revision,
 		&i.ID,
 		&i.Username,
 		&i.Name,
@@ -201,12 +203,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, e
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, language, must_change_password, token_version, created_at
+SELECT revision, id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, language, must_change_password, token_version, created_at
 FROM users
 WHERE username = ?
 `
 
 type GetUserByUsernameRow struct {
+	Revision           int64
 	ID                 string
 	Username           string
 	Name               string
@@ -226,6 +229,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUs
 	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
 	var i GetUserByUsernameRow
 	err := row.Scan(
+		&i.Revision,
 		&i.ID,
 		&i.Username,
 		&i.Name,
@@ -244,12 +248,13 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUs
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, language, must_change_password, token_version, created_at
+SELECT revision, id, username, name, password_hash, avatar_path, theme, time_format, temperature_unit, haptics_enabled, language, must_change_password, token_version, created_at
 FROM users
 ORDER BY created_at ASC
 `
 
 type ListUsersRow struct {
+	Revision           int64
 	ID                 string
 	Username           string
 	Name               string
@@ -275,6 +280,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 	for rows.Next() {
 		var i ListUsersRow
 		if err := rows.Scan(
+			&i.Revision,
 			&i.ID,
 			&i.Username,
 			&i.Name,
@@ -300,6 +306,20 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const setUserAvatar = `-- name: SetUserAvatar :exec
+UPDATE users SET avatar_path=?, revision=revision+1 WHERE id=?
+`
+
+type SetUserAvatarParams struct {
+	AvatarPath *string
+	ID         string
+}
+
+func (q *Queries) SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) error {
+	_, err := q.db.ExecContext(ctx, setUserAvatar, arg.AvatarPath, arg.ID)
+	return err
 }
 
 const setUserMustChangePassword = `-- name: SetUserMustChangePassword :exec
@@ -330,43 +350,46 @@ func (q *Queries) UpdateUserPasswordHash(ctx context.Context, arg UpdateUserPass
 	return err
 }
 
-const updateUserProfile = `-- name: UpdateUserProfile :exec
+const updateUserProfile = `-- name: UpdateUserProfile :execrows
 UPDATE users SET
+ revision=revision+1,
     name             = COALESCE(?1,             name),
     theme            = COALESCE(?2,            theme),
-    avatar_path      = COALESCE(?3,      avatar_path),
-    time_format      = COALESCE(?4,      time_format),
-    temperature_unit = COALESCE(?5, temperature_unit),
-    haptics_enabled   = COALESCE(?6,   haptics_enabled),
-    language          = COALESCE(?7,          language)
-WHERE id = ?8
+    time_format      = COALESCE(?3,      time_format),
+    temperature_unit = COALESCE(?4, temperature_unit),
+    haptics_enabled   = COALESCE(?5,   haptics_enabled),
+    language          = COALESCE(?6,          language)
+WHERE id = ?7 AND revision=?8
 `
 
 type UpdateUserProfileParams struct {
-	Name            *string
-	Theme           *string
-	AvatarPath      *string
-	TimeFormat      *string
-	TemperatureUnit *string
-	HapticsEnabled  *bool
-	Language        *string
-	ID              string
+	Name             *string
+	Theme            *string
+	TimeFormat       *string
+	TemperatureUnit  *string
+	HapticsEnabled   *bool
+	Language         *string
+	ID               string
+	ExpectedRevision int64
 }
 
 // Partial update of mutable profile fields. Nil narg values leave their column
 // untouched. avatar_path can be set to a value here but cannot be cleared to
 // NULL; use ClearUserAvatar for that (COALESCE cannot distinguish "leave alone"
 // from "set to NULL"). theme is constrained by a CHECK in the migration.
-func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error {
-	_, err := q.db.ExecContext(ctx, updateUserProfile,
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateUserProfile,
 		arg.Name,
 		arg.Theme,
-		arg.AvatarPath,
 		arg.TimeFormat,
 		arg.TemperatureUnit,
 		arg.HapticsEnabled,
 		arg.Language,
 		arg.ID,
+		arg.ExpectedRevision,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

@@ -63,7 +63,7 @@ func TestUpdateUserLanguagePreference(t *testing.T) {
 	}
 
 	russian := "ru"
-	u, err = s.UpdateUserProfile(ctx, UpdateUserProfileParams{ID: u.ID, Language: &russian})
+	u, err = s.UpdateUserProfile(ctx, UpdateUserProfileParams{ID: u.ID, ExpectedRevision: u.Revision, Language: &russian})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestUpdateUserLanguagePreference(t *testing.T) {
 	}
 
 	name := "Alice Updated"
-	u, err = s.UpdateUserProfile(ctx, UpdateUserProfileParams{ID: u.ID, Name: &name})
+	u, err = s.UpdateUserProfile(ctx, UpdateUserProfileParams{ID: u.ID, ExpectedRevision: u.Revision, Name: &name})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestUpdateUserHapticsPreference(t *testing.T) {
 	}
 
 	disabled := false
-	u, err = s.UpdateUserProfile(ctx, UpdateUserProfileParams{ID: u.ID, HapticsEnabled: &disabled})
+	u, err = s.UpdateUserProfile(ctx, UpdateUserProfileParams{ID: u.ID, ExpectedRevision: u.Revision, HapticsEnabled: &disabled})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +101,7 @@ func TestUpdateUserHapticsPreference(t *testing.T) {
 	}
 
 	name := "Alice Updated"
-	u, err = s.UpdateUserProfile(ctx, UpdateUserProfileParams{ID: u.ID, Name: &name})
+	u, err = s.UpdateUserProfile(ctx, UpdateUserProfileParams{ID: u.ID, ExpectedRevision: u.Revision, Name: &name})
 	if err != nil {
 		t.Fatal(err)
 	}

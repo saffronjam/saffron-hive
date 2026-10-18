@@ -71,16 +71,18 @@ type CreateSceneParams struct {
 // SetIcon distinguishes "leave icon alone" (false) from "set icon to this value"
 // (true, with Icon either a pointer to the new value or nil to clear the column).
 type UpdateSceneParams struct {
-	Name       *string
-	SetIcon    bool
-	Icon       *string
-	Definition *SceneDefinition
+	ExpectedRevision int64
+	Name             *string
+	SetIcon          bool
+	Icon             *string
+	Definition       *SceneDefinition
 }
 
 // Scene represents a scene row. ActivatedAt is non-nil while its runtime owns
 // the current resolved member set and every owned state field matches the
 // Scene output.
 type Scene struct {
+	Revision    int64
 	ID          string
 	Name        string
 	Icon        *string
@@ -204,6 +206,8 @@ type ActiveSceneRun struct {
 
 // CreateAutomationParams holds the parameters for creating an automation.
 type CreateAutomationParams struct {
+	Nodes       []CreateAutomationNodeParams
+	Edges       []CreateAutomationEdgeParams
 	ID          string
 	Name        string
 	Enabled     bool
@@ -214,19 +218,23 @@ type CreateAutomationParams struct {
 // UpdateAutomationParams holds optional fields for updating an automation.
 // SetIcon distinguishes "leave icon alone" from "set icon to this value" (nil clears the column).
 type UpdateAutomationParams struct {
-	Name        *string
-	SetIcon     bool
-	Icon        *string
-	Enabled     *bool
-	Definitions *string
+	ExpectedRevision int64
+	Nodes            *[]CreateAutomationNodeParams
+	Edges            *[]CreateAutomationEdgeParams
+	Name             *string
+	SetIcon          bool
+	Icon             *string
+	Enabled          *bool
+	Definitions      *string
 }
 
 // Automation represents an automation row.
 type Automation struct {
-	ID      string
-	Name    string
-	Icon    *string
-	Enabled bool
+	Revision int64
+	ID       string
+	Name     string
+	Icon     *string
+	Enabled  bool
 	// Definitions holds the automation's named macros as a JSON object in
 	// their compiled form; see automation.Definitions.
 	Definitions string
@@ -283,6 +291,7 @@ type AutomationGraph struct {
 // WebhookEndpoint is an externally callable event source. SecretHash is kept
 // out of this domain type so authenticated read paths cannot expose it.
 type WebhookEndpoint struct {
+	Revision          int64
 	ID                string
 	Name              string
 	Enabled           bool
@@ -318,6 +327,7 @@ type CreateWebhookEndpointParams struct {
 
 // UpdateWebhookEndpointParams replaces the editable endpoint fields.
 type UpdateWebhookEndpointParams struct {
+	ExpectedRevision  int64
 	ID                string
 	Name              string
 	Enabled           bool
@@ -362,6 +372,7 @@ type CreateGroupParams struct {
 
 // Group represents a group row.
 type Group struct {
+	Revision        int64
 	ID              string
 	Name            *string
 	FriendlyName    string
@@ -398,13 +409,15 @@ const (
 // SetTags likewise distinguishes "leave tags alone" from "replace tags with this set"
 // (nil/empty Tags clears all tags when SetTags is true).
 type UpdateGroupParams struct {
-	ID      string
-	Name    *string
-	SetName bool
-	SetIcon bool
-	Icon    *string
-	SetTags bool
-	Tags    []device.GroupTag
+	Members          *[]Membership
+	ExpectedRevision int64
+	ID               string
+	Name             *string
+	SetName          bool
+	SetIcon          bool
+	Icon             *string
+	SetTags          bool
+	Tags             []device.GroupTag
 }
 
 // AddGroupMemberParams holds the parameters for adding a group member.
@@ -472,6 +485,7 @@ type StateHistoryPoint struct {
 // ScanHour/ScanMinute stay set while the schedule is disabled so re-enabling
 // restores the chosen time; nil means never set.
 type Zigbee2MQTTConfig struct {
+	Revision                     int64
 	Broker                       string
 	FrontendURL                  *string
 	Username                     string
@@ -487,6 +501,7 @@ type Zigbee2MQTTConfig struct {
 
 // TuyaConfig represents the singleton Tuya cloud integration configuration.
 type TuyaConfig struct {
+	Revision     int64
 	AccessID     string
 	AccessSecret string
 	Region       string
@@ -495,8 +510,9 @@ type TuyaConfig struct {
 
 // Setting represents a key-value setting row.
 type Setting struct {
-	Key   string
-	Value string
+	Revision int64
+	Key      string
+	Value    string
 }
 
 // CreateRoomParams holds the parameters for creating a new room.
@@ -508,6 +524,7 @@ type CreateRoomParams struct {
 
 // Room represents a room row.
 type Room struct {
+	Revision  int64
 	ID        string
 	Name      string
 	Icon      *string
@@ -519,10 +536,12 @@ type Room struct {
 // UpdateRoomParams holds the parameters for updating a room.
 // SetIcon distinguishes "leave icon alone" from "set icon to this value" (nil clears the column).
 type UpdateRoomParams struct {
-	ID      string
-	Name    string
-	SetIcon bool
-	Icon    *string
+	Members          *[]Membership
+	ExpectedRevision int64
+	ID               string
+	Name             string
+	SetIcon          bool
+	Icon             *string
 }
 
 // AddRoomMemberParams holds the parameters for adding a member to a room.
@@ -590,6 +609,7 @@ type Guest struct {
 // password reset, or explicit force-logout — the auth middleware compares it
 // against the value embedded in the JWT and refuses mismatched tokens.
 type User struct {
+	Revision           int64
 	ID                 string
 	Username           string
 	Name               string
@@ -609,14 +629,14 @@ type User struct {
 // Nil fields leave the corresponding column untouched. AvatarPath cannot clear
 // the column to NULL here — use ClearUserAvatar for that.
 type UpdateUserProfileParams struct {
-	ID              string
-	Name            *string
-	Theme           *string
-	AvatarPath      *string
-	TimeFormat      *string
-	TemperatureUnit *string
-	HapticsEnabled  *bool
-	Language        *string
+	ExpectedRevision int64
+	ID               string
+	Name             *string
+	Theme            *string
+	TimeFormat       *string
+	TemperatureUnit  *string
+	HapticsEnabled   *bool
+	Language         *string
 }
 
 // UserRef is the lightweight creator reference embedded into other rows via
@@ -736,7 +756,7 @@ type InsertAlarmParams struct {
 
 // CreateEffectParams holds the parameters for creating a new effect. Tracks is
 // optional at create time; callers can populate the timeline later via
-// SaveEffectTracks.
+// saveEffectTracks.
 type CreateEffectParams struct {
 	ID         string
 	Name       string
@@ -754,14 +774,16 @@ type CreateEffectParams struct {
 // "leave alone" from "set / clear" so the nullable columns can be cleared
 // explicitly without conflating with "no-op".
 type UpdateEffectParams struct {
-	Name          *string
-	SetIcon       bool
-	Icon          *string
-	Kind          *effect.Kind
-	SetNativeName bool
-	NativeName    *string
-	Loop          *bool
-	DurationMs    *int
+	ExpectedRevision int64
+	Tracks           *[]EffectTrackInput
+	Name             *string
+	SetIcon          bool
+	Icon             *string
+	Kind             *effect.Kind
+	SetNativeName    bool
+	NativeName       *string
+	Loop             *bool
+	DurationMs       *int
 }
 
 // EffectTrackInput is one track in a save-effect-tracks batch. The caller
@@ -789,7 +811,7 @@ type EffectClipInput struct {
 
 // EffectClip is the persistence-layer representation of a single clip on a
 // track. ConfigJSON is the raw on-disk JSON; callers parse it with
-// effect.UnmarshalClipConfig.
+// effect.DecodeClipConfig.
 type EffectClip struct {
 	ID              string
 	TrackID         string
@@ -815,6 +837,7 @@ type EffectTrack struct {
 // its track list. Frontend / runtime code maps this to the domain effect.Effect
 // (with parsed ClipConfig payloads).
 type Effect struct {
+	Revision   int64
 	ID         string
 	Name       string
 	Icon       *string
@@ -831,6 +854,7 @@ type Effect struct {
 // Floorplan is a full floor plan: the plan row plus its wall graph, the gaps
 // cut into it, derived room faces, and placements. World units are meters.
 type Floorplan struct {
+	Revision     int64
 	ID           string
 	Name         string
 	CreatedAt    time.Time
@@ -951,13 +975,31 @@ type FloorplanFurniture struct {
 // ReplaceFloorplanParams bundles the whole plan for a single-transaction
 // replace: the plan row is upserted and every child list is swapped.
 type ReplaceFloorplanParams struct {
-	ID           string
-	Name         string
-	Vertices     []FloorplanVertex
-	Walls        []FloorplanWall
-	Openings     []FloorplanOpening
-	DoorBindings []FloorplanDoorBinding
-	Rooms        []FloorplanRoom
-	Placements   []FloorplanPlacement
-	Furniture    []FloorplanFurniture
+	ExpectedRevision int64
+	ID               string
+	Name             string
+	Vertices         []FloorplanVertex
+	Walls            []FloorplanWall
+	Openings         []FloorplanOpening
+	DoorBindings     []FloorplanDoorBinding
+	Rooms            []FloorplanRoom
+	Placements       []FloorplanPlacement
+	Furniture        []FloorplanFurniture
+}
+
+// UpdateDeviceMetadataParams carries an optional patch of user-owned metadata.
+type UpdateDeviceMetadataParams struct {
+	ExpectedRevision int64
+	ID               device.DeviceID
+	SetName          bool
+	Name             *string
+	SetIcon          bool
+	Icon             *string
+	SetColor         bool
+	Color            *string
+	SetBrightness    bool
+	Brightness       *int64
+	SetRoles         bool
+	Roles            device.DeviceRoles
+	Disabled         *bool
 }

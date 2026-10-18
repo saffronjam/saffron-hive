@@ -3,14 +3,15 @@
 	import CompactNode from "./compact-node.svelte";
 	import { summarizeTrigger } from "./automation-summary";
 	import type { TriggerConfig } from "./trigger-expr";
-	import type { GraphNodeData } from "./node-data";
+	import { getGraphEditorContext, type GraphNodeData } from "./node-data";
 	import { formatShortDuration } from "$lib/i18n/format";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
 
 	let { data, id }: { data: GraphNodeData<TriggerConfig>; id: string } = $props();
+	const editor = getGraphEditorContext();
 
-	const summary = $derived(summarizeTrigger(data.config, data.lookups()));
+	const summary = $derived(summarizeTrigger(data.config, editor.lookups()));
 
 	let clock = $state(Date.now());
 	const pendingMs = $derived(
@@ -44,11 +45,11 @@
 	summary={summary.text}
 	invalid={summary.invalid}
 	activated={data.activated}
-	active={data.isActive()}
+	active={editor.isActive(id)}
 	align="right"
 	hasInput={false}
 	hasOutput
-	onActivate={data.onActivate}
+	onActivate={editor.activate}
 >
 	{#snippet badge()}
 		{#if pendingMs !== null && pendingMs > 0}

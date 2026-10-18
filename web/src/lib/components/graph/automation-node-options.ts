@@ -115,6 +115,5 @@ export function operatorOptions(): readonly { value: string; label: string }[] {
   return [
     { value: "AND", label: m.automation_operator_and({}, options) },
     { value: "OR", label: m.automation_operator_or({}, options) },
-    { value: "NOT", label: m.automation_operator_not({}, options) },
   ];
 }

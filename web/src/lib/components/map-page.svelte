@@ -1,4 +1,6 @@
 <script lang="ts">
+ import { createEditorRefresh } from "$lib/editor-refresh.svelte";
+ import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
 	import { onDestroy, onMount, tick } from "svelte";
 	import { fly } from "svelte/transition";
 	import { formatRelative } from "$lib/time-format";
@@ -226,6 +228,7 @@
 	let saving = $state(false);
 	let editMode = $state(true);
 	let planId = $state("");
+ let savedRevision=$state(0);
 	let planName: string = $state(m.map_default_name());
 	let graph = $state<PlanGraph>({ vertices: [], walls: [] });
 	let rooms = $state<PlanRoomMeta[]>([]);
@@ -919,6 +922,7 @@
 
 	/** A device's map appearance while it has none of its own to report. */
 	interface DeviceDisplay {
+ expectedRevision: number;
 		color: string | null;
 		brightness: number | null;
 	}
@@ -1699,7 +1703,7 @@
 	}
 
 	async function handleSave() {
-		if (saving || !isDirty) return;
+		if (refreshGuard.conflict || saving || !isDirty) return;
 		saving = true;
 		try {
 			const input = buildUpdateFloorplanInput(
@@ -1712,7 +1716,8 @@
 				doorBindings,
 			);
 			try {
-				await floorplanStore.save(client, input);
+				const savedPlan=await floorplanStore.save(client, {...input,expectedRevision:savedRevision});
+ savedRevision=savedPlan.revision;refreshGuard.accept(savedPlan);
 			} catch (e) {
 				errors.setWithAutoDismiss(graphqlErrorMessage(e, m.map_error_save()));
 				return;
@@ -1747,14 +1752,16 @@
 			const result = await client
 				.mutation(SET_DISPLAY_COLOR, {
 					id,
-					input: { displayColor: edit.color, displayBrightness: edit.brightness },
+					input: { expectedRevision:edit.expectedRevision, displayColor: edit.color, displayBrightness: edit.brightness },
 				})
 				.toPromise();
 			if (result.error) {
 				return graphqlErrorMessage(result.error, m.map_error_display_color());
 			}
-			deviceStore.updateDisplayColor(id, edit.color);
-			deviceStore.updateDisplayBrightness(id, edit.brightness);
+			if (result.data) {
+ deviceStore.updateMetadata(id, result.data.updateDevice);
+ deviceDisplay = { ...deviceDisplay, [id]: { ...edit, expectedRevision: result.data.updateDevice.revision } };
+ }
 		}
 		return null;
 	}
@@ -1937,6 +1944,7 @@
 		changedDisplay = true;
 		const device = deviceById.get(deviceId);
 		const current = deviceDisplay[deviceId] ?? {
+ expectedRevision: device?.revision ?? 0,
 			color: device?.displayColor ?? null,
 			brightness: device?.displayBrightness ?? null,
 		};
@@ -2137,11 +2145,9 @@
 		}
 	}
 
-	onMount(async () => {
-		if (floorplanStore.error) {
-			errors.setWithAutoDismiss(floorplanStore.error);
-		}
-		const plan = floorplanStore.current;
+ function applyPlan(plan: typeof floorplanStore.current) {
+ savedRevision=plan?.revision??0;
+
 		if (plan) {
 			const converted = floorplanToGraph(plan);
 			planId = plan.id;
@@ -2153,10 +2159,20 @@
 			furniture = converted.furniture;
 		} else {
 			planId = newPlanId();
+ planName=m.map_default_name();graph={vertices:[],walls:[]};rooms=[];placements=[];doorBindings=[];furniture=[];
 		}
 		history.reset(cloneSnapshot());
 		savedCursor = history.cursor;
 		savedSnapshot = cloneSnapshot();
+ }
+ const refreshGuard=createEditorRefresh({
+  read:async()=>{await floorplanStore.refresh(client);if(floorplanStore.error)throw new Error(floorplanStore.error);return floorplanStore.current;},
+  apply:applyPlan,dirty:()=>isDirty,busy:()=>saving||loading,
+ });
+ onMount(async () => {
+  if(floorplanStore.error)errors.setWithAutoDismiss(floorplanStore.error);
+  applyPlan(floorplanStore.current);refreshGuard.accept(floorplanStore.current);
+
 		// The map's day-to-day job is being looked at, not edited: a plan with
 		// anything on it opens Live; only a blank plan opens in Edit.
 		editMode = graph.walls.length === 0 && rooms.length === 0;
@@ -2249,7 +2265,7 @@
 						label: m.common_save(),
 						saving,
 						onclick: handleSave,
-						disabled: saving || !isDirty,
+						disabled: refreshGuard.conflict || saving || !isDirty,
 						hideLabelOnMobile: true,
 					},
 				]
@@ -2387,6 +2403,7 @@
 	onpointermove={externalDrag ? moveExternalDrag : undefined}
 	onpointerup={externalDrag ? endExternalDrag : undefined}
 />
+{#if refreshGuard.conflict}<ExternalChangeBanner onreload={() => { void refreshGuard.refresh(true); }} />{/if}
 <UnsavedGuard dirty={isDirty} blockNavigation={false} />
 
 <div class="flex h-[calc(100vh-6rem)] flex-col">

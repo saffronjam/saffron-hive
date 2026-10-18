@@ -25,6 +25,23 @@ func (q *Queries) BatchDeleteScenes(ctx context.Context, idsJson string) (int64,
 	return result.RowsAffected()
 }
 
+const claimSceneRevision = `-- name: ClaimSceneRevision :execrows
+UPDATE scenes SET revision = revision + 1 WHERE id = ?1 AND revision = ?2
+`
+
+type ClaimSceneRevisionParams struct {
+	ID               string
+	ExpectedRevision int64
+}
+
+func (q *Queries) ClaimSceneRevision(ctx context.Context, arg ClaimSceneRevisionParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, claimSceneRevision, arg.ID, arg.ExpectedRevision)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const clearSceneIcon = `-- name: ClearSceneIcon :exec
 UPDATE scenes SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 `
@@ -111,7 +128,7 @@ func (q *Queries) DeleteSceneTargetsExcept(ctx context.Context, arg DeleteSceneT
 }
 
 const getScene = `-- name: GetScene :one
-SELECT s.id, s.name, s.icon, s.created_at, s.updated_at, r.started_at AS activated_at,
+SELECT s.revision, s.id, s.name, s.icon, s.created_at, s.updated_at, r.started_at AS activated_at,
        u.id AS creator_id, u.username AS creator_username, u.name AS creator_name
 FROM scenes s
 LEFT JOIN users u ON u.id = s.created_by
@@ -120,6 +137,7 @@ WHERE s.id = ?
 `
 
 type GetSceneRow struct {
+	Revision        int64
 	ID              string
 	Name            string
 	Icon            *string
@@ -135,6 +153,7 @@ func (q *Queries) GetScene(ctx context.Context, id string) (GetSceneRow, error) 
 	row := q.db.QueryRowContext(ctx, getScene, id)
 	var i GetSceneRow
 	err := row.Scan(
+		&i.Revision,
 		&i.ID,
 		&i.Name,
 		&i.Icon,
@@ -494,7 +513,7 @@ func (q *Queries) ListSceneTargets(ctx context.Context, sceneID string) ([]Scene
 }
 
 const listScenes = `-- name: ListScenes :many
-SELECT s.id, s.name, s.icon, s.created_at, s.updated_at, r.started_at AS activated_at,
+SELECT s.revision, s.id, s.name, s.icon, s.created_at, s.updated_at, r.started_at AS activated_at,
        u.id AS creator_id, u.username AS creator_username, u.name AS creator_name
 FROM scenes s
 LEFT JOIN users u ON u.id = s.created_by
@@ -503,6 +522,7 @@ ORDER BY s.created_at, s.id
 `
 
 type ListScenesRow struct {
+	Revision        int64
 	ID              string
 	Name            string
 	Icon            *string
@@ -524,6 +544,7 @@ func (q *Queries) ListScenes(ctx context.Context) ([]ListScenesRow, error) {
 	for rows.Next() {
 		var i ListScenesRow
 		if err := rows.Scan(
+			&i.Revision,
 			&i.ID,
 			&i.Name,
 			&i.Icon,

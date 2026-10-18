@@ -7,7 +7,7 @@ INSERT INTO automations (id, name, enabled, definitions, created_by)
 VALUES (?, ?, ?, ?, ?);
 
 -- name: GetAutomation :one
-SELECT a.id, a.name, a.icon, a.enabled, a.definitions, a.last_fired_at, a.created_at, a.updated_at,
+SELECT a.revision, a.id, a.name, a.icon, a.enabled, a.definitions, a.last_fired_at, a.created_at, a.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -16,7 +16,7 @@ LEFT JOIN users u ON u.id = a.created_by
 WHERE a.id = ?;
 
 -- name: ListAutomations :many
-SELECT a.id, a.name, a.icon, a.enabled, a.definitions, a.last_fired_at, a.created_at, a.updated_at,
+SELECT a.revision, a.id, a.name, a.icon, a.enabled, a.definitions, a.last_fired_at, a.created_at, a.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -24,7 +24,7 @@ FROM automations a
 LEFT JOIN users u ON u.id = a.created_by;
 
 -- name: ListEnabledAutomations :many
-SELECT a.id, a.name, a.icon, a.enabled, a.definitions, a.last_fired_at, a.created_at, a.updated_at,
+SELECT a.revision, a.id, a.name, a.icon, a.enabled, a.definitions, a.last_fired_at, a.created_at, a.updated_at,
        u.id   AS creator_id,
        u.username AS creator_username,
        u.name AS creator_name
@@ -49,8 +49,7 @@ WHERE id = sqlc.arg('id');
 -- name: ClearAutomationIcon :exec
 UPDATE automations SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 
--- name: UpdateAutomationEnabled :exec
-UPDATE automations SET enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
+
 
 -- name: UpdateAutomationLastFired :exec
 -- Stamps when the automation most recently fired. updated_at is intentionally
@@ -87,3 +86,6 @@ WHERE automation_id = ?;
 
 -- name: DeleteAutomationEdgesByAutomation :exec
 DELETE FROM automation_edges WHERE automation_id = ?;
+
+-- name: ClaimAutomationRevision :execrows
+UPDATE automations SET revision = revision + 1 WHERE id = sqlc.arg('id') AND revision = sqlc.arg('expected_revision');

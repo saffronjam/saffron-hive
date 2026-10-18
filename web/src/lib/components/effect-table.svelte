@@ -27,6 +27,7 @@
 	}
 
 	interface EffectTableEffect {
+ revision:number;
 		id: string;
 		name: string;
 		source: string;

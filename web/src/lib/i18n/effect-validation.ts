@@ -4,6 +4,7 @@ import type { EffectValidationCode } from "$lib/effect-editable";
 
 const messages = {
   name_required: m.effect_validation_name_required,
+  loop_duration_positive: m.effect_validation_loop_duration_positive,
   duration_negative: m.effect_validation_duration_negative,
   clip_start_negative: m.effect_validation_clip_start_negative,
   clip_transition_invalid: m.effect_validation_transition_invalid,

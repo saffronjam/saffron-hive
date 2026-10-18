@@ -26,6 +26,7 @@ afterEach(async () => {
 describe("ZigbeeDeviceInfoCard", () => {
   it("reserves the image column while Zigbee metadata loads", () => {
     const device: Device = {
+    revision: 1,
       id: "0x123",
       name: "Hallway switch",
       friendlyName: "Hallway switch",
@@ -51,6 +52,7 @@ describe("ZigbeeDeviceInfoCard", () => {
 
   it("renders compact device status", () => {
     const device: Device = {
+    revision: 1,
       id: "0x123",
       name: "Hallway switch",
       friendlyName: "Hallway switch",
@@ -81,6 +83,7 @@ describe("ZigbeeDeviceInfoCard", () => {
 
   it("renders normalized Zigbee status labels", () => {
     const device: Device = {
+    revision: 1,
       id: "0x123",
       name: null,
       friendlyName: "Bedroom sensor",
@@ -122,6 +125,7 @@ describe("ZigbeeDeviceInfoCard", () => {
 
   it("identifies unsupported Zigbee devices", () => {
     const device: Device = {
+    revision: 1,
       id: "0x123",
       name: null,
       friendlyName: "Unsupported device",
@@ -153,6 +157,7 @@ describe("ZigbeeDeviceInfoCard", () => {
 
   it("renders battery type as plain text below the power source", () => {
     const device: Device = {
+    revision: 1,
       id: "0x123",
       name: null,
       friendlyName: "Bedroom sensor",
@@ -191,6 +196,7 @@ describe("ZigbeeDeviceInfoCard", () => {
 
   it("omits battery type when documentation has no confident value", () => {
     const device: Device = {
+    revision: 1,
       id: "0x123",
       name: null,
       friendlyName: "Bedroom sensor",
@@ -221,6 +227,7 @@ describe("ZigbeeDeviceInfoCard", () => {
 
   it("renders coordinator bridge diagnostics", () => {
     const device: Device = {
+    revision: 1,
       id: "0x00124b0000000000",
       name: null,
       friendlyName: "Coordinator",

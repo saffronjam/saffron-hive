@@ -224,7 +224,7 @@ func TestIncomingWebhookDisableAndRotateInvalidateCredentials(t *testing.T) {
 	if got := serveWebhook(service, http.MethodPost, endpoint.SecretPath, "application/json", []byte(`{}`), nil).Code; got != http.StatusNotFound {
 		t.Fatalf("rotated credential status = %d", got)
 	}
-	updated, err := db.UpdateWebhookEndpoint(context.Background(), store.UpdateWebhookEndpointParams{
+	updated, err := db.UpdateWebhookEndpoint(context.Background(), store.UpdateWebhookEndpointParams{ExpectedRevision: rotated.Endpoint.Revision,
 		ID:                endpoint.Endpoint.ID,
 		Name:              endpoint.Endpoint.Name,
 		Enabled:           false,

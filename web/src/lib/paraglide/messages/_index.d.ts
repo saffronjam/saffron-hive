@@ -1333,6 +1333,552 @@ export const alarms_title: ((inputs?: Alarms_TitleInputs, options?: {
 /**
 * | output |
 * | --- |
+* | "I understand the consequences and want to continue." |
+*
+* @param {Assistant_AcknowledgeInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_acknowledge: ((inputs?: Assistant_AcknowledgeInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_AcknowledgeInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Attach images" |
+*
+* @param {Assistant_AttachInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_attach: ((inputs?: Assistant_AttachInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_AttachInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Understanding your request" |
+*
+* @param {Assistant_ClassifyingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_classifying: ((inputs?: Assistant_ClassifyingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_ClassifyingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Completed" |
+*
+* @param {Assistant_CompletedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_completed: ((inputs?: Assistant_CompletedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_CompletedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Configure Claude" |
+*
+* @param {Assistant_ConfigureInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_configure: ((inputs?: Assistant_ConfigureInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_ConfigureInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Continue" |
+*
+* @param {Assistant_ContinueInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_continue: ((inputs?: Assistant_ContinueInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_ContinueInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Delete chat" |
+*
+* @param {Assistant_DeleteInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_delete: ((inputs?: Assistant_DeleteInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_DeleteInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "This removes this chat and its images. Changes already made to your home are kept." |
+*
+* @param {Assistant_Delete_DescriptionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_delete_description: ((inputs?: Assistant_Delete_DescriptionInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_Delete_DescriptionInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Chat with Claude to manage your home." |
+*
+* @param {Assistant_DescriptionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_description: ((inputs?: Assistant_DescriptionInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_DescriptionInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Enable Claude in Integrations to start a chat." |
+*
+* @param {Assistant_DisabledInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_disabled: ((inputs?: Assistant_DisabledInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_DisabledInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "What would you like your home to do?" |
+*
+* @param {Assistant_EmptyInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_empty: ((inputs?: Assistant_EmptyInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_EmptyInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Could not complete the request. Please try again." |
+*
+* @param {Assistant_ErrorInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_error: ((inputs?: Assistant_ErrorInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_ErrorInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Applying changes" |
+*
+* @param {Assistant_ExecutingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_executing: ((inputs?: Assistant_ExecutingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_ExecutingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Failed" |
+*
+* @param {Assistant_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_failed: ((inputs?: Assistant_FailedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_FailedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Set up an automation, create a scene from a photo, or check your lights." |
+*
+* @param {Assistant_HintInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_hint: ((inputs?: Assistant_HintInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_HintInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Your chats" |
+*
+* @param {Assistant_HistoryInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_history: ((inputs?: Assistant_HistoryInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_HistoryInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Attach up to four JPEG, PNG or WebP images." |
+*
+* @param {Assistant_Image_LimitInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_image_limit: ((inputs?: Assistant_Image_LimitInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_Image_LimitInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Interrupted. Completed actions are kept; send a message to continue." |
+*
+* @param {Assistant_InterruptedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_interrupted: ((inputs?: Assistant_InterruptedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_InterruptedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Leave empty to use the automatic name." |
+*
+* @param {Assistant_Name_HintInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_name_hint: ((inputs?: Assistant_Name_HintInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_Name_HintInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "New chat" |
+*
+* @param {Assistant_NewInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_new: ((inputs?: Assistant_NewInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_NewInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Ask Hive…" |
+*
+* @param {Assistant_PlaceholderInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_placeholder: ((inputs?: Assistant_PlaceholderInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_PlaceholderInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Only you can see these chats." |
+*
+* @param {Assistant_PrivateInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_private: ((inputs?: Assistant_PrivateInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_PrivateInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "These values are sent directly to Hive and are hidden from Claude." |
+*
+* @param {Assistant_Private_InputInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_private_input: ((inputs?: Assistant_Private_InputInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_Private_InputInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Queued" |
+*
+* @param {Assistant_QueuedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_queued: ((inputs?: Assistant_QueuedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_QueuedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Checking…" |
+*
+* @param {Assistant_ReadingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_reading: ((inputs?: Assistant_ReadingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_ReadingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Decline" |
+*
+* @param {Assistant_RejectInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_reject: ((inputs?: Assistant_RejectInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_RejectInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Declined" |
+*
+* @param {Assistant_RejectedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_rejected: ((inputs?: Assistant_RejectedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_RejectedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Remove image" |
+*
+* @param {Assistant_Remove_ImageInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_remove_image: ((inputs?: Assistant_Remove_ImageInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_Remove_ImageInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Rename chat" |
+*
+* @param {Assistant_RenameInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_rename: ((inputs?: Assistant_RenameInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_RenameInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Waiting for Claude" |
+*
+* @param {Assistant_RetryingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_retrying: ((inputs?: Assistant_RetryingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_RetryingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Reveal private result (available for 10 minutes)" |
+*
+* @param {Assistant_RevealInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_reveal: ((inputs?: Assistant_RevealInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_RevealInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Send message" |
+*
+* @param {Assistant_SendInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_send: ((inputs?: Assistant_SendInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_SendInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "The affected items changed. This approval has expired." |
+*
+* @param {Assistant_StaleInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_stale: ((inputs?: Assistant_StaleInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_StaleInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Stop" |
+*
+* @param {Assistant_StopInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_stop: ((inputs?: Assistant_StopInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_StopInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Stopped" |
+*
+* @param {Assistant_StoppedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_stopped: ((inputs?: Assistant_StoppedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_StoppedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Working on your request" |
+*
+* @param {Assistant_ThinkingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_thinking: ((inputs?: Assistant_ThinkingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_ThinkingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Assistant" |
+*
+* @param {Assistant_TitleInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_title: ((inputs?: Assistant_TitleInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_TitleInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Waiting for your decision" |
+*
+* @param {Assistant_WaitingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_waiting: ((inputs?: Assistant_WaitingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_WaitingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Writing…" |
+*
+* @param {Assistant_WritingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_writing: ((inputs?: Assistant_WritingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_WritingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Printed to the server logs on first boot, or read {path} on the host." |
 *
 * @param {Auth_Bootstrap_HelpInputs} inputs
@@ -2733,6 +3279,34 @@ export const automation_condition_device_state_description: ((inputs?: Automatio
 /**
 * | output |
 * | --- |
+* | "Invert condition" |
+*
+* @param {Automation_Condition_InvertInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_condition_invert: ((inputs?: Automation_Condition_InvertInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Automation_Condition_InvertInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "NOT ({condition})" |
+*
+* @param {Automation_Condition_InvertedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_condition_inverted: ((inputs: Automation_Condition_InvertedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Automation_Condition_InvertedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Time window" |
 *
 * @param {Automation_Condition_Time_WindowInputs} inputs
@@ -3134,6 +3708,34 @@ export const automation_editor_unlock: ((inputs?: Automation_Editor_UnlockInputs
 export const automation_editor_visual: ((inputs?: Automation_Editor_VisualInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Automation_Editor_VisualInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Connect an input from a trigger path" |
+*
+* @param {Automation_Graph_Input_RequiredInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_graph_input_required: ((inputs?: Automation_Graph_Input_RequiredInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Automation_Graph_Input_RequiredInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Unsupported operator" |
+*
+* @param {Automation_Graph_Invalid_OperatorInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const automation_graph_invalid_operator: ((inputs?: Automation_Graph_Invalid_OperatorInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Automation_Graph_Invalid_OperatorInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -4198,20 +4800,6 @@ export const automation_operator_and: ((inputs?: Automation_Operator_AndInputs, 
 export const automation_operator_delay: ((inputs?: Automation_Operator_DelayInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Automation_Operator_DelayInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "NOT" |
-*
-* @param {Automation_Operator_NotInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const automation_operator_not: ((inputs?: Automation_Operator_NotInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Automation_Operator_NotInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -6508,6 +7096,160 @@ export const button_status: ((inputs?: Button_StatusInputs, options?: {
 /**
 * | output |
 * | --- |
+* | "Choose a model" |
+*
+* @param {Claude_Choose_ModelInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const claude_choose_model: ((inputs?: Claude_Choose_ModelInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Claude_Choose_ModelInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "2. Choose a model from the list provided by Claude." |
+*
+* @param {Claude_Connect_ModelInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const claude_connect_model: ((inputs?: Claude_Connect_ModelInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Claude_Connect_ModelInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "3. Enable and save the integration to make Assistant available in the sidebar." |
+*
+* @param {Claude_Connect_SaveInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const claude_connect_save: ((inputs?: Claude_Connect_SaveInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Claude_Connect_SaveInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "1. Run claude setup-token on your computer and paste the token here." |
+*
+* @param {Claude_Connect_TokenInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const claude_connect_token: ((inputs?: Claude_Connect_TokenInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Claude_Connect_TokenInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "How to connect" |
+*
+* @param {Claude_ConnectingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const claude_connecting: ((inputs?: Claude_ConnectingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Claude_ConnectingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Enable Claude" |
+*
+* @param {Claude_EnabledInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const claude_enabled: ((inputs?: Claude_EnabledInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Claude_EnabledInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Assistant model" |
+*
+* @param {Claude_ModelInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const claude_model: ((inputs?: Claude_ModelInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Claude_ModelInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Could not load Claude models. Try again." |
+*
+* @param {Claude_Models_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const claude_models_failed: ((inputs?: Claude_Models_FailedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Claude_Models_FailedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Test connection" |
+*
+* @param {Claude_TestInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const claude_test: ((inputs?: Claude_TestInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Claude_TestInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Setup token" |
+*
+* @param {Claude_TokenInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const claude_token: ((inputs?: Claude_TokenInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Claude_TokenInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Token saved — leave blank to keep it" |
+*
+* @param {Claude_Token_KeepInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const claude_token_keep: ((inputs?: Claude_Token_KeepInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Claude_Token_KeepInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Hue and saturation" |
 *
 * @param {Color_Picker_AriaInputs} inputs
@@ -7242,13 +7984,13 @@ export const contact_summary_multiple: ((inputs: Contact_Summary_MultipleInputs,
 * | role | state | output |
 * | --- | --- | --- |
 * | "door" | "open" | "Door open" |
-* | "window" | "open" | "Window open" |
-* | * | "open" | "Contact open" |
 * | "door" | "closed" | "Door closed" |
-* | "window" | "closed" | "Window closed" |
-* | * | "closed" | "Contact closed" |
 * | "door" | * | "Door unknown" |
+* | "window" | "open" | "Window open" |
+* | "window" | "closed" | "Window closed" |
 * | "window" | * | "Window unknown" |
+* | * | "open" | "Contact open" |
+* | * | "closed" | "Contact closed" |
 * | * | * | "Contact unknown" |
 *
 * @param {Contact_Summary_SingleInputs} inputs
@@ -8986,6 +9728,34 @@ export const devices_trigger_event: ((inputs: Devices_Trigger_EventInputs, optio
 /**
 * | output |
 * | --- |
+* | "This item changed elsewhere. Your unsaved edits are kept." |
+*
+* @param {Editor_Changed_ElsewhereInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const editor_changed_elsewhere: ((inputs?: Editor_Changed_ElsewhereInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Editor_Changed_ElsewhereInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Reload saved version (discard edits)" |
+*
+* @param {Editor_Reload_SavedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const editor_reload_saved: ((inputs?: Editor_Reload_SavedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Editor_Reload_SavedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Run" |
 *
 * @param {Effect_Action_RunInputs} inputs
@@ -9865,6 +10635,20 @@ export const effect_validation_config_invalid: ((inputs?: Effect_Validation_Conf
 export const effect_validation_duration_negative: ((inputs?: Effect_Validation_Duration_NegativeInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Effect_Validation_Duration_NegativeInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "A looping effect needs a positive duration." |
+*
+* @param {Effect_Validation_Loop_Duration_PositiveInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const effect_validation_loop_duration_positive: ((inputs?: Effect_Validation_Loop_Duration_PositiveInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Effect_Validation_Loop_Duration_PositiveInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -26313,6 +27097,45 @@ export type Alarms_Severity_HighInputs = {};
 export type Alarms_Severity_LowInputs = {};
 export type Alarms_Severity_MediumInputs = {};
 export type Alarms_TitleInputs = {};
+export type Assistant_AcknowledgeInputs = {};
+export type Assistant_AttachInputs = {};
+export type Assistant_ClassifyingInputs = {};
+export type Assistant_CompletedInputs = {};
+export type Assistant_ConfigureInputs = {};
+export type Assistant_ContinueInputs = {};
+export type Assistant_DeleteInputs = {};
+export type Assistant_Delete_DescriptionInputs = {};
+export type Assistant_DescriptionInputs = {};
+export type Assistant_DisabledInputs = {};
+export type Assistant_EmptyInputs = {};
+export type Assistant_ErrorInputs = {};
+export type Assistant_ExecutingInputs = {};
+export type Assistant_FailedInputs = {};
+export type Assistant_HintInputs = {};
+export type Assistant_HistoryInputs = {};
+export type Assistant_Image_LimitInputs = {};
+export type Assistant_InterruptedInputs = {};
+export type Assistant_Name_HintInputs = {};
+export type Assistant_NewInputs = {};
+export type Assistant_PlaceholderInputs = {};
+export type Assistant_PrivateInputs = {};
+export type Assistant_Private_InputInputs = {};
+export type Assistant_QueuedInputs = {};
+export type Assistant_ReadingInputs = {};
+export type Assistant_RejectInputs = {};
+export type Assistant_RejectedInputs = {};
+export type Assistant_Remove_ImageInputs = {};
+export type Assistant_RenameInputs = {};
+export type Assistant_RetryingInputs = {};
+export type Assistant_RevealInputs = {};
+export type Assistant_SendInputs = {};
+export type Assistant_StaleInputs = {};
+export type Assistant_StopInputs = {};
+export type Assistant_StoppedInputs = {};
+export type Assistant_ThinkingInputs = {};
+export type Assistant_TitleInputs = {};
+export type Assistant_WaitingInputs = {};
+export type Assistant_WritingInputs = {};
 export type Auth_Bootstrap_HelpInputs = {
     path: NonNullable<unknown>;
 };
@@ -26450,6 +27273,10 @@ export type Automation_Condition_CustomInputs = {};
 export type Automation_Condition_Custom_DescriptionInputs = {};
 export type Automation_Condition_Device_StateInputs = {};
 export type Automation_Condition_Device_State_DescriptionInputs = {};
+export type Automation_Condition_InvertInputs = {};
+export type Automation_Condition_InvertedInputs = {
+    condition: NonNullable<unknown>;
+};
 export type Automation_Condition_Time_WindowInputs = {};
 export type Automation_Condition_Time_Window_DescriptionInputs = {};
 export type Automation_Condition_WeekdayInputs = {};
@@ -26481,6 +27308,8 @@ export type Automation_Editor_Save_FailedInputs = {};
 export type Automation_Editor_SortInputs = {};
 export type Automation_Editor_UnlockInputs = {};
 export type Automation_Editor_VisualInputs = {};
+export type Automation_Graph_Input_RequiredInputs = {};
+export type Automation_Graph_Invalid_OperatorInputs = {};
 export type Automation_Node_ActionInputs = {};
 export type Automation_Node_Add_SceneInputs = {};
 export type Automation_Node_AdvancedInputs = {};
@@ -26565,7 +27394,6 @@ export type Automation_Node_Webhook_DisabledInputs = {};
 export type Automation_Node_Webhook_EnabledInputs = {};
 export type Automation_Operator_AndInputs = {};
 export type Automation_Operator_DelayInputs = {};
-export type Automation_Operator_NotInputs = {};
 export type Automation_Operator_OrInputs = {};
 export type Automation_Operator_TitleInputs = {};
 export type Automation_Panel_CloseInputs = {};
@@ -26794,6 +27622,17 @@ export type Button_Last_SeenInputs = {
 };
 export type Button_No_ActionInputs = {};
 export type Button_StatusInputs = {};
+export type Claude_Choose_ModelInputs = {};
+export type Claude_Connect_ModelInputs = {};
+export type Claude_Connect_SaveInputs = {};
+export type Claude_Connect_TokenInputs = {};
+export type Claude_ConnectingInputs = {};
+export type Claude_EnabledInputs = {};
+export type Claude_ModelInputs = {};
+export type Claude_Models_FailedInputs = {};
+export type Claude_TestInputs = {};
+export type Claude_TokenInputs = {};
+export type Claude_Token_KeepInputs = {};
 export type Color_Picker_AriaInputs = {};
 export type Common_Add_ToInputs = {};
 export type Common_Brand_NameInputs = {};
@@ -27015,6 +27854,8 @@ export type Devices_SearchInputs = {};
 export type Devices_Trigger_EventInputs = {
     name: NonNullable<unknown>;
 };
+export type Editor_Changed_ElsewhereInputs = {};
+export type Editor_Reload_SavedInputs = {};
 export type Effect_Action_RunInputs = {};
 export type Effect_BackInputs = {};
 export type Effect_Cap_BrightnessInputs = {};
@@ -27097,6 +27938,7 @@ export type Effect_Timeline_Zoom_OutInputs = {};
 export type Effect_Validation_Clip_Start_NegativeInputs = {};
 export type Effect_Validation_Config_InvalidInputs = {};
 export type Effect_Validation_Duration_NegativeInputs = {};
+export type Effect_Validation_Loop_Duration_PositiveInputs = {};
 export type Effect_Validation_Name_RequiredInputs = {};
 export type Effect_Validation_Native_RequiredInputs = {};
 export type Effect_Validation_OverlapInputs = {};

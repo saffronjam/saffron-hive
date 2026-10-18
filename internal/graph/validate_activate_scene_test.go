@@ -10,8 +10,8 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
-func activateSceneAutomation(actionConfig string) ([]*model.AutomationNodeInput, []*model.AutomationEdgeInput) {
-	return []*model.AutomationNodeInput{
+func activateSceneAutomation(actionConfig string) ([]store.CreateAutomationNodeParams, []*model.AutomationEdgeInput) {
+	return []store.CreateAutomationNodeParams{
 		{ID: "trigger", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 		{ID: "action", Type: "action", Config: actionConfig},
 	}, []*model.AutomationEdgeInput{{FromNodeID: "trigger", ToNodeID: "action"}}
@@ -62,8 +62,8 @@ func TestValidateAutomationInputActivateScene(t *testing.T) {
 					t.Fatalf("seed scene: %v", err)
 				}
 			}
-			nodes, edges := activateSceneAutomation(tt.config)
-			err := validateAutomationInput(ctx, st, "", nodes, edges)
+			nodes, _ := activateSceneAutomation(tt.config)
+			err := validateAutomationReferences(ctx, st, "", nodes)
 			if tt.wantError == "" {
 				if err != nil {
 					t.Fatalf("validate canonical action: %v", err)

@@ -16,6 +16,7 @@ vi.stubGlobal(
 
 function device(id: string, overrides: Partial<Device> = {}): Device {
   return {
+    revision: 1,
     id,
     name: id,
     friendlyName: id,

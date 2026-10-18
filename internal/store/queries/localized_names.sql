@@ -1,10 +1,10 @@
 -- name: ListLocalizedNameSubjects :many
-SELECT entity_type, entity_id, source_language
+SELECT revision, entity_type, entity_id, source_language
 FROM localized_name_subjects
 ORDER BY entity_type, entity_id;
 
 -- name: GetLocalizedNameSubject :one
-SELECT entity_type, entity_id, source_language
+SELECT revision, entity_type, entity_id, source_language
 FROM localized_name_subjects
 WHERE entity_type = ? AND entity_id = ?;
 
@@ -26,3 +26,6 @@ DELETE FROM localized_names WHERE entity_type = ? AND entity_id = ?;
 INSERT INTO localized_names (entity_type, entity_id, language, value)
 VALUES (?, ?, ?, ?)
 ON CONFLICT(entity_type, entity_id, language) DO UPDATE SET value = excluded.value;
+
+-- name: ClaimLocalizedNameRevision :execrows
+UPDATE localized_name_subjects SET revision=revision+1 WHERE entity_type=sqlc.arg('entity_type') AND entity_id=sqlc.arg('entity_id') AND revision=sqlc.arg('expected_revision');

@@ -26,6 +26,7 @@
 	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface RoomData {
+ revision:number;
 		id: string;
 		name: string;
 		icon?: string | null;

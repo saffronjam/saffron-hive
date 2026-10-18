@@ -306,3 +306,18 @@ Opt-ins as needed:
 Page-level save validation (e.g. `validateTimelineEffect`) is still
 responsible for rejecting out-of-range values at submit time.
 NumberInput's job is to unblock typing, not to be the gatekeeper.
+
+## Configuration snapshots
+
+Carry `revision` in shared fragments, mutation results and subscription snapshots.
+Use the revision captured with the draft as `expectedRevision`, including nested
+metadata edited from another surface. Update the cached revision from the
+mutation result immediately. Bump persisted cache versions when their required
+shape changes.
+
+Use `createEditorRefresh` for form reconciliation and the shared external-change
+banner for dirty conflicts. Preserve dirty drafts, selection and focus during
+refresh. Reload clean forms from network snapshots; never resubmit a stale draft
+with a freshly fetched revision. Automation JSON round trips must preserve
+custom expressions, literal types, hold metadata and webhook guards. Shared
+fixtures in `testdata/automation-contract.json` exercise Go and TypeScript.

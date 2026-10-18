@@ -11,8 +11,7 @@ import {
   actionMacroCall,
   capabilityToExprProperty,
   formatHoldDuration,
-  generateCronExpr,
-  humanizeCron,
+  summarizeSchedule,
   validateActionConfig,
   validateTriggerConfig,
   weekdayLabel,
@@ -85,7 +84,12 @@ function capabilityFor(
   return device.capabilities.find((c) => capabilityToExprProperty(c.name) === property);
 }
 
-function formatValue(value: string, capability: Capability | undefined): string {
+function formatValue(
+  value: string,
+  capability: Capability | undefined,
+  valueType?: TriggerConfig["valueType"],
+): string {
+  if (valueType === "string") return JSON.stringify(value);
   if (value === "true") return m.state_on({}, locale.messageOptions());
   if (value === "false") return m.state_off({}, locale.messageOptions());
   if (capability?.type === "numeric" && value !== "" && !isNaN(Number(value))) {
@@ -102,9 +106,10 @@ function stateComparison(
   comparator: string | undefined,
   value: string,
   capability: Capability | undefined,
+  valueType?: TriggerConfig["valueType"],
 ): string {
   const symbol = COMPARATOR_SYMBOLS[comparator ?? "=="] ?? comparator ?? "=";
-  return `${target}: ${historyFieldLabel(property)} ${symbol} ${formatValue(value, capability)}`;
+  return `${target}: ${historyFieldLabel(property)} ${symbol} ${formatValue(value, capability, valueType)}`;
 }
 
 export function summarizeTrigger(config: TriggerConfig, lookups: SummaryLookups): NodeSummary {
@@ -120,6 +125,7 @@ export function summarizeTrigger(config: TriggerConfig, lookups: SummaryLookups)
         config.comparator,
         config.value ?? "",
         capabilityFor(device, config.property),
+        config.valueType,
       );
       return ok(config.holdMs ? `${text} · ${formatHoldDuration(config.holdMs)}` : text);
     }
@@ -141,7 +147,7 @@ export function summarizeTrigger(config: TriggerConfig, lookups: SummaryLookups)
         ),
       );
     case "schedule":
-      return ok(humanizeCron(generateCronExpr(config)));
+      return ok(summarizeSchedule(config));
     case "webhook": {
       const webhook = lookups.webhooks.find((w) => w.id === config.endpointId);
       return ok(
@@ -162,17 +168,29 @@ function pad(value: number | undefined): string {
   return String(value ?? 0).padStart(2, "0");
 }
 
-function usesMacro(name: string, negate = false): NodeSummary {
-  const label = `${negate ? "!" : ""}$${name}`;
+function usesMacro(name: string): NodeSummary {
+  const label = `$${name}`;
   return ok(m.automation_summary_uses_macro({ name: label }, locale.messageOptions()));
 }
 
 export function summarizeCondition(config: ConditionConfig, lookups: SummaryLookups): NodeSummary {
+  if (config.negate) {
+    const summary = summarizeCondition({ ...config, negate: false }, lookups);
+    return summary.invalid
+      ? summary
+      : {
+          ...summary,
+          text: m.automation_condition_inverted(
+            { condition: summary.text },
+            locale.messageOptions(),
+          ),
+        };
+  }
   const error = validateConditionConfig(config);
   if (error) return invalid(error.code);
   switch (config.mode) {
     case "macro":
-      return usesMacro(config.macro ?? "", config.negate);
+      return usesMacro(config.macro ?? "");
     case "time_window":
       return ok(
         `${pad(config.afterHour)}:${pad(config.afterMinute)}–${pad(config.beforeHour)}:${pad(config.beforeMinute)}`,
@@ -200,6 +218,7 @@ export function summarizeCondition(config: ConditionConfig, lookups: SummaryLook
           config.comparator,
           config.value ?? "",
           capabilityFor(device, config.property),
+          config.valueType,
         ),
       );
     }
@@ -461,7 +480,7 @@ export function summarizeAction(
   }
 }
 
-/** The operator's kind ("AND", "OR", "NOT") as shown on the node. */
+/** The operator's kind ("AND", "OR") as shown on the node. */
 export function operatorLabel(operator: string): string {
   return operatorOptions().find((option) => option.value === operator)?.label ?? operator;
 }

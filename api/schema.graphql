@@ -42,6 +42,7 @@ type DeviceAttributeValue {
 }
 
 type Device {
+  revision: Int!
   id: ID!
   """
   The user's name override. Null means unset, in which case the device shows the
@@ -219,6 +220,7 @@ type Color {
 }
 
 type Scene {
+  revision: Int!
   id: ID!
   name: String!
   icon: String
@@ -227,7 +229,7 @@ type Scene {
   lighting: SceneLighting!
   supportingStates: [SceneSupportingState!]!
   preview: ScenePreview!
-  createdBy: User
+  createdBy: UserRef
   activatedAt: DateTime
 }
 
@@ -402,13 +404,27 @@ type VibePreviewResult {
   maximumLightness: Float!
 }
 
+type ConfigurationIssue {
+  code: String!
+  path: String!
+  nodeId: ID
+  severity: String!
+  message: String!
+}
+
+type ConfigurationValidation {
+  valid: Boolean!
+  issues: [ConfigurationIssue!]!
+}
+
 type AutomationGraph {
+  revision: Int!
   id: ID!
   name: String!
   icon: String
   enabled: Boolean!
-  "Whether the stored graph can be loaded by the automation engine."
-  compilable: Boolean!
+  "Validation of the complete stored configuration, including references."
+  validation: ConfigurationValidation!
   """
   JSON object of the automation's named macros, keyed by name. Nodes refer to
   them by name; see automation.Definition for the shapes.
@@ -417,10 +433,11 @@ type AutomationGraph {
   lastFiredAt: DateTime
   nodes: [AutomationNode!]!
   edges: [AutomationEdge!]!
-  createdBy: User
+  createdBy: UserRef
 }
 
 type WebhookEndpoint {
+  revision: Int!
   id: ID!
   name: String!
   enabled: Boolean!
@@ -428,7 +445,7 @@ type WebhookEndpoint {
   rateLimitWindowMs: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
-  createdBy: User
+  createdBy: UserRef
   lastDeliveryAt: DateTime
 }
 
@@ -462,6 +479,7 @@ input CreateWebhookEndpointInput {
 }
 
 input UpdateWebhookEndpointInput {
+  expectedRevision: Int!
   name: String!
   enabled: Boolean!
   rateLimitCount: Int!
@@ -486,6 +504,7 @@ enum EffectClipKind {
 }
 
 type Effect {
+  revision: Int!
   id: ID!
   name: String!
   source: String!
@@ -511,7 +530,7 @@ type Effect {
   effect cap value list.
   """
   requiredCapabilities: [String!]!
-  createdBy: User
+  createdBy: UserRef
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -530,10 +549,8 @@ type EffectTrack {
 }
 
 """
-A single clip on a track. config is a JSON document whose shape is
-determined by kind — the inner config struct directly, e.g.
-{"mode":"rgb","rgb":{"r":244,"g":42,"b":23}} for a SET_COLOR clip in rgb
-mode, {"mode":"temp","temp":{"mireds":370}} for the same kind in temp mode.
+A single clip on a track. config contains exactly one variant matching kind.
+SET_COLOR uses setColor with mode rgb and an RGB value, or mode temp and mireds.
 transitionMinMs and transitionMaxMs bound a uniform random pick of the
 actual transition sampled per clip-execution; equal bounds collapse to a
 deterministic value.
@@ -544,7 +561,7 @@ type EffectClip {
   transitionMinMs: Int!
   transitionMaxMs: Int!
   kind: EffectClipKind!
-  config: String!
+  config: EffectClipConfig!
 }
 
 input EffectTrackInput {
@@ -554,11 +571,12 @@ input EffectTrackInput {
 }
 
 input EffectClipInput {
+  id: ID
   startMs: Int!
   transitionMinMs: Int!
   transitionMaxMs: Int!
   kind: EffectClipKind!
-  config: String!
+  config: EffectClipConfigInput!
 }
 
 input CreateEffectInput {
@@ -572,6 +590,7 @@ input CreateEffectInput {
 }
 
 input UpdateEffectInput {
+  expectedRevision: Int!
   id: ID!
   name: String
   icon: String
@@ -648,7 +667,7 @@ type EffectStepEvent {
 type AutomationNode {
   id: ID!
   type: String!
-  config: String!
+  config: AutomationConfig!
   positionX: Float!
   positionY: Float!
   "JSON-encoded map of per-node runtime state (e.g. cycle_scenes index)."
@@ -666,6 +685,7 @@ type AutomationEdge {
 }
 
 type Group {
+  revision: Int!
   id: ID!
   """
   The user's name override. Null means unset, in which case the group shows the
@@ -681,7 +701,7 @@ type Group {
   tags: [GroupTag!]!
   members: [GroupMember!]!
   resolvedDevices: [Device!]!
-  createdBy: User
+  createdBy: UserRef
 }
 
 """
@@ -705,12 +725,13 @@ type GroupMember {
 }
 
 type Room {
+  revision: Int!
   id: ID!
   name: String!
   icon: String
   members: [RoomMember!]!
   resolvedDevices: [Device!]!
-  createdBy: User
+  createdBy: UserRef
 }
 
 type RoomMember {
@@ -728,6 +749,7 @@ meters. Saved as a whole — updateFloorplan replaces every list in one
 transaction.
 """
 type Floorplan {
+  revision: Int!
   id: ID!
   name: String!
   vertices: [FloorplanVertex!]!
@@ -969,6 +991,7 @@ type LocalizedName {
 }
 
 type LocalizedNameSet {
+ revision: Int!
   entityType: String!
   entityId: ID!
   sourceLanguage: Language!
@@ -987,13 +1010,22 @@ input LocalizedNameInput {
 }
 
 input LocalizedNameSetInput {
+ expectedRevision: Int!
   entityType: String!
   entityId: ID!
   sourceLanguage: Language!
   translations: [LocalizedNameInput!]!
 }
 
+"""Attribution for an authored entity."""
+type UserRef {
+  id: ID!
+  username: String!
+  name: String!
+}
+
 type User {
+ revision: Int!
   id: ID!
   username: String!
   name: String!
@@ -1110,6 +1142,7 @@ input CreateGuestInput {
 }
 
 input UpdateCurrentUserInput {
+ expectedRevision: Int!
   name: String
   theme: Theme
   timeFormat: TimeFormat
@@ -1124,6 +1157,7 @@ input ChangePasswordInput {
 }
 
 type Zigbee2MqttConfig {
+  revision: Int!
   broker: String!
   frontendUrl: String
   username: String!
@@ -1163,6 +1197,7 @@ type Integration {
 }
 
 type TuyaConfig {
+  revision: Int!
   accessId: String!
   accessSecret: String!
   region: String!
@@ -1236,6 +1271,7 @@ type NetworkTopologyEvent {
 }
 
 type Setting {
+  revision: Int!
   key: String!
   value: String!
 }
@@ -1416,6 +1452,7 @@ input ColorInput {
 }
 
 input UpdateDeviceInput {
+  expectedRevision: Int!
   """
   Sets the name override. Pass null to clear it and fall back to the
   integration's name. Omit the field to leave it alone.
@@ -1531,6 +1568,7 @@ input SceneDefinitionInput {
 }
 
 input UpdateSceneInput {
+  expectedRevision: Int!
   name: String
   icon: String
   definition: SceneDefinitionInput
@@ -1561,7 +1599,7 @@ input CreateAutomationInput {
 input AutomationNodeInput {
   id: ID!
   type: String!
-  config: String!
+  config: AutomationConfigInput!
   positionX: Float! = 0
   positionY: Float! = 0
 }
@@ -1577,6 +1615,8 @@ input CreateGroupInput {
 }
 
 input UpdateGroupInput {
+  members: [GroupMemberInput!]
+  expectedRevision: Int!
   name: String
   icon: String
   tags: [GroupTag!]
@@ -1593,6 +1633,8 @@ input CreateRoomInput {
 }
 
 input UpdateRoomInput {
+  members: [RoomMemberInput!]
+  expectedRevision: Int!
   name: String
   icon: String
 }
@@ -1614,6 +1656,7 @@ room, and placement it wants persisted, and the server replaces the stored plan
 with exactly this set. Ids are client-generated and stable across saves.
 """
 input UpdateFloorplanInput {
+  expectedRevision: Int!
   id: ID!
   name: String!
   vertices: [FloorplanVertexInput!]!
@@ -1681,6 +1724,7 @@ input FloorplanFurnitureInput {
 }
 
 input UpdateAutomationInput {
+  expectedRevision: Int!
   name: String
   icon: String
   enabled: Boolean
@@ -1701,6 +1745,7 @@ type Query {
   previewVibe(input: PreviewVibeInput!): VibePreviewResult! @auth
   automations: [AutomationGraph!]! @auth
   automation(id: ID!): AutomationGraph @auth
+  validateAutomation(input: CreateAutomationInput!): ConfigurationValidation! @auth
   webhookEndpoints: [WebhookEndpoint!]! @auth
   webhookEndpoint(id: ID!): WebhookEndpoint @auth
   webhookDeliveries(endpointId: ID!, before: DateTime, limit: Int): [WebhookDelivery!]! @auth
@@ -1765,7 +1810,7 @@ type Mutation {
   createAutomation(input: CreateAutomationInput!): AutomationGraph! @auth
   updateAutomation(id: ID!, input: UpdateAutomationInput!): AutomationGraph! @auth
   deleteAutomation(id: ID!): Boolean! @auth
-  toggleAutomation(id: ID!, enabled: Boolean!): AutomationGraph! @auth
+  toggleAutomation(id: ID!, enabled: Boolean!, expectedRevision: Int!): AutomationGraph! @auth
   """
   Fires a trigger node immediately inside its enabled automation. The trigger's
   configured event or schedule does not need to occur. Intended for testing a
@@ -1802,7 +1847,7 @@ type Mutation {
   placements with the input's sets in one transaction. Returns the saved plan.
   """
   updateFloorplan(input: UpdateFloorplanInput!): Floorplan! @auth
-  updateZigbee2MqttConfig(input: Zigbee2MqttConfigInput!): Zigbee2MqttConfig! @auth
+  updateZigbee2MqttConfig(input: Zigbee2MqttConfigInput!, expectedRevision: Int!): Zigbee2MqttConfigResult! @auth
   testZigbee2MqttConnection(input: Zigbee2MqttConfigInput!): ConnectionTestResult! @auth
   """
   Requests a Zigbee topology scan. Returns immediately; the scan walks every
@@ -1810,11 +1855,11 @@ type Mutation {
   Completion is announced on the networkTopologyUpdated subscription.
   """
   scanZigbee2MqttNetwork: Boolean! @auth
-  updateTuyaConfig(input: TuyaConfigInput!): TuyaConfig! @auth
+  updateTuyaConfig(input: TuyaConfigInput!, expectedRevision: Int!): TuyaConfigResult! @auth
   testTuyaConnection(input: TuyaConfigInput!): ConnectionTestResult! @auth
   syncTuyaDevices: [Device!]! @auth
   deleteIntegration(provider: String!): Int! @auth
-  updateSetting(key: String!, value: String!): Setting! @auth
+  updateSetting(key: String!, value: String!, expectedRevision: Int!): Setting! @auth
   login(input: LoginInput!): AuthPayload!
   createInitialUser(input: CreateInitialUserInput!): AuthPayload!
   createUser(input: CreateUserInput!): User! @auth
@@ -1924,4 +1969,20 @@ type Subscription {
   only that provider's updates are delivered.
   """
   networkTopologyUpdated(provider: String): NetworkTopologyEvent! @auth
+}
+
+"Persisted configuration and the result of applying it to the integration."
+type Zigbee2MqttConfigResult {
+  config: Zigbee2MqttConfig!
+  application: ConnectionTestResult!
+}
+
+type TuyaConfigResult {
+  config: TuyaConfig!
+  application: ConnectionTestResult!
+}
+
+input GroupMemberInput {
+  memberType: String!
+  memberId: ID!
 }

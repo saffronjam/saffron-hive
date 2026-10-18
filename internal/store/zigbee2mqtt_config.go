@@ -20,6 +20,7 @@ func (s *DB) GetZigbee2MQTTConfig(ctx context.Context) (*Zigbee2MQTTConfig, erro
 		return nil, fmt.Errorf("get zigbee2mqtt config: %w", err)
 	}
 	return &Zigbee2MQTTConfig{
+		Revision:                     row.Revision,
 		Broker:                       row.Broker,
 		FrontendURL:                  row.FrontendUrl,
 		Username:                     row.Username,
@@ -37,7 +38,8 @@ func (s *DB) GetZigbee2MQTTConfig(ctx context.Context) (*Zigbee2MQTTConfig, erro
 // UpsertZigbee2MQTTConfig inserts or replaces the singleton Zigbee2MQTT
 // configuration row.
 func (s *DB) UpsertZigbee2MQTTConfig(ctx context.Context, cfg Zigbee2MQTTConfig) error {
-	if err := s.q.UpsertZigbee2MQTTConfig(ctx, sqlite.UpsertZigbee2MQTTConfigParams{
+	n, err := s.q.UpsertZigbee2MQTTConfig(ctx, sqlite.UpsertZigbee2MQTTConfigParams{
+		ExpectedRevision:             cfg.Revision,
 		Broker:                       cfg.Broker,
 		FrontendUrl:                  cfg.FrontendURL,
 		Username:                     cfg.Username,
@@ -49,8 +51,12 @@ func (s *DB) UpsertZigbee2MQTTConfig(ctx context.Context, cfg Zigbee2MQTTConfig)
 		ScanMinute:                   cfg.ScanMinute,
 		InteractiveCommandsPerSecond: cfg.InteractiveCommandsPerSecond,
 		ContinuousCommandsPerSecond:  cfg.ContinuousCommandsPerSecond,
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("upsert zigbee2mqtt config: %w", err)
+	}
+	if n != 1 {
+		return ErrRevisionConflict
 	}
 	return nil
 }

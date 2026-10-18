@@ -21,6 +21,7 @@
 			login(input: $input) {
 				token
 				user {
+ revision
 					id
 					username
 					name

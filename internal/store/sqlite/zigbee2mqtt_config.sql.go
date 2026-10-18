@@ -19,13 +19,14 @@ func (q *Queries) DeleteZigbee2MQTTConfig(ctx context.Context) error {
 }
 
 const getZigbee2MQTTConfig = `-- name: GetZigbee2MQTTConfig :one
-SELECT broker, username, password, use_wss, enabled, scan_schedule_enabled, scan_hour, scan_minute, frontend_url,
+SELECT revision, broker, username, password, use_wss, enabled, scan_schedule_enabled, scan_hour, scan_minute, frontend_url,
        interactive_commands_per_second, continuous_commands_per_second
 FROM zigbee2mqtt_config
 WHERE id = 1
 `
 
 type GetZigbee2MQTTConfigRow struct {
+	Revision                     int64
 	Broker                       string
 	Username                     string
 	Password                     string
@@ -43,6 +44,7 @@ func (q *Queries) GetZigbee2MQTTConfig(ctx context.Context) (GetZigbee2MQTTConfi
 	row := q.db.QueryRowContext(ctx, getZigbee2MQTTConfig)
 	var i GetZigbee2MQTTConfigRow
 	err := row.Scan(
+		&i.Revision,
 		&i.Broker,
 		&i.Username,
 		&i.Password,
@@ -58,9 +60,9 @@ func (q *Queries) GetZigbee2MQTTConfig(ctx context.Context) (GetZigbee2MQTTConfi
 	return i, err
 }
 
-const upsertZigbee2MQTTConfig = `-- name: UpsertZigbee2MQTTConfig :exec
-INSERT INTO zigbee2mqtt_config (id, broker, username, password, use_wss, enabled, scan_schedule_enabled, scan_hour, scan_minute, frontend_url, interactive_commands_per_second, continuous_commands_per_second)
-VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+const upsertZigbee2MQTTConfig = `-- name: UpsertZigbee2MQTTConfig :execrows
+INSERT INTO zigbee2mqtt_config (revision, id, broker, username, password, use_wss, enabled, scan_schedule_enabled, scan_hour, scan_minute, frontend_url, interactive_commands_per_second, continuous_commands_per_second)
+SELECT CAST(?1 AS INTEGER)+1, 1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12 WHERE CAST(?1 AS INTEGER) = 0 OR EXISTS (SELECT 1 FROM zigbee2mqtt_config WHERE id=1 AND revision=?1)
 ON CONFLICT(id) DO UPDATE SET
     broker                = excluded.broker,
     username              = excluded.username,
@@ -72,10 +74,11 @@ ON CONFLICT(id) DO UPDATE SET
     scan_minute           = excluded.scan_minute,
     frontend_url          = excluded.frontend_url,
     interactive_commands_per_second = excluded.interactive_commands_per_second,
-    continuous_commands_per_second  = excluded.continuous_commands_per_second
+    continuous_commands_per_second  = excluded.continuous_commands_per_second, revision=zigbee2mqtt_config.revision+1 WHERE zigbee2mqtt_config.revision=excluded.revision-1
 `
 
 type UpsertZigbee2MQTTConfigParams struct {
+	ExpectedRevision             int64
 	Broker                       string
 	Username                     string
 	Password                     string
@@ -89,8 +92,9 @@ type UpsertZigbee2MQTTConfigParams struct {
 	ContinuousCommandsPerSecond  int64
 }
 
-func (q *Queries) UpsertZigbee2MQTTConfig(ctx context.Context, arg UpsertZigbee2MQTTConfigParams) error {
-	_, err := q.db.ExecContext(ctx, upsertZigbee2MQTTConfig,
+func (q *Queries) UpsertZigbee2MQTTConfig(ctx context.Context, arg UpsertZigbee2MQTTConfigParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, upsertZigbee2MQTTConfig,
+		arg.ExpectedRevision,
 		arg.Broker,
 		arg.Username,
 		arg.Password,
@@ -103,5 +107,8 @@ func (q *Queries) UpsertZigbee2MQTTConfig(ctx context.Context, arg UpsertZigbee2
 		arg.InteractiveCommandsPerSecond,
 		arg.ContinuousCommandsPerSecond,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

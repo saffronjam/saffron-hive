@@ -1,11 +1,14 @@
 <script lang="ts">
+ import { createEditorRefresh } from "$lib/editor-refresh.svelte";
+ import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
+	import ConnectionTest from "$lib/components/connection-test.svelte";
 	import { onMount } from "svelte";
 	import { getContextClient, subscriptionStore } from "@urql/svelte";
 	import { toast } from "svelte-sonner";
 	import { graphql } from "$lib/gql";
 	import { onGraphQLRecovered } from "$lib/graphql/app-recovery";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
-	import { connectionResultMessage, type ConnectionResult } from "$lib/i18n/connection";
+	import type { ConnectionResult } from "$lib/i18n/connection";
 	import { integrationDescription, integrationMeta } from "$lib/integrations";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
@@ -20,11 +23,12 @@
 	import NumberInput from "$lib/components/number-input.svelte";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
-	import { CircleCheck, CircleX, Info, Loader2, Radar, Save, Unplug } from "@lucide/svelte";
+	import { Info, Loader2, Radar, Save } from "@lucide/svelte";
 
 	const ZIGBEE2MQTT_CONFIG_QUERY = graphql(`
 		query Zigbee2MqttConfigPage {
 			zigbee2MqttConfig {
+ revision
 				broker
 				frontendUrl
 				username
@@ -42,8 +46,10 @@
 	`);
 
 	const UPDATE_ZIGBEE2MQTT_CONFIG = graphql(`
-		mutation UpdateZigbee2MqttConfig($input: Zigbee2MqttConfigInput!) {
-			updateZigbee2MqttConfig(input: $input) {
+		mutation UpdateZigbee2MqttConfig($input: Zigbee2MqttConfigInput!, $expectedRevision: Int!) {
+			updateZigbee2MqttConfig(input: $input, expectedRevision: $expectedRevision) {
+ config {
+ revision
 				broker
 				frontendUrl
 				username
@@ -56,6 +62,7 @@
 				scanStartedAt
 				interactiveCommandsPerSecond
 				continuousCommandsPerSecond
+ } application { success code diagnostic }
 			}
 		}
 	`);
@@ -79,6 +86,7 @@
 	const SCAN_STATE_QUERY = graphql(`
 		query Zigbee2MqttScanState {
 			zigbee2MqttConfig {
+ revision
 				scanStartedAt
 			}
 			networkTopologies {
@@ -102,6 +110,7 @@
 	type TestResult = ConnectionResult;
 
 	type ConfigShape = {
+ revision:number;
 		broker: string;
 		frontendUrl?: string | null;
 		username: string;
@@ -122,6 +131,7 @@
 
 	let loaded = $state(false);
 	let saving = $state(false);
+ let savedRevision=$state(0);
 	let testing = $state(false);
 	let scanStartedAt = $state<Date | null>(null);
 	let broker = $state("");
@@ -211,6 +221,7 @@
 	}
 
 	function applyConfig(config: ConfigShape | null | undefined) {
+ savedRevision=config?.revision??0;
 		broker = config?.broker ?? "";
 		frontendUrl = config?.frontendUrl ?? "";
 		username = config?.username ?? "";
@@ -227,11 +238,17 @@
 		original = snapshot();
 	}
 
+ const refreshGuard = createEditorRefresh({
+  read: async () => { const result = await client.query(ZIGBEE2MQTT_CONFIG_QUERY, {}, {requestPolicy:"network-only"}).toPromise(); if(result.error) throw result.error; return result.data?.zigbee2MqttConfig ?? null; },
+  apply: applyConfig, dirty: () => isDirty, busy: () => saving || !loaded,
+ });
+
 	async function loadConfig() {
 		const result = await client
 			.query(ZIGBEE2MQTT_CONFIG_QUERY, {}, { requestPolicy: "network-only" })
 			.toPromise();
 		applyConfig(result.data?.zigbee2MqttConfig ?? null);
+ refreshGuard.accept(result.data?.zigbee2MqttConfig ?? null);
 		loaded = true;
 	}
 
@@ -246,14 +263,16 @@
 	}
 
 	async function saveConfig() {
+ if(refreshGuard.conflict) return;
 		saving = true;
 		try {
 			const result = await client
-				.mutation(UPDATE_ZIGBEE2MQTT_CONFIG, { input: mutationInput() })
+				.mutation(UPDATE_ZIGBEE2MQTT_CONFIG, { input: mutationInput(), expectedRevision:savedRevision })
 				.toPromise();
 			if (result.error) throw result.error;
-			applyConfig(result.data?.updateZigbee2MqttConfig ?? null);
-			testResult = null;
+			applyConfig(result.data?.updateZigbee2MqttConfig.config ?? null);
+ refreshGuard.accept(result.data?.updateZigbee2MqttConfig.config ?? null);
+			testResult = result.data?.updateZigbee2MqttConfig.application ?? null;
 		} catch (e) {
 			toast.error(graphqlErrorMessage(e, m.zigbee_config_save_failed({}, messageOptions)));
 		} finally {
@@ -265,7 +284,7 @@
 		testing = true;
 		try {
 			const result = await client
-				.mutation(TEST_ZIGBEE2MQTT_CONNECTION, { input: mutationInput() })
+				.mutation(TEST_ZIGBEE2MQTT_CONNECTION, { input: mutationInput(), expectedRevision:savedRevision })
 				.toPromise();
 			if (result.error) throw result.error;
 			testResult = result.data?.testZigbee2MqttConnection ?? null;
@@ -317,7 +336,7 @@
 				icon: Save,
 				onclick: saveConfig,
 				disabled:
-					!isDirty ||
+					refreshGuard.conflict || !isDirty ||
 					saving ||
 					!hasBroker ||
 					scheduleIncomplete ||
@@ -343,6 +362,8 @@
 	});
 
 </script>
+
+{#if refreshGuard.conflict}<ExternalChangeBanner onreload={() => { void refreshGuard.refresh(true); }} />{/if}
 
 <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
 	<section class="rounded-lg shadow-card bg-card p-6">
@@ -423,34 +444,7 @@
 				<label for="z2m-use-wss" class="text-sm font-medium">{m.zigbee_use_wss({}, messageOptions)}</label>
 			</div>
 
-			<div class="flex flex-wrap items-center gap-3 pt-2">
-				<Button
-					variant="outline"
-					size="sm"
-					onclick={testConnection}
-					disabled={!loaded || testing || !hasBroker || frontendUrlError !== ""}
-				>
-					{#if testing}
-						<Loader2 class="size-4 animate-spin" />
-					{:else}
-						<Unplug class="size-4" />
-					{/if}
-					{m.zigbee_check_connection({}, messageOptions)}
-				</Button>
-				{#if testResult}
-					{#if testResult.success}
-						<div class="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
-							<CircleCheck class="size-5" />
-							<span>{connectionResultMessage(testResult)}</span>
-						</div>
-					{:else}
-						<div class="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
-							<CircleX class="size-5 shrink-0" />
-							<span>{connectionResultMessage(testResult)}</span>
-						</div>
-					{/if}
-				{/if}
-			</div>
+			<ConnectionTest label={m.zigbee_check_connection({}, messageOptions)} {testing} disabled={!loaded || !hasBroker || frontendUrlError !== ""} result={testResult} ontest={testConnection} />
 		</div>
 
 		<div class="mt-8 border-t border-border pt-6 grid gap-4 max-w-xl">

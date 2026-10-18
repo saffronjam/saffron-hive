@@ -88,7 +88,7 @@ func TestUpdateGroup(t *testing.T) {
 		t.Fatalf("create group: %v", err)
 	}
 
-	g, err := s.UpdateGroup(ctx, UpdateGroupParams{ID: "grp-1", Name: device.Ptr("New Name"), SetName: true})
+	g, err := s.UpdateGroup(ctx, UpdateGroupParams{ExpectedRevision: 1, ID: "grp-1", Name: device.Ptr("New Name"), SetName: true})
 	if err != nil {
 		t.Fatalf("update group: %v", err)
 	}

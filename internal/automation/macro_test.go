@@ -33,7 +33,10 @@ func TestExpandConditionMacro(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := config.(ConditionConfig).Expr; got != `!(time.between("22:00", "06:00"))` {
+	if !config.(ConditionConfig).Negate {
+		t.Fatal("macro inversion must be preserved")
+	}
+	if got := config.(ConditionConfig).Expr; got != `time.between("22:00", "06:00")` {
 		t.Fatalf("expr = %q", got)
 	}
 }

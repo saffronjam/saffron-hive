@@ -134,7 +134,7 @@ func TestUpdateEffectMutableFields(t *testing.T) {
 	newIcon := "new"
 	loop := true
 	dur := 2000
-	updated, err := s.UpdateEffect(ctx, "eff-1", UpdateEffectParams{
+	updated, err := s.UpdateEffect(ctx, "eff-1", UpdateEffectParams{ExpectedRevision: 1,
 		Name:       &newName,
 		SetIcon:    true,
 		Icon:       &newIcon,
@@ -157,7 +157,7 @@ func TestUpdateEffectMutableFields(t *testing.T) {
 		t.Errorf("durationMs = %d, want 2000", updated.DurationMs)
 	}
 
-	cleared, err := s.UpdateEffect(ctx, "eff-1", UpdateEffectParams{SetIcon: true, Icon: nil})
+	cleared, err := s.UpdateEffect(ctx, "eff-1", UpdateEffectParams{ExpectedRevision: 2, SetIcon: true, Icon: nil})
 	if err != nil {
 		t.Fatalf("clear icon: %v", err)
 	}
@@ -177,7 +177,7 @@ func TestUpdateEffectClearNativeName(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 
-	cleared, err := s.UpdateEffect(ctx, "eff-1", UpdateEffectParams{
+	cleared, err := s.UpdateEffect(ctx, "eff-1", UpdateEffectParams{ExpectedRevision: 1,
 		SetNativeName: true,
 		NativeName:    nil,
 	})
@@ -204,7 +204,7 @@ func TestSaveEffectTracksReplaces(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 
-	if err := s.SaveEffectTracks(ctx, "eff-1", []EffectTrackInput{
+	if err := s.saveEffectTracks(ctx, "eff-1", []EffectTrackInput{
 		{ID: "t-2", Index: 0, Clips: []EffectClipInput{
 			{ID: "c-a", StartMs: 0, Kind: effect.ClipSetOnOff, ConfigJSON: `{"value":true}`},
 		}},
@@ -242,13 +242,13 @@ func TestSaveEffectTracksPreservesLocalizedTrackIdentity(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.ReplaceLocalizedNameSet(ctx, localization.NameSet{
+	if _, err := s.ReplaceLocalizedNameSet(ctx, localization.NameSet{Revision: 1,
 		EntityType: "effect_track", EntityID: "track-a", SourceLanguage: localization.English,
 		Translations: map[localization.Language]string{localization.Russian: "Небо"},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SaveEffectTracks(ctx, "eff-localized", []EffectTrackInput{
+	if err := s.saveEffectTracks(ctx, "eff-localized", []EffectTrackInput{
 		{ID: "track-b", Index: 0, Name: "Lamps"},
 		{ID: "track-a", Index: 1, Name: "Sky"},
 	}); err != nil {
@@ -256,7 +256,7 @@ func TestSaveEffectTracksPreservesLocalizedTrackIdentity(t *testing.T) {
 	}
 	assertLocalizedTranslation(t, s, "effect_track", "track-a", localization.Russian, "Небо")
 
-	if err := s.SaveEffectTracks(ctx, "eff-localized", []EffectTrackInput{{ID: "track-b", Index: 0, Name: "Lamps"}}); err != nil {
+	if err := s.saveEffectTracks(ctx, "eff-localized", []EffectTrackInput{{ID: "track-b", Index: 0, Name: "Lamps"}}); err != nil {
 		t.Fatal(err)
 	}
 	assertLocalizedSubjectMissing(t, s, "effect_track", "track-a")
@@ -277,7 +277,7 @@ func TestSaveEffectTracksAtomicOnConflict(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 
-	err := s.SaveEffectTracks(ctx, "eff-1", []EffectTrackInput{
+	err := s.saveEffectTracks(ctx, "eff-1", []EffectTrackInput{
 		{ID: "dup", Index: 0, Clips: []EffectClipInput{
 			{ID: "ca", StartMs: 0, Kind: effect.ClipSetOnOff, ConfigJSON: `{"value":true}`},
 		}},
@@ -333,7 +333,8 @@ func TestUpdateEffectDuration(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if err := s.UpdateEffectDuration(ctx, "eff-1", 750); err != nil {
+	duration := 750
+	if _, err := s.UpdateEffect(ctx, "eff-1", UpdateEffectParams{ExpectedRevision: 1, DurationMs: &duration}); err != nil {
 		t.Fatalf("UpdateEffectDuration: %v", err)
 	}
 	got, err := s.GetEffect(ctx, "eff-1")

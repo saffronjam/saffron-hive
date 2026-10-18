@@ -77,7 +77,6 @@ type OperatorKind string
 const (
 	OperatorAnd OperatorKind = "and"
 	OperatorOr  OperatorKind = "or"
-	OperatorNot OperatorKind = "not"
 )
 
 // NodeConfig is implemented by the configuration types for each node kind.
@@ -117,10 +116,11 @@ func (TriggerConfig) nodeConfig() {}
 
 // ConditionConfig holds the configuration for a condition node.
 //
-// Conditions are pure boolean guards evaluated during graph evaluation. They
-// never initiate automation firing — only a trigger can do that.
+// A condition evaluates its predicate when an incoming signal reaches it.
+// It forwards that signal only when the predicate, with optional inversion, passes.
 type ConditionConfig struct {
-	Expr string
+	Expr   string
+	Negate bool
 }
 
 func (ConditionConfig) nodeConfig() {}

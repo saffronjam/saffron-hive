@@ -1,5 +1,7 @@
 schema:
   - api/schema.graphql
+  - api/assistant.graphql
+  - api/authoring.graphql
 
 exec:
   filename: internal/graph/generated.go
@@ -31,3 +33,315 @@ models:
   DateTime:
     model:
       - github.com/99designs/gqlgen/graphql.Time
+
+  AutomationLiteral:
+    model: github.com/saffronjam/saffron-hive/internal/automation.Literal
+  AutomationLiteralInput:
+    model: github.com/saffronjam/saffron-hive/internal/automation.Literal
+    fields:
+      stringValue:
+        omittable: false
+      numberValue:
+        omittable: false
+      booleanValue:
+        omittable: false
+      nullValue:
+        omittable: false
+  AutomationConfig:
+    model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringConfig
+  AutomationConfigInput:
+    model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringConfig
+    fields:
+      trigger:
+        omittable: false
+      condition:
+        omittable: false
+      operator:
+        omittable: false
+      action:
+        omittable: false
+      macro:
+        omittable: false
+  AutomationTrigger:
+    model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringTrigger
+  AutomationTriggerInput:
+    model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringTrigger
+    fields:
+      mode:
+        omittable: false
+      deviceId:
+        omittable: false
+      property:
+        omittable: false
+      comparator:
+        omittable: false
+      value:
+        omittable: false
+      eventValue:
+        omittable: false
+      eventType:
+        omittable: false
+      customExpr:
+        omittable: false
+      endpointId:
+        omittable: false
+      scheduleSubmode:
+        omittable: false
+      cronExpr:
+        omittable: false
+      scheduleHour:
+        omittable: false
+      scheduleMinute:
+        omittable: false
+      scheduleSecond:
+        omittable: false
+      scheduleIntervalValue:
+        omittable: false
+      scheduleIntervalUnit:
+        omittable: false
+      graceMs:
+        omittable: false
+      cooldownMs:
+        omittable: false
+      holdMs:
+        omittable: false
+      webhookFilters:
+        omittable: false
+      scheduleWeekdays:
+        omittable: false
+  AutomationWebhookFilter:
+    model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringWebhookFilter
+  AutomationWebhookFilterInput:
+    model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringWebhookFilter
+    fields:
+      source:
+        omittable: false
+      path:
+        omittable: false
+      operator:
+        omittable: false
+      value:
+        omittable: false
+  AutomationCondition:
+    model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringCondition
+  AutomationConditionInput:
+    model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringCondition
+    fields:
+      mode:
+        omittable: false
+      afterHour:
+        omittable: false
+      afterMinute:
+        omittable: false
+      beforeHour:
+        omittable: false
+      beforeMinute:
+        omittable: false
+      targetType:
+        omittable: false
+      targetId:
+        omittable: false
+      property:
+        omittable: false
+      comparator:
+        omittable: false
+      value:
+        omittable: false
+      customExpr:
+        omittable: false
+      weekdays:
+        omittable: false
+  AutomationOperator:
+    model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringOperator
+  AutomationOperatorInput:
+    model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringOperator
+    fields:
+      kind:
+        omittable: false
+  AutomationMacro:
+    model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringMacro
+  AutomationMacroInput:
+    model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringMacro
+    fields:
+      name:
+        omittable: false
+      negate:
+        omittable: false
+      arguments:
+        omittable: false
+  AutomationAction:
+    model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringAction
+  AutomationActionInput:
+    model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringAction
+    fields:
+      actionType:
+        omittable: false
+      targetType:
+        omittable: false
+      targetId:
+        omittable: false
+      payload:
+        omittable: false
+      targetExpr:
+        omittable: false
+  AutomationActionPayload:
+    model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringActionPayload
+  AutomationActionPayloadInput:
+    model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringActionPayload
+    fields:
+      on:
+        omittable: false
+      brightness:
+        omittable: false
+      colorTemp:
+        omittable: false
+      color:
+        omittable: false
+      transition:
+        omittable: false
+      targetTemperature:
+        omittable: false
+      hvacMode:
+        omittable: false
+      fanMode:
+        omittable: false
+      swing:
+        omittable: false
+      sceneId:
+        omittable: false
+      effectId:
+        omittable: false
+      nativeName:
+        omittable: false
+      field:
+        omittable: false
+      delta:
+        omittable: false
+      mode:
+        omittable: false
+      alarmId:
+        omittable: false
+      severity:
+        omittable: false
+      kind:
+        omittable: false
+      message:
+        omittable: false
+      scenes:
+        omittable: false
+      settings:
+        omittable: false
+  AuthoringClause:
+    model: github.com/saffronjam/saffron-hive/internal/device.Clause
+  AuthoringClauseInput:
+    model: github.com/saffronjam/saffron-hive/internal/device.Clause
+    fields:
+      connector:
+        omittable: false
+      subject:
+        omittable: false
+      op:
+        omittable: false
+      values:
+        omittable: false
+  AuthoringColor:
+    model: github.com/saffronjam/saffron-hive/internal/device.Color
+  AuthoringColorInput:
+    model: github.com/saffronjam/saffron-hive/internal/device.Color
+    fields:
+      r:
+        omittable: false
+      g:
+        omittable: false
+      b:
+        omittable: false
+      x:
+        omittable: false
+      y:
+        omittable: false
+  AuthoringAttribute:
+    model: github.com/saffronjam/saffron-hive/internal/device.AttributeValue
+  AuthoringAttributeInput:
+    model: github.com/saffronjam/saffron-hive/internal/device.AttributeValue
+    fields:
+      capability:
+        omittable: false
+      booleanValue:
+        omittable: false
+      numberValue:
+        omittable: false
+      stringValue:
+        omittable: false
+  EffectClipConfig:
+    model: github.com/saffronjam/saffron-hive/internal/effect.ClipConfig
+  EffectClipConfigInput:
+    model: github.com/saffronjam/saffron-hive/internal/effect.ClipConfig
+    fields:
+      setOnOff:
+        omittable: false
+      setBrightness:
+        omittable: false
+      setColor:
+        omittable: false
+      nativeEffect:
+        omittable: false
+  EffectSetOnOffClipConfig:
+    model: github.com/saffronjam/saffron-hive/internal/effect.SetOnOffClipConfig
+  EffectSetOnOffClipConfigInput:
+    model: github.com/saffronjam/saffron-hive/internal/effect.SetOnOffClipConfig
+    fields:
+      value:
+        omittable: false
+  EffectSetBrightnessClipConfig:
+    model: github.com/saffronjam/saffron-hive/internal/effect.SetBrightnessClipConfig
+  EffectSetBrightnessClipConfigInput:
+    model: github.com/saffronjam/saffron-hive/internal/effect.SetBrightnessClipConfig
+    fields:
+      value:
+        omittable: false
+  EffectSetColorClipConfig:
+    model: github.com/saffronjam/saffron-hive/internal/effect.SetColorClipConfig
+  EffectSetColorClipConfigInput:
+    model: github.com/saffronjam/saffron-hive/internal/effect.SetColorClipConfig
+    fields:
+      mode:
+        omittable: false
+      rgb:
+        omittable: false
+      temp:
+        omittable: false
+  EffectSetColorRGBValue:
+    model: github.com/saffronjam/saffron-hive/internal/effect.SetColorRGBValue
+  EffectSetColorRGBValueInput:
+    model: github.com/saffronjam/saffron-hive/internal/effect.SetColorRGBValue
+    fields:
+      r:
+        omittable: false
+      g:
+        omittable: false
+      b:
+        omittable: false
+  EffectSetColorTempValue:
+    model: github.com/saffronjam/saffron-hive/internal/effect.SetColorTempValue
+  EffectSetColorTempValueInput:
+    model: github.com/saffronjam/saffron-hive/internal/effect.SetColorTempValue
+    fields:
+      mireds:
+        omittable: false
+  EffectNativeEffectClipConfig:
+    model: github.com/saffronjam/saffron-hive/internal/effect.NativeEffectClipConfig
+  EffectNativeEffectClipConfigInput:
+    model: github.com/saffronjam/saffron-hive/internal/effect.NativeEffectClipConfig
+    fields:
+      name:
+        omittable: false
+  JSON:
+    model: github.com/saffronjam/saffron-hive/internal/graph/scalars.RawJSON
+  AuthoringConnector:
+    model: github.com/saffronjam/saffron-hive/internal/device.Connector
+  AuthoringClauseSubject:
+    model: github.com/saffronjam/saffron-hive/internal/device.ClauseSubject
+  AuthoringClauseOp:
+    model: github.com/saffronjam/saffron-hive/internal/device.ClauseOp
+  EffectColorMode:
+    model: github.com/saffronjam/saffron-hive/internal/effect.ColorMode

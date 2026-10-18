@@ -13,7 +13,7 @@ func (s *DB) GetSetting(ctx context.Context, key string) (Setting, error) {
 	if err != nil {
 		return Setting{}, fmt.Errorf("get setting %q: %w", key, err)
 	}
-	return Setting{Key: row.Key, Value: row.Value}, nil
+	return Setting{Revision: row.Revision, Key: row.Key, Value: row.Value}, nil
 }
 
 // ListSettings returns all settings.
@@ -24,7 +24,7 @@ func (s *DB) ListSettings(ctx context.Context) ([]Setting, error) {
 	}
 	var settings []Setting
 	for _, r := range rows {
-		settings = append(settings, Setting{Key: r.Key, Value: r.Value})
+		settings = append(settings, Setting{Revision: r.Revision, Key: r.Key, Value: r.Value})
 	}
 	return settings, nil
 }
@@ -35,4 +35,16 @@ func (s *DB) UpsertSetting(ctx context.Context, key, value string) error {
 		return fmt.Errorf("upsert setting %q: %w", key, err)
 	}
 	return nil
+}
+
+// UpdateSetting saves a user preference only when its loaded revision is current.
+func (s *DB) UpdateSetting(ctx context.Context, key, value string, expectedRevision int64) (Setting, error) {
+	n, err := s.q.UpdateSetting(ctx, sqlite.UpdateSettingParams{Key: key, Value: value, ExpectedRevision: expectedRevision})
+	if err != nil {
+		return Setting{}, err
+	}
+	if n != 1 {
+		return Setting{}, ErrRevisionConflict
+	}
+	return Setting{Key: key, Value: value, Revision: expectedRevision + 1}, nil
 }

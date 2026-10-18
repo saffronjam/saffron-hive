@@ -30,6 +30,23 @@ func (q *Queries) BatchDeleteWebhookEndpoints(ctx context.Context, idsJson strin
 	return result.RowsAffected()
 }
 
+const claimWebhookEndpointRevision = `-- name: ClaimWebhookEndpointRevision :execrows
+UPDATE webhook_endpoints SET revision = revision + 1 WHERE id = ?1 AND revision = ?2
+`
+
+type ClaimWebhookEndpointRevisionParams struct {
+	ID               string
+	ExpectedRevision int64
+}
+
+func (q *Queries) ClaimWebhookEndpointRevision(ctx context.Context, arg ClaimWebhookEndpointRevisionParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, claimWebhookEndpointRevision, arg.ID, arg.ExpectedRevision)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const countWebhookDeliveriesSince = `-- name: CountWebhookDeliveriesSince :one
 SELECT COUNT(*) FROM webhook_deliveries
 WHERE endpoint_id = ? AND received_at >= ? AND outcome != 'rate_limited'
@@ -113,7 +130,7 @@ func (q *Queries) GetWebhookDelivery(ctx context.Context, id string) (WebhookDel
 }
 
 const getWebhookEndpoint = `-- name: GetWebhookEndpoint :one
-SELECT w.id, w.name, w.enabled,
+SELECT w.revision, w.id, w.name, w.enabled,
        w.rate_limit_count, w.rate_limit_window_ms,
        w.created_at, w.updated_at,
        u.id AS creator_id, u.username AS creator_username, u.name AS creator_name,
@@ -129,6 +146,7 @@ WHERE w.id = ?
 `
 
 type GetWebhookEndpointRow struct {
+	Revision          int64
 	ID                string
 	Name              string
 	Enabled           bool
@@ -146,6 +164,7 @@ func (q *Queries) GetWebhookEndpoint(ctx context.Context, id string) (GetWebhook
 	row := q.db.QueryRowContext(ctx, getWebhookEndpoint, id)
 	var i GetWebhookEndpointRow
 	err := row.Scan(
+		&i.Revision,
 		&i.ID,
 		&i.Name,
 		&i.Enabled,
@@ -168,9 +187,21 @@ FROM webhook_endpoints
 WHERE secret_hash = ?
 `
 
-func (q *Queries) GetWebhookEndpointBySecretHash(ctx context.Context, secretHash string) (WebhookEndpoint, error) {
+type GetWebhookEndpointBySecretHashRow struct {
+	ID                string
+	Name              string
+	Enabled           bool
+	SecretHash        string
+	RateLimitCount    int64
+	RateLimitWindowMs int64
+	CreatedBy         *string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+func (q *Queries) GetWebhookEndpointBySecretHash(ctx context.Context, secretHash string) (GetWebhookEndpointBySecretHashRow, error) {
 	row := q.db.QueryRowContext(ctx, getWebhookEndpointBySecretHash, secretHash)
-	var i WebhookEndpoint
+	var i GetWebhookEndpointBySecretHashRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -342,7 +373,7 @@ func (q *Queries) ListWebhookEndpointAutomationReferences(ctx context.Context, c
 }
 
 const listWebhookEndpoints = `-- name: ListWebhookEndpoints :many
-SELECT w.id, w.name, w.enabled,
+SELECT w.revision, w.id, w.name, w.enabled,
        w.rate_limit_count, w.rate_limit_window_ms,
        w.created_at, w.updated_at,
        u.id AS creator_id, u.username AS creator_username, u.name AS creator_name,
@@ -358,6 +389,7 @@ ORDER BY lower(w.name), w.id
 `
 
 type ListWebhookEndpointsRow struct {
+	Revision          int64
 	ID                string
 	Name              string
 	Enabled           bool
@@ -381,6 +413,7 @@ func (q *Queries) ListWebhookEndpoints(ctx context.Context) ([]ListWebhookEndpoi
 	for rows.Next() {
 		var i ListWebhookEndpointsRow
 		if err := rows.Scan(
+			&i.Revision,
 			&i.ID,
 			&i.Name,
 			&i.Enabled,

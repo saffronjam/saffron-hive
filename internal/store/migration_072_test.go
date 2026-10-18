@@ -31,6 +31,9 @@ func TestMigration072GroupDisplayNames(t *testing.T) {
 	if err := m.Migrate(72); err != nil {
 		t.Fatal(err)
 	}
+	if err := m.Up(); err != nil {
+		t.Fatal(err)
+	}
 	s := New(db)
 	ctx := context.Background()
 	hive, err := s.GetGroup(ctx, "hive-group")
@@ -42,7 +45,7 @@ func TestMigration072GroupDisplayNames(t *testing.T) {
 		t.Fatalf("provider group = %+v, %v", provider, err)
 	}
 
-	provider, err = s.UpdateGroup(ctx, UpdateGroupParams{
+	provider, err = s.UpdateGroup(ctx, UpdateGroupParams{ExpectedRevision: provider.Revision,
 		ID: "zigbee2mqtt:group:7", Name: device.Ptr("Upstairs"), SetName: true,
 	})
 	if err != nil || provider.DisplayName() != "Upstairs" {

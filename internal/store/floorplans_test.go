@@ -100,18 +100,20 @@ func TestReplaceFloorplanPreservesLocalizedRoomIdentity(t *testing.T) {
 	if err := s.ReplaceFloorplan(ctx, params); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.ReplaceLocalizedNameSet(ctx, localization.NameSet{
+	if _, err := s.ReplaceLocalizedNameSet(ctx, localization.NameSet{Revision: 1,
 		EntityType: "floorplan_room", EntityID: "face-1", SourceLanguage: localization.English,
 		Translations: map[localization.Language]string{localization.Swedish: "Hall"},
 	}); err != nil {
 		t.Fatal(err)
 	}
+	params.ExpectedRevision = 1
 	if err := s.ReplaceFloorplan(ctx, params); err != nil {
 		t.Fatal(err)
 	}
 	assertLocalizedTranslation(t, s, "floorplan_room", "face-1", localization.Swedish, "Hall")
 
 	params.Rooms = nil
+	params.ExpectedRevision = 2
 	if err := s.ReplaceFloorplan(ctx, params); err != nil {
 		t.Fatal(err)
 	}

@@ -21,7 +21,8 @@ func localizedNameSetFromInput(input model.LocalizedNameSetInput) localization.N
 	for _, translation := range input.Translations {
 		translations[localizationLanguage(translation.Language)] = translation.Value
 	}
-	return localization.NameSet{EntityType: input.EntityType, EntityID: input.EntityID, SourceLanguage: localizationLanguage(input.SourceLanguage), Translations: translations}
+	return localization.NameSet{
+		Revision: int64(input.ExpectedRevision), EntityType: input.EntityType, EntityID: input.EntityID, SourceLanguage: localizationLanguage(input.SourceLanguage), Translations: translations}
 }
 
 func mapLocalizedNameSet(names localization.NameSet) *model.LocalizedNameSet {
@@ -34,5 +35,6 @@ func mapLocalizedNameSet(names localization.NameSet) *model.LocalizedNameSet {
 	for _, language := range languages {
 		translations = append(translations, &model.LocalizedName{Language: modelLanguage(localization.Language(language)), Value: names.Translations[localization.Language(language)]})
 	}
-	return &model.LocalizedNameSet{EntityType: names.EntityType, EntityID: names.EntityID, SourceLanguage: modelLanguage(names.SourceLanguage), Translations: translations}
+	return &model.LocalizedNameSet{
+		Revision: int(names.Revision), EntityType: names.EntityType, EntityID: names.EntityID, SourceLanguage: modelLanguage(names.SourceLanguage), Translations: translations}
 }

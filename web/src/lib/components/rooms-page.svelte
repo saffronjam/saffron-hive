@@ -1,4 +1,7 @@
 <script lang="ts">
+ import { graphqlErrorMessage } from "$lib/graphql-error";
+ import {createEditorRefresh} from "$lib/editor-refresh.svelte";
+ import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { measureMount } from "$lib/perf";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -335,7 +338,7 @@
 			pageHeader.breadcrumbs = [{ label: m.nav_rooms({}, locale.messageOptions()), onclick: stopEditing }, { label: localizedNamesStore.display("room", editingRoom.id, editingRoom.name) }];
 			pageHeader.actions = [
 				{ label: m.common_cancel({}, locale.messageOptions()), icon: X, variant: "outline" as const, onclick: stopEditing, hideLabelOnMobile: true },
-				{ label: m.common_save({}, locale.messageOptions()), saving: editLoading, onclick: handleSaveRoom, disabled: !hasPendingChanges || editLoading, hideLabelOnMobile: true },
+				{ label: m.common_save({}, locale.messageOptions()), saving: editLoading, onclick: handleSaveRoom, disabled: refreshGuard.conflict || !hasPendingChanges || editLoading, hideLabelOnMobile: true },
 			];
 			pageHeader.viewToggle = null;
 		} else if (urlEditId) {
@@ -508,38 +511,36 @@
 		}
 	});
 
+ function applyExternalRoom(value:typeof editingRoom){
+ editingRoom=value;if(!value)return;
+ editName=value.name??"";editIcon=value.icon??null;editNameDirty=false;editIconDirty=false;pendingMemberAdds=[];pendingMemberRemovals=new Set();
+ }
+ const refreshGuard=createEditorRefresh({
+ read:async()=>{const id=editingRoom?.id;await roomsStore.refresh(client);if(roomsStore.error)throw new Error(roomsStore.error);return id?roomsStore.byId.get(id)??null:null;},
+ apply:applyExternalRoom,dirty:()=>hasPendingChanges,busy:()=>editLoading||!editingRoom,
+ });
+ let observedEditorId:string|null=null;
+ $effect(()=>{if(editingRoom?.id!==observedEditorId){observedEditorId=editingRoom?.id??null;refreshGuard.accept(editingRoom);}});
+
 	async function handleSaveRoom() {
-		if (!editingRoom) return;
+		if (!editingRoom || refreshGuard.conflict) return;
 		const roomId = editingRoom.id;
 		editLoading = true;
 		errors.clear();
 
-		// Each write reports the whole room back, so the last one to run holds
-		// the state the editor should show.
 		let latest = editingRoom;
-		try {
-			const nameDirty = editName.trim() && editName.trim() !== editingRoom.name;
-			if (nameDirty || editIconDirty) {
-				const input: { name?: string; icon?: string | null } = {};
-				if (nameDirty) input.name = editName.trim();
-				if (editIconDirty) input.icon = editIcon;
-				latest = await roomsStore.update(client, roomId, input);
-			}
-			for (const memberId of pendingMemberRemovals) {
-				latest = await roomsStore.removeMember(client, memberId);
-			}
-			for (const add of pendingMemberAdds) {
-				const memberId = add.kind === "device" ? add.device.id : add.group.id;
-				latest = await roomsStore.addMember(client, roomId, add.kind, memberId);
-			}
+ try {
+ const members=editingRoom.members.filter(m=>!pendingMemberRemovals.has(m.id)).map(m=>({memberType:m.memberType,memberId:m.memberId}));
+ for(const add of pendingMemberAdds){const memberId=add.kind==="device"?add.device.id:add.group.id;if(!members.some(m=>m.memberType===add.kind&&m.memberId===memberId))members.push({memberType:add.kind,memberId});}
+ latest=await roomsStore.update(client,roomId,{expectedRevision:editingRoom.revision,name:editName.trim(),icon:editIcon,members});
 		} catch (e) {
 			editLoading = false;
 			console.error(e);
-			errors.setWithAutoDismiss(m.room_save_failed({}, locale.messageOptions()));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.room_save_failed({}, locale.messageOptions())));
 			return;
 		}
 
-		editingRoom = latest;
+		editingRoom = latest;refreshGuard.accept(latest);
 		editName = latest.name;
 		editIcon = latest.icon ?? null;
 		editNameDirty = false;
@@ -626,7 +627,7 @@
 	async function handleRename(room: Room, newName: string) {
 		errors.clear();
 		try {
-			await roomsStore.update(client, room.id, { name: newName });
+			await roomsStore.update(client, room.id, { expectedRevision:room.revision, name: newName });
 		} catch (e) {
 			console.error(e);
 			errors.setWithAutoDismiss(m.room_rename_failed({}, locale.messageOptions()));
@@ -636,7 +637,7 @@
 	async function handleIconChange(room: Room, icon: string | null) {
 		errors.clear();
 		try {
-			await roomsStore.update(client, room.id, { icon });
+			await roomsStore.update(client, room.id, { expectedRevision:room.revision, icon });
 		} catch (e) {
 			console.error(e);
 			errors.setWithAutoDismiss(m.icon_change_failed({}, locale.messageOptions()));
@@ -652,6 +653,7 @@
 
 <div>
 	{#if errors.message}
+		{#if refreshGuard.conflict}<ExternalChangeBanner onreload={()=>refreshGuard.refresh(true)} />{/if}
 		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
 	{/if}
 

@@ -1,3 +1,4 @@
+import { revision } from "./revision";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   chromium,
@@ -123,7 +124,7 @@ async function cleanUpDeletedDevice(): Promise<void> {
   await graphqlClient
     .mutation(CLEAN_UP_DELETED_DEVICE, {
       id: deletedDeviceId,
-      input: { disabled: false },
+      input: { expectedRevision:await revision(graphqlClient,"device",deletedDeviceId), disabled: false },
     })
     .toPromise();
 }

@@ -18,7 +18,7 @@ func TestLocalizedNamesFollowContentLanguageAndCascade(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	names, err := s.ReplaceLocalizedNameSet(ctx, localization.NameSet{
+	names, err := s.ReplaceLocalizedNameSet(ctx, localization.NameSet{Revision: 1,
 		EntityType:     "group",
 		EntityID:       "group-1",
 		SourceLanguage: localization.Swedish,
@@ -69,7 +69,7 @@ func TestLocalizedNameSourceLanguageIsImmutable(t *testing.T) {
 	if _, err := s.CreateRoom(ctx, CreateRoomParams{ID: "room-1", Name: "Kitchen"}); err != nil {
 		t.Fatal(err)
 	}
-	_, err := s.ReplaceLocalizedNameSet(ctx, localization.NameSet{
+	_, err := s.ReplaceLocalizedNameSet(ctx, localization.NameSet{Revision: 1,
 		EntityType:     "room",
 		EntityID:       "room-1",
 		SourceLanguage: localization.Russian,
@@ -91,13 +91,13 @@ func TestNestedLocalizedNamesSurviveReorderAndCleanUp(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.ReplaceLocalizedNameSet(ctx, localization.NameSet{
+	if _, err := s.ReplaceLocalizedNameSet(ctx, localization.NameSet{Revision: 1,
 		EntityType: "scene_target", EntityID: "selector-1", SourceLanguage: localization.English,
 		Translations: map[localization.Language]string{localization.Swedish: "Färglampor"},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SaveSceneDefinition(ctx, "scene-1", SceneDefinition{Targets: []SceneTarget{
+	if err := saveSceneDefinition(t, s, ctx, "scene-1", SceneDefinition{Targets: []SceneTarget{
 		{EntryID: "room-target", Type: "room", ID: "living"},
 		{EntryID: "selector-1", Type: "expression", Name: "Colour lights", Expression: []device.Clause{{Subject: device.SubjectWritableCapability, Op: device.OpIs, Values: []string{device.CapColor}}}},
 	}}); err != nil {
@@ -105,7 +105,7 @@ func TestNestedLocalizedNamesSurviveReorderAndCleanUp(t *testing.T) {
 	}
 	assertLocalizedTranslation(t, s, "scene_target", "selector-1", localization.Swedish, "Färglampor")
 
-	if err := s.SaveSceneDefinition(ctx, "scene-1", SceneDefinition{Targets: []SceneTarget{{EntryID: "room-target", Type: "room", ID: "living"}}}); err != nil {
+	if err := saveSceneDefinition(t, s, ctx, "scene-1", SceneDefinition{Targets: []SceneTarget{{EntryID: "room-target", Type: "room", ID: "living"}}}); err != nil {
 		t.Fatal(err)
 	}
 	assertLocalizedSubjectMissing(t, s, "scene_target", "selector-1")

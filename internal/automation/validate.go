@@ -2,6 +2,7 @@ package automation
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/robfig/cron/v3"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
@@ -11,6 +12,7 @@ import (
 // ValidationError represents a structural problem found during graph validation.
 type ValidationError struct {
 	NodeID  NodeID
+	Field   string
 	Message string
 }
 
@@ -33,13 +35,19 @@ func (r ValidationResult) Valid() bool {
 }
 
 // ValidateGraph checks whether an AutomationGraph can be loaded by the engine.
-// Disconnected nodes are valid draft content and produce warnings. Connected
-// edges must reference existing nodes and form a directed acyclic graph.
+// Every execution node must receive input along a path from a trigger.
+// Edges must reference existing nodes and form a directed acyclic graph.
 func ValidateGraph(g AutomationGraph) ValidationResult {
 	var result ValidationResult
 
 	nodeSet := make(map[NodeID]Node, len(g.Nodes))
 	for _, n := range g.Nodes {
+		if n.ID == "" {
+			result.Errors = append(result.Errors, ValidationError{Message: "node ID is required"})
+		}
+		if _, exists := nodeSet[n.ID]; exists {
+			result.Errors = append(result.Errors, ValidationError{NodeID: n.ID, Message: "duplicate node ID"})
+		}
 		nodeSet[n.ID] = n
 	}
 
@@ -67,6 +75,9 @@ func ValidateGraph(g AutomationGraph) ValidationResult {
 		in := incoming[n.ID]
 		out := outgoing[n.ID]
 
+		if n.Config == nil {
+			result.Errors = append(result.Errors, ValidationError{NodeID: n.ID, Message: "node configuration is required"})
+		}
 		switch n.Type {
 		case NodeTrigger:
 			triggerCount++
@@ -93,6 +104,9 @@ func ValidateGraph(g AutomationGraph) ValidationResult {
 						})
 					}
 				case "", TriggerEvent:
+					if strings.TrimSpace(tc.EventType) == "" {
+						result.Errors = append(result.Errors, ValidationError{NodeID: n.ID, Message: "event type is required"})
+					}
 				default:
 					result.Errors = append(result.Errors, ValidationError{
 						NodeID:  n.ID,
@@ -120,19 +134,16 @@ func ValidateGraph(g AutomationGraph) ValidationResult {
 				}
 			}
 		case NodeCondition:
-			if in > 0 {
-				result.Warnings = append(result.Warnings, ValidationError{
-					NodeID:  n.ID,
-					Message: "condition node ignores incoming edges (it is evaluated independently when a trigger fires)",
-				})
-			}
 			if out == 0 && len(g.Edges) > 0 {
 				result.Warnings = append(result.Warnings, ValidationError{
 					NodeID:  n.ID,
 					Message: "condition node has no outgoing edges",
 				})
 			}
-			if cc, ok := n.Config.(ConditionConfig); ok && cc.Expr != "" {
+			if cc, ok := n.Config.(ConditionConfig); ok {
+				if strings.TrimSpace(cc.Expr) == "" {
+					result.Errors = append(result.Errors, ValidationError{NodeID: n.ID, Message: "condition expression is required"})
+				}
 				if err := ValidateExpression(cc.Expr); err != nil {
 					result.Errors = append(result.Errors, ValidationError{
 						NodeID:  n.ID,
@@ -141,24 +152,20 @@ func ValidateGraph(g AutomationGraph) ValidationResult {
 				}
 			}
 		case NodeAction:
+			if cfg, ok := n.Config.(ActionConfig); ok {
+				if err := ValidateAction(cfg); err != nil {
+					result.Errors = append(result.Errors, ValidationError{NodeID: n.ID, Message: err.Error()})
+				}
+			}
 			if out > 0 {
 				result.Errors = append(result.Errors, ValidationError{
 					NodeID:  n.ID,
 					Message: "action node must not have outgoing edges",
 				})
 			}
-			if in == 0 && len(g.Edges) > 0 {
-				result.Warnings = append(result.Warnings, ValidationError{
-					NodeID:  n.ID,
-					Message: "action node has no incoming edges",
-				})
-			}
 		case NodeOperator:
-			if in == 0 {
-				result.Warnings = append(result.Warnings, ValidationError{
-					NodeID:  n.ID,
-					Message: "operator node has no incoming edges",
-				})
+			if cfg, ok := n.Config.(OperatorConfig); ok && cfg.Kind != OperatorAnd && cfg.Kind != OperatorOr {
+				result.Errors = append(result.Errors, ValidationError{NodeID: n.ID, Message: "operator must be 'and' or 'or'"})
 			}
 			if out == 0 {
 				result.Warnings = append(result.Warnings, ValidationError{
@@ -174,13 +181,46 @@ func ValidateGraph(g AutomationGraph) ValidationResult {
 		}
 	}
 
+	reachable := make(map[NodeID]bool, len(g.Nodes))
+	adj := make(map[NodeID][]NodeID, len(g.Nodes))
+	for _, edge := range g.Edges {
+		adj[edge.FromNodeID] = append(adj[edge.FromNodeID], edge.ToNodeID)
+	}
+	var queue []NodeID
+	for _, node := range g.Nodes {
+		if node.Type == NodeTrigger {
+			reachable[node.ID] = true
+			queue = append(queue, node.ID)
+		}
+	}
+	for len(queue) > 0 {
+		id := queue[0]
+		queue = queue[1:]
+		for _, next := range adj[id] {
+			if !reachable[next] {
+				reachable[next] = true
+				queue = append(queue, next)
+			}
+		}
+	}
+	for _, node := range g.Nodes {
+		if node.Type == NodeTrigger {
+			continue
+		}
+		if incoming[node.ID] == 0 {
+			result.Errors = append(result.Errors, ValidationError{NodeID: node.ID, Field: "edges", Message: "node requires an incoming connection from a trigger path"})
+		} else if !reachable[node.ID] {
+			result.Errors = append(result.Errors, ValidationError{NodeID: node.ID, Field: "edges", Message: "node must be reachable from a trigger"})
+		}
+	}
+
 	if cycle := detectCycle(g.Nodes, g.Edges); cycle != "" {
 		result.Errors = append(result.Errors, ValidationError{
 			Message: fmt.Sprintf("graph contains a cycle involving node %s", cycle),
 		})
 	}
 
-	if len(g.Nodes) > 0 && triggerCount == 0 {
+	if triggerCount == 0 {
 		result.Errors = append(result.Errors, ValidationError{
 			Message: "automation has no trigger node; add an event or schedule trigger so the automation has something to run in response to",
 		})

@@ -1,9 +1,4 @@
-import {
-  deviceSceneCapabilities,
-  isLightControlDevice,
-  isRuntimeEnabledDevice,
-  type Device,
-} from "$lib/stores/devices";
+import { isLightControlDevice, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 import { deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
 import {
   evaluateExpression,
@@ -126,6 +121,7 @@ export interface ScenePreview {
 }
 
 export interface SceneData {
+  revision: number;
   id: string;
   name: string;
   icon?: string | null;
@@ -237,18 +233,7 @@ export function sceneToEditorState(scene: SceneData): EditorState {
   };
 }
 
-export function defaultDesiredState(device?: Device): DesiredSceneState {
-  if (!device) return { on: true, brightness: 200, colorTemp: 370 };
-  const capabilities = deviceSceneCapabilities(device);
-  const state: DesiredSceneState = {};
-  if (capabilities.hasOnOff) state.on = true;
-  if (capabilities.hasBrightness) state.brightness = 200;
-  if (capabilities.hasColorTemp) state.colorTemp = 370;
-  if (stateEmpty(state) && capabilities.hasColor) state.color = { r: 255, g: 255, b: 255 };
-  return state;
-}
-
-export function capturedSceneState(device: Device): DesiredSceneState | null {
+export function displayedSceneState(device: Device): DesiredSceneState | null {
   const source = device.state;
   if (!source) return null;
   const writable = new Set(
@@ -269,14 +254,12 @@ export function capturedSceneState(device: Device): DesiredSceneState | null {
   return stateEmpty(state) ? null : state;
 }
 
-export function initialSupportingState(device: Device): DesiredSceneState | null {
-  if (device.type === "sensor" || isLightControlDevice(device)) return null;
+export function isSceneSupportingDevice(device: Device): boolean {
   return (
-    capturedSceneState(device) ??
-    (() => {
-      const state = defaultDesiredState(device);
-      return stateEmpty(state) ? null : state;
-    })()
+    device.type !== "sensor" &&
+    !isLightControlDevice(device) &&
+    (device.capabilities.some((cap) => cap.canSet && cap.name === "on_off") ||
+      displayedSceneState(device) !== null)
   );
 }
 

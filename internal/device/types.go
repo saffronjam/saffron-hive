@@ -167,7 +167,8 @@ func (c Capability) EffectiveCategory() CapabilityCategory {
 
 // Device is the protocol-agnostic representation of a home automation device.
 type Device struct {
-	ID DeviceID `json:"id"`
+	Revision int64
+	ID       DeviceID `json:"id"`
 	// Name is the user's override, nil when unset. FriendlyName is what the
 	// integration reports and is refreshed on every adapter sync. Read
 	// DisplayName rather than either field directly.

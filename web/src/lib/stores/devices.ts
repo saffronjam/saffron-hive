@@ -92,6 +92,7 @@ interface DeviceMap {
 const DEVICES_QUERY = graphql(`
   query DevicesInit {
     devices {
+      revision
       id
       name
       icon
@@ -231,6 +232,7 @@ const DEVICE_AVAILABILITY_CHANGED = graphql(`
 const DEVICE_ADDED = graphql(`
   subscription DeviceAdded {
     deviceAdded {
+      revision
       id
       name
       friendlyName
@@ -310,6 +312,7 @@ const DEVICE_REMOVED = graphql(`
 const DEVICE_UPDATED = graphql(`
   subscription DeviceStoreUpdated {
     deviceUpdated {
+      revision
       id
       name
       icon
@@ -385,7 +388,7 @@ const DEVICE_UPDATED = graphql(`
 
 /** Cache name and schema version for the disk snapshot. Bump on any change to `DEVICES_QUERY`. */
 const SNAPSHOT_NAME = "devices";
-const SNAPSHOT_VERSION = 4;
+const SNAPSHOT_VERSION = 5;
 const PERSIST_DEBOUNCE_MS = 250;
 
 function storage(): Storage | null {
@@ -428,7 +431,7 @@ export function createDeviceStore() {
   let refreshTail: Promise<unknown> = Promise.resolve();
   const stateRevisions = new Map<string, number>();
 
-  const { subscribe, set } = writable<DeviceMap>(current);
+  const { subscribe, set, update } = writable<DeviceMap>(current);
   // Subscribing emits synchronously, so everything `persist` touches must
   // already be initialized above this line. That first emit carries the value
   // just restored from disk, so it is not worth writing straight back.
@@ -530,6 +533,14 @@ export function createDeviceStore() {
       if (device && !device.seen) next[id] = { ...device, seen: true };
     }
     set(next);
+  }
+
+  function updateMetadata(deviceId: string, metadata: Partial<Device> & { revision: number }) {
+    update((devices) => {
+      const current = devices[deviceId];
+      if (!current || metadata.revision < current.revision) return devices;
+      return { ...devices, [deviceId]: { ...current, ...metadata } };
+    });
   }
 
   function updateName(deviceId: string, name: string | null) {
@@ -642,6 +653,7 @@ export function createDeviceStore() {
     updateAvailability,
     updateAttributes,
     addDevice,
+    updateMetadata,
     updateName,
     updateIcon,
     updateDisplayColor,

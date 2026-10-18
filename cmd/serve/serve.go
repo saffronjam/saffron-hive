@@ -28,6 +28,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/adapter/tuya"
 	"github.com/saffronjam/saffron-hive/internal/adapter/zigbee"
 	"github.com/saffronjam/saffron-hive/internal/alarms"
+	"github.com/saffronjam/saffron-hive/internal/assistant"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/avatars"
@@ -46,6 +47,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/output"
 	"github.com/saffronjam/saffron-hive/internal/outputowner"
 	"github.com/saffronjam/saffron-hive/internal/providergroup"
+	"github.com/saffronjam/saffron-hive/internal/pubsub"
 	"github.com/saffronjam/saffron-hive/internal/scene"
 	"github.com/saffronjam/saffron-hive/internal/spatial"
 	"github.com/saffronjam/saffron-hive/internal/store"
@@ -78,7 +80,7 @@ func Run(ctx context.Context) error {
 	// SQLITE_BUSY immediately on upgrade contention, and busy_timeout does
 	// NOT retry that case. Writing the lock upfront lets busy_timeout cover
 	// the full wait on concurrent writers.
-	db, err := sql.Open("sqlite", cfg.DBPath+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_txlock=immediate")
+	db, err := sql.Open("sqlite", cfg.DBPath+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_txlock=immediate")
 	if err != nil {
 		return err
 	}
@@ -321,12 +323,16 @@ func Run(ctx context.Context) error {
 		AvatarDir:           avatarDir,
 	}
 
-	gqlSrv := handler.New(graph.NewExecutableSchema(graph.Config{
+	resolver.Assistant = assistant.New(ctx, sqlStore, &assistant.CLIRunner{})
+	resolver.ApplicationChanges = pubsub.NewFanout[int]()
+	executable := graph.NewExecutableSchema(graph.Config{
 		Resolvers: resolver,
 		Directives: graph.DirectiveRoot{
 			Auth: graph.AuthDirective,
 		},
-	}))
+	})
+	gqlSrv := handler.New(executable)
+	gqlSrv.AroundFields(resolver.AnnounceMutation)
 	gqlSrv.AddTransport(transport.GET{})
 	gqlSrv.AddTransport(transport.POST{})
 	gqlSrv.AddTransport(transport.Websocket{
@@ -343,7 +349,13 @@ func Run(ctx context.Context) error {
 	})
 	gqlSrv.SetErrorPresenter(graph.ErrorPresenter)
 
+	resolver.Assistant.SetGateway(graph.NewAssistantGateway(executable, gqlSrv, resolver, sqlStore, avatars.NewUploadHandler(avatarDir, sqlStore)))
+	if err := resolver.Assistant.Start(); err != nil {
+		return fmt.Errorf("start assistant: %w", err)
+	}
 	mux := http.NewServeMux()
+	mux.Handle("/api/assistant/attachments", auth.RequireUser(authSvc, sqlStore)(resolver.Assistant.AttachmentHandler()))
+	mux.Handle("/api/assistant/attachments/", auth.RequireUser(authSvc, sqlStore)(resolver.Assistant.AttachmentHandler()))
 	mux.Handle("/graphql", GzipGraphQL(
 		auth.ClientIPMiddleware(cfg.TrustProxyHeaders)(
 			auth.RequestGuard(auth.MaxGraphQLRequestBytes)(
@@ -879,8 +891,8 @@ func (m *adapterManager) TestTuya(ctx context.Context, cfg store.TuyaConfig) err
 
 func (m *adapterManager) SyncTuya(ctx context.Context) ([]device.Device, error) {
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	adapter := m.tuya
-	m.mu.Unlock()
 	if adapter != nil {
 		return adapter.Sync(ctx)
 	}
@@ -913,68 +925,47 @@ func (m *adapterManager) SyncTuya(ctx context.Context) ([]device.Device, error) 
 // instead orphan those references. Tuya purges, because its cloud ids are
 // re-derived on every sync.
 func (m *adapterManager) DeleteIntegration(ctx context.Context, provider string) (int, error) {
-	switch device.Source(provider) {
+	source := device.Source(provider)
+	if source != device.SourceZigbee2MQTT && source != device.SourceTuya {
+		return 0, fmt.Errorf("unknown integration %q", provider)
+	}
+	m.mu.Lock()
+	switch source {
 	case device.SourceZigbee2MQTT:
-		m.mu.Lock()
 		if m.adapter != nil {
 			if m.output != nil {
-				m.output.UnregisterActuator(device.SourceZigbee2MQTT, m.adapter)
+				m.output.UnregisterActuator(source, m.adapter)
 			}
 			m.adapter.Stop()
 			m.adapter = nil
 		}
 		m.zigbee2mqttEnabled = false
 		m.stopScanCronLocked()
-		m.mu.Unlock()
-
-		if err := m.store.DeleteZigbee2MQTTConfig(ctx); err != nil {
-			return 0, err
-		}
-		if err := m.store.DeleteNetworkTopology(ctx, device.SourceZigbee2MQTT); err != nil {
-			return 0, err
-		}
-		return 0, nil
-
 	case device.SourceTuya:
-		m.mu.Lock()
 		if m.tuya != nil {
 			if m.output != nil {
-				m.output.UnregisterActuator(device.SourceTuya, m.tuya)
+				m.output.UnregisterActuator(source, m.tuya)
 			}
 			m.tuya.Stop()
 			m.tuya = nil
 		}
-		m.mu.Unlock()
-
-		if err := m.store.DeleteTuyaConfig(ctx); err != nil {
-			return 0, err
-		}
-		return m.purgeDevicesForSource(ctx, device.SourceTuya)
-
-	default:
-		return 0, fmt.Errorf("unknown integration %q", provider)
 	}
-}
-
-// purgeDevicesForSource deletes every device belonging to a source and reports
-// how many rows went away.
-func (m *adapterManager) purgeDevicesForSource(ctx context.Context, source device.Source) (int, error) {
-	devices, err := m.store.ListDevicesBySource(ctx, source)
+	removed, err := m.store.DeleteProviderConfiguration(ctx, source)
+	m.mu.Unlock()
 	if err != nil {
-		return 0, err
-	}
-	for _, dev := range devices {
-		if err := m.store.PurgeDevice(ctx, dev.ID); err != nil {
-			return 0, err
+		var restoreErr error
+		if source == device.SourceZigbee2MQTT {
+			restoreErr = m.ReconnectZigbee2MQTT(context.WithoutCancel(ctx))
+		} else {
+			restoreErr = m.ReconnectTuya(context.WithoutCancel(ctx))
 		}
-		m.memStore.Remove(dev.ID)
-		m.bus.Publish(eventbus.Event{
-			Type:      eventbus.EventDeviceRemoved,
-			DeviceID:  string(dev.ID),
-			Timestamp: time.Now(),
-		})
+		return 0, errors.Join(err, restoreErr)
 	}
-	return len(devices), nil
+	for _, dev := range removed {
+		m.memStore.Remove(dev.ID)
+		m.bus.Publish(eventbus.Event{Type: eventbus.EventDeviceRemoved, DeviceID: string(dev.ID), Timestamp: time.Now()})
+	}
+	return len(removed), nil
 }
 
 func (m *adapterManager) TuyaConnected() bool {

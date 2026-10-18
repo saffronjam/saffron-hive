@@ -4,6 +4,7 @@ import type { Device } from "$lib/stores/devices";
 
 function light(id: string, on: boolean, brightness = 100): Device {
   return {
+    revision: 1,
     id,
     name: id,
     friendlyName: id,

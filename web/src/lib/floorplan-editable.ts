@@ -183,7 +183,9 @@ export function floorplanToGraph(data: FloorplanData): {
     id: r.id,
     name: r.name ?? null,
     roomId: r.roomId ?? null,
-    vertexIds: [...r.vertexIds],
+    vertexIds: r.vertexIds.every((id) => graph.vertices.some((v) => v.id === id))
+      ? [...r.vertexIds]
+      : [],
   }));
   const placements: FloorplanPlacementData[] = data.placements.map((p) => ({
     memberType: p.memberType === "group" ? "group" : "device",
@@ -244,7 +246,9 @@ export function buildUpdateFloorplanInput(
       id: r.id,
       name: r.name,
       roomId: r.roomId,
-      vertexIds: [...r.vertexIds],
+      vertexIds: r.vertexIds.every((id) => graph.vertices.some((v) => v.id === id))
+        ? [...r.vertexIds]
+        : [],
     })),
     placements: placements.map((p) => ({
       memberType: p.memberType,

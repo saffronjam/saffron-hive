@@ -1,4 +1,6 @@
 <script lang="ts">
+ import { createEditorRefresh } from "$lib/editor-refresh.svelte";
+ import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
 	import { onMount } from "svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
@@ -23,6 +25,7 @@
 	const SETTINGS_QUERY = graphql(`
 		query Settings {
 			settings {
+ revision
 				key
 				value
 			}
@@ -30,8 +33,8 @@
 	`);
 
 	const UPDATE_SETTING = graphql(`
-		mutation UpdateSetting($key: String!, $value: String!) {
-			updateSetting(key: $key, value: $value) {
+		mutation UpdateSetting($key: String!, $value: String!, $expectedRevision: Int!) {
+			updateSetting(key: $key, value: $value, expectedRevision: $expectedRevision) {
 				key
 				value
 			}
@@ -72,6 +75,7 @@
 
 	let saving = $state(false);
 	let loaded = $state(false);
+ let revisions=$state<Record<string,number>>({});
 
 	// Nothing counts as edited until the server values are in hand. Without this
 	// the field defaults differ from the empty originals, so the page would arm
@@ -93,17 +97,16 @@
 	]);
 	const contentLanguages: readonly Language[] = ["en", "sv", "ru"];
 
-	async function loadData() {
-		const result = await client.query(SETTINGS_QUERY, {}).toPromise();
-		// A failed query leaves the page unloaded on purpose: Save stays disabled
-		// rather than offering to write our defaults over values we never read.
-		if (!result.data?.settings) return;
-		for (const s of result.data.settings) {
+ type SettingValues={key:string;value:string;revision:number}[];
+ function applySettings(values:SettingValues) {
+ revisions=Object.fromEntries(values.map(s=>[s.key,s.revision]));
+
+		for (const s of values) {
 			if (s.key === "log_level") {
 				logLevel = origLogLevel = s.value;
 			} else if (s.key === "history.retention_days") {
-				const parsed = parseInt(s.value, 10);
-				const days = Number.isFinite(parsed) && parsed > 0 ? parsed : 365;
+				const parsed = Number(s.value);
+				const days = Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 365;
 				historyRetentionDays = origHistoryRetentionDays = days;
 			} else if (s.key === "i18n.default_content_language" && contentLanguages.includes(s.value as Language)) {
 				defaultContentLanguage = origDefaultContentLanguage = s.value as Language;
@@ -123,12 +126,22 @@
 		loaded = true;
 	}
 
+ async function readSettings():Promise<SettingValues>{
+  const result=await client.query(SETTINGS_QUERY,{}, {requestPolicy:"network-only"}).toPromise();
+  if(result.error || !result.data)throw result.error ?? new Error("Settings unavailable");
+  return result.data.settings;
+ }
+ const refreshGuard=createEditorRefresh({read:readSettings,apply:applySettings,dirty:()=>isDirty,busy:()=>saving||!loaded});
+ async function loadData(){try{const values=await readSettings();applySettings(values);refreshGuard.accept(values);}catch{}}
+
 	async function save() {
+ if(refreshGuard.conflict)return;
 		saving = true;
 		try {
 			if (logLevel !== origLogLevel) {
 				const result = await client
-					.mutation(UPDATE_SETTING, { key: "log_level", value: logLevel })
+					.mutation(UPDATE_SETTING, { key: "log_level",
+ expectedRevision:revisions["log_level"]??0, value: logLevel })
 					.toPromise();
 				if (result.error) {
 					console.error("Failed to update setting:", result.error);
@@ -145,6 +158,7 @@
 				const result = await client
 					.mutation(UPDATE_SETTING, {
 						key: "history.retention_days",
+ expectedRevision:revisions["history.retention_days"]??0,
 						value: String(parsed),
 					})
 					.toPromise();
@@ -155,7 +169,8 @@
 				origHistoryRetentionDays = parsed;
 			}
 			if (defaultContentLanguage !== origDefaultContentLanguage) {
-				const result = await client.mutation(UPDATE_SETTING, { key: "i18n.default_content_language", value: defaultContentLanguage }).toPromise();
+				const result = await client.mutation(UPDATE_SETTING, { key: "i18n.default_content_language",
+ expectedRevision:revisions["i18n.default_content_language"]??0, value: defaultContentLanguage }).toPromise();
 				if (result.error) { console.error(result.error); return; }
 				origDefaultContentLanguage = defaultContentLanguage;
 				localizedNamesStore.setDefaultContentLanguage(defaultContentLanguage);
@@ -163,6 +178,7 @@
 			if (translateStandardRoomNames !== origTranslateStandardRoomNames) {
 				const result = await client.mutation(UPDATE_SETTING, {
 					key: "i18n.translate_standard_room_names",
+ expectedRevision:revisions["i18n.translate_standard_room_names"]??0,
 					value: String(translateStandardRoomNames),
 				}).toPromise();
 				if (result.error) { console.error(result.error); return; }
@@ -170,10 +186,12 @@
 				localizedNamesStore.setTranslateStandardRoomNames(translateStandardRoomNames);
 			}
 			if (timeZone !== origTimeZone) {
-				const result = await client.mutation(UPDATE_SETTING, { key: "timezone", value: timeZone }).toPromise();
+				const result = await client.mutation(UPDATE_SETTING, { key: "timezone",
+ expectedRevision:revisions["timezone"]??0, value: timeZone }).toPromise();
 				if (result.error) { console.error(result.error); return; }
 				origTimeZone = timeZone;
 			}
+ await loadData();
 		} finally {
 			saving = false;
 		}
@@ -185,7 +203,7 @@
 				label: m.common_save({}, locale.messageOptions()),
 				icon: Save,
 				onclick: save,
-				disabled: !isDirty || saving,
+				disabled: refreshGuard.conflict || !isDirty || saving,
 				hideLabelOnMobile: true,
 			},
 		];
@@ -197,6 +215,7 @@
 	});
 
 </script>
+{#if refreshGuard.conflict}<ExternalChangeBanner onreload={() => { void refreshGuard.refresh(true); }} />{/if}
 
 <UnsavedGuard dirty={isDirty} />
 

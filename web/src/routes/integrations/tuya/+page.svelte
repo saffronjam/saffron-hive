@@ -1,10 +1,13 @@
 <script lang="ts">
+ import { createEditorRefresh } from "$lib/editor-refresh.svelte";
+ import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
+	import ConnectionTest from "$lib/components/connection-test.svelte";
 	import { onMount } from "svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { toast } from "svelte-sonner";
 	import { graphql } from "$lib/gql";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
-	import { connectionResultMessage, type ConnectionResult } from "$lib/i18n/connection";
+	import type { ConnectionResult } from "$lib/i18n/connection";
 	import { hasStoredSecret as secretIsStored, secretToSend } from "$lib/redacted-secret";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -17,7 +20,7 @@
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
 	import TuyaIcon from "$lib/components/icons/tuya-icon.svelte";
-	import { CircleCheck, CircleX, Loader2, RefreshCw, Save, Unplug } from "@lucide/svelte";
+	import { Loader2, RefreshCw, Save } from "@lucide/svelte";
 	import { integrationDescription } from "$lib/integrations";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
@@ -25,6 +28,7 @@
 	const TUYA_CONFIG_QUERY = graphql(`
 		query TuyaConfigPage {
 			tuyaConfig {
+ revision
 				accessId
 				accessSecret
 				region
@@ -34,12 +38,15 @@
 	`);
 
 	const UPDATE_TUYA_CONFIG = graphql(`
-		mutation UpdateTuyaConfig($input: TuyaConfigInput!) {
-			updateTuyaConfig(input: $input) {
+		mutation UpdateTuyaConfig($input: TuyaConfigInput!, $expectedRevision: Int!) {
+			updateTuyaConfig(input: $input, expectedRevision: $expectedRevision) {
+ config {
+ revision
 				accessId
 				accessSecret
 				region
 				enabled
+ } application { success code diagnostic }
 			}
 		}
 	`);
@@ -69,6 +76,7 @@
 
 	let loaded = $state(false);
 	let saving = $state(false);
+ let savedRevision=$state(0);
 	let testing = $state(false);
 	let syncing = $state(false);
 	let accessId = $state("");
@@ -102,11 +110,13 @@
 	}
 
 	function applyConfig(config: {
+ revision:number;
 		accessId: string;
 		accessSecret: string;
 		region: string;
 		enabled: boolean;
 	} | null | undefined) {
+ savedRevision=config?.revision??0;
 		accessId = config?.accessId ?? "";
 		accessSecret = config?.accessSecret ?? "";
 		region = config?.region || "eu";
@@ -115,19 +125,27 @@
 		original = snapshot();
 	}
 
+ const refreshGuard = createEditorRefresh({
+  read: async () => { const result = await client.query(TUYA_CONFIG_QUERY, {}, {requestPolicy:"network-only"}).toPromise(); if(result.error) throw result.error; return result.data?.tuyaConfig ?? null; },
+  apply: applyConfig, dirty: () => isDirty, busy: () => saving || !loaded,
+ });
+
 	async function loadConfig() {
 		const result = await client.query(TUYA_CONFIG_QUERY, {}, { requestPolicy: "network-only" }).toPromise();
 		applyConfig(result.data?.tuyaConfig ?? null);
+ refreshGuard.accept(result.data?.tuyaConfig ?? null);
 		loaded = true;
 	}
 
 	async function saveConfig() {
+ if(refreshGuard.conflict) return;
 		saving = true;
 		try {
-			const result = await client.mutation(UPDATE_TUYA_CONFIG, { input: mutationInput() }).toPromise();
+			const result = await client.mutation(UPDATE_TUYA_CONFIG, { input: mutationInput(), expectedRevision:savedRevision }).toPromise();
 			if (result.error) throw result.error;
-			applyConfig(result.data?.updateTuyaConfig ?? null);
-			testResult = null;
+			applyConfig(result.data?.updateTuyaConfig.config ?? null);
+ refreshGuard.accept(result.data?.updateTuyaConfig.config ?? null);
+			testResult = result.data?.updateTuyaConfig.application ?? null;
 		} catch (e) {
 			console.error(e);
 			toast.error(graphqlErrorMessage(e, m.tuya_save_failed({}, messageOptions)));
@@ -139,7 +157,7 @@
 	async function testConnection() {
 		testing = true;
 		try {
-			const result = await client.mutation(TEST_TUYA_CONNECTION, { input: mutationInput() }).toPromise();
+			const result = await client.mutation(TEST_TUYA_CONNECTION, { input: mutationInput(), expectedRevision:savedRevision }).toPromise();
 			if (result.error) throw result.error;
 			testResult = result.data?.testTuyaConnection ?? null;
 		} catch (e) {
@@ -171,7 +189,7 @@
 				label: m.common_save({}, messageOptions),
 				icon: Save,
 				onclick: saveConfig,
-				disabled: !isDirty || saving,
+				disabled: refreshGuard.conflict || !isDirty || saving,
 				hideLabelOnMobile: true,
 			},
 		];
@@ -184,6 +202,8 @@
 	});
 
 </script>
+
+{#if refreshGuard.conflict}<ExternalChangeBanner onreload={() => { void refreshGuard.refresh(true); }} />{/if}
 
 <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
 	<section class="rounded-lg shadow-card bg-card p-6">
@@ -232,37 +252,14 @@
 				</Select>
 			</div>
 
-			<div class="flex flex-wrap items-center gap-3 pt-2">
-				<Button variant="outline" size="sm" onclick={testConnection} disabled={!loaded || testing}>
-					{#if testing}
-						<Loader2 class="size-4 animate-spin" />
-					{:else}
-						<Unplug class="size-4" />
-					{/if}
-					{m.tuya_check_connection({}, messageOptions)}
-				</Button>
-				<Button variant="outline" size="sm" onclick={syncDevices} disabled={!loaded || syncing || isDirty}>
+			<ConnectionTest label={m.tuya_check_connection({}, messageOptions)} {testing} disabled={!loaded} result={testResult} ontest={testConnection}><Button variant="outline" size="sm" onclick={syncDevices} disabled={!loaded || syncing || isDirty}>
 					{#if syncing}
 						<Loader2 class="size-4 animate-spin" />
 					{:else}
 						<RefreshCw class="size-4" />
 					{/if}
 					{m.tuya_sync_devices({}, messageOptions)}
-				</Button>
-				{#if testResult}
-					{#if testResult.success}
-						<div class="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
-							<CircleCheck class="size-5" />
-							<span>{connectionResultMessage(testResult)}</span>
-						</div>
-					{:else}
-						<div class="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
-							<CircleX class="size-5 shrink-0" />
-							<span>{connectionResultMessage(testResult)}</span>
-						</div>
-					{/if}
-				{/if}
-			</div>
+				</Button></ConnectionTest>
 		</div>
 	</section>
 

@@ -7,6 +7,7 @@
 		SelectTrigger,
 	} from "$lib/components/ui/select/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
+	import { Switch } from "$lib/components/ui/switch/index.js";
 	import NumberInput from "$lib/components/number-input.svelte";
 	import { Badge } from "$lib/components/ui/badge/index.js";
 	import HiveChip from "$lib/components/hive-chip.svelte";
@@ -106,7 +107,7 @@
 
 	function handleModeChange(value: string | undefined) {
 		if (!value || !data.onConfigChange) return;
-		data.onConfigChange({ mode: value as ConditionMode });
+		data.onConfigChange({ mode: value as ConditionMode, negate: data.config.negate });
 	}
 
 	function toggleWeekday(day: string) {
@@ -145,7 +146,7 @@
 			defaultComparator = ">";
 			defaultValue = cap.valueMin !== null && cap.valueMin !== undefined ? String(cap.valueMin) : "";
 		}
-		update({ property: value, comparator: defaultComparator, value: defaultValue });
+		update({ property: value, comparator: defaultComparator, value: defaultValue, valueType: cap?.type === "binary" ? "boolean" : cap?.type === "numeric" ? "number" : "string" });
 	}
 
 	const deviceRoomLabels = $derived(roomLabelsByDevice(data.rooms ?? []));
@@ -212,6 +213,7 @@
 </script>
 
 <fieldset disabled={data.readOnly} class="min-w-0 space-y-2 border-0 p-0">
+			{#if data.config.mode !== "macro"}
 			<NodeTypeSelect
 				value={data.config.mode}
 				placeholder={m.automation_node_select_condition({}, messageOptions)}
@@ -225,6 +227,7 @@
 				invalid={validationError?.field === "mode"}
 				onchange={handleModeChange}
 			/>
+			{/if}
 
 			{#if data.config.mode === "time_window"}
 				<div class="grid gap-1.5">
@@ -349,7 +352,7 @@
 				{/if}
 
 				{#if data.config.property && selectedCapability}
-					{#if selectedCapability.type === "binary"}
+					{#if selectedCapability.type === "binary" && (!data.config.valueType || data.config.valueType === "boolean")}
 						<Select
 							type="single"
 							value={data.config.value ?? "true"}
@@ -364,7 +367,7 @@
 								<SelectItem value="false">{m.state_off({}, messageOptions)}</SelectItem>
 							</SelectContent>
 						</Select>
-					{:else if selectedCapability.type === "numeric"}
+					{:else if selectedCapability.type === "numeric" && (!data.config.valueType || data.config.valueType === "number")}
 						<div class="flex gap-1">
 							<Select
 								type="single"
@@ -450,4 +453,8 @@
 		{#if validationError && !data.readOnly}
 			<p class="text-xs text-destructive">{automationValidationMessage(validationError.code)}</p>
 		{/if}
-	</fieldset>
+	<div class="flex items-center gap-2 pt-2">
+  <Switch id={`${id}-negate`} checked={data.config.negate ?? false} disabled={data.readOnly} onCheckedChange={(negate) => update({ negate })} />
+  <label for={`${id}-negate`} class="text-xs">{m.automation_condition_invert({}, messageOptions)}</label>
+</div>
+</fieldset>

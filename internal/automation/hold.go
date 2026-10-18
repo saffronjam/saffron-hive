@@ -42,7 +42,17 @@ func (s *holdState) cancel() bool {
 // holdSignature captures everything that defines what a hold trigger waits
 // for, so a reload keeps the running timer of a trigger that did not change.
 func holdSignature(tc TriggerConfig) string {
-	return fmt.Sprintf("%s\x00%s\x00%d", tc.HoldDeviceID, tc.FilterExpr, tc.HoldMs)
+	expression := tc.FilterExpr
+	authored := interpretTrigger(authoredTriggerWire{Kind: string(tc.Kind), EventType: tc.EventType, FilterExpr: tc.FilterExpr, DeviceID: tc.HoldDeviceID, HoldMs: tc.HoldMs})
+	if authored.Mode == "device_state" {
+		if compiled, err := compileAuthoringTrigger(authored); err == nil {
+			expression = compiled.FilterExpr
+		}
+	}
+	if tree := expressionTree(expression); tree != nil {
+		expression = tree.String()
+	}
+	return fmt.Sprintf("%s\x00%s\x00%d", tc.HoldDeviceID, expression, tc.HoldMs)
 }
 
 func isHoldTrigger(ct compiledTrigger) bool {

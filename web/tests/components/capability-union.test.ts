@@ -42,6 +42,7 @@ function cap(
 
 function dev(id: string, caps: Device["capabilities"]): Device {
   return {
+    revision: 1,
     __typename: "Device" as const,
     id,
     name: id,

@@ -34,6 +34,7 @@ func (s *DB) GetWebhookEndpoint(ctx context.Context, id string) (WebhookEndpoint
 	}
 	return WebhookEndpoint{
 		ID:                row.ID,
+		Revision:          row.Revision,
 		Name:              row.Name,
 		Enabled:           row.Enabled,
 		RateLimitCount:    int(row.RateLimitCount),
@@ -72,6 +73,7 @@ func (s *DB) ListWebhookEndpoints(ctx context.Context) ([]WebhookEndpoint, error
 	for _, row := range rows {
 		endpoints = append(endpoints, WebhookEndpoint{
 			ID:                row.ID,
+			Revision:          row.Revision,
 			Name:              row.Name,
 			Enabled:           row.Enabled,
 			RateLimitCount:    int(row.RateLimitCount),
@@ -86,17 +88,32 @@ func (s *DB) ListWebhookEndpoints(ctx context.Context) ([]WebhookEndpoint, error
 }
 
 // UpdateWebhookEndpoint replaces editable endpoint fields.
-func (s *DB) UpdateWebhookEndpoint(ctx context.Context, params UpdateWebhookEndpointParams) (WebhookEndpoint, error) {
-	if err := s.q.UpdateWebhookEndpoint(ctx, sqlite.UpdateWebhookEndpointParams{
-		Name:              params.Name,
-		Enabled:           params.Enabled,
-		RateLimitCount:    int64(params.RateLimitCount),
-		RateLimitWindowMs: int64(params.RateLimitWindowMs),
-		ID:                params.ID,
-	}); err != nil {
-		return WebhookEndpoint{}, fmt.Errorf("update webhook endpoint: %w", err)
-	}
-	return s.GetWebhookEndpoint(ctx, params.ID)
+func (s *DB) UpdateWebhookEndpoint(ctx context.Context, params UpdateWebhookEndpointParams) (result WebhookEndpoint, err error) {
+	err = s.atomic(ctx, func(s *DB) error {
+		var writeErr error
+		result, writeErr = func() (WebhookEndpoint, error) {
+			changed, err := s.q.ClaimWebhookEndpointRevision(ctx, sqlite.ClaimWebhookEndpointRevisionParams{ID: params.ID, ExpectedRevision: params.ExpectedRevision})
+			if err != nil {
+				return WebhookEndpoint{}, err
+			}
+			if changed != 1 {
+				return WebhookEndpoint{}, ErrRevisionConflict
+			}
+
+			if err := s.q.UpdateWebhookEndpoint(ctx, sqlite.UpdateWebhookEndpointParams{
+				Name:              params.Name,
+				Enabled:           params.Enabled,
+				RateLimitCount:    int64(params.RateLimitCount),
+				RateLimitWindowMs: int64(params.RateLimitWindowMs),
+				ID:                params.ID,
+			}); err != nil {
+				return WebhookEndpoint{}, fmt.Errorf("update webhook endpoint: %w", err)
+			}
+			return s.GetWebhookEndpoint(ctx, params.ID)
+		}()
+		return writeErr
+	})
+	return result, err
 }
 
 // UpdateWebhookEndpointSecretHash rotates an endpoint credential.

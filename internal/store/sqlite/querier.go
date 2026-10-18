@@ -31,6 +31,15 @@ type Querier interface {
 	// next time they hit the API. Bumped automatically on password change /
 	// reset, and exposed via forceLogoutAllSessions for explicit revocation.
 	BumpUserTokenVersion(ctx context.Context, id string) error
+	ClaimAutomationRevision(ctx context.Context, arg ClaimAutomationRevisionParams) (int64, error)
+	ClaimDeviceRevision(ctx context.Context, arg ClaimDeviceRevisionParams) (int64, error)
+	ClaimEffectRevision(ctx context.Context, arg ClaimEffectRevisionParams) (int64, error)
+	ClaimFloorplanRevision(ctx context.Context, arg ClaimFloorplanRevisionParams) (int64, error)
+	ClaimGroupRevision(ctx context.Context, arg ClaimGroupRevisionParams) (int64, error)
+	ClaimLocalizedNameRevision(ctx context.Context, arg ClaimLocalizedNameRevisionParams) (int64, error)
+	ClaimRoomRevision(ctx context.Context, arg ClaimRoomRevisionParams) (int64, error)
+	ClaimSceneRevision(ctx context.Context, arg ClaimSceneRevisionParams) (int64, error)
+	ClaimWebhookEndpointRevision(ctx context.Context, arg ClaimWebhookEndpointRevisionParams) (int64, error)
 	ClearAutomationIcon(ctx context.Context, id string) error
 	ClearDeviceDisplayBrightness(ctx context.Context, id device.DeviceID) error
 	ClearDeviceDisplayColor(ctx context.Context, id device.DeviceID) error
@@ -48,6 +57,8 @@ type Querier interface {
 	CountAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
 	CountWebhookDeliveriesSince(ctx context.Context, arg CountWebhookDeliveriesSinceParams) (int64, error)
+	CreateAssistantAttachment(ctx context.Context, arg CreateAssistantAttachmentParams) error
+	CreateAssistantConversation(ctx context.Context, arg CreateAssistantConversationParams) error
 	// Automations own three related tables: automations, automation_nodes,
 	// automation_edges. GetAutomationGraph is composed in Go from three sqlc
 	// queries since sqlc's SQLite parser doesn't support data-modifying CTEs.
@@ -85,11 +96,14 @@ type Querier interface {
 	DeleteActiveSceneMembers(ctx context.Context, sceneID string) error
 	DeleteActiveSceneRun(ctx context.Context, sceneID string) (int64, error)
 	DeleteAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error)
+	DeleteAssistantAttachment(ctx context.Context, arg DeleteAssistantAttachmentParams) error
+	DeleteAssistantConversation(ctx context.Context, arg DeleteAssistantConversationParams) error
 	DeleteAutomation(ctx context.Context, id string) error
 	DeleteAutomationEdgesByAutomation(ctx context.Context, automationID string) error
 	DeleteAutomationNodeStateByAutomation(ctx context.Context, automationID string) error
 	DeleteAutomationNodeStateExcept(ctx context.Context, arg DeleteAutomationNodeStateExceptParams) error
 	DeleteAutomationNodesByAutomation(ctx context.Context, automationID string) error
+	DeleteClaudeConfig(ctx context.Context) error
 	DeleteEffect(ctx context.Context, id string) error
 	DeleteEffectClipsByTrack(ctx context.Context, trackID string) error
 	DeleteEffectTracksExcept(ctx context.Context, arg DeleteEffectTracksExceptParams) error
@@ -133,24 +147,27 @@ type Querier interface {
 	GetActiveGuestByID(ctx context.Context, arg GetActiveGuestByIDParams) (Guest, error)
 	GetActiveGuestByNormalizedName(ctx context.Context, arg GetActiveGuestByNormalizedNameParams) (Guest, error)
 	GetActiveSceneRun(ctx context.Context, sceneID string) (ActiveSceneRun, error)
+	GetAssistantAttachment(ctx context.Context, arg GetAssistantAttachmentParams) (AssistantAttachment, error)
+	GetAssistantConversation(ctx context.Context, arg GetAssistantConversationParams) (AssistantConversation, error)
 	GetAutomation(ctx context.Context, id string) (GetAutomationRow, error)
 	// Per-node runtime state for stateful automation nodes (e.g. cycle_scenes
 	// index). Generic key/value JSON store keyed by (automation_id, node_id, key).
 	// Node ids are short and reused within an automation, so a graph save
 	// deletes the state of every node the new graph no longer contains.
 	GetAutomationNodeState(ctx context.Context, arg GetAutomationNodeStateParams) (string, error)
+	GetClaudeConfig(ctx context.Context) (GetClaudeConfigRow, error)
 	GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceRow, error)
 	GetEffect(ctx context.Context, id string) (GetEffectRow, error)
 	// A floorplan owns its graph, rooms, placements, furniture, and door bindings. GetFloorplanGraph
 	// is composed in Go from these queries; ReplaceFloorplan swaps the whole plan
 	// inside one tx. vertex_ids is a JSON TEXT array; the Go wrapper marshals it
 	// before hitting these queries and unmarshals on read.
-	GetFloorplan(ctx context.Context) (Floorplan, error)
+	GetFloorplan(ctx context.Context) (GetFloorplanRow, error)
 	GetFloorplanDoorBindingByDevice(ctx context.Context, deviceID string) (FloorplanDoorBinding, error)
 	GetGroup(ctx context.Context, id string) (GetGroupRow, error)
 	GetGroupMemberGroupID(ctx context.Context, id string) (string, error)
 	GetGuestByID(ctx context.Context, id string) (Guest, error)
-	GetLocalizedNameSubject(ctx context.Context, arg GetLocalizedNameSubjectParams) (LocalizedNameSubject, error)
+	GetLocalizedNameSubject(ctx context.Context, arg GetLocalizedNameSubjectParams) (GetLocalizedNameSubjectRow, error)
 	GetNativeEffectObservation(ctx context.Context, arg GetNativeEffectObservationParams) (NativeEffectObservation, error)
 	GetNetworkTopology(ctx context.Context, provider device.Source) (NetworkTopologySnapshot, error)
 	GetRoom(ctx context.Context, id string) (GetRoomRow, error)
@@ -165,7 +182,7 @@ type Querier interface {
 	GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error)
 	GetWebhookDelivery(ctx context.Context, id string) (WebhookDelivery, error)
 	GetWebhookEndpoint(ctx context.Context, id string) (GetWebhookEndpointRow, error)
-	GetWebhookEndpointBySecretHash(ctx context.Context, secretHash string) (WebhookEndpoint, error)
+	GetWebhookEndpointBySecretHash(ctx context.Context, secretHash string) (GetWebhookEndpointBySecretHashRow, error)
 	GetZigbee2MQTTConfig(ctx context.Context) (GetZigbee2MQTTConfigRow, error)
 	GetZigbeeDeviceMetadata(ctx context.Context, deviceID device.DeviceID) (ZigbeeDeviceMetadatum, error)
 	HasWebhookRateLimitDeliverySince(ctx context.Context, arg HasWebhookRateLimitDeliverySinceParams) (bool, error)
@@ -205,6 +222,8 @@ type Querier interface {
 	ListAlarms(ctx context.Context) ([]Alarm, error)
 	ListAllGroupMemberships(ctx context.Context) ([]GroupMember, error)
 	ListAllGroupTags(ctx context.Context) ([]GroupTag, error)
+	ListAssistantConversationOwners(ctx context.Context) ([]ListAssistantConversationOwnersRow, error)
+	ListAssistantConversations(ctx context.Context, userID string) ([]ListAssistantConversationsRow, error)
 	ListAutomationEdges(ctx context.Context, automationID string) ([]AutomationEdge, error)
 	ListAutomationNodeStateByAutomation(ctx context.Context, automationID string) ([]ListAutomationNodeStateByAutomationRow, error)
 	ListAutomationNodes(ctx context.Context, automationID string) ([]ListAutomationNodesRow, error)
@@ -226,7 +245,7 @@ type Querier interface {
 	ListGroupTags(ctx context.Context, groupID string) ([]device.GroupTag, error)
 	ListGroups(ctx context.Context) ([]ListGroupsRow, error)
 	ListGroupsContainingMember(ctx context.Context, arg ListGroupsContainingMemberParams) ([]ListGroupsContainingMemberRow, error)
-	ListLocalizedNameSubjects(ctx context.Context) ([]LocalizedNameSubject, error)
+	ListLocalizedNameSubjects(ctx context.Context) ([]ListLocalizedNameSubjectsRow, error)
 	ListLocalizedNames(ctx context.Context) ([]LocalizedName, error)
 	ListLocalizedNamesForSubject(ctx context.Context, arg ListLocalizedNamesForSubjectParams) ([]LocalizedName, error)
 	ListMaintenanceAcknowledgements(ctx context.Context) ([]MaintenanceAcknowledgement, error)
@@ -281,6 +300,8 @@ type Querier interface {
 	ResolveRoomIDByName(ctx context.Context, name string) (string, error)
 	ResolveSceneIDByName(ctx context.Context, name string) (string, error)
 	RestoreDevices(ctx context.Context, idsJson string) ([]device.DeviceID, error)
+	SaveAssistantConversation(ctx context.Context, arg SaveAssistantConversationParams) (int64, error)
+	SaveClaudeConfig(ctx context.Context, arg SaveClaudeConfigParams) (int64, error)
 	SetAutomationNodeState(ctx context.Context, arg SetAutomationNodeStateParams) error
 	SetDeviceDisabled(ctx context.Context, arg SetDeviceDisabledParams) error
 	// The nullable icon and display_color columns need dedicated clear queries
@@ -293,6 +314,7 @@ type Querier interface {
 	// adapter-owned type and capabilities.
 	SetDeviceName(ctx context.Context, arg SetDeviceNameParams) error
 	SetDeviceRoles(ctx context.Context, arg SetDeviceRolesParams) error
+	SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) error
 	SetUserMustChangePassword(ctx context.Context, arg SetUserMustChangePasswordParams) error
 	// UnlinkFloorplanRoomsByRoom clears the Hive-room link on the faces that point
 	// at a room being deleted. COALESCE copies the room's name into faces that have
@@ -301,7 +323,6 @@ type Querier interface {
 	UnlinkFloorplanRoomsByRoom(ctx context.Context, roomID string) error
 	UpdateActiveSceneMemberEffectRun(ctx context.Context, arg UpdateActiveSceneMemberEffectRunParams) error
 	UpdateActiveSceneMemberExpected(ctx context.Context, arg UpdateActiveSceneMemberExpectedParams) error
-	UpdateAutomationEnabled(ctx context.Context, arg UpdateAutomationEnabledParams) error
 	// Partial update via COALESCE(narg, col) gate. Nil narg values leave their
 	// column untouched. The nullable icon column can't be cleared through this
 	// query; use ClearAutomationIcon for that. All args are named so sqlc's
@@ -316,7 +337,6 @@ type Querier interface {
 	UpdateDeviceDisplayColor(ctx context.Context, arg UpdateDeviceDisplayColorParams) error
 	UpdateDeviceIcon(ctx context.Context, arg UpdateDeviceIconParams) error
 	UpdateEffect(ctx context.Context, arg UpdateEffectParams) error
-	UpdateEffectDuration(ctx context.Context, arg UpdateEffectDurationParams) error
 	UpdateEffectTrack(ctx context.Context, arg UpdateEffectTrackParams) (int64, error)
 	UpdateFloorplanRoom(ctx context.Context, arg UpdateFloorplanRoomParams) (int64, error)
 	UpdateGroupIcon(ctx context.Context, arg UpdateGroupIconParams) error
@@ -328,12 +348,13 @@ type Querier interface {
 	UpdateSceneIcon(ctx context.Context, arg UpdateSceneIconParams) error
 	UpdateSceneName(ctx context.Context, arg UpdateSceneNameParams) error
 	UpdateSceneTarget(ctx context.Context, arg UpdateSceneTargetParams) (int64, error)
+	UpdateSetting(ctx context.Context, arg UpdateSettingParams) (int64, error)
 	UpdateUserPasswordHash(ctx context.Context, arg UpdateUserPasswordHashParams) error
 	// Partial update of mutable profile fields. Nil narg values leave their column
 	// untouched. avatar_path can be set to a value here but cannot be cleared to
 	// NULL; use ClearUserAvatar for that (COALESCE cannot distinguish "leave alone"
 	// from "set to NULL"). theme is constrained by a CHECK in the migration.
-	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error
+	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (int64, error)
 	UpdateWebhookEndpoint(ctx context.Context, arg UpdateWebhookEndpointParams) error
 	UpdateWebhookEndpointSecretHash(ctx context.Context, arg UpdateWebhookEndpointSecretHashParams) error
 	UpsertActiveEffect(ctx context.Context, arg UpsertActiveEffectParams) error
@@ -349,9 +370,9 @@ type Querier interface {
 	UpsertProviderGroup(ctx context.Context, arg UpsertProviderGroupParams) error
 	UpsertSceneDynamicSource(ctx context.Context, arg UpsertSceneDynamicSourceParams) error
 	UpsertSetting(ctx context.Context, arg UpsertSettingParams) error
-	UpsertTuyaConfig(ctx context.Context, arg UpsertTuyaConfigParams) error
+	UpsertTuyaConfig(ctx context.Context, arg UpsertTuyaConfigParams) (int64, error)
 	UpsertTuyaDevice(ctx context.Context, arg UpsertTuyaDeviceParams) error
-	UpsertZigbee2MQTTConfig(ctx context.Context, arg UpsertZigbee2MQTTConfigParams) error
+	UpsertZigbee2MQTTConfig(ctx context.Context, arg UpsertZigbee2MQTTConfigParams) (int64, error)
 	UpsertZigbeeBridgeMetadata(ctx context.Context, arg UpsertZigbeeBridgeMetadataParams) (device.DeviceID, error)
 }
 

@@ -366,3 +366,77 @@ Both oxfmt and oxlint are installed as dev dependencies in `web/`.
 - TLS via wildcard cert for *.saffronbun.com
 - Dashboard is served at hive.saffronbun.com
 - MQTT WebSocket proxy at mqtt.saffronbun.com
+
+## Configuration contracts
+
+Editable aggregates expose a persisted `revision`; update inputs supply the
+snapshot's `expectedRevision`. A missing singleton uses revision zero.
+Metadata and nested lists commit in one transaction. Omitted fields retain
+their stored values; explicit lists replace their corresponding lists. Immediate
+add/remove membership commands advance the parent revision. Telemetry does not
+advance configuration revisions.
+
+Validate effective merged configuration through the domain rules before
+persistence. Disabled automation drafts may be incomplete, but their JSON and
+graph structure must be well formed. Enabled saves, activation and explicit
+execution require complete validation. `AutomationGraph.validation` and
+`validateAutomation` expose issues with codes, paths, node IDs and severity.
+
+Editors refresh clean drafts after external changes. Dirty drafts retain local
+edits and surface conflicts. A revision conflict requires reconciliation, never
+an automatic retry with a fresh revision. Mutation results update cached
+revisions immediately; subscriptions carry the same revision.
+
+Contract changes must update schema generators, bundled assistant knowledge,
+shared Go/TypeScript fixtures and observable lifecycle tests. The assistant uses
+the same validation and revision checks as the UI.
+
+## Assistant knowledge and access
+
+Claude is an opt-in assistant integration. Its setup-token is a server-side
+secret. `internal/assistant/knowledge/` is the bundled domain knowledge used by
+Claude; the MCP `discover` tool reads the executable GraphQL schema directly.
+Changes to user-facing capabilities, typed automation authoring, effects, scene
+semantics, selectors, authentication or integration lifecycles must update the
+relevant knowledge topics and assistant operation policy in the same change.
+Run `go generate ./internal/assistant` when referenced API schemas change;
+the knowledge source checks and mutation policy coverage test enforce this.
+
+Automation standard controls are compiled and interpreted by
+`internal/automation/authoring.go`; GraphQL exposes concrete authoring variants.
+The editor and assistant use this same API. Expression recognizers must prove
+semantic equivalence before opening standard controls; unrecognized expressions
+stay custom. Partial authoring selections use disabled drafts. Scene defaults,
+capture and capability adaptation belong to `internal/scene/authoring.go` and
+`sceneAuthoring`; effect configuration uses the domain's typed clip variants.
+Keep the practical workflows and executable examples in
+`internal/assistant/knowledge/authoring-examples.md` aligned with these contracts.
+Tests must exercise examples through authenticated GraphQL, including saved
+configuration and readback, and evaluate their branching behavior in the engine.
+Assistant examples route trigger signals through condition gates before actions.
+Conditions require an incoming trigger path and forward only passing signals.
+AND/OR combine arriving signals; actions merge their inputs with OR. Inversion
+belongs to the condition negate flag. Documentation is bundled in the application image;
+no external vault is required.
+
+Assistant operations execute through the authenticated GraphQL engine using a
+scoped, short-lived MCP grant. Every mutation requires an explicit policy entry
+in `internal/graph/assistant_gateway.go`. Bulk destructive operations and access
+changes require server-owned confirmation cards; model output cannot approve
+an operation. Secrets use private input/output channels and must never enter
+model context, conversation documents or logs. Conversation and attachment
+access is owner-scoped even for administrators. The sidebar exposes Assistant
+only while Claude is configured and enabled. Conversation names have a generated
+`autoTitle` and a separate `titleOverride`; the display order is override,
+automatic name, then localized “New chat”. The Haiku classifier names the first
+question. Clearing an override preserves the automatic name. Keep naming
+persistence, subscription snapshots and locale fallbacks aligned.
+
+Tool work emits localized activity statuses. A separate tool-free invocation of
+the selected model streams the final response from recorded observations and
+action results. Revoke MCP grants before this invocation. Response failure must
+preserve completed operations and recorded usage without replaying actions.
+
+Claude model choices come from the CLI initialization catalog using the
+configured setup-token. Persist the CLI selection value unchanged; do not
+hardcode a model enum or catalog.

@@ -55,7 +55,7 @@ func TestSyncProviderGroupsLifecycle(t *testing.T) {
 	}
 
 	icon := "sparkles"
-	if _, err := s.UpdateGroup(ctx, UpdateGroupParams{
+	if _, err := s.UpdateGroup(ctx, UpdateGroupParams{ExpectedRevision: g.Revision,
 		ID:      groupID,
 		Name:    g.Name,
 		SetIcon: true,

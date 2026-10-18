@@ -1,0 +1,64 @@
+enum IntegrationKind { DEVICE_PROVIDER ASSISTANT }
+extend type Integration { kind: IntegrationKind! }
+
+type ClaudeAvailableModel { id: String! name: String! resolvedModel: String! }
+type ClaudeConfig {
+  revision: Int! token: String! enabled: Boolean! model: String! ready: Boolean! }
+input ClaudeConfigInput { token: String! enabled: Boolean! model: String! }
+
+enum AssistantRunState { IDLE QUEUED RUNNING WAITING COMPLETED FAILED STOPPED INTERRUPTED }
+enum AssistantActionStatus { PENDING NEEDS_INPUT EXECUTING COMPLETED REJECTED STALE FAILED }
+type AssistantAttachment { id: ID! name: String! mime: String! }
+type AssistantMessage { id: ID! role: String! text: String! attachments: [AssistantAttachment!]! createdAt: String! runId: ID! }
+type AssistantRun { id: ID! state: AssistantRunState! activity: String! error: String! model: String! startedAt: String! finishedAt: String! }
+type AssistantTarget { id: ID! name: String! href: String! }
+type AssistantPrivateField { path: String! label: String! required: Boolean! }
+type AssistantAction {
+ id: ID!
+ runId: ID!
+ status: AssistantActionStatus!
+ title: String!
+ description: String!
+ buttonLabel: String!
+ targets: [AssistantTarget!]!
+ inputs: [AssistantPrivateField!]!
+ needsConfirmation: Boolean!
+ result: String!
+ hasPrivateResult: Boolean!
+}
+type AssistantConversationSummary { id: ID! autoTitle: String! titleOverride: String! revision: Int! updatedAt: String! }
+type AssistantConversation {
+ id: ID!
+ autoTitle: String!
+ titleOverride: String!
+ revision: Int!
+ updatedAt: String!
+ messages: [AssistantMessage!]!
+ actions: [AssistantAction!]!
+ runs: [AssistantRun!]!
+}
+input AssistantMessageInput { conversationId: ID! clientId: ID! text: String! attachmentIds: [ID!]! }
+input AssistantPrivateValueInput { path: String! value: String! }
+input AssistantActionResponseInput { conversationId: ID! actionId: ID! approve: Boolean! acknowledged: Boolean! values: [AssistantPrivateValueInput!]! }
+extend type Query {
+ assistantActionPrivateResult(conversationId: ID!, actionId: ID!): String! @auth
+ claudeConfig: ClaudeConfig @auth
+ assistantConversations: [AssistantConversationSummary!]! @auth
+ assistantConversation(id: ID!): AssistantConversation! @auth
+}
+extend type Mutation {
+ discoverClaudeModels(token: String!): [ClaudeAvailableModel!]! @auth
+ updateClaudeConfig(input: ClaudeConfigInput!, expectedRevision: Int!): ClaudeConfig! @auth
+ testClaudeConnection(input: ClaudeConfigInput!): ConnectionTestResult! @auth
+ createAssistantConversation: AssistantConversation! @auth
+ """Set a manual title; an empty title restores the automatic name."""
+ renameAssistantConversation(id: ID!, title: String!): AssistantConversation! @auth
+ deleteAssistantConversation(id: ID!): Boolean! @auth
+ sendAssistantMessage(input: AssistantMessageInput!): AssistantConversation! @auth
+ stopAssistantRun(conversationId: ID!): Boolean! @auth
+ respondToAssistantAction(input: AssistantActionResponseInput!): AssistantConversation! @auth
+}
+extend type Subscription {
+ assistantConversationChanged(id: ID!): AssistantConversation! @auth
+ applicationChanged: Int! @auth(allowGuest: true)
+}

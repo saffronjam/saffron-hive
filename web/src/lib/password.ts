@@ -12,7 +12,7 @@ export const MIN_PASSWORD_LEN = 10;
  * uppercase letter, lowercase letter, and digit).
  */
 export function validateNewPassword(pw: string): string | null {
-  if (pw.length < MIN_PASSWORD_LEN) {
+  if (Array.from(pw).length < MIN_PASSWORD_LEN) {
     return m.auth_password_minimum({ count: MIN_PASSWORD_LEN }, locale.messageOptions());
   }
   if (!/[A-Z]/.test(pw) || !/[a-z]/.test(pw) || !/[0-9]/.test(pw)) {

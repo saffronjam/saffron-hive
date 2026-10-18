@@ -1,0 +1,14 @@
+[
+  {
+    "name": "current-state hold",
+    "config": {"kind":"event","event_type":"device.state_changed","device_id":"0x54ef44100165238f","filter_expr":"device(\"0x54ef44100165238f\").occupancy == false","hold_ms":600000}
+  },
+  {
+    "name": "string that resembles a boolean",
+    "config": {"kind":"event","event_type":"device.state_changed","filter_expr":"trigger.device_id == \"0xmotion\" && trigger.payload.state.hvacMode != nil && trigger.payload.state.hvacMode == \"false\""}
+  },
+  {
+    "name": "any button action",
+    "config": {"kind":"event","event_type":"device.action_fired","filter_expr":"trigger.device_id == \"0xswitch\""}
+  }
+]

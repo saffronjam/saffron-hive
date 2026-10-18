@@ -1,4 +1,7 @@
 <script lang="ts">
+ import { graphqlErrorMessage } from "$lib/graphql-error";
+ import {createEditorRefresh} from "$lib/editor-refresh.svelte";
+ import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { measureMount } from "$lib/perf";
 	import { graphql } from "$lib/gql";
@@ -338,7 +341,7 @@
 			pageHeader.breadcrumbs = [{ label: m.nav_groups({}, locale.messageOptions()), onclick: stopEditing }, { label: groupDisplayName(editingGroup) }];
 			pageHeader.actions = [
 				{ label: m.common_cancel({}, locale.messageOptions()), icon: X, variant: "outline" as const, onclick: stopEditing, hideLabelOnMobile: true },
-				{ label: m.common_save({}, locale.messageOptions()), saving: editLoading, onclick: handleSaveGroup, disabled: !hasPendingChanges || editLoading || (editingGroup.source === "hive" && !editName.trim()), hideLabelOnMobile: true },
+				{ label: m.common_save({}, locale.messageOptions()), saving: editLoading, onclick: handleSaveGroup, disabled: refreshGuard.conflict || !hasPendingChanges || editLoading || (editingGroup.source === "hive" && !editName.trim()), hideLabelOnMobile: true },
 			];
 			pageHeader.viewToggle = null;
 		} else if (urlEditId) {
@@ -433,38 +436,36 @@
 		}
 	});
 
+ function applyExternalGroup(value:typeof editingGroup){
+ editingGroup=value;if(!value)return;
+ editName=value.name??"";editIcon=value.icon??null;editNameDirty=false;editIconDirty=false;editTags=[...(value.tags??[])];editTagsDirty=false;pendingAdds=[];pendingRemovals=new Set();
+ }
+ const refreshGuard=createEditorRefresh({
+ read:async()=>{const id=editingGroup?.id;await groupsStore.refresh(client);if(groupsStore.error)throw new Error(groupsStore.error);return id?groupsStore.byId.get(id)??null:null;},
+ apply:applyExternalGroup,dirty:()=>hasPendingChanges,busy:()=>editLoading||!editingGroup,
+ });
+ let observedEditorId:string|null=null;
+ $effect(()=>{if(editingGroup?.id!==observedEditorId){observedEditorId=editingGroup?.id??null;refreshGuard.accept(editingGroup);}});
+
 	async function handleSaveGroup() {
-		if (!editingGroup) return;
+		if (!editingGroup || refreshGuard.conflict) return;
 		const groupId = editingGroup.id;
 		editLoading = true;
 		errors.clear();
 
-		// Each write reports the whole group back, so the last one to run holds
-		// the state the editor should show.
 		let latest = editingGroup;
-		try {
-			const nameDirty = editNameDirty;
-			if (nameDirty || editIconDirty || editTagsDirty) {
-				const input: { name?: string | null; icon?: string | null; tags?: GroupTag[] } = {};
-				if (nameDirty) input.name = editName.trim() || null;
-				if (editIconDirty) input.icon = editIcon;
-				if (editTagsDirty) input.tags = editTags;
-				latest = await groupsStore.update(client, groupId, input);
-			}
-			for (const removal of pendingRemovals) {
-				latest = await groupsStore.removeMember(client, removal);
-			}
-			for (const add of pendingAdds) {
-				latest = await groupsStore.addMember(client, groupId, add.memberType, add.memberId);
-			}
+ try {
+ const members=editingGroup.members.filter(m=>!pendingRemovals.has(m.id)).map(m=>({memberType:m.memberType,memberId:m.memberId}));
+ for(const add of pendingAdds){if(!members.some(m=>m.memberType===add.memberType&&m.memberId===add.memberId))members.push({memberType:add.memberType,memberId:add.memberId});}
+ latest=await groupsStore.update(client,groupId,{expectedRevision:editingGroup.revision,name:editName.trim()||null,icon:editIcon,tags:editTags,...(editingGroup.source==="hive"?{members}:{})});
 		} catch (e) {
 			editLoading = false;
 			console.error(e);
-			errors.setWithAutoDismiss(m.group_save_failed({}, locale.messageOptions()));
+			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.group_save_failed({}, locale.messageOptions())));
 			return;
 		}
 
-		editingGroup = latest;
+		editingGroup = latest;refreshGuard.accept(latest);
 		editName = latest.name ?? "";
 		editIcon = latest.icon ?? null;
 		editTags = [...(latest.tags ?? [])];
@@ -536,7 +537,7 @@
 	async function handleRename(group: Group, newName: string) {
 		errors.clear();
 		try {
-			await groupsStore.update(client, group.id, { name: newName });
+			await groupsStore.update(client, group.id, { expectedRevision:group.revision, name: newName });
 		} catch (e) {
 			console.error(e);
 			errors.setWithAutoDismiss(m.group_rename_failed({}, locale.messageOptions()));
@@ -546,7 +547,7 @@
 	async function handleIconChange(group: Group, icon: string | null) {
 		errors.clear();
 		try {
-			await groupsStore.update(client, group.id, { icon });
+			await groupsStore.update(client, group.id, { expectedRevision:group.revision, icon });
 		} catch (e) {
 			console.error(e);
 			errors.setWithAutoDismiss(m.icon_change_failed({}, locale.messageOptions()));
@@ -649,6 +650,7 @@
 
 <div>
 	{#if errors.message}
+		{#if refreshGuard.conflict}<ExternalChangeBanner onreload={()=>refreshGuard.refresh(true)} />{/if}
 		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
 	{/if}
 

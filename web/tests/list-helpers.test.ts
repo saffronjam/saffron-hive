@@ -14,6 +14,7 @@ import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 
 function device(id: string, name: string): Device {
   return {
+    revision: 1,
     id,
     name,
     friendlyName: "",

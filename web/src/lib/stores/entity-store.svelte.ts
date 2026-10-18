@@ -40,8 +40,8 @@ function storage(): Storage | null {
  * the first frame after a cold start already has data, and reconciles with the
  * server when `start` or `refresh` runs.
  *
- * The server announces no structural changes for these entities, so callers
- * apply their own mutation results through `upsert` / `remove` / `replaceAll`.
+ * The root layout refreshes these snapshots on structural change notifications.
+ * Callers also apply their mutation results through `upsert` / `remove` / `replaceAll`.
  */
 export function createEntityStore<TItem extends Identified, TData>(
   options: EntityStoreOptions<TItem, TData>,

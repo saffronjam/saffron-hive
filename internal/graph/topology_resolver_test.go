@@ -33,17 +33,17 @@ func TestUpdateZigbee2MqttConfigScheduleRequiresTime(t *testing.T) {
 	st := newMockStore()
 	r := &Resolver{Store: st}
 
-	_, err := (&mutationResolver{r}).UpdateZigbee2MqttConfig(context.Background(), z2mInput(true, nil, nil))
+	_, err := (&mutationResolver{r}).UpdateZigbee2MqttConfig(context.Background(), z2mInput(true, nil, nil), 0)
 	if err == nil {
 		t.Fatal("enabling the schedule without a time must fail")
 	}
 
 	hour, minute := 4, 30
-	cfg, err := (&mutationResolver{r}).UpdateZigbee2MqttConfig(context.Background(), z2mInput(true, &hour, &minute))
+	cfg, err := (&mutationResolver{r}).UpdateZigbee2MqttConfig(context.Background(), z2mInput(true, &hour, &minute), 0)
 	if err != nil {
 		t.Fatalf("valid schedule rejected: %v", err)
 	}
-	if !cfg.ScanScheduleEnabled || cfg.ScanHour == nil || *cfg.ScanHour != 4 || cfg.ScanMinute == nil || *cfg.ScanMinute != 30 {
+	if !cfg.Config.ScanScheduleEnabled || cfg.Config.ScanHour == nil || *cfg.Config.ScanHour != 4 || cfg.Config.ScanMinute == nil || *cfg.Config.ScanMinute != 30 {
 		t.Fatalf("schedule not round-tripped: %+v", cfg)
 	}
 }
@@ -53,11 +53,11 @@ func TestUpdateZigbee2MqttConfigScheduleRange(t *testing.T) {
 	r := &Resolver{Store: st}
 
 	badHour, minute := 24, 0
-	if _, err := (&mutationResolver{r}).UpdateZigbee2MqttConfig(context.Background(), z2mInput(true, &badHour, &minute)); err == nil {
+	if _, err := (&mutationResolver{r}).UpdateZigbee2MqttConfig(context.Background(), z2mInput(true, &badHour, &minute), 0); err == nil {
 		t.Fatal("hour 24 must fail")
 	}
 	hour, badMinute := 4, 60
-	if _, err := (&mutationResolver{r}).UpdateZigbee2MqttConfig(context.Background(), z2mInput(true, &hour, &badMinute)); err == nil {
+	if _, err := (&mutationResolver{r}).UpdateZigbee2MqttConfig(context.Background(), z2mInput(true, &hour, &badMinute), 0); err == nil {
 		t.Fatal("minute 60 must fail")
 	}
 }
@@ -74,14 +74,14 @@ func TestUpdateZigbee2MqttConfigDisableKeepsStoredTime(t *testing.T) {
 	}
 	r := &Resolver{Store: st}
 
-	cfg, err := (&mutationResolver{r}).UpdateZigbee2MqttConfig(context.Background(), z2mInput(false, nil, nil))
+	cfg, err := (&mutationResolver{r}).UpdateZigbee2MqttConfig(context.Background(), z2mInput(false, nil, nil), 0)
 	if err != nil {
 		t.Fatalf("disable: %v", err)
 	}
-	if cfg.ScanScheduleEnabled {
+	if cfg.Config.ScanScheduleEnabled {
 		t.Fatal("schedule must be off")
 	}
-	if cfg.ScanHour == nil || *cfg.ScanHour != 4 || cfg.ScanMinute == nil || *cfg.ScanMinute != 30 {
+	if cfg.Config.ScanHour == nil || *cfg.Config.ScanHour != 4 || cfg.Config.ScanMinute == nil || *cfg.Config.ScanMinute != 30 {
 		t.Fatalf("disabling must keep the stored time, got %+v", cfg)
 	}
 	if st.zigbee2mqttCfg.ScanHour == nil || *st.zigbee2mqttCfg.ScanHour != 4 {
@@ -101,7 +101,7 @@ func TestUpdateZigbee2MqttConfigAppliesRateOnlyChangeWithoutReconnect(t *testing
 	input.InteractiveCommandsPerSecond = 8
 	input.ContinuousCommandsPerSecond = 1
 
-	if _, err := (&mutationResolver{r}).UpdateZigbee2MqttConfig(context.Background(), input); err != nil {
+	if _, err := (&mutationResolver{r}).UpdateZigbee2MqttConfig(context.Background(), input, 0); err != nil {
 		t.Fatal(err)
 	}
 	if controller.reconnects != 0 || len(controller.rateUpdates) != 1 || controller.rateUpdates[0] != [2]int{8, 1} {
@@ -114,7 +114,7 @@ func TestUpdateZigbee2MqttConfigValidatesCommandRates(t *testing.T) {
 		input := z2mInput(false, nil, nil)
 		input.InteractiveCommandsPerSecond = rates[0]
 		input.ContinuousCommandsPerSecond = rates[1]
-		if _, err := (&mutationResolver{&Resolver{Store: newMockStore()}}).UpdateZigbee2MqttConfig(context.Background(), input); err == nil {
+		if _, err := (&mutationResolver{&Resolver{Store: newMockStore()}}).UpdateZigbee2MqttConfig(context.Background(), input, 0); err == nil {
 			t.Fatalf("rates %v accepted", rates)
 		}
 	}

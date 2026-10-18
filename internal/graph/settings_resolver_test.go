@@ -11,7 +11,7 @@ func TestUpdateSettingValidatesStandardRoomTranslation(t *testing.T) {
 			st := newMockStore()
 			resolver := &mutationResolver{&Resolver{Store: st}}
 
-			setting, err := resolver.UpdateSetting(context.Background(), "i18n.translate_standard_room_names", value)
+			setting, err := resolver.UpdateSetting(context.Background(), "i18n.translate_standard_room_names", value, 0)
 			if err != nil {
 				t.Fatalf("UpdateSetting: %v", err)
 			}
@@ -23,7 +23,7 @@ func TestUpdateSettingValidatesStandardRoomTranslation(t *testing.T) {
 
 	st := newMockStore()
 	resolver := &mutationResolver{&Resolver{Store: st}}
-	if _, err := resolver.UpdateSetting(context.Background(), "i18n.translate_standard_room_names", "yes"); err == nil {
+	if _, err := resolver.UpdateSetting(context.Background(), "i18n.translate_standard_room_names", "yes", 0); err == nil {
 		t.Fatal("UpdateSetting accepted a non-boolean value")
 	}
 	if len(st.settings) != 0 {

@@ -1,4 +1,6 @@
 <script lang="ts">
+ import {onExternalChanges} from "$lib/external-changes";
+ import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
 	import { getContextClient } from "@urql/svelte";
 	import FieldError from "$lib/components/field-error.svelte";
 	import { graphql } from "$lib/gql";
@@ -52,6 +54,7 @@
 	const UPDATE_CURRENT_USER = graphql(`
 		mutation ProfileUpdateCurrentUser($input: UpdateCurrentUserInput!) {
 			updateCurrentUser(input: $input) {
+ revision
 				id
 				username
 				name
@@ -88,6 +91,10 @@
 
 	let nameDraft = $state(me.user?.name ?? auth.user?.name ?? "");
 	let nameSaving = $state(false);
+ let savedName=$state(me.user?.name??auth.user?.name??"");
+ let nameRevision=$state(me.user?.revision??0);
+ let nameConflict=$state(false);
+ onExternalChanges(()=>{void me.refresh(client);});
 	let nameError = $state<string | null>(null);
 	let newPwError = $state<string | null>(null);
 	let confirmPwError = $state<string | null>(null);
@@ -105,7 +112,9 @@
 
 	$effect(() => {
 		if (me.user && !nameSaving) {
-			nameDraft = me.user.name;
+			if(nameDraft!==savedName && me.user.name!==savedName){nameConflict=true;}else{
+ if(nameDraft===savedName)nameDraft=me.user.name;
+ savedName=me.user.name;nameRevision=me.user.revision;nameConflict=false;}
 		}
 		if (me.user && !hapticsSaving) {
 			hapticsEnabled = me.user.hapticsEnabled;
@@ -134,7 +143,7 @@
 
 		try {
 			const result = await client
-				.mutation(UPDATE_CURRENT_USER, { input: { hapticsEnabled: next } })
+				.mutation(UPDATE_CURRENT_USER, { input: { expectedRevision:me.user?.revision??0, hapticsEnabled: next } })
 				.toPromise();
 			if (result.error || !result.data?.updateCurrentUser) {
 				if (result.error) console.error(result.error);
@@ -154,6 +163,7 @@
 	const nameDirty = $derived(me.user != null && nameDraft.trim() !== me.user.name);
 
 	async function saveName() {
+ if(nameConflict)return;
 		const trimmed = nameDraft.trim();
 		nameError = trimmed
 			? null
@@ -162,13 +172,13 @@
 		nameSaving = true;
 		try {
 			const result = await client
-				.mutation(UPDATE_CURRENT_USER, { input: { name: trimmed } })
+				.mutation(UPDATE_CURRENT_USER, { input: { expectedRevision:nameRevision, name: trimmed } })
 				.toPromise();
 			if (result.error || !result.data?.updateCurrentUser) {
 				if (result.error) console.error(result.error);
 				throw new Error("update name");
 			}
-			me.apply(result.data.updateCurrentUser);
+			me.apply(result.data.updateCurrentUser);savedName=result.data.updateCurrentUser.name;nameDraft=savedName;nameRevision=result.data.updateCurrentUser.revision;
 		} catch (e) {
 			console.error(e);
 			toast.error(m.profile_name_update_failed({}, locale.messageOptions()));
@@ -181,7 +191,7 @@
 		if (me.user?.theme === (next === ThemeEnum.Light ? "light" : "dark")) return;
 		try {
 			const result = await client
-				.mutation(UPDATE_CURRENT_USER, { input: { theme: next } })
+				.mutation(UPDATE_CURRENT_USER, { input: { expectedRevision:me.user?.revision??0, theme: next } })
 				.toPromise();
 			if (result.error || !result.data?.updateCurrentUser) {
 				if (result.error) console.error(result.error);
@@ -199,7 +209,7 @@
 		const enumValue = next === "12h" ? TimeFormatEnum.TwelveHour : TimeFormatEnum.TwentyFourHour;
 		try {
 			const result = await client
-				.mutation(UPDATE_CURRENT_USER, { input: { timeFormat: enumValue } })
+				.mutation(UPDATE_CURRENT_USER, { input: { expectedRevision:me.user?.revision??0, timeFormat: enumValue } })
 				.toPromise();
 			if (result.error || !result.data?.updateCurrentUser) {
 				if (result.error) console.error(result.error);
@@ -217,7 +227,7 @@
 		const enumValue = next === "fahrenheit" ? TempUnitEnum.Fahrenheit : TempUnitEnum.Celsius;
 		try {
 			const result = await client
-				.mutation(UPDATE_CURRENT_USER, { input: { temperatureUnit: enumValue } })
+				.mutation(UPDATE_CURRENT_USER, { input: { expectedRevision:me.user?.revision??0, temperatureUnit: enumValue } })
 				.toPromise();
 			if (result.error || !result.data?.updateCurrentUser) {
 				if (result.error) console.error(result.error);
@@ -237,7 +247,7 @@
 		try {
 			const language = languageToGraphQL(next);
 			const result = await client
-				.mutation(UPDATE_CURRENT_USER, { input: { language } })
+				.mutation(UPDATE_CURRENT_USER, { input: { expectedRevision:me.user?.revision??0, language } })
 				.toPromise();
 			if (result.error || !result.data?.updateCurrentUser) {
 				if (result.error) console.error(result.error);
@@ -378,7 +388,8 @@
 </script>
 
 <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-	<Card>
+	{#if nameConflict}<ExternalChangeBanner onreload={()=>{if(me.user){nameDraft=savedName=me.user.name;nameRevision=me.user.revision;nameConflict=false;}}} />{/if}
+<Card>
 		<CardHeader>
 			<CardTitle>{m.profile_account({}, locale.messageOptions())}</CardTitle>
 		</CardHeader>

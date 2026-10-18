@@ -97,7 +97,7 @@ func TestProviderGroupsLifecycleOwnershipAndMulticast(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = publisher.PublishBridgeGroups([]byte(`[]`))
-		_, _ = graphqlMutation(`mutation($id: ID!) { updateDevice(id: $id, input: { disabled: false }) { id } }`, map[string]any{"id": bedroomID})
+		_, _ = graphqlMutation(`mutation($id: ID!, $revision: Int!) { updateDevice(id: $id, input: { expectedRevision: $revision, disabled: false }) { id } }`, map[string]any{"id": bedroomID, "revision": configurationRevision(t, "device", bedroomID)})
 	})
 
 	initial := []byte(`[{"id":42,"friendly_name":"E2E Zigbee Group","members":[
@@ -116,16 +116,16 @@ func TestProviderGroupsLifecycleOwnershipAndMulticast(t *testing.T) {
 		t.Fatal("provider group did not become queryable")
 	}
 
-	if _, err := graphqlMutation(`mutation($id: ID!) {
-		updateGroup(id: $id, input: { icon: "lucide:lamp", tags: [LIGHT] }) {
+	if _, err := graphqlMutation(`mutation($id: ID!, $revision: Int!) {
+		updateGroup(id: $id, input: { expectedRevision: $revision, icon: "lucide:lamp", tags: [LIGHT] }) {
 			id icon tags source
 		}
-	}`, map[string]any{"id": e2eProviderGroupID}); err != nil {
+	}`, map[string]any{"id": e2eProviderGroupID, "revision": configurationRevision(t, "group", e2eProviderGroupID)}); err != nil {
 		t.Fatalf("update Hive-owned provider metadata: %v", err)
 	}
-	if _, err := graphqlMutation(`mutation($id: ID!) {
-		updateGroup(id: $id, input: { name: "Display group" }) { id name friendlyName }
-	}`, map[string]any{"id": e2eProviderGroupID}); err != nil {
+	if _, err := graphqlMutation(`mutation($id: ID!, $revision: Int!) {
+		updateGroup(id: $id, input: { expectedRevision: $revision, name: "Display group" }) { id name friendlyName }
+	}`, map[string]any{"id": e2eProviderGroupID, "revision": configurationRevision(t, "group", e2eProviderGroupID)}); err != nil {
 		t.Fatalf("update provider display name: %v", err)
 	}
 	for name, mutation := range map[string]string{
@@ -231,8 +231,8 @@ multicastDone:
 		"name":    "Provider group automation",
 		"enabled": true,
 		"nodes": []map[string]any{
-			{"id": "provider-trigger", "type": "trigger", "config": string(triggerConfig)},
-			{"id": "provider-action", "type": "action", "config": string(actionConfig)},
+			{"id": "provider-trigger", "type": "trigger", "config": authoredNode(t, "trigger", triggerConfig)},
+			{"id": "provider-action", "type": "action", "config": authoredNode(t, "action", actionConfig)},
 		},
 		"edges": []map[string]any{{"fromNodeId": "provider-trigger", "toNodeId": "provider-action"}},
 	}})
@@ -275,7 +275,7 @@ multicastDone:
 			"name": "Power",
 			"clips": []map[string]any{{
 				"startMs": 0, "transitionMinMs": 0, "transitionMaxMs": 0,
-				"kind": "SET_ON_OFF", "config": `{"value":true}`,
+				"kind": "SET_ON_OFF", "config": map[string]any{"setOnOff": map[string]any{"value": true}},
 			}},
 		}},
 	}})
@@ -312,9 +312,9 @@ multicastDone:
 		t.Fatalf("stop provider effect: %v", err)
 	}
 
-	if _, err := graphqlMutation(`mutation($id: ID!) {
-		updateDevice(id: $id, input: { disabled: true }) { id disabled }
-	}`, map[string]any{"id": bedroomID}); err != nil {
+	if _, err := graphqlMutation(`mutation($id: ID!, $revision: Int!) {
+		updateDevice(id: $id, input: { expectedRevision: $revision, disabled: true }) { id disabled }
+	}`, map[string]any{"id": bedroomID, "revision": configurationRevision(t, "device", bedroomID)}); err != nil {
 		t.Fatalf("disable group member: %v", err)
 	}
 	if !pollUntil(5*time.Second, 50*time.Millisecond, func() bool {

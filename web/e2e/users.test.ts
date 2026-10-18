@@ -1,3 +1,4 @@
+import { revision } from "./revision";
 import { describe, it, expect } from "vitest";
 import { graphql } from "$lib/gql";
 import { Theme } from "$lib/gql/graphql";
@@ -78,13 +79,13 @@ describe("users", () => {
     const { graphqlClient } = getContext();
 
     const disabled = await graphqlClient
-      .mutation(UPDATE_CURRENT_USER, { input: { hapticsEnabled: false } })
+      .mutation(UPDATE_CURRENT_USER, { input: { expectedRevision:await revision(graphqlClient,"me"), hapticsEnabled: false } })
       .toPromise();
     expect(disabled.error).toBeUndefined();
     expect(disabled.data?.updateCurrentUser.hapticsEnabled).toBe(false);
 
     const theme = await graphqlClient
-      .mutation(UPDATE_CURRENT_USER, { input: { theme: Theme.Light } })
+      .mutation(UPDATE_CURRENT_USER, { input: { expectedRevision:await revision(graphqlClient,"me"), theme: Theme.Light } })
       .toPromise();
     expect(theme.data?.updateCurrentUser.hapticsEnabled).toBe(false);
 
@@ -94,7 +95,7 @@ describe("users", () => {
     expect(current.data?.me?.hapticsEnabled).toBe(false);
 
     await graphqlClient
-      .mutation(UPDATE_CURRENT_USER, { input: { hapticsEnabled: true, theme: Theme.Dark } })
+      .mutation(UPDATE_CURRENT_USER, { input: { expectedRevision:await revision(graphqlClient,"me"), hapticsEnabled: true, theme: Theme.Dark } })
       .toPromise();
   });
 
@@ -103,7 +104,7 @@ describe("users", () => {
 
     // Flip to LIGHT, confirm via me, flip back.
     const light = await graphqlClient
-      .mutation(UPDATE_CURRENT_USER, { input: { theme: Theme.Light } })
+      .mutation(UPDATE_CURRENT_USER, { input: { expectedRevision:await revision(graphqlClient,"me"), theme: Theme.Light } })
       .toPromise();
     expect(light.error).toBeUndefined();
     expect(light.data?.updateCurrentUser.theme).toBe(Theme.Light);
@@ -113,7 +114,7 @@ describe("users", () => {
       .toPromise();
     expect(me.data?.me?.theme).toBe(Theme.Light);
 
-    await graphqlClient.mutation(UPDATE_CURRENT_USER, { input: { theme: Theme.Dark } }).toPromise();
+    await graphqlClient.mutation(UPDATE_CURRENT_USER, { input: { expectedRevision:await revision(graphqlClient,"me"), theme: Theme.Dark } }).toPromise();
   });
 
   it("rejects deleting self", async () => {

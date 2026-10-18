@@ -23,7 +23,7 @@ func (s *DB) ListLocalizedNameSets(ctx context.Context) ([]localization.NameSet,
 	sets := make([]localization.NameSet, len(subjects))
 	byKey := make(map[string]*localization.NameSet, len(subjects))
 	for i, subject := range subjects {
-		sets[i] = localization.NameSet{EntityType: subject.EntityType, EntityID: subject.EntityID, SourceLanguage: localization.Language(subject.SourceLanguage), Translations: map[localization.Language]string{}}
+		sets[i] = localization.NameSet{Revision: subject.Revision, EntityType: subject.EntityType, EntityID: subject.EntityID, SourceLanguage: localization.Language(subject.SourceLanguage), Translations: map[localization.Language]string{}}
 		byKey[subject.EntityType+"\x00"+subject.EntityID] = &sets[i]
 	}
 	for _, row := range rows {
@@ -45,6 +45,14 @@ func (s *DB) ReplaceLocalizedNameSet(ctx context.Context, names localization.Nam
 	}
 	names.Translations = normalized
 	err := s.execTx(ctx, func(q *sqlite.Queries) error {
+		n, err := q.ClaimLocalizedNameRevision(ctx, sqlite.ClaimLocalizedNameRevisionParams{EntityType: names.EntityType, EntityID: names.EntityID, ExpectedRevision: names.Revision})
+		if err != nil {
+			return err
+		}
+		if n != 1 {
+			return ErrRevisionConflict
+		}
+
 		subject, err := q.GetLocalizedNameSubject(ctx, sqlite.GetLocalizedNameSubjectParams{EntityType: names.EntityType, EntityID: names.EntityID})
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -68,5 +76,6 @@ func (s *DB) ReplaceLocalizedNameSet(ctx context.Context, names localization.Nam
 	if err != nil {
 		return localization.NameSet{}, fmt.Errorf("replace localized name set: %w", err)
 	}
+	names.Revision++
 	return names, nil
 }

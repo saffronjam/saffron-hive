@@ -3,7 +3,7 @@ INSERT INTO effects (id, name, icon, kind, native_name, loop, duration_ms, creat
 VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetEffect :one
-SELECT e.id, e.name, e.icon, e.kind, e.native_name, e.loop, e.duration_ms,
+SELECT e.revision, e.id, e.name, e.icon, e.kind, e.native_name, e.loop, e.duration_ms,
        e.created_at, e.updated_at,
        u.id       AS creator_id,
        u.username AS creator_username,
@@ -13,7 +13,7 @@ LEFT JOIN users u ON u.id = e.created_by
 WHERE e.id = ?;
 
 -- name: ListEffects :many
-SELECT e.id, e.name, e.icon, e.kind, e.native_name, e.loop, e.duration_ms,
+SELECT e.revision, e.id, e.name, e.icon, e.kind, e.native_name, e.loop, e.duration_ms,
        e.created_at, e.updated_at,
        u.id       AS creator_id,
        u.username AS creator_username,
@@ -38,8 +38,7 @@ UPDATE effects SET icon = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 -- name: ClearEffectNativeName :exec
 UPDATE effects SET native_name = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
 
--- name: UpdateEffectDuration :exec
-UPDATE effects SET duration_ms = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
+
 
 -- name: DeleteEffect :exec
 DELETE FROM effects WHERE id = ?;
@@ -103,3 +102,6 @@ FROM active_effects;
 
 -- name: DeleteVolatileActiveEffects :execrows
 DELETE FROM active_effects WHERE volatile = 1;
+
+-- name: ClaimEffectRevision :execrows
+UPDATE effects SET revision = revision + 1 WHERE id = sqlc.arg('id') AND revision = sqlc.arg('expected_revision');

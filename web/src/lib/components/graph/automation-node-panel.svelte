@@ -5,11 +5,12 @@
 	import { GitMerge, Play, ShieldCheck, X, Zap } from "@lucide/svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import TriggerEditor from "./trigger-editor.svelte";
+	import FieldError from "$lib/components/field-error.svelte";
 	import ConditionEditor from "./condition-editor.svelte";
 	import OperatorEditor from "./operator-editor.svelte";
 	import ActionEditor from "./action-editor.svelte";
 	import type { SummaryLookups } from "./automation-summary";
-	import type { GraphNodeData } from "./node-data";
+	import { getGraphEditorContext, type GraphNodeData } from "./node-data";
 	import type { TriggerConfig } from "./trigger-expr";
 	import type { ConditionConfig } from "./condition-expr";
 	import type { OperatorConfig } from "./operator-editor.svelte";
@@ -31,6 +32,7 @@
 
 	let { node, readOnly, lookups, docked, onConfigChange, onClose }: Props = $props();
 
+	const editor = getGraphEditorContext();
 	const data = $derived(node.data as GraphNodeData<AnyConfig>);
 	const messageOptions = $derived(locale.messageOptions());
 	const header = $derived.by(() => {
@@ -89,8 +91,12 @@
 	</div>
 	<div class="min-h-0 overflow-y-auto p-4">
 		{#key node.id}
+			<FieldError message={editor.connectionError(node.id) ?? null} />
 			{#if usesDefinition}
 				<p class="text-xs text-muted-foreground">{m.automation_panel_macro_hint({}, messageOptions)}</p>
+                {#if node.type === "condition"}
+                <ConditionEditor id={node.id} data={{ config: data.config as ConditionConfig, readOnly, devices: lookups.devices, onConfigChange: change }} />
+                {/if}
 			{:else if node.type === "trigger"}
 				<TriggerEditor
 					id={node.id}

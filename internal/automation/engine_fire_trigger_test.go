@@ -80,7 +80,7 @@ func TestFireTriggerUnknownNode(t *testing.T) {
 		store.Automation{ID: "auto-1", Name: "fire trigger", Enabled: true},
 		[]store.AutomationNode{
 			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
-			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{}"}`},
+			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"light-1","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
 			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "a1"},
@@ -178,10 +178,10 @@ func TestFireTriggerDoesNotActivateUnrelatedCondition(t *testing.T) {
 		[]store.AutomationNode{
 			{ID: "tA", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "cA", AutomationID: "auto-1", Type: "condition", Config: `{"expr":"true"}`},
-			{ID: "aA", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"x","payload":"{}"}`},
+			{ID: "aA", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"x","payload":"{\"on\":true}"}`},
 			{ID: "tB", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "cB", AutomationID: "auto-1", Type: "condition", Config: `{"expr":"true"}`},
-			{ID: "aB", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"y","payload":"{}"}`},
+			{ID: "aB", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"y","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
 			{AutomationID: "auto-1", FromNodeID: "tA", ToNodeID: "cA"},
@@ -241,10 +241,10 @@ func TestFireTriggerDoesNotActivateUnrelatedOperator(t *testing.T) {
 		store.Automation{ID: "auto-1", Name: "disjoint-op", Enabled: true},
 		[]store.AutomationNode{
 			{ID: "tA", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
-			{ID: "aA", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"x","payload":"{}"}`},
+			{ID: "aA", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"x","payload":"{\"on\":true}"}`},
 			{ID: "tB", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "opB", AutomationID: "auto-1", Type: "operator", Config: `{"kind":"and"}`},
-			{ID: "aB", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"y","payload":"{}"}`},
+			{ID: "aB", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"y","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
 			{AutomationID: "auto-1", FromNodeID: "tA", ToNodeID: "aA"},
@@ -304,7 +304,7 @@ func TestFireTriggerSharedOperatorStillPublishes(t *testing.T) {
 			{ID: "t1", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "t2", AutomationID: "auto-1", Type: "trigger", Config: `{"kind":"event","event_type":"test.fire","filter_expr":"true"}`},
 			{ID: "op", AutomationID: "auto-1", Type: "operator", Config: `{"kind":"and"}`},
-			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"x","payload":"{}"}`},
+			{ID: "a1", AutomationID: "auto-1", Type: "action", Config: `{"action_type":"set_device_state","target_type":"device","target_id":"x","payload":"{\"on\":true}"}`},
 		},
 		[]store.AutomationEdge{
 			{AutomationID: "auto-1", FromNodeID: "t1", ToNodeID: "op"},

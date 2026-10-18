@@ -1,6 +1,7 @@
 <script lang="ts">
+	import { assistantAvailability } from "$lib/stores/assistant-availability.svelte";
 	import { onMount } from "svelte";
-	import { goto, pushState, replaceState } from "$app/navigation";
+	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
@@ -110,13 +111,13 @@
 		if (!canAddIntegration) return;
 		const url = new URL(page.url);
 		url.searchParams.set("add", "1");
-		pushState(url, page.state);
+		void goto(url, { noScroll: true, keepFocus: true });
 	}
 
 	function closeAddDialog() {
 		const url = new URL(page.url);
 		url.searchParams.delete("add");
-		replaceState(url, page.state);
+		void goto(url, { replaceState: true, noScroll: true, keepFocus: true });
 	}
 
 	function openProvider(provider: string) {
@@ -133,6 +134,7 @@
 			if (result.error) throw result.error;
 			deleteConfirmIntegration = null;
 			await loadIntegrations();
+			await assistantAvailability.refresh(client);
 		} finally {
 			deleteLoading = false;
 		}

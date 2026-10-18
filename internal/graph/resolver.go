@@ -2,7 +2,10 @@ package graph
 
 import (
 	"context"
+	"github.com/saffronjam/saffron-hive/internal/assistant"
+	"github.com/saffronjam/saffron-hive/internal/pubsub"
 	"log/slog"
+	"sync/atomic"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/activity"
@@ -111,6 +114,7 @@ type OutputStatusReader interface {
 // invoked by a resolver, mutation, or helper in this package; *store.DB
 // satisfies it implicitly.
 type GraphStore interface {
+	UpdateDeviceMetadata(context.Context, store.UpdateDeviceMetadataParams) (device.Device, error)
 	// Devices
 	GetDevice(ctx context.Context, id device.DeviceID) (device.Device, error)
 	ListDevices(ctx context.Context) ([]device.Device, error)
@@ -141,14 +145,10 @@ type GraphStore interface {
 	GetAutomation(ctx context.Context, id string) (store.Automation, error)
 	ListAutomations(ctx context.Context) ([]store.Automation, error)
 	UpdateAutomation(ctx context.Context, id string, params store.UpdateAutomationParams) (store.Automation, error)
-	UpdateAutomationEnabled(ctx context.Context, id string, enabled bool) error
 	DeleteAutomation(ctx context.Context, id string) error
 	BatchDeleteAutomations(ctx context.Context, ids []string) (int64, error)
-	CreateAutomationNode(ctx context.Context, params store.CreateAutomationNodeParams) (store.AutomationNode, error)
 	ListAutomationNodes(ctx context.Context, automationID string) ([]store.AutomationNode, error)
-	CreateAutomationEdge(ctx context.Context, params store.CreateAutomationEdgeParams) (store.AutomationEdge, error)
 	ListAutomationEdges(ctx context.Context, automationID string) ([]store.AutomationEdge, error)
-	ReplaceAutomationGraph(ctx context.Context, automationID string, nodes []store.CreateAutomationNodeParams, edges []store.CreateAutomationEdgeParams) error
 	GetAutomationGraph(ctx context.Context, automationID string) (store.AutomationGraph, error)
 	DeleteAutomationNodeStateByAutomation(ctx context.Context, automationID string) error
 	GetWebhookEndpoint(ctx context.Context, id string) (store.WebhookEndpoint, error)
@@ -197,7 +197,6 @@ type GraphStore interface {
 	UpdateEffect(ctx context.Context, id string, params store.UpdateEffectParams) (store.Effect, error)
 	DeleteEffect(ctx context.Context, id string) error
 	BatchDeleteEffects(ctx context.Context, ids []string) (int64, error)
-	SaveEffectTracks(ctx context.Context, effectID string, tracks []store.EffectTrackInput) error
 	LoadEffect(ctx context.Context, id string) (effect.Effect, error)
 	ListActiveEffects(ctx context.Context) ([]effect.ActiveEffectRecord, error)
 
@@ -214,6 +213,7 @@ type GraphStore interface {
 	DeleteTuyaConfig(ctx context.Context) error
 	ListSettings(ctx context.Context) ([]store.Setting, error)
 	UpsertSetting(ctx context.Context, key, value string) error
+	UpdateSetting(ctx context.Context, key, value string, expectedRevision int64) (store.Setting, error)
 	ListLocalizedNameSets(ctx context.Context) ([]localization.NameSet, error)
 	ReplaceLocalizedNameSet(ctx context.Context, names localization.NameSet) (localization.NameSet, error)
 	CreateUser(ctx context.Context, params store.CreateUserParams) (store.User, error)
@@ -255,6 +255,9 @@ type ZigbeeDeviceDocumentationResolver interface {
 // Resolver is the root resolver that holds all dependencies required by the
 // GraphQL query, mutation, and subscription resolvers.
 type Resolver struct {
+	Assistant           *assistant.Service
+	ApplicationChanges  *pubsub.Fanout[int]
+	ApplicationRevision atomic.Int64
 	StateReader         device.StateReader
 	Store               GraphStore
 	TargetResolver      device.TargetResolver

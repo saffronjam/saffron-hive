@@ -179,7 +179,7 @@
 					state: supporting.state as DesiredSceneStateInput,
 				})),
 			};
-			await scenesStore.update(clientRef, scene.id, { definition });
+			await scenesStore.update(clientRef, scene.id, { expectedRevision:scene.revision, definition });
 		} catch (e) {
 			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_update({}, locale.messageOptions())));
 		}
@@ -213,7 +213,7 @@
 		if (!clientRef) return;
 		errors.clear();
 		try {
-			await scenesStore.update(clientRef, scene.id, { name: newName });
+			await scenesStore.update(clientRef, scene.id, { expectedRevision:scene.revision, name: newName });
 		} catch (e) {
 			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_rename({}, locale.messageOptions())));
 		}
@@ -223,7 +223,7 @@
 		if (!clientRef) return;
 		errors.clear();
 		try {
-			await scenesStore.update(clientRef, scene.id, { icon });
+			await scenesStore.update(clientRef, scene.id, { expectedRevision:scene.revision, icon });
 		} catch (e) {
 			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_icon({}, locale.messageOptions())));
 		}

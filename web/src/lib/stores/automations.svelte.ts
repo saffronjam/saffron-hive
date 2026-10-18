@@ -7,6 +7,7 @@ export type Automation = AutomationsStoreQuery["automations"][number];
 
 graphql(`
   fragment AutomationFields on AutomationGraph {
+    revision
     id
     name
     icon
@@ -15,7 +16,9 @@ graphql(`
     nodes {
       id
       type
-      config
+      config {
+        ...AutomationConfigFields
+      }
     }
     edges {
       fromNodeId
@@ -48,14 +51,15 @@ const CREATE_AUTOMATION = graphql(`
 const UPDATE_AUTOMATION = graphql(`
   mutation AutomationsStoreUpdate($id: ID!, $input: UpdateAutomationInput!) {
     updateAutomation(id: $id, input: $input) {
+      revision
       ...AutomationFields
     }
   }
 `);
 
 const TOGGLE_AUTOMATION = graphql(`
-  mutation AutomationsStoreToggle($id: ID!, $enabled: Boolean!) {
-    toggleAutomation(id: $id, enabled: $enabled) {
+  mutation AutomationsStoreToggle($id: ID!, $enabled: Boolean!, $expectedRevision: Int!) {
+    toggleAutomation(id: $id, enabled: $enabled, expectedRevision: $expectedRevision) {
       ...AutomationFields
     }
   }
@@ -75,7 +79,7 @@ const BATCH_DELETE_AUTOMATIONS = graphql(`
 
 const base = createEntityStore<Automation, AutomationsStoreQuery>({
   name: "automations",
-  version: 1,
+  version: 3,
   query: AUTOMATIONS_QUERY,
   select: (data) => data.automations,
 });
@@ -122,7 +126,13 @@ export const automationsStore = {
   },
 
   async toggle(client: Client, id: string, enabled: boolean): Promise<Automation> {
-    const result = await client.mutation(TOGGLE_AUTOMATION, { id, enabled }).toPromise();
+    const result = await client
+      .mutation(TOGGLE_AUTOMATION, {
+        id,
+        enabled,
+        expectedRevision: base.byId.get(id)?.revision ?? 0,
+      })
+      .toPromise();
     if (result.error || !result.data) throw result.error ?? new Error("toggleAutomation failed");
     base.upsert(result.data.toggleAutomation);
     return result.data.toggleAutomation;

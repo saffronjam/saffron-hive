@@ -83,6 +83,25 @@ type Alarm struct {
 	RaisedAt         time.Time
 }
 
+type AssistantAttachment struct {
+	ID             string
+	ConversationID string
+	Name           string
+	Mime           string
+	Content        []byte
+	CreatedAt      string
+}
+
+type AssistantConversation struct {
+	ID            string
+	UserID        string
+	TitleOverride string
+	Document      string
+	Revision      int64
+	UpdatedAt     string
+	AutoTitle     string
+}
+
 type Automation struct {
 	ID          string
 	Name        string
@@ -93,6 +112,7 @@ type Automation struct {
 	CreatedBy   *string
 	LastFiredAt *time.Time
 	Definitions string
+	Revision    int64
 }
 
 type AutomationEdge struct {
@@ -118,6 +138,14 @@ type AutomationNodeState struct {
 	UpdatedAt    time.Time
 }
 
+type ClaudeConfig struct {
+	ID       int64
+	Token    string
+	Enabled  int64
+	Model    string
+	Revision int64
+}
+
 type Device struct {
 	ID                 device.DeviceID
 	Name               *string
@@ -136,6 +164,7 @@ type Device struct {
 	ControlledLoadRole *string
 	ContactRole        *string
 	Deleted            bool
+	Revision           int64
 }
 
 type DeviceStateSample struct {
@@ -158,6 +187,7 @@ type Effect struct {
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 	DurationMs int64
+	Revision   int64
 }
 
 type EffectClip struct {
@@ -182,6 +212,7 @@ type Floorplan struct {
 	Name      string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	Revision  int64
 }
 
 type FloorplanDoorBinding struct {
@@ -257,6 +288,7 @@ type Group struct {
 	ProviderGroupID *string
 	Removed         bool
 	Name            *string
+	Revision        int64
 }
 
 type GroupMember struct {
@@ -292,6 +324,7 @@ type LocalizedNameSubject struct {
 	EntityType     string
 	EntityID       string
 	SourceLanguage string
+	Revision       int64
 }
 
 type MaintenanceAcknowledgement struct {
@@ -323,6 +356,7 @@ type Room struct {
 	UpdatedAt time.Time
 	Icon      *string
 	CreatedBy *string
+	Revision  int64
 }
 
 type RoomMember struct {
@@ -339,6 +373,7 @@ type Scene struct {
 	UpdatedAt time.Time
 	Icon      *string
 	CreatedBy *string
+	Revision  int64
 }
 
 type SceneDynamicSample struct {
@@ -415,8 +450,9 @@ type SceneTarget struct {
 }
 
 type Setting struct {
-	Key   string
-	Value string
+	Key      string
+	Value    string
+	Revision int64
 }
 
 type TuyaConfig struct {
@@ -425,6 +461,7 @@ type TuyaConfig struct {
 	AccessSecret string
 	Region       string
 	Enabled      bool
+	Revision     int64
 }
 
 type TuyaDevice struct {
@@ -449,6 +486,7 @@ type User struct {
 	TokenVersion       int64
 	HapticsEnabled     bool
 	Language           string
+	Revision           int64
 }
 
 type WebhookDelivery struct {
@@ -478,6 +516,7 @@ type WebhookEndpoint struct {
 	CreatedBy         *string
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	Revision          int64
 }
 
 type Zigbee2mqttConfig struct {
@@ -493,6 +532,7 @@ type Zigbee2mqttConfig struct {
 	FrontendUrl                  *string
 	InteractiveCommandsPerSecond int64
 	ContinuousCommandsPerSecond  int64
+	Revision                     int64
 }
 
 type ZigbeeDeviceMetadatum struct {

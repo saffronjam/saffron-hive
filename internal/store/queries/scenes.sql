@@ -2,7 +2,7 @@
 INSERT INTO scenes (id, name, created_by) VALUES (?, ?, ?);
 
 -- name: GetScene :one
-SELECT s.id, s.name, s.icon, s.created_at, s.updated_at, r.started_at AS activated_at,
+SELECT s.revision, s.id, s.name, s.icon, s.created_at, s.updated_at, r.started_at AS activated_at,
        u.id AS creator_id, u.username AS creator_username, u.name AS creator_name
 FROM scenes s
 LEFT JOIN users u ON u.id = s.created_by
@@ -10,7 +10,7 @@ LEFT JOIN active_scene_runs r ON r.scene_id = s.id
 WHERE s.id = ?;
 
 -- name: ListScenes :many
-SELECT s.id, s.name, s.icon, s.created_at, s.updated_at, r.started_at AS activated_at,
+SELECT s.revision, s.id, s.name, s.icon, s.created_at, s.updated_at, r.started_at AS activated_at,
        u.id AS creator_id, u.username AS creator_username, u.name AS creator_name
 FROM scenes s
 LEFT JOIN users u ON u.id = s.created_by
@@ -126,3 +126,6 @@ SELECT * FROM scene_supporting_states WHERE scene_id = ? ORDER BY device_id;
 
 -- name: DeleteSceneSupportingStates :exec
 DELETE FROM scene_supporting_states WHERE scene_id = ?;
+
+-- name: ClaimSceneRevision :execrows
+UPDATE scenes SET revision = revision + 1 WHERE id = sqlc.arg('id') AND revision = sqlc.arg('expected_revision');

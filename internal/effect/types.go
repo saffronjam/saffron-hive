@@ -4,8 +4,11 @@
 package effect
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"strings"
 	"time"
 )
 
@@ -137,9 +140,19 @@ type NativeEffectClipConfig struct {
 	Name string `json:"name"`
 }
 
-// MarshalClipConfig serialises a Clip's typed Config to JSON. The output is
+// EncodeClipConfig serialises a Clip's typed Config to JSON. The output is
 // the inner struct that matches kind, with no wrapper object.
-func MarshalClipConfig(kind ClipKind, cfg ClipConfig) ([]byte, error) {
+func EncodeClipConfig(kind ClipKind, cfg ClipConfig) ([]byte, error) {
+	count := 0
+	for _, present := range []bool{cfg.SetOnOff != nil, cfg.SetBrightness != nil, cfg.SetColor != nil, cfg.NativeEffect != nil} {
+		if present {
+			count++
+		}
+	}
+	if count != 1 {
+		return nil, fmt.Errorf("provide exactly one clip configuration")
+	}
+
 	switch kind {
 	case ClipSetOnOff:
 		if cfg.SetOnOff == nil {
@@ -178,26 +191,45 @@ func MarshalClipConfig(kind ClipKind, cfg ClipConfig) ([]byte, error) {
 	}
 }
 
-// UnmarshalClipConfig parses a JSON payload into the ClipConfig variant
+// DecodeClipConfig parses a JSON payload into the ClipConfig variant
 // indicated by kind. Exactly one ClipConfig field is set on success.
-func UnmarshalClipConfig(kind ClipKind, data []byte) (ClipConfig, error) {
+func DecodeClipConfig(kind ClipKind, data []byte) (ClipConfig, error) {
 	var cfg ClipConfig
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil || fields == nil {
+		return cfg, fmt.Errorf("clip config must be an object")
+	}
+	require := func(key string) error {
+		v, ok := fields[key]
+		if !ok || bytes.Equal(bytes.TrimSpace(v), []byte("null")) {
+			return fmt.Errorf("%s is required", key)
+		}
+		return nil
+	}
+	if kind == ClipSetOnOff || kind == ClipSetBrightness {
+		if err := require("value"); err != nil {
+			return cfg, err
+		}
+	}
 	switch kind {
 	case ClipSetOnOff:
 		var v SetOnOffClipConfig
-		if err := json.Unmarshal(data, &v); err != nil {
+		if err := decodeClip(data, &v); err != nil {
 			return ClipConfig{}, fmt.Errorf("unmarshal set_on_off config: %w", err)
 		}
 		cfg.SetOnOff = &v
 	case ClipSetBrightness:
 		var v SetBrightnessClipConfig
-		if err := json.Unmarshal(data, &v); err != nil {
+		if err := decodeClip(data, &v); err != nil {
 			return ClipConfig{}, fmt.Errorf("unmarshal set_brightness config: %w", err)
+		}
+		if v.Value < 0 || v.Value > 254 {
+			return ClipConfig{}, fmt.Errorf("brightness must be between 0 and 254")
 		}
 		cfg.SetBrightness = &v
 	case ClipSetColor:
 		var v SetColorClipConfig
-		if err := json.Unmarshal(data, &v); err != nil {
+		if err := decodeClip(data, &v); err != nil {
 			return ClipConfig{}, fmt.Errorf("unmarshal set_color config: %w", err)
 		}
 		switch v.Mode {
@@ -205,24 +237,71 @@ func UnmarshalClipConfig(kind ClipKind, data []byte) (ClipConfig, error) {
 			if v.RGB == nil {
 				return ClipConfig{}, fmt.Errorf("unmarshal set_color: mode=rgb missing rgb payload")
 			}
-			v.Temp = nil
+			var channels map[string]json.RawMessage
+			if err := json.Unmarshal(fields["rgb"], &channels); err != nil {
+				return cfg, err
+			}
+			for _, key := range []string{"r", "g", "b"} {
+				if value, ok := channels[key]; !ok || bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+					return cfg, fmt.Errorf("rgb.%s is required", key)
+				}
+			}
+
+			if v.Temp != nil {
+				return ClipConfig{}, fmt.Errorf("rgb color must not include temp")
+			}
+			if v.RGB.R < 0 || v.RGB.R > 255 || v.RGB.G < 0 || v.RGB.G > 255 || v.RGB.B < 0 || v.RGB.B > 255 {
+				return ClipConfig{}, fmt.Errorf("RGB channels must be between 0 and 255")
+			}
 		case ColorModeTemp:
 			if v.Temp == nil {
 				return ClipConfig{}, fmt.Errorf("unmarshal set_color: mode=temp missing temp payload")
 			}
-			v.RGB = nil
+			var temperature map[string]json.RawMessage
+			if err := json.Unmarshal(fields["temp"], &temperature); err != nil {
+				return cfg, err
+			}
+			if value, ok := temperature["mireds"]; !ok || bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+				return cfg, fmt.Errorf("temp.mireds is required")
+			}
+
+			if v.RGB != nil {
+				return ClipConfig{}, fmt.Errorf("temp color must not include rgb")
+			}
+			if v.Temp.Mireds < 0 {
+				return ClipConfig{}, fmt.Errorf("color temperature must be non-negative")
+			}
 		default:
 			return ClipConfig{}, fmt.Errorf("unmarshal set_color: unknown mode %q", v.Mode)
 		}
 		cfg.SetColor = &v
 	case ClipNativeEffect:
 		var v NativeEffectClipConfig
-		if err := json.Unmarshal(data, &v); err != nil {
+		if err := decodeClip(data, &v); err != nil {
 			return ClipConfig{}, fmt.Errorf("unmarshal native_effect config: %w", err)
+		}
+		if strings.TrimSpace(v.Name) == "" {
+			return ClipConfig{}, fmt.Errorf("native effect name is required")
 		}
 		cfg.NativeEffect = &v
 	default:
 		return ClipConfig{}, fmt.Errorf("unmarshal clip config: unknown kind %q", kind)
 	}
 	return cfg, nil
+}
+
+func decodeClip[T any](data []byte, value *T) error {
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		return fmt.Errorf("clip config must be an object")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(value); err != nil {
+		return err
+	}
+	var trailing json.RawMessage
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return fmt.Errorf("clip config must contain one object")
+	}
+	return nil
 }
