@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { IsMobile } from "$lib/hooks/is-mobile.svelte.js";
-	import { untrack, type Component } from "svelte";
+	import { onMount, untrack, type Component } from "svelte";
 
 	interface Props {
 		label: string;
@@ -108,6 +108,15 @@
 		}
 	});
 
+	onMount(() => {
+		if (!measurer) return;
+		const observer = new ResizeObserver(([entry]) => {
+			if (entry.contentRect.width > 0) contentWidth = Math.ceil(entry.contentRect.width) + 2;
+		});
+		observer.observe(measurer);
+		return () => observer.disconnect();
+	});
+
 	$effect(() => {
 		return () => {
 			if (timer) clearTimeout(timer);
@@ -129,7 +138,7 @@
 	{#if Icon}
 		<Icon class="size-4 {iconClass}" />
 	{/if}
-	<span class="relative overflow-hidden {hideLabelOnMobile ? 'hidden sm:inline-flex' : 'inline-flex'}">
+	<span class="relative shrink-0 overflow-hidden {hideLabelOnMobile ? 'hidden sm:inline-flex' : 'inline-flex'}">
 		<span
 			bind:this={measurer}
 			class="invisible absolute whitespace-nowrap"
