@@ -232,17 +232,17 @@ i18n-audit:
 [group('db')]
 [doc('Run pending migrations (all, or N with `just migrate-up 1`)')]
 migrate-up n="":
-    go run . migrate up {{ n }}
+    set -a && . ./.env && set +a && go run . migrate up {{ n }}
 
 [group('db')]
 [doc('Roll back N migrations')]
 migrate-down n="1":
-    go run . migrate down {{ n }}
+    set -a && . ./.env && set +a && go run . migrate down {{ n }}
 
 [group('db')]
 [doc('Print migration version')]
 migrate-version:
-    go run . migrate version
+    set -a && . ./.env && set +a && go run . migrate version
 
 [group('build')]
 [doc('Build the Docker image tagged with the current version')]
