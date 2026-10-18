@@ -219,6 +219,12 @@ Domain types are the authoritative representation. Everything else maps to/from 
   Report what was verified, distinguish mocked checks from live integration, and state any
   remaining gaps. Do not leave ordinary verification for the user to discover manually.
 
+## Local working files
+
+- Store plans, task lists, and planning notes in `./plans/`.
+- Store other temporary project files, such as scratch scripts, logs, and verification artifacts, in `./tmp/`.
+- Both directories are ignored by Git. Keep these files out of the repository root and tracked source directories.
+
 ## Code style
 
 ### Rewrite, don't wrap
