@@ -36,6 +36,47 @@ afterAll(async () => {
 });
 
 describe("mobile navigation", () => {
+  it("paints the desired tab during a delayed route and follows the latest tap", async () => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let intercepted = false;
+    const pattern = "**/_app/immutable/nodes/*.js";
+    await page.route(pattern, async (route) => {
+      intercepted = true;
+      await held;
+      await route.continue();
+    });
+    try {
+      await page.evaluate(() =>
+        document.querySelector<HTMLAnchorElement>('.mobile-navigation a[href="/devices"]')!.click(),
+      );
+      await expect.poll(() => intercepted, { timeout: 5000 }).toBe(true);
+      await expect
+        .poll(() => tabs().locator('[aria-current="location"]').innerText())
+        .toBe("Devices");
+      expect(new URL(page.url()).pathname).toBe("/");
+      await mkdir(resolve("../tmp/mobile-navigation"), { recursive: true });
+      await page.screenshot({
+        path: resolve("../tmp/mobile-navigation/pending-devices.png"),
+        animations: "disabled",
+      });
+      await page.evaluate(() =>
+        document.querySelector<HTMLAnchorElement>('.mobile-navigation a[href="/"]')!.click(),
+      );
+      await expect
+        .poll(() => tabs().locator('[aria-current="page"]').innerText())
+        .toBe("Dashboard");
+    } finally {
+      release();
+      await page.unrouteAll({ behavior: "wait" });
+    }
+    await page.waitForLoadState("networkidle");
+    expect(new URL(page.url()).pathname).toBe("/");
+    expect(await tabs().locator('[aria-current="page"]').innerText()).toBe("Dashboard");
+  });
+
   it("keeps three tabs available across lists, details, Menu and Profile", async () => {
     expect(await page.getByRole("heading", { name: "Dashboard", exact: true }).count()).toBe(0);
     expect(await page.locator(".app-header").count()).toBe(0);
@@ -68,6 +109,49 @@ describe("mobile navigation", () => {
     await page.goBack();
     await menu().waitFor();
     await page.reload();
+    await menu().waitFor();
+  });
+
+  it("accepts sustained rapid touchscreen switching between Menu and Devices", async () => {
+    const clicks: string[] = [];
+    await page.exposeFunction("recordTabClick", (href: string) => {
+      clicks.push(href);
+    });
+    await page.evaluate(() => {
+      document.querySelector(".mobile-navigation")!.addEventListener("click", (event) => {
+        const anchor = (event.target as HTMLElement).closest("a");
+        if (anchor)
+          void (
+            window as unknown as { recordTabClick: (href: string) => Promise<void> }
+          ).recordTabClick(anchor.pathname);
+      });
+    });
+    const positions = new Map<string, { x: number; y: number }>();
+    for (const href of ["/devices", "/menu"]) {
+      const box = (await tabs().locator(`a[href="${href}"]`).boundingBox())!;
+      positions.set(href, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
+      expect(
+        await tabs()
+          .locator(`a[href="${href}"]`)
+          .evaluate((node) => getComputedStyle(node).touchAction),
+      ).toBe("manipulation");
+    }
+    const requested: string[] = [];
+    for (let index = 0; index < 24; index++) {
+      const href = index % 2 === 0 ? "/devices" : "/menu";
+      requested.push(href);
+      const position = positions.get(href)!;
+      await page.touchscreen.tap(position.x, position.y);
+      expect(await tabs().locator("[aria-current]").getAttribute("href")).toBe(href);
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    await expect.poll(() => clicks.length).toBe(requested.length);
+    expect(clicks).toEqual(requested);
+    await expect.poll(() => new URL(page.url()).pathname).toBe("/menu");
+    await expect.poll(() => tabs().locator("[aria-current]").innerText()).toBe("Menu");
+    await tabs().getByRole("link", { name: "Devices", exact: true }).click();
+    await expect.poll(() => new URL(page.url()).pathname).toBe("/devices");
+    await tabs().getByRole("link", { name: "Menu", exact: true }).click();
     await menu().waitFor();
   });
 
