@@ -590,6 +590,10 @@ html.theme-transitioning *::after {
     padding-top: env(safe-area-inset-top, 0px);
   }
 
+  .authenticated-shell .app-content.mobile-dashboard {
+    padding-top: max(1rem, env(safe-area-inset-top, 0px));
+  }
+
   .authenticated-shell .app-header,
   .authenticated-shell .app-content {
     padding-left: max(1rem, env(safe-area-inset-left, 0px));

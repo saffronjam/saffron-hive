@@ -37,6 +37,12 @@ afterAll(async () => {
 
 describe("mobile navigation", () => {
   it("keeps three tabs available across lists, details, Menu and Profile", async () => {
+    expect(await page.getByRole("heading", { name: "Dashboard", exact: true }).count()).toBe(0);
+    expect(await page.locator(".app-header").count()).toBe(0);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.getByRole("heading", { name: "Dashboard", exact: true }).waitFor();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(() => page.locator(".app-header").count()).toBe(0);
     expect((await tabs().getByRole("link").allTextContents()).map((label) => label.trim())).toEqual(
       ["Dashboard", "Devices", "Menu"],
     );
@@ -63,6 +69,36 @@ describe("mobile navigation", () => {
     await menu().waitFor();
     await page.reload();
     await menu().waitFor();
+  });
+
+  it("returns to the menu scroll position when switching back from a section", async () => {
+    await page.setViewportSize({ width: 390, height: 640 });
+    const settings = menu().getByRole("link", { name: "Settings", exact: true });
+    await settings.scrollIntoViewIfNeeded();
+    const rememberedY = await page.evaluate(() => scrollY);
+    expect(rememberedY).toBeGreaterThan(200);
+    await settings.click();
+    await expect.poll(() => new URL(page.url()).pathname).toBe("/settings");
+    await page.evaluate(() => scrollTo(0, 150));
+    await tabs().getByRole("link", { name: "Menu", exact: true }).click();
+    await menu().waitFor();
+    await expect.poll(() => page.evaluate(() => scrollY)).toBeCloseTo(rememberedY, 0);
+    await page.evaluate(() => scrollTo(0, 0));
+    await page.goBack();
+    await expect.poll(() => new URL(page.url()).pathname).toBe("/settings");
+    await expect.poll(() => page.evaluate(() => scrollY)).toBeCloseTo(150, 0);
+    await page.goForward();
+    await menu().waitFor();
+    await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+    await menu().getByRole("link", { name: "Logs", exact: true }).scrollIntoViewIfNeeded();
+    const updatedY = await page.evaluate(() => scrollY);
+    await tabs().getByRole("link", { name: "Dashboard", exact: true }).click();
+    await expect.poll(() => new URL(page.url()).pathname).toBe("/");
+    await tabs().getByRole("link", { name: "Menu", exact: true }).click();
+    await menu().waitFor();
+    await expect.poll(() => page.evaluate(() => scrollY)).toBeCloseTo(updatedY, 0);
+    await tabs().getByRole("link", { name: "Menu", exact: true }).click();
+    await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
   });
 
   it("preserves the editor guard when using the bottom tabs", async () => {

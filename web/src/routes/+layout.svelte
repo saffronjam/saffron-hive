@@ -183,7 +183,12 @@
 		}
 	});
 
+	let menuScroll: { userId: string; x: number; y: number } | null = null;
+
 	onNavigate(({ from, to }) => {
+		if (from?.url.pathname === "/menu" && to?.url.pathname !== "/menu") {
+			menuScroll = auth.user ? { userId: auth.user.id, x: window.scrollX, y: window.scrollY } : null;
+		}
 		if (from?.url.pathname !== to?.url.pathname) pageHeader.reset();
 	});
 
@@ -295,7 +300,14 @@
 		}
 	});
 
-	afterNavigate(() => {
+	afterNavigate(({ from, to, type }) => {
+		if (
+			menuScroll && menuScroll.userId === auth.user?.id &&
+			from && from.url.pathname !== "/menu" && to?.url.pathname === "/menu" && !to.url.hash &&
+			(type === "link" || type === "goto")
+		) {
+			window.scrollTo({ left: menuScroll.x, top: menuScroll.y, behavior: "instant" });
+		}
 		const pathname = $page.url.pathname;
 		if (
 			!ready ||
@@ -406,6 +418,7 @@
 		{/if}
 		<MobileNavigation />
 		<SidebarInset class="min-w-0 {workstationActive ? 'h-dvh overflow-hidden' : ''}">
+			{#if !isMobile.current || activePath !== "/"}
 				<header class="app-header flex h-12 shrink-0 items-center gap-2 px-4">
 					<SidebarTrigger class="-ml-1 hidden shrink-0 md:inline-flex" />
 					<div class="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
@@ -456,7 +469,8 @@
 						</div>
 					{/if}
 				</header>
-			<main class="app-content min-w-0 flex-1 p-4 md:p-6 {workstationActive ? 'min-h-0 overflow-hidden' : ''}">
+			{/if}
+			<main class:mobile-dashboard={isMobile.current && activePath === "/"} class="app-content min-w-0 flex-1 p-4 md:p-6 {workstationActive ? 'min-h-0 overflow-hidden' : ''}">
 				{#each KEPT_PAGES as kept (kept.path)}
 					{#if visitedPaths[kept.path]}
 						<div hidden={activePath !== kept.path} class={kept.path === "/" && workstationActive ? "h-full min-h-0" : undefined}>
