@@ -2,6 +2,8 @@
 	import "../app.css";
 	import ApplicationObserver from "$lib/components/application-observer.svelte";
 	import { assistantAvailability } from "$lib/stores/assistant-availability.svelte";
+	import MobileNavigation from "$lib/components/mobile-navigation.svelte";
+	import { IsMobile } from "$lib/hooks/is-mobile.svelte";
 	import AppSidebar from "$lib/components/app-sidebar.svelte";
 	import { SidebarInset, SidebarProvider, SidebarTrigger } from "$lib/components/ui/sidebar/index.js";
 	import { Toaster } from "$lib/components/ui/sonner/index.js";
@@ -55,6 +57,7 @@
 	import { Loader2, LogOut } from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
 
+	const isMobile = new IsMobile();
 	const CURRENT_GUEST = graphql(`
 		query LayoutCurrentGuest {
 			currentGuest {
@@ -245,6 +248,7 @@
 			} else if (isAuthenticated) {
 				await localizedNamesStore.refresh(client);
 			}
+			if (isAuthenticated && !auth.isGuest()) void assistantAvailability.refresh(client);
 
 			const target = nextRoute({
 				pathname: $page.url.pathname,
@@ -396,60 +400,63 @@
 	</div>
 {:else}
 	<ApplicationObserver onchange={() => { void reconcileAppState(); }} />
-	<SidebarProvider>
-		<AppSidebar />
+	<SidebarProvider class="authenticated-shell">
+		{#if !isMobile.current}
+			<AppSidebar />
+		{/if}
+		<MobileNavigation />
 		<SidebarInset class="min-w-0 {workstationActive ? 'h-dvh overflow-hidden' : ''}">
-			<header class="flex h-12 shrink-0 items-center gap-2 px-4">
-				<SidebarTrigger class="-ml-1 shrink-0" />
-				<div class="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-					{#each pageHeader.breadcrumbs as crumb, i}
-						{#if i > 0}
-							<span class="shrink-0 text-sm text-muted-foreground">/</span>
-						{/if}
-						{#if crumb.href}
-							<a href={crumb.href} class="truncate text-sm text-muted-foreground transition-colors hover:text-foreground">{crumb.label}</a>
-						{:else if crumb.onclick}
-							<button type="button" onclick={crumb.onclick} class="truncate text-sm text-muted-foreground transition-colors hover:text-foreground">{crumb.label}</button>
-						{:else}
-							<h1 class="truncate text-sm font-semibold">{crumb.label}</h1>
-						{/if}
-					{/each}
-				</div>
-				{#if pageHeader.viewToggle || pageHeader.actions.length > 0}
-					<div class="flex shrink-0 items-center gap-2">
-						{#if pageHeader.viewToggle}
-							<ViewToggle
-								value={pageHeader.viewToggle.value}
-								onchange={pageHeader.viewToggle.onchange}
-							/>
-						{/if}
-						{#each pageHeader.actions as action (action.label)}
-							{#if action.saving !== undefined}
-								<SaveButton
-									saving={action.saving}
-									disabled={action.disabled ?? false}
-									onclick={action.onclick}
-									hideLabelOnMobile={action.hideLabelOnMobile ?? false}
-								/>
+				<header class="app-header flex h-12 shrink-0 items-center gap-2 px-4">
+					<SidebarTrigger class="-ml-1 hidden shrink-0 md:inline-flex" />
+					<div class="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+						{#each pageHeader.breadcrumbs as crumb, i}
+							{#if i > 0}
+								<span class="shrink-0 text-sm text-muted-foreground">/</span>
+							{/if}
+							{#if crumb.href}
+								<a href={crumb.href} class="truncate text-sm text-muted-foreground transition-colors hover:text-foreground">{crumb.label}</a>
+							{:else if crumb.onclick}
+								<button type="button" onclick={crumb.onclick} class="truncate text-sm text-muted-foreground transition-colors hover:text-foreground">{crumb.label}</button>
 							{:else}
-								<SmoothButton
-									label={action.label}
-									mobileLabel={action.mobileLabel}
-									icon={action.icon}
-									iconClass={action.iconClass ?? ""}
-									variant={action.variant ?? "default"}
-									disabled={action.disabled ?? false}
-									onclick={action.onclick}
-									href={action.href}
-									target={action.target}
-									hideLabelOnMobile={action.hideLabelOnMobile ?? false}
-								/>
+								<h1 class="truncate text-sm font-semibold">{crumb.label}</h1>
 							{/if}
 						{/each}
 					</div>
-				{/if}
-			</header>
-			<main class="min-w-0 flex-1 p-6 {workstationActive ? 'min-h-0 overflow-hidden' : ''}">
+					{#if pageHeader.viewToggle || pageHeader.actions.length > 0}
+						<div class="flex shrink-0 items-center gap-2">
+							{#if pageHeader.viewToggle}
+								<ViewToggle
+									value={pageHeader.viewToggle.value}
+									onchange={pageHeader.viewToggle.onchange}
+								/>
+							{/if}
+							{#each pageHeader.actions as action (action.label)}
+								{#if action.saving !== undefined}
+									<SaveButton
+										saving={action.saving}
+										disabled={action.disabled ?? false}
+										onclick={action.onclick}
+										hideLabelOnMobile={action.hideLabelOnMobile ?? false}
+									/>
+								{:else}
+									<SmoothButton
+										label={action.label}
+										mobileLabel={action.mobileLabel}
+										icon={action.icon}
+										iconClass={action.iconClass ?? ""}
+										variant={action.variant ?? "default"}
+										disabled={action.disabled ?? false}
+										onclick={action.onclick}
+										href={action.href}
+										target={action.target}
+										hideLabelOnMobile={action.hideLabelOnMobile ?? false}
+									/>
+								{/if}
+							{/each}
+						</div>
+					{/if}
+				</header>
+			<main class="app-content min-w-0 flex-1 p-4 md:p-6 {workstationActive ? 'min-h-0 overflow-hidden' : ''}">
 				{#each KEPT_PAGES as kept (kept.path)}
 					{#if visitedPaths[kept.path]}
 						<div hidden={activePath !== kept.path} class={kept.path === "/" && workstationActive ? "h-full min-h-0" : undefined}>
@@ -467,4 +474,9 @@
 	</SidebarProvider>
 {/if}
 
-<Toaster richColors closeButton position="bottom-right" />
+<Toaster
+	richColors
+	closeButton
+	position="bottom-right"
+	mobileOffset={isMobile.current && ready && auth.isAuthenticated() && !auth.isGuest() && !PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r)) ? "calc(64px + env(safe-area-inset-bottom, 0px) + 16px)" : "16px"}
+/>

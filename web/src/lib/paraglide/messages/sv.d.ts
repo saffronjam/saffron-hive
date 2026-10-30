@@ -1178,6 +1178,7 @@ export const nav_logs: (inputs: Nav_LogsInputs) => LocalizedString;
 export const nav_maintenance: (inputs: Nav_MaintenanceInputs) => LocalizedString;
 export const nav_maintenance_tasks: (inputs: Nav_Maintenance_TasksInputs) => LocalizedString;
 export const nav_map: (inputs: Nav_MapInputs) => LocalizedString;
+export const nav_menu: (inputs: Nav_MenuInputs) => LocalizedString;
 export const nav_monitoring: (inputs: Nav_MonitoringInputs) => LocalizedString;
 export const nav_profile: (inputs: Nav_ProfileInputs) => LocalizedString;
 export const nav_rooms: (inputs: Nav_RoomsInputs) => LocalizedString;
@@ -3433,6 +3434,7 @@ export type Nav_Maintenance_TasksInputs = {
     count: NonNullable<unknown>;
 };
 export type Nav_MapInputs = {};
+export type Nav_MenuInputs = {};
 export type Nav_MonitoringInputs = {};
 export type Nav_ProfileInputs = {};
 export type Nav_RoomsInputs = {};

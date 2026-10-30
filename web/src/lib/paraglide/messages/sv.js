@@ -1180,6 +1180,7 @@
 /** @typedef {{}} Nav_MaintenanceInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Nav_Maintenance_TasksInputs */
 /** @typedef {{}} Nav_MapInputs */
+/** @typedef {{}} Nav_MenuInputs */
 /** @typedef {{}} Nav_MonitoringInputs */
 /** @typedef {{}} Nav_ProfileInputs */
 /** @typedef {{}} Nav_RoomsInputs */
@@ -6728,6 +6729,10 @@ export const nav_maintenance_tasks = /** @type {(inputs: Nav_Maintenance_TasksIn
 
 export const nav_map = /** @type {(inputs: Nav_MapInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Karta`)
+};
+
+export const nav_menu = /** @type {(inputs: Nav_MenuInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Meny`)
 };
 
 export const nav_monitoring = /** @type {(inputs: Nav_MonitoringInputs) => LocalizedString} */ () => {

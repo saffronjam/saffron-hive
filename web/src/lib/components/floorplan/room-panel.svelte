@@ -186,7 +186,7 @@
 
 {#if docked}
 	<div
-		class="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-popover/95 px-4 pt-3 pb-24 text-popover-foreground shadow-lg backdrop-blur-sm"
+		class="fixed inset-x-0 bottom-[var(--mobile-nav-height,0px)] z-50 border-t border-border/60 bg-popover/95 px-4 pt-3 pb-24 text-popover-foreground shadow-lg backdrop-blur-sm"
 		transition:fly={{ y: 24, duration: 200 }}
 	>
 		{@render body()}

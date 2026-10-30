@@ -1182,6 +1182,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Nav_MaintenanceInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Nav_Maintenance_TasksInputs */
 /** @typedef {{}} Nav_MapInputs */
+/** @typedef {{}} Nav_MenuInputs */
 /** @typedef {{}} Nav_MonitoringInputs */
 /** @typedef {{}} Nav_ProfileInputs */
 /** @typedef {{}} Nav_RoomsInputs */
@@ -19678,6 +19679,21 @@ export const nav_map = /** @type {((inputs?: Nav_MapInputs, options?: { locale?:
 	if (locale === "sv") return __sv.nav_map(inputs)
 	if (locale === "ru") return __ru.nav_map(inputs)
 	return __en.nav_map(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Menu" |
+*
+* @param {Nav_MenuInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const nav_menu = /** @type {((inputs?: Nav_MenuInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Nav_MenuInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.nav_menu(inputs)
+	if (locale === "ru") return __ru.nav_menu(inputs)
+	return __en.nav_menu(inputs)
 });
 /**
 * | output |

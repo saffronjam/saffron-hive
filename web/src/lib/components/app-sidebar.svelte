@@ -1,7 +1,4 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import { getContextClient } from "@urql/svelte";
-	import { assistantAvailability } from "$lib/stores/assistant-availability.svelte";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import {
@@ -16,140 +13,29 @@
 		SidebarMenuButton,
 		SidebarMenuItem,
 		SidebarSeparator,
-		useSidebar,
 	} from "$lib/components/ui/sidebar/index.js";
 	import { Collapsible } from "bits-ui";
 	import HiveLogo from "$lib/components/icons/hive-logo.svelte";
-	import {
-		MessageCircle,
-		LayoutDashboard,
-		Lightbulb,
-		Clapperboard,
-		Workflow,
-		Group,
-		DoorOpen,
-		ScrollText,
-		Settings,
-		LogOut,
-		Activity,
-		BellRing,
-		Users,
-		LineChart,
-		Sparkles,
-		Wrench,
-		ChevronUp,
-		PlugZap,
-		Map as MapIcon,
-		CircleCheck,
-		Webhook,
-	} from "@lucide/svelte";
+	import { LogOut, Wrench, ChevronUp } from "@lucide/svelte";
+	import { navigationGroups, systemItems, routeIsActive } from "$lib/app-navigation";
+	import NavigationBadge from "$lib/components/navigation-badge.svelte";
 	import Avatar from "$lib/components/avatar.svelte";
 	import { auth } from "$lib/stores/auth.svelte";
 	import { sessionTeardown } from "$lib/session";
 	import { me, cachedAvatarPath } from "$lib/stores/me.svelte";
-	import { alarmsStore } from "$lib/stores/alarms.svelte";
-	import { maintenanceStore } from "$lib/stores/maintenance.svelte";
 	import { version } from "$lib/version";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
 
-	const client = getContextClient();
-	onMount(() => {
-		void assistantAvailability.refresh(client);
-	});
-	interface NavItem {
-		href?: string;
-		label: string;
-		icon: typeof LayoutDashboard;
+	const navGroups = $derived(navigationGroups());
+	const adminItems = $derived(systemItems());
+
+	function isActive(href: string): boolean {
+		return routeIsActive(page.url.pathname, href);
 	}
-
-	interface NavGroup {
-		label?: string;
-		items: NavItem[];
-	}
-
-	const navGroups = $derived.by<NavGroup[]>(() => {
-		const options = locale.messageOptions();
-		return [
-			{
-				items: [
-					{ href: "/", label: m.nav_dashboard({}, options), icon: LayoutDashboard },
-					...(assistantAvailability.enabled && !auth.isGuest()
-						? [{ href: "/assistant", label: m.assistant_title({}, options), icon: MessageCircle }]
-						: []),
-					{ href: "/map", label: m.nav_map({}, options), icon: MapIcon },
-				],
-			},
-			{
-				label: m.nav_things({}, options),
-				items: [
-					{ href: "/devices", label: m.nav_devices({}, options), icon: Lightbulb },
-					{ href: "/rooms", label: m.nav_rooms({}, options), icon: DoorOpen },
-					{ href: "/groups", label: m.nav_groups({}, options), icon: Group },
-				],
-			},
-			{
-				label: m.nav_action({}, options),
-				items: [
-					{ href: "/scenes", label: m.nav_scenes({}, options), icon: Clapperboard },
-					{ href: "/automations", label: m.nav_automations({}, options), icon: Workflow },
-					{ href: "/webhooks", label: m.nav_webhooks({}, options), icon: Webhook },
-					{ href: "/effects", label: m.nav_effects({}, options), icon: Sparkles },
-				],
-			},
-			{
-				label: m.nav_monitoring({}, options),
-				items: [
-					{ href: "/activity", label: m.nav_activity({}, options), icon: Activity },
-					{ href: "/alarms", label: m.nav_alarms({}, options), icon: BellRing },
-					{
-						href: "/maintenance",
-						label: m.nav_maintenance({}, options),
-						icon: CircleCheck,
-					},
-					{ href: "/data-viewer", label: m.nav_data_viewer({}, options), icon: LineChart },
-				],
-			},
-		];
-	});
-
-	const adminItems = $derived.by<NavItem[]>(() => {
-		const options = locale.messageOptions();
-		return [
-			{ href: "/integrations", label: m.nav_integrations({}, options), icon: PlugZap },
-			{ href: "/users", label: m.nav_users({}, options), icon: Users },
-			{ href: "/logs", label: m.nav_logs({}, options), icon: ScrollText },
-			{ href: "/settings", label: m.nav_settings({}, options), icon: Settings },
-		];
-	});
-
-	function alarmBadgeClass(): string {
-		switch (alarmsStore.highestSeverity) {
-			case "HIGH":
-				return "bg-destructive/80 text-destructive-foreground";
-			case "MEDIUM":
-				return "bg-amber-500/80 text-white";
-			case "LOW":
-			default:
-				return "bg-teal-500/80 text-white";
-		}
-	}
-
-	function isActive(href: string | undefined): boolean {
-		if (!href) return false;
-		if (href === "/") return page.url.pathname === "/";
-		return page.url.pathname.startsWith(href);
-	}
-
-	const sidebar = useSidebar();
 	let systemOpen = $state(false);
 
-	function handleNav() {
-		if (sidebar.isMobile) sidebar.setOpenMobile(false);
-	}
-
 	function logout() {
-		handleNav();
 		sessionTeardown();
 		void goto("/login", { replaceState: true });
 	}
@@ -178,31 +64,10 @@
 									tooltipContent={item.label}
 								>
 									{#snippet child({ props })}
-										<a href={item.href ?? "#"} {...props} onclick={handleNav}>
+										<a href={item.href} {...props}>
 											<item.icon class="size-4" />
 											<span>{item.label}</span>
-											{#if item.href === "/alarms" && alarmsStore.activeCount > 0}
-												<span
-													class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs leading-none font-medium tabular-nums {alarmBadgeClass()}"
-											aria-label={m.nav_active_alarms(
-												{ count: alarmsStore.activeCount },
-												locale.messageOptions(),
-											)}
-												>
-													{alarmsStore.activeCount}
-												</span>
-											{/if}
-											{#if item.href === "/maintenance" && maintenanceStore.actionableCount > 0}
-												<span
-													class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs leading-none font-medium tabular-nums text-muted-foreground"
-											aria-label={m.nav_maintenance_tasks(
-												{ count: maintenanceStore.actionableCount },
-												locale.messageOptions(),
-											)}
-												>
-													{maintenanceStore.actionableCount}
-												</span>
-											{/if}
+											<NavigationBadge href={item.href} />
 										</a>
 									{/snippet}
 								</SidebarMenuButton>
@@ -227,17 +92,10 @@
 										tooltipContent={item.label}
 									>
 										{#snippet child({ props })}
-											{#if item.href}
-												<a href={item.href} {...props} onclick={handleNav}>
-													<item.icon class="size-4" />
-													<span>{item.label}</span>
-												</a>
-											{:else}
-												<button type="button" {...props} onclick={handleNav}>
-													<item.icon class="size-4" />
-													<span>{item.label}</span>
-												</button>
-											{/if}
+											<a href={item.href} {...props}>
+												<item.icon class="size-4" />
+												<span>{item.label}</span>
+											</a>
 										{/snippet}
 									</SidebarMenuButton>
 								</SidebarMenuItem>
@@ -287,7 +145,7 @@
 						tooltipContent={m.nav_profile({}, locale.messageOptions())}
 					>
 						{#snippet child({ props })}
-							<a href="/profile" {...props} onclick={handleNav}>
+							<a href="/profile" {...props}>
 								<Avatar user={profileUser} size="xs" />
 								<span>{m.nav_profile({}, locale.messageOptions())}</span>
 							</a>

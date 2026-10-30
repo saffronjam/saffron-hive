@@ -16576,6 +16576,20 @@ export const nav_map: ((inputs?: Nav_MapInputs, options?: {
 /**
 * | output |
 * | --- |
+* | "Menu" |
+*
+* @param {Nav_MenuInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const nav_menu: ((inputs?: Nav_MenuInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Nav_MenuInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Monitoring" |
 *
 * @param {Nav_MonitoringInputs} inputs
@@ -28457,6 +28471,7 @@ export type Nav_Maintenance_TasksInputs = {
     count: NonNullable<unknown>;
 };
 export type Nav_MapInputs = {};
+export type Nav_MenuInputs = {};
 export type Nav_MonitoringInputs = {};
 export type Nav_ProfileInputs = {};
 export type Nav_RoomsInputs = {};
