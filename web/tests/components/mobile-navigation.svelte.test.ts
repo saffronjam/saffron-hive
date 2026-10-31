@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import type { AfterNavigate, BeforeNavigate } from "@sveltejs/kit";
 import MobileNavigation from "$lib/components/mobile-navigation.svelte";
+import { assistantAvailability } from "$lib/stores/assistant-availability.svelte";
+import { createMockClient } from "../helpers/mock-client";
 import { resetMockPage, setMockPageUrl } from "../mocks/app-state.svelte";
 
 const navigation = vi.hoisted(() => ({
@@ -45,6 +47,7 @@ const preventNavigation = (event: MouseEvent) => event.preventDefault();
 
 beforeEach(() => {
   resetMockPage();
+  assistantAvailability.clear();
   host = document.createElement("div");
   document.body.append(host);
   component = mount(MobileNavigation, { target: host });
@@ -56,9 +59,37 @@ afterEach(async () => {
   host.remove();
   document.removeEventListener("click", preventNavigation);
   vi.unstubAllGlobals();
+  assistantAvailability.clear();
 });
 
 describe("mobile navigation intent", () => {
+  it("shows Chat only for a configured, enabled integration and follows its route", async () => {
+    const client = createMockClient();
+    for (const [configured, enabled] of [
+      [false, true],
+      [true, false],
+      [true, true],
+    ]) {
+      client.queueResult({ data: { integrations: [{ provider: "claude", configured, enabled }] } });
+      await assistantAvailability.refresh(client.client);
+      flushSync();
+      const href = configured && enabled ? "/assistant" : "/devices";
+      expect(host.querySelectorAll("a")[1].getAttribute("href")).toBe(href);
+      expect(host.querySelectorAll("a")[1].textContent?.trim()).toBe(
+        configured && enabled ? "Chat" : "Devices",
+      );
+    }
+    setMockPageUrl("https://hive.test/assistant?chat=one");
+    flushSync();
+    expect(selected()).toBe("/assistant");
+    setMockPageUrl("https://hive.test/devices/one");
+    flushSync();
+    expect(selected()).toBe("/menu");
+    assistantAvailability.clear();
+    flushSync();
+    expect(selected()).toBe("/devices");
+  });
+
   it("selects the destination before the route finishes", async () => {
     tap("/devices");
     const request = start("/devices");

@@ -16421,6 +16421,20 @@ export const nav_automations: ((inputs?: Nav_AutomationsInputs, options?: {
 /**
 * | output |
 * | --- |
+* | "Chat" |
+*
+* @param {Nav_ChatInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const nav_chat: ((inputs?: Nav_ChatInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Nav_ChatInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Dashboard" |
 *
 * @param {Nav_DashboardInputs} inputs
@@ -28456,6 +28470,7 @@ export type Nav_Active_AlarmsInputs = {
 export type Nav_ActivityInputs = {};
 export type Nav_AlarmsInputs = {};
 export type Nav_AutomationsInputs = {};
+export type Nav_ChatInputs = {};
 export type Nav_DashboardInputs = {};
 export type Nav_Data_ViewerInputs = {};
 export type Nav_DevicesInputs = {};

@@ -1171,6 +1171,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Nav_ActivityInputs */
 /** @typedef {{}} Nav_AlarmsInputs */
 /** @typedef {{}} Nav_AutomationsInputs */
+/** @typedef {{}} Nav_ChatInputs */
 /** @typedef {{}} Nav_DashboardInputs */
 /** @typedef {{}} Nav_Data_ViewerInputs */
 /** @typedef {{}} Nav_DevicesInputs */
@@ -19513,6 +19514,21 @@ export const nav_automations = /** @type {((inputs?: Nav_AutomationsInputs, opti
 	if (locale === "sv") return __sv.nav_automations(inputs)
 	if (locale === "ru") return __ru.nav_automations(inputs)
 	return __en.nav_automations(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Chat" |
+*
+* @param {Nav_ChatInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const nav_chat = /** @type {((inputs?: Nav_ChatInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Nav_ChatInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.nav_chat(inputs)
+	if (locale === "ru") return __ru.nav_chat(inputs)
+	return __en.nav_chat(inputs)
 });
 /**
 * | output |

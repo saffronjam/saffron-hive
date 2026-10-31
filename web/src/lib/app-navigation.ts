@@ -1,5 +1,6 @@
 import {
   MessageCircle,
+  Menu,
   LayoutDashboard,
   Lightbulb,
   Clapperboard,
@@ -85,6 +86,17 @@ export function systemItems(): NavItem[] {
     { href: "/users", label: m.nav_users({}, options), icon: Users },
     { href: "/logs", label: m.nav_logs({}, options), icon: ScrollText },
     { href: "/settings", label: m.nav_settings({}, options), icon: Settings },
+  ];
+}
+
+/** Primary destinations shown in the mobile navigation bar. */
+export function mobilePrimaryItems(): NavItem[] {
+  const groups = navigationGroups();
+  const chat = groups[0].items.find((item) => item.href === "/assistant");
+  return [
+    groups[0].items[0],
+    chat ? { ...chat, label: m.nav_chat({}, locale.messageOptions()) } : groups[1].items[0],
+    { href: "/menu", label: m.nav_menu({}, locale.messageOptions()), icon: Menu },
   ];
 }
 

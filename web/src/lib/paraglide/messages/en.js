@@ -1169,6 +1169,7 @@
 /** @typedef {{}} Nav_ActivityInputs */
 /** @typedef {{}} Nav_AlarmsInputs */
 /** @typedef {{}} Nav_AutomationsInputs */
+/** @typedef {{}} Nav_ChatInputs */
 /** @typedef {{}} Nav_DashboardInputs */
 /** @typedef {{}} Nav_Data_ViewerInputs */
 /** @typedef {{}} Nav_DevicesInputs */
@@ -6683,6 +6684,10 @@ export const nav_alarms = /** @type {(inputs: Nav_AlarmsInputs) => LocalizedStri
 
 export const nav_automations = /** @type {(inputs: Nav_AutomationsInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Automations`)
+};
+
+export const nav_chat = /** @type {(inputs: Nav_ChatInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Chat`)
 };
 
 export const nav_dashboard = /** @type {(inputs: Nav_DashboardInputs) => LocalizedString} */ () => {

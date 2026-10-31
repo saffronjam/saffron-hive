@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
 	import { ChevronRight, LogOut } from "@lucide/svelte";
-	import { navigationGroups, systemItems } from "$lib/app-navigation";
+	import { mobilePrimaryItems, navigationGroups, systemItems } from "$lib/app-navigation";
 	import Avatar from "$lib/components/avatar.svelte";
 	import NavigationBadge from "$lib/components/navigation-badge.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -12,8 +12,9 @@
 	import { version } from "$lib/version";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
+	const primaryPaths = $derived(new Set(mobilePrimaryItems().map(item => item.href)));
 	const groups = $derived([
-		...navigationGroups().map(group => ({ ...group, items: group.items.filter(item => item.href !== "/" && item.href !== "/devices") })),
+		...navigationGroups().map(group => ({ ...group, items: group.items.filter(item => !primaryPaths.has(item.href)) })),
 		{ label: m.nav_system({}, locale.messageOptions()), items: systemItems() },
 	]);
 	const user = $derived(me.user ?? (auth.user ? { ...auth.user, avatarPath: cachedAvatarPath() } : null));
