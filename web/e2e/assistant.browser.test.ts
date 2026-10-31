@@ -265,6 +265,14 @@ describe("Claude assistant journeys with an isolated CLI fixture", () => {
     await page.getByRole("heading", { level: 2, name: "Night light is ready" }).waitFor();
     await page.getByRole("heading", { level: 3, name: "Details" }).waitFor();
     await page.getByText(/^Warm light in the hallway\./).waitFor();
+    const example=page.locator("em").filter({hasText:'"When motion is detected in the hallway, turn the lights on."'});
+    await example.waitFor();
+    expect(await example.locator("strong").textContent()).toBe("motion");
+    expect(await example.evaluate(element=>getComputedStyle(element).fontStyle)).toBe("italic");
+    for (const theme of ["dark","light"]) {
+      await page.evaluate(theme=>document.documentElement.classList.toggle("dark",theme==="dark"),theme);
+      await page.screenshot({animations:"disabled",path:resolve(`../tmp/hive-chat-emphasis-${theme}.png`)});
+    }
     await page.getByLabel("Your chats", { exact: true }).click();
     try {
     const current = page.getByRole("option", { selected: true });

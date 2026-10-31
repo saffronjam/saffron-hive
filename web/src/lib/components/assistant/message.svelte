@@ -2,24 +2,22 @@
 	import EntityReference from "./entity-reference.svelte";
 	import { messageBlocks } from "$lib/assistant-markdown";
 	import * as Table from "$lib/components/ui/table";
+	import { Lexer, type Token } from "marked";
 	let { text }: { text: string } = $props();
 	const blocks = $derived(messageBlocks(text));
-	function parts(value: string) {
-		return value.split(/(\*\*[^*\n]+\*\*|`[^`\n]+`|\[[^\]\n]+\]\(\/[a-zA-Z0-9/_?=&%.-]+\))/g);
-	}
 </script>
 
-{#snippet inline(value: string)}
-	{#each parts(value) as part, j (j)}
-		{#if part.startsWith("**") && part.endsWith("**")}<strong>{part.slice(2, -2)}</strong>
-		{:else if part.startsWith("`") && part.endsWith("`")}<code
-				class="bg-muted rounded px-1 py-0.5 text-xs">{part.slice(1, -1)}</code
-			>
-		{:else if /^\[[^\]]+\]\(\/[^/]/.test(part)}
-			{@const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)}
-			{#if link}<a href={link[2]} class="text-primary underline underline-offset-4">{link[1]}</a
-				>{:else}{part}{/if}
-		{:else}{part}{/if}
+{#snippet inline(value: string | Token[])}
+	{#each typeof value === "string" ? Lexer.lexInline(value) : value as token, j (j)}
+		{#if token.type === "strong"}<strong>{@render inline(token.tokens ?? [])}</strong>
+		{:else if token.type === "em"}<em>{@render inline(token.tokens ?? [])}</em>
+		{:else if token.type === "del"}<del>{@render inline(token.tokens ?? [])}</del>
+		{:else if token.type === "codespan"}<code class="bg-muted rounded px-1 py-0.5 text-xs">{token.text}</code>
+		{:else if token.type === "link" && /^\/[a-zA-Z0-9/_?=&%.-]+$/.test(token.href) && !token.href.startsWith("//")}
+			<a href={token.href} class="text-primary underline underline-offset-4">{@render inline(token.tokens ?? [])}</a>
+		{:else if token.type === "br"}<br />
+		{:else if token.type === "text" || token.type === "escape"}{token.text}
+		{:else}{token.raw}{/if}
 	{/each}
 {/snippet}
 

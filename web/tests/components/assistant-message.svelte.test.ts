@@ -124,3 +124,37 @@ it("keeps a heading mounted as its text streams", () => {
   expect(heading?.textContent?.trim()).toBe("Klart");
   expect(host.textContent).toContain("Done.");
 });
+
+it("renders quoted emphasis, nested formatting and escaped markers", () => {
+  component = mount(Message, { target: host, props: {
+    text: 'For example: *"When **motion** is detected, turn the lights on."*\n\n_Optional_ and __important__, ~~disabled~~. Keep scene_name and \\*literal markers\\*; `*code*` stays literal.',
+  } });
+  flushSync();
+  expect([...host.querySelectorAll("em")].map(el => el.textContent)).toEqual(['"When motion is detected, turn the lights on."', "Optional"]);
+  expect(host.querySelector("em strong")?.textContent).toBe("motion");
+  expect(host.querySelector("del")?.textContent).toBe("disabled");
+  expect(host.querySelector("code")?.textContent).toBe("*code*");
+  expect(host.textContent).toContain("scene_name and *literal markers*");
+});
+
+it("uses the same emphasis rules in headings, table cells and link labels", () => {
+  component = mount(Message, { target: host, props: {
+    text: '## *Choose* a trigger\n\n| *Name* | Value |\n| --- | --- |\n| _Duration_ | [**Open**](/automations/night) |',
+  } });
+  flushSync();
+  expect(host.querySelector("h2 em")?.textContent).toBe("Choose");
+  expect(host.querySelector("th em")?.textContent).toBe("Name");
+  expect(host.querySelector("td em")?.textContent).toBe("Duration");
+  expect(host.querySelector("td a strong")?.textContent).toBe("Open");
+});
+
+it("completes streamed emphasis while leaving unfinished delimiters visible", () => {
+  const props = $state({text: '*"When motion is detected'});
+  component = mount(Message, {target: host, props});
+  flushSync();
+  expect(host.querySelector("em")).toBeNull();
+  expect(host.textContent).toContain('*"When motion is detected');
+  props.text += ', turn the lights on."*';
+  flushSync();
+  expect(host.querySelector("em")?.textContent).toBe('"When motion is detected, turn the lights on."');
+});

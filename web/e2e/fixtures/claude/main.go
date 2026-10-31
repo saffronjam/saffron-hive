@@ -285,7 +285,7 @@ func main() {
 		fail(fmt.Errorf("missing image"))
 	}
 	if strings.Contains(prompt, "Show formatted headings") {
-		result("## Night light is ready\n\nThe scene is saved.\n\n### Details\n\nWarm light in the hallway.")
+		result("## Night light is ready\n\nThe scene is saved.\n\n### Details\n\nWarm light in the hallway.\n\nFor example: *\"When **motion** is detected in the hallway, turn the lights on.\"*")
 		return
 	}
 	if strings.Contains(prompt, "Wait until stopped") {
