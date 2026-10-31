@@ -60,6 +60,12 @@ func (r *mutationResolver) TestClaudeConnection(ctx context.Context, input model
 	return &model.ConnectionTestResult{Success: true, Code: model.ConnectionTestCodeConnected}, nil
 }
 
+// UpdateAssistantField is the resolver for the updateAssistantField field.
+func (r *mutationResolver) UpdateAssistantField(ctx context.Context, input model.AssistantFieldUpdateInput) (*model.AssistantConversation, error) {
+	c, err := r.Assistant.UpdateField(ctx, input.ConversationID, input.Key, int64(input.ExpectedRevision), assistant.FieldValue{Text: input.Value.Text.Value(), Number: input.Value.Number.Value(), Boolean: input.Value.Boolean.Value(), AttachmentID: input.Value.AttachmentID.Value()})
+	return assistantConversationModel(c), err
+}
+
 // CreateAssistantConversation is the resolver for the createAssistantConversation field.
 func (r *mutationResolver) CreateAssistantConversation(ctx context.Context) (*model.AssistantConversation, error) {
 	c, err := r.Assistant.Create(ctx)

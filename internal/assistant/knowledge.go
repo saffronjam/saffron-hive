@@ -13,7 +13,7 @@ var knowledgeFS embed.FS
 
 func knowledge(topic string) (string, error) {
 	if topic == "" {
-		return "Topics: authoring-examples, devices, automations, automation-config, scenes, scene-config, effect-config, administration. Use discover for current GraphQL operations and types.", nil
+		return "Topics: authoring-examples, entity-links, chat-controls, devices, automations, automation-config, scenes, scene-config, effect-config, administration. Use discover for current GraphQL operations and types.", nil
 	}
 	if strings.ContainsAny(topic, "/\\.") {
 		return "", fmt.Errorf("unknown knowledge topic")

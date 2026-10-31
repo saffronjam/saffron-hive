@@ -152,3 +152,57 @@ func TestAssistantDetectsReplacementOfConfigurationItems(t *testing.T) {
 		t.Fatal("nested clip removal concealed removals")
 	}
 }
+
+func TestAssistantCreatedEntityLinksSurviveConversationMapping(t *testing.T) {
+	for _, tc := range []struct{ field, href string }{
+		{"createScene", "/scenes/entity-id"},
+		{"createAutomation", "/automations/entity-id"},
+		{"createEffect", "/effects/entity-id"},
+		{"createRoom", "/rooms?edit=entity-id"},
+		{"createGroup", "/groups?edit=entity-id"},
+		{"createWebhookEndpoint", "/webhooks/entity-id"},
+	} {
+		t.Run(tc.field, func(t *testing.T) {
+			var entity any = map[string]string{"id": "entity-id", "name": "Created item"}
+			if tc.field == "createWebhookEndpoint" {
+				entity = map[string]any{"endpoint": entity}
+			}
+			result, err := json.Marshal(map[string]any{tc.field: entity})
+			if err != nil {
+				t.Fatal(err)
+			}
+			action := assistant.Action{Status: assistant.Done, Operation: assistant.Operation{Field: tc.field}, Targets: []assistant.Target{{ID: "Created item", Name: "Created item"}}, Result: string(result)}
+			view := assistantConversationModel(&assistant.Conversation{Actions: []assistant.Action{action}})
+			target := view.Actions[0].Targets[0]
+			if target.ID != "entity-id" || target.Name != "Created item" || target.Href != tc.href {
+				t.Fatalf("created target: %+v", target)
+			}
+			if action.Targets[0].Href != "" {
+				t.Fatal("mapping changed the stored action")
+			}
+		})
+	}
+}
+
+func TestAssistantUnfinishedCreateHasNoDestination(t *testing.T) {
+	for _, status := range []assistant.ActionStatus{assistant.Pending, assistant.Executing, assistant.ActionFailed, assistant.Rejected} {
+		action := assistant.Action{Status: status, Operation: assistant.Operation{Field: "createScene"}, Targets: []assistant.Target{{ID: "Planned", Name: "Planned"}}, Result: `{"createScene":{"id":"not-created","name":"Planned"}}`}
+		view := assistantConversationModel(&assistant.Conversation{Actions: []assistant.Action{action}})
+		if view.Actions[0].Targets[0].Href != "" {
+			t.Fatalf("linked unfinished action %s", status)
+		}
+	}
+}
+
+func TestAssistantCreateIncludesIdentityForNarrowSelections(t *testing.T) {
+	g, _, ctx := testAssistantGateway(t)
+	op := assistant.Operation{Field: "createRoom", Arguments: json.RawMessage(`{"input":{"name":"Office"}}`), Selection: "__typename"}
+	result, err := g.Execute(ctx, op, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	view := assistantConversationModel(&assistant.Conversation{Actions: []assistant.Action{{Status: assistant.Done, Operation: op, Result: result.Public}}})
+	if len(view.Actions[0].Targets) != 1 || !strings.HasPrefix(view.Actions[0].Targets[0].Href, "/rooms?edit=") {
+		t.Fatalf("missing created identity: %+v", view.Actions[0].Targets)
+	}
+}

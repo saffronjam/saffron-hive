@@ -27,7 +27,26 @@ type AssistantAction {
  hasPrivateResult: Boolean!
 }
 type AssistantConversationSummary { id: ID! autoTitle: String! titleOverride: String! revision: Int! updatedAt: String! }
+enum AssistantFieldKind { SLIDER TEXT NUMBER COLOR IMAGE SELECT TOGGLE }
+type AssistantFieldValue { text: String number: Float boolean: Boolean attachmentId: ID }
+input AssistantFieldValueInput { text: String number: Float boolean: Boolean attachmentId: ID }
+type AssistantChatField {
+ key: String!
+ kind: AssistantFieldKind!
+ label: String!
+ section: String!
+ description: String!
+ min: Float
+ max: Float
+ step: Float
+ options: [String!]!
+ value: AssistantFieldValue!
+ revision: Int!
+}
+type AssistantChatForm { id: ID! runId: ID! title: String! description: String! revision: Int! fields: [AssistantChatField!]! }
+input AssistantFieldUpdateInput { conversationId: ID! key: String! expectedRevision: Int! value: AssistantFieldValueInput! }
 type AssistantConversation {
+ forms: [AssistantChatForm!]!
  id: ID!
  autoTitle: String!
  titleOverride: String!
@@ -50,6 +69,7 @@ extend type Mutation {
  discoverClaudeModels(token: String!): [ClaudeAvailableModel!]! @auth
  updateClaudeConfig(input: ClaudeConfigInput!, expectedRevision: Int!): ClaudeConfig! @auth
  testClaudeConnection(input: ClaudeConfigInput!): ConnectionTestResult! @auth
+ updateAssistantField(input: AssistantFieldUpdateInput!): AssistantConversation! @auth
  createAssistantConversation: AssistantConversation! @auth
  """Set a manual title; an empty title restores the automatic name."""
  renameAssistantConversation(id: ID!, title: String!): AssistantConversation! @auth

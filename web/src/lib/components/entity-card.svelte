@@ -25,6 +25,7 @@
 		entityType?: string;
 		fallbackIcon: Component;
 		subtitle?: string;
+		nameHref?: string;
 		subtitleTrailing?: Snippet;
 		onrename?: (entity: T, newName: string) => void;
 		oniconchange?: (entity: T, icon: string | null) => void;
@@ -147,6 +148,7 @@
 		entityType,
 		fallbackIcon: Fallback,
 		subtitle,
+		nameHref,
 		subtitleTrailing,
 		onrename,
 		oniconchange,
@@ -388,7 +390,9 @@
 				</IconPicker>
 			{/if}
 			<div class="min-w-0 flex-1">
-				{#if readOnly}
+				{#if nameHref}
+					<h3 class="truncate font-medium text-card-foreground"><a href={nameHref} class="rounded-sm outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring">{displayName}</a></h3>
+				{:else if readOnly}
 					<h3 class="truncate font-medium text-card-foreground">{displayName}</h3>
 				{:else}
 					<InlineEditName

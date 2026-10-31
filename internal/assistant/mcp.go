@@ -109,7 +109,35 @@ type idInput struct {
 	ID string `json:"id"`
 }
 
+type formInput struct {
+	ID               string      `json:"id"`
+	Title            string      `json:"title,omitempty" jsonschema:"Optional meaningful target or configuration name. Omit generic titles such as Let's design a scene."`
+	Description      string      `json:"description,omitempty"`
+	ExpectedRevision int64       `json:"expectedRevision" jsonschema:"0 for a new form; read chat_forms for an existing form's revision"`
+	Fields           []ChatField `json:"fields"`
+}
+type deleteFormInput struct {
+	ID               string `json:"id"`
+	ExpectedRevision int64  `json:"expectedRevision"`
+}
+
 func (t *ToolServer) register(g *grant) {
+	mcp.AddTool(g.server, &mcp.Tool{Name: "define_chat_form", Description: "Create or update real controls in this chat: SLIDER, TEXT, NUMBER, COLOR, IMAGE, SELECT, TOGGLE. Chat-only data; does not control the home or invoke the model. Keys are unique per chat. User values are preserved. Use chat_forms to inspect definitions and get_chat_inputs for the current message's submitted values. Never use for secrets or confirmations."}, func(ctx context.Context, _ *mcp.CallToolRequest, in formInput) (*mcp.CallToolResult, any, error) {
+		value, err := t.service.defineForm(ctx, g.principal, g.conversationID, g.runID, ChatForm{ID: in.ID, Title: in.Title, Description: in.Description, Revision: in.ExpectedRevision, Fields: in.Fields})
+		return toolText(value), nil, err
+	})
+	mcp.AddTool(g.server, &mcp.Tool{Name: "chat_forms", Description: "Read this chat's form definitions and revisions. Values are omitted; get_chat_inputs reads the snapshot submitted with this message."}, func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+		value, err := t.service.formDefinitions(ctx, g.principal, g.conversationID, g.runID)
+		return toolText(value), nil, err
+	})
+	mcp.AddTool(g.server, &mcp.Tool{Name: "get_chat_inputs", Description: "Read the key/value snapshot captured when the user sent the current message. Edits do not trigger AI work; subsequent edits belong to the next message."}, func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+		value, err := t.service.chatInputs(ctx, g.principal, g.conversationID, g.runID)
+		return toolText(value), nil, err
+	})
+	mcp.AddTool(g.server, &mcp.Tool{Name: "delete_chat_form", Description: "Remove a form and its current keys from this chat. Message snapshots remain in history. Does not change the home."}, func(ctx context.Context, _ *mcp.CallToolRequest, in deleteFormInput) (*mcp.CallToolResult, any, error) {
+		err := t.service.deleteForm(ctx, g.principal, g.conversationID, g.runID, in.ID, in.ExpectedRevision)
+		return toolText("Removed chat form"), nil, err
+	})
 	check := func(ctx context.Context) error {
 		_, err := t.service.toolAccess(ctx, g.principal, g.conversationID, g.runID, false)
 		return err

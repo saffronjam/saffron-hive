@@ -101,6 +101,7 @@
 /** @typedef {{}} Assistant_CompletedInputs */
 /** @typedef {{}} Assistant_ConfigureInputs */
 /** @typedef {{}} Assistant_ContinueInputs */
+/** @typedef {{}} Assistant_ControlsInputs */
 /** @typedef {{}} Assistant_DeleteInputs */
 /** @typedef {{}} Assistant_Delete_DescriptionInputs */
 /** @typedef {{}} Assistant_DescriptionInputs */
@@ -116,7 +117,6 @@
 /** @typedef {{}} Assistant_Name_HintInputs */
 /** @typedef {{}} Assistant_NewInputs */
 /** @typedef {{}} Assistant_PlaceholderInputs */
-/** @typedef {{}} Assistant_PrivateInputs */
 /** @typedef {{}} Assistant_Private_InputInputs */
 /** @typedef {{}} Assistant_QueuedInputs */
 /** @typedef {{}} Assistant_ReadingInputs */
@@ -132,6 +132,7 @@
 /** @typedef {{}} Assistant_StoppedInputs */
 /** @typedef {{}} Assistant_ThinkingInputs */
 /** @typedef {{}} Assistant_TitleInputs */
+/** @typedef {{}} Assistant_Upload_ImageInputs */
 /** @typedef {{}} Assistant_WaitingInputs */
 /** @typedef {{}} Assistant_WritingInputs */
 /** @typedef {{ path: NonNullable<unknown> }} Auth_Bootstrap_HelpInputs */
@@ -1562,11 +1563,13 @@
 /** @typedef {{}} Standard_Room_WardrobeInputs */
 /** @typedef {{}} Standard_Room_WorkshopInputs */
 /** @typedef {{}} State_AbsentInputs */
+/** @typedef {{}} State_ActiveInputs */
 /** @typedef {{}} State_AvailableInputs */
 /** @typedef {{ percent: NonNullable<unknown> }} State_BatteryInputs */
 /** @typedef {{}} State_ClearInputs */
 /** @typedef {{ temperature: NonNullable<unknown> }} State_Climate_TargetInputs */
 /** @typedef {{}} State_ClosedInputs */
+/** @typedef {{}} State_InactiveInputs */
 /** @typedef {{ percent: NonNullable<unknown> }} State_Light_On_BrightnessInputs */
 /** @typedef {{}} State_Motion_DetectedInputs */
 /** @typedef {{}} State_No_DataInputs */
@@ -2348,6 +2351,10 @@ export const assistant_continue = /** @type {(inputs: Assistant_ContinueInputs) 
 	return /** @type {LocalizedString} */ (`Продолжить`)
 };
 
+export const assistant_controls = /** @type {(inputs: Assistant_ControlsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Элементы управления чатом`)
+};
+
 export const assistant_delete = /** @type {(inputs: Assistant_DeleteInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Удалить чат`)
 };
@@ -2408,10 +2415,6 @@ export const assistant_placeholder = /** @type {(inputs: Assistant_PlaceholderIn
 	return /** @type {LocalizedString} */ (`Спросите Hive…`)
 };
 
-export const assistant_private = /** @type {(inputs: Assistant_PrivateInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Эти чаты видны только вам.`)
-};
-
 export const assistant_private_input = /** @type {(inputs: Assistant_Private_InputInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Эти значения передаются прямо в Hive и недоступны Claude.`)
 };
@@ -2470,6 +2473,10 @@ export const assistant_thinking = /** @type {(inputs: Assistant_ThinkingInputs) 
 
 export const assistant_title = /** @type {(inputs: Assistant_TitleInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Ассистент`)
+};
+
+export const assistant_upload_image = /** @type {(inputs: Assistant_Upload_ImageInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Загрузить изображение`)
 };
 
 export const assistant_waiting = /** @type {(inputs: Assistant_WaitingInputs) => LocalizedString} */ () => {
@@ -8476,6 +8483,10 @@ export const state_absent = /** @type {(inputs: State_AbsentInputs) => Localized
 	return /** @type {LocalizedString} */ (`Нет присутствия`)
 };
 
+export const state_active = /** @type {(inputs: State_ActiveInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Активно`)
+};
+
 export const state_available = /** @type {(inputs: State_AvailableInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Доступно`)
 };
@@ -8494,6 +8505,10 @@ export const state_climate_target = /** @type {(inputs: State_Climate_TargetInpu
 
 export const state_closed = /** @type {(inputs: State_ClosedInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Закрыто`)
+};
+
+export const state_inactive = /** @type {(inputs: State_InactiveInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Неактивно`)
 };
 
 export const state_light_on_brightness = /** @type {(inputs: State_Light_On_BrightnessInputs) => LocalizedString} */ (i) => {

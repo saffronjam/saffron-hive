@@ -1,4 +1,5 @@
 <script lang="ts">
+	import EntityReference from "./entity-reference.svelte";
 	import { messageBlocks } from "$lib/assistant-markdown";
 	import * as Table from "$lib/components/ui/table";
 	let { text }: { text: string } = $props();
@@ -24,7 +25,8 @@
 
 <div class="min-w-0 space-y-3 text-sm leading-7 break-words">
 	{#each blocks as block, i (i)}
-		{#if block.kind === "code"}<pre
+		{#if block.kind === "entity"}<EntityReference reference={block.reference} label={block.text} />
+		{:else if block.kind === "code"}<pre
 				class="bg-muted overflow-x-auto rounded-lg p-4 text-xs leading-6"><code>{block.text}</code
 				></pre>
 		{:else if block.kind === "heading"}

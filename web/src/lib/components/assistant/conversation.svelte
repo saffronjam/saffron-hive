@@ -2,13 +2,13 @@
 	import { onMount, tick, untrack } from "svelte";
 	import { getContextClient, subscriptionStore } from "@urql/svelte";
 	import type { AssistantConversationFieldsFragment } from "$lib/gql/graphql";
-	import { CHAT_GET, CHAT_WATCH, CHAT_SEND, CHAT_STOP } from "$lib/assistant";
-	import { authenticatedFetch } from "$lib/graphql/client";
+	import { CHAT_GET, CHAT_WATCH, CHAT_SEND, CHAT_STOP, uploadAssistantImage } from "$lib/assistant";
 	import { onGraphQLRecovered } from "$lib/graphql/app-recovery";
 	import Message from "./message.svelte";
 	import Action from "./action.svelte";
 	import Image from "./image.svelte";
 	import Composer from "./composer.svelte";
+	import ChatForm from "./chat-form.svelte";
 	import { MessageCircle } from "@lucide/svelte";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
@@ -54,18 +54,17 @@
 			apply(r.data.assistantConversation);
 		}
 	}
+	const fieldFlushers = new Map<string, () => Promise<void>>();
+ function registerField(key: string, flush: () => Promise<void>) {
+  fieldFlushers.set(key, flush);
+  return () => { if (fieldFlushers.get(key) === flush) fieldFlushers.delete(key); };
+ }
 	const uploads = new Map<string, string[]>();
 	async function send(text: string, files: File[], clientId: string) {
+		await Promise.all([...fieldFlushers.values()].map(flush => flush()));
 		let ids = uploads.get(clientId) ?? [];
 		for (let i = ids.length; i < files.length; i++) {
-			const form = new FormData();
-			form.set("file", files[i]);
-			const response = await authenticatedFetch(
-				`/api/assistant/attachments?conversationId=${encodeURIComponent(id)}`,
-				{ method: "POST", body: form },
-			);
-			if (!response.ok) throw new Error(await response.text());
-			const a: { id: string } = await response.json();
+			const a = await uploadAssistantImage(id, files[i]);
 			ids = [...ids, a.id];
 			uploads.set(clientId, ids);
 		}
@@ -102,10 +101,10 @@
 	});
 </script>
 
-<div class="flex min-h-0 flex-1 flex-col gap-4">
+<div class="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
 	<div
 		bind:this={scroller}
-		class="min-h-0 flex-1 overflow-y-auto scroll-smooth motion-reduce:scroll-auto"
+		class="min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-smooth motion-reduce:scroll-auto"
 		onscroll={() => {
 			if (scroller)
 				nearBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 100;
@@ -123,7 +122,7 @@
 					class="space-y-4"
 					aria-label={run.model || m.assistant_title({}, options)}
 				>
-					{#each conversation?.messages.filter((message) => message.runId === run.id) ?? [] as message (message.id)}{#if message.text || message.attachments.length}<div
+					{#each conversation?.messages.filter((message) => message.runId === run.id) ?? [] as message (message.id)}{#if message.text.trim() || message.attachments.length}<div
 								class={message.role === "user"
 									? "bg-muted ml-auto w-fit max-w-[90%] rounded-lg px-4 py-3"
 									: "px-1"}
@@ -142,6 +141,9 @@
 							conversationId={id}
 							onchange={apply}
 						/>{/each}
+                    {#each conversation?.forms.filter(form => form.runId === run.id) ?? [] as form (form.id)}
+                      <ChatForm {form} conversationId={id} onchange={apply} register={registerField} />
+                    {/each}
 					{#if run.state === "FAILED"}<p class="text-destructive text-sm" role="alert">
 							{run.error || m.assistant_failed({}, options)}
 						</p>{:else if run.state === "INTERRUPTED"}<p class="text-muted-foreground text-sm">
@@ -162,7 +164,7 @@
 		</div>
 	</div>
 	{#if error}<p class="text-destructive text-sm" role="alert">{error}</p>{/if}
-	<div class="mx-auto w-full max-w-3xl">
+	<div class="mx-auto min-h-0 w-full max-w-3xl overflow-y-auto p-1">
 		<Composer
 			disabled={!enabled || !conversation}
 			running={!!active}

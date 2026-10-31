@@ -8,6 +8,9 @@
 		value = $bindable(),
 		orientation = "horizontal",
 		class: className,
+		"aria-label": ariaLabel,
+		"aria-labelledby": ariaLabelledby,
+		"aria-describedby": ariaDescribedby,
 		...restProps
 	}: WithoutChildrenOrChild<SliderPrimitive.RootProps> = $props();
 
@@ -69,6 +72,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 <SliderPrimitive.Root
 	bind:ref
 	bind:value={value as never}
+	aria-label={ariaLabel}
+	aria-labelledby={ariaLabelledby}
+	aria-describedby={ariaDescribedby}
 	data-slot="slider"
 	{orientation}
 	{onpointerdown}
@@ -98,6 +104,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 		</span>
 		{#each thumbItems as thumb (thumb.index)}
 			<SliderPrimitive.Thumb
+				aria-label={ariaLabel}
+				aria-labelledby={ariaLabelledby}
+				aria-describedby={ariaDescribedby}
 				data-slot="slider-thumb"
 				index={thumb.index}
 				class={cn(

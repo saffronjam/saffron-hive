@@ -1,6 +1,9 @@
+import { assistantEntityReference, type AssistantEntityReference } from "$lib/assistant-entities";
+
 type Alignment = "left" | "center" | "right";
 
 type MessageBlock =
+  | { kind: "entity"; text: string; reference: AssistantEntityReference }
   | { kind: "text" | "code"; text: string }
   | { kind: "heading"; level: number; text: string }
   | { kind: "table"; headers: string[]; rows: string[][]; alignments: Alignment[] };
@@ -47,6 +50,13 @@ export function messageBlocks(text: string): MessageBlock[] {
       prose = [];
     }
     for (let i = 0; i < lines.length; i++) {
+      const link = lines[i].trim().match(/^\[([^\]\n]+)\]\((\/[^)\s]+)\)$/);
+      const reference = link && assistantEntityReference(link[2]);
+      if (reference) {
+        flush();
+        blocks.push({ kind: "entity", text: link[1], reference });
+        continue;
+      }
       const heading = lines[i].match(/^ {0,3}(#{1,6})(?:[ \t]+(.*)|$)/);
       if (heading) {
         flush();

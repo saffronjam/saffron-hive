@@ -1417,6 +1417,20 @@ export const assistant_continue: ((inputs?: Assistant_ContinueInputs, options?: 
 /**
 * | output |
 * | --- |
+* | "Chat controls" |
+*
+* @param {Assistant_ControlsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_controls: ((inputs?: Assistant_ControlsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_ControlsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Delete chat" |
 *
 * @param {Assistant_DeleteInputs} inputs
@@ -1627,20 +1641,6 @@ export const assistant_placeholder: ((inputs?: Assistant_PlaceholderInputs, opti
 /**
 * | output |
 * | --- |
-* | "Only you can see these chats." |
-*
-* @param {Assistant_PrivateInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const assistant_private: ((inputs?: Assistant_PrivateInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_PrivateInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
 * | "These values are sent directly to Hive and are hidden from Claude." |
 *
 * @param {Assistant_Private_InputInputs} inputs
@@ -1846,6 +1846,20 @@ export const assistant_thinking: ((inputs?: Assistant_ThinkingInputs, options?: 
 export const assistant_title: ((inputs?: Assistant_TitleInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_TitleInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Upload image" |
+*
+* @param {Assistant_Upload_ImageInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_upload_image: ((inputs?: Assistant_Upload_ImageInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Assistant_Upload_ImageInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -21939,6 +21953,20 @@ export const state_absent: ((inputs?: State_AbsentInputs, options?: {
 /**
 * | output |
 * | --- |
+* | "Active" |
+*
+* @param {State_ActiveInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const state_active: ((inputs?: State_ActiveInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<State_ActiveInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Available" |
 *
 * @param {State_AvailableInputs} inputs
@@ -22004,6 +22032,20 @@ export const state_climate_target: ((inputs: State_Climate_TargetInputs, options
 export const state_closed: ((inputs?: State_ClosedInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<State_ClosedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Inactive" |
+*
+* @param {State_InactiveInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const state_inactive: ((inputs?: State_InactiveInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<State_InactiveInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -27131,6 +27173,7 @@ export type Assistant_ClassifyingInputs = {};
 export type Assistant_CompletedInputs = {};
 export type Assistant_ConfigureInputs = {};
 export type Assistant_ContinueInputs = {};
+export type Assistant_ControlsInputs = {};
 export type Assistant_DeleteInputs = {};
 export type Assistant_Delete_DescriptionInputs = {};
 export type Assistant_DescriptionInputs = {};
@@ -27146,7 +27189,6 @@ export type Assistant_InterruptedInputs = {};
 export type Assistant_Name_HintInputs = {};
 export type Assistant_NewInputs = {};
 export type Assistant_PlaceholderInputs = {};
-export type Assistant_PrivateInputs = {};
 export type Assistant_Private_InputInputs = {};
 export type Assistant_QueuedInputs = {};
 export type Assistant_ReadingInputs = {};
@@ -27162,6 +27204,7 @@ export type Assistant_StopInputs = {};
 export type Assistant_StoppedInputs = {};
 export type Assistant_ThinkingInputs = {};
 export type Assistant_TitleInputs = {};
+export type Assistant_Upload_ImageInputs = {};
 export type Assistant_WaitingInputs = {};
 export type Assistant_WritingInputs = {};
 export type Auth_Bootstrap_HelpInputs = {
@@ -28939,6 +28982,7 @@ export type Standard_Room_Walk_In_ClosetInputs = {};
 export type Standard_Room_WardrobeInputs = {};
 export type Standard_Room_WorkshopInputs = {};
 export type State_AbsentInputs = {};
+export type State_ActiveInputs = {};
 export type State_AvailableInputs = {};
 export type State_BatteryInputs = {
     percent: NonNullable<unknown>;
@@ -28948,6 +28992,7 @@ export type State_Climate_TargetInputs = {
     temperature: NonNullable<unknown>;
 };
 export type State_ClosedInputs = {};
+export type State_InactiveInputs = {};
 export type State_Light_On_BrightnessInputs = {
     percent: NonNullable<unknown>;
 };

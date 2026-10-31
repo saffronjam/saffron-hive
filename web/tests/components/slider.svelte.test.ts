@@ -23,12 +23,13 @@ afterEach(async () => {
 
 describe("slider position updates", () => {
   it("keeps its thumb mounted and focused through live value changes", () => {
-    const props = $state({ type: "single" as const, value: 40, max: 254, onValueChange: vi.fn() });
+    const props = $state({ type: "single" as const, value: 40, max: 254, "aria-label": "Brightness", onValueChange: vi.fn() });
     host = document.createElement("div");
     document.body.appendChild(host);
     instance = mount(Slider, { target: host, props });
     flushSync();
     const thumb = host.querySelector<HTMLElement>('[role="slider"]')!;
+    expect(thumb.getAttribute("aria-label")).toBe("Brightness");
     thumb.focus();
 
     props.value = 180;

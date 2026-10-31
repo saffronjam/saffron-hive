@@ -103,6 +103,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Assistant_CompletedInputs */
 /** @typedef {{}} Assistant_ConfigureInputs */
 /** @typedef {{}} Assistant_ContinueInputs */
+/** @typedef {{}} Assistant_ControlsInputs */
 /** @typedef {{}} Assistant_DeleteInputs */
 /** @typedef {{}} Assistant_Delete_DescriptionInputs */
 /** @typedef {{}} Assistant_DescriptionInputs */
@@ -118,7 +119,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Assistant_Name_HintInputs */
 /** @typedef {{}} Assistant_NewInputs */
 /** @typedef {{}} Assistant_PlaceholderInputs */
-/** @typedef {{}} Assistant_PrivateInputs */
 /** @typedef {{}} Assistant_Private_InputInputs */
 /** @typedef {{}} Assistant_QueuedInputs */
 /** @typedef {{}} Assistant_ReadingInputs */
@@ -134,6 +134,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Assistant_StoppedInputs */
 /** @typedef {{}} Assistant_ThinkingInputs */
 /** @typedef {{}} Assistant_TitleInputs */
+/** @typedef {{}} Assistant_Upload_ImageInputs */
 /** @typedef {{}} Assistant_WaitingInputs */
 /** @typedef {{}} Assistant_WritingInputs */
 /** @typedef {{ path: NonNullable<unknown> }} Auth_Bootstrap_HelpInputs */
@@ -1564,11 +1565,13 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Standard_Room_WardrobeInputs */
 /** @typedef {{}} Standard_Room_WorkshopInputs */
 /** @typedef {{}} State_AbsentInputs */
+/** @typedef {{}} State_ActiveInputs */
 /** @typedef {{}} State_AvailableInputs */
 /** @typedef {{ percent: NonNullable<unknown> }} State_BatteryInputs */
 /** @typedef {{}} State_ClearInputs */
 /** @typedef {{ temperature: NonNullable<unknown> }} State_Climate_TargetInputs */
 /** @typedef {{}} State_ClosedInputs */
+/** @typedef {{}} State_InactiveInputs */
 /** @typedef {{ percent: NonNullable<unknown> }} State_Light_On_BrightnessInputs */
 /** @typedef {{}} State_Motion_DetectedInputs */
 /** @typedef {{}} State_No_DataInputs */
@@ -3446,6 +3449,21 @@ export const assistant_continue = /** @type {((inputs?: Assistant_ContinueInputs
 /**
 * | output |
 * | --- |
+* | "Chat controls" |
+*
+* @param {Assistant_ControlsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_controls = /** @type {((inputs?: Assistant_ControlsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Assistant_ControlsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.assistant_controls(inputs)
+	if (locale === "ru") return __ru.assistant_controls(inputs)
+	return __en.assistant_controls(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Delete chat" |
 *
 * @param {Assistant_DeleteInputs} inputs
@@ -3671,21 +3689,6 @@ export const assistant_placeholder = /** @type {((inputs?: Assistant_Placeholder
 /**
 * | output |
 * | --- |
-* | "Only you can see these chats." |
-*
-* @param {Assistant_PrivateInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const assistant_private = /** @type {((inputs?: Assistant_PrivateInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Assistant_PrivateInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.assistant_private(inputs)
-	if (locale === "ru") return __ru.assistant_private(inputs)
-	return __en.assistant_private(inputs)
-});
-/**
-* | output |
-* | --- |
 * | "These values are sent directly to Hive and are hidden from Claude." |
 *
 * @param {Assistant_Private_InputInputs} inputs
@@ -3907,6 +3910,21 @@ export const assistant_title = /** @type {((inputs?: Assistant_TitleInputs, opti
 	if (locale === "sv") return __sv.assistant_title(inputs)
 	if (locale === "ru") return __ru.assistant_title(inputs)
 	return __en.assistant_title(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Upload image" |
+*
+* @param {Assistant_Upload_ImageInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const assistant_upload_image = /** @type {((inputs?: Assistant_Upload_ImageInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Assistant_Upload_ImageInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.assistant_upload_image(inputs)
+	if (locale === "ru") return __ru.assistant_upload_image(inputs)
+	return __en.assistant_upload_image(inputs)
 });
 /**
 * | output |
@@ -25429,6 +25447,21 @@ export const state_absent = /** @type {((inputs?: State_AbsentInputs, options?: 
 /**
 * | output |
 * | --- |
+* | "Active" |
+*
+* @param {State_ActiveInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const state_active = /** @type {((inputs?: State_ActiveInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<State_ActiveInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.state_active(inputs)
+	if (locale === "ru") return __ru.state_active(inputs)
+	return __en.state_active(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Available" |
 *
 * @param {State_AvailableInputs} inputs
@@ -25500,6 +25533,21 @@ export const state_closed = /** @type {((inputs?: State_ClosedInputs, options?: 
 	if (locale === "sv") return __sv.state_closed(inputs)
 	if (locale === "ru") return __ru.state_closed(inputs)
 	return __en.state_closed(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Inactive" |
+*
+* @param {State_InactiveInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const state_inactive = /** @type {((inputs?: State_InactiveInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<State_InactiveInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.state_inactive(inputs)
+	if (locale === "ru") return __ru.state_inactive(inputs)
+	return __en.state_inactive(inputs)
 });
 /**
 * | output |

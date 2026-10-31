@@ -111,7 +111,7 @@
 			{#each action.targets as target, i (i)}<li class="bg-muted rounded-md px-2 py-1">
 					{#if target.href.startsWith("/") && !target.href.startsWith("//")}<a
 							href={target.href}
-							class="hover:underline">{target.name}</a
+							class="hover:underline underline-offset-2">{target.name}</a
 						>{:else}{target.name}{/if}
 				</li>{/each}
 		</ul>{/if}

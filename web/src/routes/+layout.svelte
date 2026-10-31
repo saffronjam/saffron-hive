@@ -176,6 +176,7 @@
 	const activePath = $derived($page.url.pathname);
 	let dashboardWorkstation = $state(false);
 	const workstationActive = $derived(activePath === "/" && dashboardWorkstation);
+	const assistantActive = $derived(activePath === "/assistant");
 	let visitedPaths = $state<Record<string, boolean>>({});
 	$effect(() => {
 		if (KEPT_PAGES.some((k) => k.path === activePath)) {
@@ -412,12 +413,12 @@
 	</div>
 {:else}
 	<ApplicationObserver onchange={() => { void reconcileAppState(); }} />
-	<SidebarProvider class="authenticated-shell">
+	<SidebarProvider class="authenticated-shell {assistantActive ? 'h-dvh min-h-0 overflow-hidden' : ''}">
 		{#if !isMobile.current}
 			<AppSidebar />
 		{/if}
 		<MobileNavigation />
-		<SidebarInset class="min-w-0 {workstationActive ? 'h-dvh overflow-hidden' : ''}">
+		<SidebarInset class="min-w-0 {assistantActive ? 'h-full min-h-0 overflow-hidden' : workstationActive ? 'h-dvh overflow-hidden' : ''}">
 			{#if !isMobile.current || activePath !== "/"}
 				<header class="app-header flex h-12 shrink-0 items-center gap-2 px-4">
 					<SidebarTrigger class="-ml-1 hidden shrink-0 md:inline-flex" />
@@ -470,7 +471,7 @@
 					{/if}
 				</header>
 			{/if}
-			<main class:mobile-dashboard={isMobile.current && activePath === "/"} class="app-content min-w-0 flex-1 p-4 md:p-6 {workstationActive ? 'min-h-0 overflow-hidden' : ''}">
+			<main class:mobile-dashboard={isMobile.current && activePath === "/"} class="app-content min-w-0 flex-1 p-4 md:p-6 {assistantActive ? 'flex min-h-0 flex-col overflow-hidden' : workstationActive ? 'min-h-0 overflow-hidden' : ''}">
 				{#each KEPT_PAGES as kept (kept.path)}
 					{#if visitedPaths[kept.path]}
 						<div hidden={activePath !== kept.path} class={kept.path === "/" && workstationActive ? "h-full min-h-0" : undefined}>

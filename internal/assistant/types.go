@@ -40,19 +40,21 @@ const (
 )
 
 type Conversation struct {
-	ID             string    `json:"id"`
-	AutoTitle      string    `json:"-"`
-	TitleOverride  string    `json:"-"`
-	Revision       int64     `json:"revision"`
-	UpdatedAt      string    `json:"updatedAt"`
-	Messages       []Message `json:"messages"`
-	Actions        []Action  `json:"actions"`
-	Runs           []Run     `json:"runs"`
-	Summary        string    `json:"summary"`
-	SummaryThrough int       `json:"summaryThrough"`
+	Forms          []ChatForm `json:"forms"`
+	ID             string     `json:"id"`
+	AutoTitle      string     `json:"-"`
+	TitleOverride  string     `json:"-"`
+	Revision       int64      `json:"revision"`
+	UpdatedAt      string     `json:"updatedAt"`
+	Messages       []Message  `json:"messages"`
+	Actions        []Action   `json:"actions"`
+	Runs           []Run      `json:"runs"`
+	Summary        string     `json:"summary"`
+	SummaryThrough int        `json:"summaryThrough"`
 }
 
 type Message struct {
+	Inputs      []ChatInput  `json:"inputs"`
 	ID          string       `json:"id"`
 	Role        string       `json:"role"`
 	Text        string       `json:"text"`

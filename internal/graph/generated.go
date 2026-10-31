@@ -116,9 +116,33 @@ type ComplexityRoot struct {
 		Name func(childComplexity int) int
 	}
 
+	AssistantChatField struct {
+		Description func(childComplexity int) int
+		Key         func(childComplexity int) int
+		Kind        func(childComplexity int) int
+		Label       func(childComplexity int) int
+		Max         func(childComplexity int) int
+		Min         func(childComplexity int) int
+		Options     func(childComplexity int) int
+		Revision    func(childComplexity int) int
+		Section     func(childComplexity int) int
+		Step        func(childComplexity int) int
+		Value       func(childComplexity int) int
+	}
+
+	AssistantChatForm struct {
+		Description func(childComplexity int) int
+		Fields      func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Revision    func(childComplexity int) int
+		RunID       func(childComplexity int) int
+		Title       func(childComplexity int) int
+	}
+
 	AssistantConversation struct {
 		Actions       func(childComplexity int) int
 		AutoTitle     func(childComplexity int) int
+		Forms         func(childComplexity int) int
 		ID            func(childComplexity int) int
 		Messages      func(childComplexity int) int
 		Revision      func(childComplexity int) int
@@ -133,6 +157,13 @@ type ComplexityRoot struct {
 		Revision      func(childComplexity int) int
 		TitleOverride func(childComplexity int) int
 		UpdatedAt     func(childComplexity int) int
+	}
+
+	AssistantFieldValue struct {
+		AttachmentID func(childComplexity int) int
+		Boolean      func(childComplexity int) int
+		Number       func(childComplexity int) int
+		Text         func(childComplexity int) int
 	}
 
 	AssistantMessage struct {
@@ -821,6 +852,7 @@ type ComplexityRoot struct {
 		TestTuyaConnection          func(childComplexity int, input model.TuyaConfigInput) int
 		TestZigbee2MqttConnection   func(childComplexity int, input model.Zigbee2MqttConfigInput) int
 		ToggleAutomation            func(childComplexity int, id string, enabled bool, expectedRevision int) int
+		UpdateAssistantField        func(childComplexity int, input model.AssistantFieldUpdateInput) int
 		UpdateAutomation            func(childComplexity int, id string, input model.UpdateAutomationInput) int
 		UpdateClaudeConfig          func(childComplexity int, input model.ClaudeConfigInput, expectedRevision int) int
 		UpdateCurrentGuestLanguage  func(childComplexity int, language model.Language) int
@@ -1361,6 +1393,7 @@ type MutationResolver interface {
 	DiscoverClaudeModels(ctx context.Context, token string) ([]*model.ClaudeAvailableModel, error)
 	UpdateClaudeConfig(ctx context.Context, input model.ClaudeConfigInput, expectedRevision int) (*model.ClaudeConfig, error)
 	TestClaudeConnection(ctx context.Context, input model.ClaudeConfigInput) (*model.ConnectionTestResult, error)
+	UpdateAssistantField(ctx context.Context, input model.AssistantFieldUpdateInput) (*model.AssistantConversation, error)
 	CreateAssistantConversation(ctx context.Context) (*model.AssistantConversation, error)
 	RenameAssistantConversation(ctx context.Context, id string, title string) (*model.AssistantConversation, error)
 	DeleteAssistantConversation(ctx context.Context, id string) (bool, error)
@@ -1749,6 +1782,110 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.AssistantAttachment.Name(childComplexity), true
 
+	case "AssistantChatField.description":
+		if e.ComplexityRoot.AssistantChatField.Description == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatField.Description(childComplexity), true
+	case "AssistantChatField.key":
+		if e.ComplexityRoot.AssistantChatField.Key == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatField.Key(childComplexity), true
+	case "AssistantChatField.kind":
+		if e.ComplexityRoot.AssistantChatField.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatField.Kind(childComplexity), true
+	case "AssistantChatField.label":
+		if e.ComplexityRoot.AssistantChatField.Label == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatField.Label(childComplexity), true
+	case "AssistantChatField.max":
+		if e.ComplexityRoot.AssistantChatField.Max == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatField.Max(childComplexity), true
+	case "AssistantChatField.min":
+		if e.ComplexityRoot.AssistantChatField.Min == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatField.Min(childComplexity), true
+	case "AssistantChatField.options":
+		if e.ComplexityRoot.AssistantChatField.Options == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatField.Options(childComplexity), true
+	case "AssistantChatField.revision":
+		if e.ComplexityRoot.AssistantChatField.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatField.Revision(childComplexity), true
+	case "AssistantChatField.section":
+		if e.ComplexityRoot.AssistantChatField.Section == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatField.Section(childComplexity), true
+	case "AssistantChatField.step":
+		if e.ComplexityRoot.AssistantChatField.Step == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatField.Step(childComplexity), true
+	case "AssistantChatField.value":
+		if e.ComplexityRoot.AssistantChatField.Value == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatField.Value(childComplexity), true
+
+	case "AssistantChatForm.description":
+		if e.ComplexityRoot.AssistantChatForm.Description == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatForm.Description(childComplexity), true
+	case "AssistantChatForm.fields":
+		if e.ComplexityRoot.AssistantChatForm.Fields == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatForm.Fields(childComplexity), true
+	case "AssistantChatForm.id":
+		if e.ComplexityRoot.AssistantChatForm.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatForm.ID(childComplexity), true
+	case "AssistantChatForm.revision":
+		if e.ComplexityRoot.AssistantChatForm.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatForm.Revision(childComplexity), true
+	case "AssistantChatForm.runId":
+		if e.ComplexityRoot.AssistantChatForm.RunID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatForm.RunID(childComplexity), true
+	case "AssistantChatForm.title":
+		if e.ComplexityRoot.AssistantChatForm.Title == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantChatForm.Title(childComplexity), true
+
 	case "AssistantConversation.actions":
 		if e.ComplexityRoot.AssistantConversation.Actions == nil {
 			break
@@ -1761,6 +1898,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AssistantConversation.AutoTitle(childComplexity), true
+	case "AssistantConversation.forms":
+		if e.ComplexityRoot.AssistantConversation.Forms == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantConversation.Forms(childComplexity), true
 	case "AssistantConversation.id":
 		if e.ComplexityRoot.AssistantConversation.ID == nil {
 			break
@@ -1828,6 +1971,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AssistantConversationSummary.UpdatedAt(childComplexity), true
+
+	case "AssistantFieldValue.attachmentId":
+		if e.ComplexityRoot.AssistantFieldValue.AttachmentID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantFieldValue.AttachmentID(childComplexity), true
+	case "AssistantFieldValue.boolean":
+		if e.ComplexityRoot.AssistantFieldValue.Boolean == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantFieldValue.Boolean(childComplexity), true
+	case "AssistantFieldValue.number":
+		if e.ComplexityRoot.AssistantFieldValue.Number == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantFieldValue.Number(childComplexity), true
+	case "AssistantFieldValue.text":
+		if e.ComplexityRoot.AssistantFieldValue.Text == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssistantFieldValue.Text(childComplexity), true
 
 	case "AssistantMessage.attachments":
 		if e.ComplexityRoot.AssistantMessage.Attachments == nil {
@@ -5077,6 +5245,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ToggleAutomation(childComplexity, args["id"].(string), args["enabled"].(bool), args["expectedRevision"].(int)), true
+	case "Mutation.updateAssistantField":
+		if e.ComplexityRoot.Mutation.UpdateAssistantField == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateAssistantField_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateAssistantField(childComplexity, args["input"].(model.AssistantFieldUpdateInput)), true
 	case "Mutation.updateAutomation":
 		if e.ComplexityRoot.Mutation.UpdateAutomation == nil {
 			break
@@ -7266,6 +7445,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputAggregatedStateHistoryFilter,
 		ec.unmarshalInputAlarmFilter,
 		ec.unmarshalInputAssistantActionResponseInput,
+		ec.unmarshalInputAssistantFieldUpdateInput,
+		ec.unmarshalInputAssistantFieldValueInput,
 		ec.unmarshalInputAssistantMessageInput,
 		ec.unmarshalInputAssistantPrivateValueInput,
 		ec.unmarshalInputAuthoringAttributeInput,
@@ -9457,7 +9638,26 @@ type AssistantAction {
  hasPrivateResult: Boolean!
 }
 type AssistantConversationSummary { id: ID! autoTitle: String! titleOverride: String! revision: Int! updatedAt: String! }
+enum AssistantFieldKind { SLIDER TEXT NUMBER COLOR IMAGE SELECT TOGGLE }
+type AssistantFieldValue { text: String number: Float boolean: Boolean attachmentId: ID }
+input AssistantFieldValueInput { text: String number: Float boolean: Boolean attachmentId: ID }
+type AssistantChatField {
+ key: String!
+ kind: AssistantFieldKind!
+ label: String!
+ section: String!
+ description: String!
+ min: Float
+ max: Float
+ step: Float
+ options: [String!]!
+ value: AssistantFieldValue!
+ revision: Int!
+}
+type AssistantChatForm { id: ID! runId: ID! title: String! description: String! revision: Int! fields: [AssistantChatField!]! }
+input AssistantFieldUpdateInput { conversationId: ID! key: String! expectedRevision: Int! value: AssistantFieldValueInput! }
 type AssistantConversation {
+ forms: [AssistantChatForm!]!
  id: ID!
  autoTitle: String!
  titleOverride: String!
@@ -9480,6 +9680,7 @@ extend type Mutation {
  discoverClaudeModels(token: String!): [ClaudeAvailableModel!]! @auth
  updateClaudeConfig(input: ClaudeConfigInput!, expectedRevision: Int!): ClaudeConfig! @auth
  testClaudeConnection(input: ClaudeConfigInput!): ConnectionTestResult! @auth
+ updateAssistantField(input: AssistantFieldUpdateInput!): AssistantConversation! @auth
  createAssistantConversation: AssistantConversation! @auth
  """Set a manual title; an empty title restores the automatic name."""
  renameAssistantConversation(id: ID!, title: String!): AssistantConversation! @auth
@@ -10716,6 +10917,17 @@ func (ec *executionContext) field_Mutation_toggleAutomation_args(ctx context.Con
 		return nil, err
 	}
 	args["expectedRevision"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateAssistantField_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNAssistantFieldUpdateInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantFieldUpdateInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -12810,6 +13022,576 @@ func (ec *executionContext) fieldContext_AssistantAttachment_mime(_ context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _AssistantChatField_key(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatField_key,
+		func(ctx context.Context) (any, error) {
+			return obj.Key, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatField_key(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatField",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantChatField_kind(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatField_kind,
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalNAssistantFieldKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantFieldKind,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatField_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatField",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type AssistantFieldKind does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantChatField_label(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatField_label,
+		func(ctx context.Context) (any, error) {
+			return obj.Label, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatField_label(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatField",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantChatField_section(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatField_section,
+		func(ctx context.Context) (any, error) {
+			return obj.Section, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatField_section(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatField",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantChatField_description(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatField_description,
+		func(ctx context.Context) (any, error) {
+			return obj.Description, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatField_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatField",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantChatField_min(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatField_min,
+		func(ctx context.Context) (any, error) {
+			return obj.Min, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatField_min(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatField",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantChatField_max(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatField_max,
+		func(ctx context.Context) (any, error) {
+			return obj.Max, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatField_max(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatField",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantChatField_step(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatField_step,
+		func(ctx context.Context) (any, error) {
+			return obj.Step, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatField_step(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatField",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantChatField_options(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatField_options,
+		func(ctx context.Context) (any, error) {
+			return obj.Options, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatField_options(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatField",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantChatField_value(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatField_value,
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		ec.marshalNAssistantFieldValue2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantFieldValue,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatField_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatField",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "text":
+				return ec.fieldContext_AssistantFieldValue_text(ctx, field)
+			case "number":
+				return ec.fieldContext_AssistantFieldValue_number(ctx, field)
+			case "boolean":
+				return ec.fieldContext_AssistantFieldValue_boolean(ctx, field)
+			case "attachmentId":
+				return ec.fieldContext_AssistantFieldValue_attachmentId(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantFieldValue", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantChatField_revision(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatField_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatField_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatField",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantChatForm_id(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatForm) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatForm_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatForm_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatForm",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantChatForm_runId(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatForm) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatForm_runId,
+		func(ctx context.Context) (any, error) {
+			return obj.RunID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatForm_runId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatForm",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantChatForm_title(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatForm) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatForm_title,
+		func(ctx context.Context) (any, error) {
+			return obj.Title, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatForm_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatForm",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantChatForm_description(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatForm) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatForm_description,
+		func(ctx context.Context) (any, error) {
+			return obj.Description, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatForm_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatForm",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantChatForm_revision(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatForm) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatForm_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatForm_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatForm",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantChatForm_fields(ctx context.Context, field graphql.CollectedField, obj *model.AssistantChatForm) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantChatForm_fields,
+		func(ctx context.Context) (any, error) {
+			return obj.Fields, nil
+		},
+		nil,
+		ec.marshalNAssistantChatField2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantChatFieldᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantChatForm_fields(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantChatForm",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "key":
+				return ec.fieldContext_AssistantChatField_key(ctx, field)
+			case "kind":
+				return ec.fieldContext_AssistantChatField_kind(ctx, field)
+			case "label":
+				return ec.fieldContext_AssistantChatField_label(ctx, field)
+			case "section":
+				return ec.fieldContext_AssistantChatField_section(ctx, field)
+			case "description":
+				return ec.fieldContext_AssistantChatField_description(ctx, field)
+			case "min":
+				return ec.fieldContext_AssistantChatField_min(ctx, field)
+			case "max":
+				return ec.fieldContext_AssistantChatField_max(ctx, field)
+			case "step":
+				return ec.fieldContext_AssistantChatField_step(ctx, field)
+			case "options":
+				return ec.fieldContext_AssistantChatField_options(ctx, field)
+			case "value":
+				return ec.fieldContext_AssistantChatField_value(ctx, field)
+			case "revision":
+				return ec.fieldContext_AssistantChatField_revision(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantChatField", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantConversation_forms(ctx context.Context, field graphql.CollectedField, obj *model.AssistantConversation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantConversation_forms,
+		func(ctx context.Context) (any, error) {
+			return obj.Forms, nil
+		},
+		nil,
+		ec.marshalNAssistantChatForm2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantChatFormᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantConversation_forms(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantConversation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_AssistantChatForm_id(ctx, field)
+			case "runId":
+				return ec.fieldContext_AssistantChatForm_runId(ctx, field)
+			case "title":
+				return ec.fieldContext_AssistantChatForm_title(ctx, field)
+			case "description":
+				return ec.fieldContext_AssistantChatForm_description(ctx, field)
+			case "revision":
+				return ec.fieldContext_AssistantChatForm_revision(ctx, field)
+			case "fields":
+				return ec.fieldContext_AssistantChatForm_fields(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantChatForm", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _AssistantConversation_id(ctx context.Context, field graphql.CollectedField, obj *model.AssistantConversation) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -13236,6 +14018,122 @@ func (ec *executionContext) fieldContext_AssistantConversationSummary_updatedAt(
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantFieldValue_text(ctx context.Context, field graphql.CollectedField, obj *model.AssistantFieldValue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantFieldValue_text,
+		func(ctx context.Context) (any, error) {
+			return obj.Text, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantFieldValue_text(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantFieldValue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantFieldValue_number(ctx context.Context, field graphql.CollectedField, obj *model.AssistantFieldValue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantFieldValue_number,
+		func(ctx context.Context) (any, error) {
+			return obj.Number, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantFieldValue_number(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantFieldValue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantFieldValue_boolean(ctx context.Context, field graphql.CollectedField, obj *model.AssistantFieldValue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantFieldValue_boolean,
+		func(ctx context.Context) (any, error) {
+			return obj.Boolean, nil
+		},
+		nil,
+		ec.marshalOBoolean2ᚖbool,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantFieldValue_boolean(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantFieldValue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssistantFieldValue_attachmentId(ctx context.Context, field graphql.CollectedField, obj *model.AssistantFieldValue) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssistantFieldValue_attachmentId,
+		func(ctx context.Context) (any, error) {
+			return obj.AttachmentID, nil
+		},
+		nil,
+		ec.marshalOID2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssistantFieldValue_attachmentId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssistantFieldValue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
 	return fc, nil
@@ -31348,6 +32246,85 @@ func (ec *executionContext) fieldContext_Mutation_testClaudeConnection(ctx conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_updateAssistantField(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateAssistantField,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateAssistantField(ctx, fc.Args["input"].(model.AssistantFieldUpdateInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.AssistantConversation
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.AssistantConversation
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNAssistantConversation2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantConversation,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateAssistantField(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "forms":
+				return ec.fieldContext_AssistantConversation_forms(ctx, field)
+			case "id":
+				return ec.fieldContext_AssistantConversation_id(ctx, field)
+			case "autoTitle":
+				return ec.fieldContext_AssistantConversation_autoTitle(ctx, field)
+			case "titleOverride":
+				return ec.fieldContext_AssistantConversation_titleOverride(ctx, field)
+			case "revision":
+				return ec.fieldContext_AssistantConversation_revision(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_AssistantConversation_updatedAt(ctx, field)
+			case "messages":
+				return ec.fieldContext_AssistantConversation_messages(ctx, field)
+			case "actions":
+				return ec.fieldContext_AssistantConversation_actions(ctx, field)
+			case "runs":
+				return ec.fieldContext_AssistantConversation_runs(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssistantConversation", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateAssistantField_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createAssistantConversation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -31390,6 +32367,8 @@ func (ec *executionContext) fieldContext_Mutation_createAssistantConversation(_ 
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "forms":
+				return ec.fieldContext_AssistantConversation_forms(ctx, field)
 			case "id":
 				return ec.fieldContext_AssistantConversation_id(ctx, field)
 			case "autoTitle":
@@ -31456,6 +32435,8 @@ func (ec *executionContext) fieldContext_Mutation_renameAssistantConversation(ct
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "forms":
+				return ec.fieldContext_AssistantConversation_forms(ctx, field)
 			case "id":
 				return ec.fieldContext_AssistantConversation_id(ctx, field)
 			case "autoTitle":
@@ -31592,6 +32573,8 @@ func (ec *executionContext) fieldContext_Mutation_sendAssistantMessage(ctx conte
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "forms":
+				return ec.fieldContext_AssistantConversation_forms(ctx, field)
 			case "id":
 				return ec.fieldContext_AssistantConversation_id(ctx, field)
 			case "autoTitle":
@@ -31728,6 +32711,8 @@ func (ec *executionContext) fieldContext_Mutation_respondToAssistantAction(ctx c
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "forms":
+				return ec.fieldContext_AssistantConversation_forms(ctx, field)
 			case "id":
 				return ec.fieldContext_AssistantConversation_id(ctx, field)
 			case "autoTitle":
@@ -35730,6 +36715,8 @@ func (ec *executionContext) fieldContext_Query_assistantConversation(ctx context
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "forms":
+				return ec.fieldContext_AssistantConversation_forms(ctx, field)
 			case "id":
 				return ec.fieldContext_AssistantConversation_id(ctx, field)
 			case "autoTitle":
@@ -39273,6 +40260,8 @@ func (ec *executionContext) fieldContext_Subscription_assistantConversationChang
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "forms":
+				return ec.fieldContext_AssistantConversation_forms(ctx, field)
 			case "id":
 				return ec.fieldContext_AssistantConversation_id(ctx, field)
 			case "autoTitle":
@@ -45566,6 +46555,108 @@ func (ec *executionContext) unmarshalInputAssistantActionResponseInput(ctx conte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputAssistantFieldUpdateInput(ctx context.Context, obj any) (model.AssistantFieldUpdateInput, error) {
+	var it model.AssistantFieldUpdateInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"conversationId", "key", "expectedRevision", "value"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "conversationId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("conversationId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ConversationID = data
+		case "key":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("key"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Key = data
+		case "expectedRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedRevision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedRevision = data
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNAssistantFieldValueInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantFieldValueInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAssistantFieldValueInput(ctx context.Context, obj any) (model.AssistantFieldValueInput, error) {
+	var it model.AssistantFieldValueInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"text", "number", "boolean", "attachmentId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "text":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("text"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Text = graphql.OmittableOf(data)
+		case "number":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("number"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Number = graphql.OmittableOf(data)
+		case "boolean":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("boolean"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Boolean = graphql.OmittableOf(data)
+		case "attachmentId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("attachmentId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AttachmentID = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputAssistantMessageInput(ctx context.Context, obj any) (model.AssistantMessageInput, error) {
 	var it model.AssistantMessageInput
 	if obj == nil {
@@ -50597,6 +51688,150 @@ func (ec *executionContext) _AssistantAttachment(ctx context.Context, sel ast.Se
 	return out
 }
 
+var assistantChatFieldImplementors = []string{"AssistantChatField"}
+
+func (ec *executionContext) _AssistantChatField(ctx context.Context, sel ast.SelectionSet, obj *model.AssistantChatField) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assistantChatFieldImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AssistantChatField")
+		case "key":
+			out.Values[i] = ec._AssistantChatField_key(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "kind":
+			out.Values[i] = ec._AssistantChatField_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "label":
+			out.Values[i] = ec._AssistantChatField_label(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "section":
+			out.Values[i] = ec._AssistantChatField_section(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "description":
+			out.Values[i] = ec._AssistantChatField_description(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "min":
+			out.Values[i] = ec._AssistantChatField_min(ctx, field, obj)
+		case "max":
+			out.Values[i] = ec._AssistantChatField_max(ctx, field, obj)
+		case "step":
+			out.Values[i] = ec._AssistantChatField_step(ctx, field, obj)
+		case "options":
+			out.Values[i] = ec._AssistantChatField_options(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._AssistantChatField_value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revision":
+			out.Values[i] = ec._AssistantChatField_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var assistantChatFormImplementors = []string{"AssistantChatForm"}
+
+func (ec *executionContext) _AssistantChatForm(ctx context.Context, sel ast.SelectionSet, obj *model.AssistantChatForm) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assistantChatFormImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AssistantChatForm")
+		case "id":
+			out.Values[i] = ec._AssistantChatForm_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "runId":
+			out.Values[i] = ec._AssistantChatForm_runId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "title":
+			out.Values[i] = ec._AssistantChatForm_title(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "description":
+			out.Values[i] = ec._AssistantChatForm_description(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revision":
+			out.Values[i] = ec._AssistantChatForm_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "fields":
+			out.Values[i] = ec._AssistantChatForm_fields(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var assistantConversationImplementors = []string{"AssistantConversation"}
 
 func (ec *executionContext) _AssistantConversation(ctx context.Context, sel ast.SelectionSet, obj *model.AssistantConversation) graphql.Marshaler {
@@ -50608,6 +51843,11 @@ func (ec *executionContext) _AssistantConversation(ctx context.Context, sel ast.
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("AssistantConversation")
+		case "forms":
+			out.Values[i] = ec._AssistantConversation_forms(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "id":
 			out.Values[i] = ec._AssistantConversation_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -50707,6 +51947,48 @@ func (ec *executionContext) _AssistantConversationSummary(ctx context.Context, s
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var assistantFieldValueImplementors = []string{"AssistantFieldValue"}
+
+func (ec *executionContext) _AssistantFieldValue(ctx context.Context, sel ast.SelectionSet, obj *model.AssistantFieldValue) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assistantFieldValueImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AssistantFieldValue")
+		case "text":
+			out.Values[i] = ec._AssistantFieldValue_text(ctx, field, obj)
+		case "number":
+			out.Values[i] = ec._AssistantFieldValue_number(ctx, field, obj)
+		case "boolean":
+			out.Values[i] = ec._AssistantFieldValue_boolean(ctx, field, obj)
+		case "attachmentId":
+			out.Values[i] = ec._AssistantFieldValue_attachmentId(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -55386,6 +56668,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "updateAssistantField":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateAssistantField(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createAssistantConversation":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createAssistantConversation(ctx, field)
@@ -59595,6 +60884,58 @@ func (ec *executionContext) marshalNAssistantAttachment2ᚖgithubᚗcomᚋsaffro
 	return ec._AssistantAttachment(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNAssistantChatField2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantChatFieldᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AssistantChatField) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAssistantChatField2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantChatField(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAssistantChatField2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantChatField(ctx context.Context, sel ast.SelectionSet, v *model.AssistantChatField) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AssistantChatField(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAssistantChatForm2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantChatFormᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AssistantChatForm) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAssistantChatForm2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantChatForm(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAssistantChatForm2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantChatForm(ctx context.Context, sel ast.SelectionSet, v *model.AssistantChatForm) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AssistantChatForm(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNAssistantConversation2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantConversation(ctx context.Context, sel ast.SelectionSet, v model.AssistantConversation) graphql.Marshaler {
 	return ec._AssistantConversation(ctx, sel, &v)
 }
@@ -59633,6 +60974,36 @@ func (ec *executionContext) marshalNAssistantConversationSummary2ᚖgithubᚗcom
 		return graphql.Null
 	}
 	return ec._AssistantConversationSummary(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNAssistantFieldKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantFieldKind(ctx context.Context, v any) (model.AssistantFieldKind, error) {
+	var res model.AssistantFieldKind
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAssistantFieldKind2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantFieldKind(ctx context.Context, sel ast.SelectionSet, v model.AssistantFieldKind) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNAssistantFieldUpdateInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantFieldUpdateInput(ctx context.Context, v any) (model.AssistantFieldUpdateInput, error) {
+	res, err := ec.unmarshalInputAssistantFieldUpdateInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAssistantFieldValue2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantFieldValue(ctx context.Context, sel ast.SelectionSet, v *model.AssistantFieldValue) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AssistantFieldValue(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNAssistantFieldValueInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantFieldValueInput(ctx context.Context, v any) (*model.AssistantFieldValueInput, error) {
+	res, err := ec.unmarshalInputAssistantFieldValueInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNAssistantMessage2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐAssistantMessageᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AssistantMessage) graphql.Marshaler {

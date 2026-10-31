@@ -1,3 +1,5 @@
+import { authenticatedFetch } from "$lib/graphql/client";
+import type { AssistantAttachment } from "$lib/gql/graphql";
 import { graphql } from "$lib/gql";
 export const ASSISTANT_CONVERSATION = graphql(`
   fragment AssistantConversationFields on AssistantConversation {
@@ -6,6 +8,31 @@ export const ASSISTANT_CONVERSATION = graphql(`
     titleOverride
     revision
     updatedAt
+    forms {
+      id
+      runId
+      title
+      description
+      revision
+      fields {
+        key
+        kind
+        label
+        section
+        description
+        min
+        max
+        step
+        options
+        revision
+        value {
+          text
+          number
+          boolean
+          attachmentId
+        }
+      }
+    }
     messages {
       id
       role
@@ -129,3 +156,25 @@ export const ACTION_PRIVATE_RESULT = graphql(`
     assistantActionPrivateResult(conversationId: $conversationId, actionId: $actionId)
   }
 `);
+
+export const CHAT_FIELD_UPDATE = graphql(`
+  mutation AssistantChatUpdateField($input: AssistantFieldUpdateInput!) {
+    updateAssistantField(input: $input) {
+      ...AssistantConversationFields
+    }
+  }
+`);
+
+export async function uploadAssistantImage(
+  conversationId: string,
+  file: File,
+): Promise<AssistantAttachment> {
+  const form = new FormData();
+  form.set("file", file);
+  const response = await authenticatedFetch(
+    `/api/assistant/attachments?conversationId=${encodeURIComponent(conversationId)}`,
+    { method: "POST", body: form },
+  );
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}

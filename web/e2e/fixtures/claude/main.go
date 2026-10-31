@@ -137,6 +137,97 @@ func main() {
 		}
 		return r.Content[0].Text
 	}
+	if strings.Contains(prompt, "Use my submitted controls") {
+		raw := call("get_chat_inputs", struct{}{})
+		var inputs []struct {
+			Key   string
+			Value struct {
+				Text         *string
+				Number       *float64
+				Boolean      *bool
+				AttachmentID *string
+			}
+		}
+		if err := json.Unmarshal([]byte(raw), &inputs); err != nil {
+			fail(err)
+		}
+		var name string
+		var brightness float64
+		var imageID string
+		for _, input := range inputs {
+			switch input.Key {
+			case "scene.name":
+				if input.Value.Text != nil {
+					name = *input.Value.Text
+				}
+			case "scene.brightness":
+				if input.Value.Number != nil {
+					brightness = *input.Value.Number
+				}
+			case "scene.photo":
+				if input.Value.AttachmentID != nil {
+					imageID = *input.Value.AttachmentID
+				}
+			}
+		}
+		if imageID != "" {
+			call("view_attachment", map[string]string{"id": imageID})
+		}
+		args, _ := json.Marshal(map[string]any{"input": map[string]any{"name": name, "definition": map[string]any{"targets": []map[string]string{{"targetType": "device", "targetId": "0x00158d0001a2b3c4"}}, "lighting": map[string]any{"overrides": []map[string]any{{"deviceId": "0x00158d0001a2b3c4", "kind": "state", "state": map[string]any{"on": true, "brightness": brightness}}}}, "supportingStates": []any{}}}})
+		call("act", map[string]string{"field": "createScene", "arguments": string(args), "selection": "id name"})
+		result(fmt.Sprintf("Saved %s with brightness %.0f from your submitted controls.", name, brightness))
+		return
+	}
+	if strings.Contains(prompt, "Design a scene with controls") {
+		call("define_chat_form", map[string]any{"id": "scene-design", "expectedRevision": 0, "fields": []map[string]any{
+			{"key": "scene.name", "kind": "TEXT", "label": "Scene name", "section": "Scene", "value": map[string]string{"text": "Evening"}},
+			{"key": "scene.mood", "kind": "SELECT", "label": "Mood", "section": "Scene", "options": []string{"Warm evening", "Ocean drift", "Forest canopy"}, "value": map[string]string{"text": "Warm evening"}},
+			{"key": "scene.brightness", "kind": "SLIDER", "label": "Brightness", "section": "Light", "description": "0–254 · night-light to full brightness", "min": 0, "max": 254, "step": 1, "value": map[string]int{"number": 100}},
+			{"key": "scene.color", "kind": "COLOR", "label": "Accent colour", "section": "Light", "value": map[string]string{"text": "#ff9933"}},
+			{"key": "scene.pace", "kind": "NUMBER", "label": "Pace in seconds", "section": "Movement", "min": 1, "max": 120, "step": 1, "value": map[string]int{"number": 30}},
+			{"key": "scene.movement", "kind": "TOGGLE", "label": "Movement", "section": "Movement", "value": map[string]bool{"boolean": true}},
+			{"key": "scene.photo", "kind": "IMAGE", "label": "Reference image", "section": "Inspiration", "value": map[string]string{}},
+		}})
+		result("Adjust the controls, then send a message when you are ready.")
+		return
+	}
+	if strings.Contains(prompt, "Show existing home controls") {
+		data := call("query", map[string]string{"document": `query { devices { id name friendlyName } rooms { id name } groups { id name } scenes { id name } automations { id name } effects { id name } }`, "variables": "{}"})
+		type entity struct{ ID, Name, FriendlyName string }
+		var entities struct{ Devices, Rooms, Groups, Scenes, Automations, Effects []entity }
+		if err := json.Unmarshal([]byte(data), &entities); err != nil {
+			fail(err)
+		}
+		text := "Here are the current home controls.\n\n"
+		for _, d := range entities.Devices {
+			if d.ID == "0x00158d0001a2b3c4" {
+				name := d.Name
+				if name == "" {
+					name = d.FriendlyName
+				}
+				text += fmt.Sprintf("[%s](/devices/%s)\n\n", name, d.ID)
+			}
+		}
+		for _, collection := range []struct {
+			path  string
+			items []entity
+		}{{"rooms?edit=", entities.Rooms}, {"groups?edit=", entities.Groups}, {"scenes/", entities.Scenes}, {"automations/", entities.Automations}, {"effects/", entities.Effects}} {
+			for _, e := range collection.items {
+				if strings.HasPrefix(e.Name, "Chat controls ") {
+					text += fmt.Sprintf("[%s](/%s%s)\n\n", e.Name, collection.path, e.ID)
+				}
+			}
+		}
+		result(text + "[Missing item](/devices/missing-chat-device)\n\nThese controls show current Hive state.")
+		return
+	}
+	if strings.Contains(prompt, "Turn the test light off") {
+		on := strings.Contains(prompt, "Actually, turn it on")
+		args, _ := json.Marshal(map[string]any{"target": map[string]string{"type": "DEVICE", "id": "0x00158d0001a2b3c4"}, "state": map[string]bool{"on": on}})
+		call("act", map[string]string{"field": "setTargetState", "arguments": string(args), "selection": ""})
+		result("")
+		return
+	}
 	if strings.Contains(prompt, "Check the lights") {
 		for _, topic := range []string{"system", "authoring-examples", "devices", "automations", "automation-config", "scenes", "scene-config", "effect-config", "administration"} {
 			if strings.TrimSpace(call("knowledge", map[string]string{"topic": topic})) == "" {
@@ -166,6 +257,12 @@ func main() {
 		args, _ := json.Marshal(map[string]any{"ids": ids})
 		call("act", map[string]string{"field": "batchDeleteRooms", "arguments": string(args), "selection": ""})
 		result("Review the rooms below and confirm to delete them.")
+		return
+	}
+	if strings.Contains(prompt, "Create a lighting setup") {
+		call("act", map[string]string{"field": "createScene", "arguments": `{"input":{"name":"Assistant linked scene","definition":{"targets":[{"targetType":"device","targetId":"0x00158d0001a2b3c4"}],"lighting":{"overrides":[]},"supportingStates":[]}}}`, "selection": "__typename"})
+		call("act", map[string]string{"field": "createAutomation", "arguments": `{"input":{"name":"Assistant linked automation","enabled":false,"nodes":[{"id":"t1","type":"trigger","config":{"trigger":{"mode":"custom","eventType":"device.state_changed","customExpr":"true"}}},{"id":"a1","type":"action","config":{"action":{"actionType":"set_device_state","targetType":"device","targetId":"0x00158d0001a2b3c4","payload":{"on":false}}}}],"edges":[{"fromNodeId":"t1","toNodeId":"a1"}]}}`, "selection": "__typename"})
+		result("Created the lighting setup.")
 		return
 	}
 	if strings.Contains(prompt, "Create a room") {

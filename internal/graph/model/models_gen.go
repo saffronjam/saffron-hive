@@ -146,15 +146,39 @@ type AssistantAttachment struct {
 	Mime string `json:"mime"`
 }
 
+type AssistantChatField struct {
+	Key         string               `json:"key"`
+	Kind        AssistantFieldKind   `json:"kind"`
+	Label       string               `json:"label"`
+	Section     string               `json:"section"`
+	Description string               `json:"description"`
+	Min         *float64             `json:"min,omitempty"`
+	Max         *float64             `json:"max,omitempty"`
+	Step        *float64             `json:"step,omitempty"`
+	Options     []string             `json:"options"`
+	Value       *AssistantFieldValue `json:"value"`
+	Revision    int                  `json:"revision"`
+}
+
+type AssistantChatForm struct {
+	ID          string                `json:"id"`
+	RunID       string                `json:"runId"`
+	Title       string                `json:"title"`
+	Description string                `json:"description"`
+	Revision    int                   `json:"revision"`
+	Fields      []*AssistantChatField `json:"fields"`
+}
+
 type AssistantConversation struct {
-	ID            string              `json:"id"`
-	AutoTitle     string              `json:"autoTitle"`
-	TitleOverride string              `json:"titleOverride"`
-	Revision      int                 `json:"revision"`
-	UpdatedAt     string              `json:"updatedAt"`
-	Messages      []*AssistantMessage `json:"messages"`
-	Actions       []*AssistantAction  `json:"actions"`
-	Runs          []*AssistantRun     `json:"runs"`
+	Forms         []*AssistantChatForm `json:"forms"`
+	ID            string               `json:"id"`
+	AutoTitle     string               `json:"autoTitle"`
+	TitleOverride string               `json:"titleOverride"`
+	Revision      int                  `json:"revision"`
+	UpdatedAt     string               `json:"updatedAt"`
+	Messages      []*AssistantMessage  `json:"messages"`
+	Actions       []*AssistantAction   `json:"actions"`
+	Runs          []*AssistantRun      `json:"runs"`
 }
 
 type AssistantConversationSummary struct {
@@ -163,6 +187,27 @@ type AssistantConversationSummary struct {
 	TitleOverride string `json:"titleOverride"`
 	Revision      int    `json:"revision"`
 	UpdatedAt     string `json:"updatedAt"`
+}
+
+type AssistantFieldUpdateInput struct {
+	ConversationID   string                    `json:"conversationId"`
+	Key              string                    `json:"key"`
+	ExpectedRevision int                       `json:"expectedRevision"`
+	Value            *AssistantFieldValueInput `json:"value"`
+}
+
+type AssistantFieldValue struct {
+	Text         *string  `json:"text,omitempty"`
+	Number       *float64 `json:"number,omitempty"`
+	Boolean      *bool    `json:"boolean,omitempty"`
+	AttachmentID *string  `json:"attachmentId,omitempty"`
+}
+
+type AssistantFieldValueInput struct {
+	Text         graphql.Omittable[*string]  `json:"text,omitempty"`
+	Number       graphql.Omittable[*float64] `json:"number,omitempty"`
+	Boolean      graphql.Omittable[*bool]    `json:"boolean,omitempty"`
+	AttachmentID graphql.Omittable[*string]  `json:"attachmentId,omitempty"`
 }
 
 type AssistantMessage struct {
@@ -1893,6 +1938,71 @@ func (e *AssistantActionStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e AssistantActionStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AssistantFieldKind string
+
+const (
+	AssistantFieldKindSlider AssistantFieldKind = "SLIDER"
+	AssistantFieldKindText   AssistantFieldKind = "TEXT"
+	AssistantFieldKindNumber AssistantFieldKind = "NUMBER"
+	AssistantFieldKindColor  AssistantFieldKind = "COLOR"
+	AssistantFieldKindImage  AssistantFieldKind = "IMAGE"
+	AssistantFieldKindSelect AssistantFieldKind = "SELECT"
+	AssistantFieldKindToggle AssistantFieldKind = "TOGGLE"
+)
+
+var AllAssistantFieldKind = []AssistantFieldKind{
+	AssistantFieldKindSlider,
+	AssistantFieldKindText,
+	AssistantFieldKindNumber,
+	AssistantFieldKindColor,
+	AssistantFieldKindImage,
+	AssistantFieldKindSelect,
+	AssistantFieldKindToggle,
+}
+
+func (e AssistantFieldKind) IsValid() bool {
+	switch e {
+	case AssistantFieldKindSlider, AssistantFieldKindText, AssistantFieldKindNumber, AssistantFieldKindColor, AssistantFieldKindImage, AssistantFieldKindSelect, AssistantFieldKindToggle:
+		return true
+	}
+	return false
+}
+
+func (e AssistantFieldKind) String() string {
+	return string(e)
+}
+
+func (e *AssistantFieldKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AssistantFieldKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AssistantFieldKind", str)
+	}
+	return nil
+}
+
+func (e AssistantFieldKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AssistantFieldKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AssistantFieldKind) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

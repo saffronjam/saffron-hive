@@ -45,7 +45,7 @@ var assistantPolicies = map[string]operationPolicy{
 	"raiseAlarm": {Resource: "alarms"}, "deleteAlarm": {Resource: "alarms", Destructive: true}, "batchDeleteAlarms": {Resource: "alarms", Destructive: true}, "completeMaintenanceTasks": {Resource: "maintenanceTasks"}, "markDevicesSeen": {Resource: "devices"},
 	"createEffect": {Resource: "effects"}, "updateEffect": {Resource: "effects"}, "deleteEffect": {Resource: "effects", Destructive: true}, "batchDeleteEffects": {Resource: "effects", Destructive: true}, "runEffect": {Resource: "effects"}, "runNativeEffect": {}, "stopEffect": {},
 }
-var assistantExcludedMutations = map[string]bool{"discoverClaudeModels": true, "login": true, "guestLogin": true, "createInitialUser": true, "completeFirstPasswordChange": true, "updateCurrentGuestLanguage": true, "createAssistantConversation": true, "renameAssistantConversation": true, "deleteAssistantConversation": true, "sendAssistantMessage": true, "stopAssistantRun": true, "respondToAssistantAction": true}
+var assistantExcludedMutations = map[string]bool{"discoverClaudeModels": true, "login": true, "guestLogin": true, "createInitialUser": true, "completeFirstPasswordChange": true, "updateCurrentGuestLanguage": true, "updateAssistantField": true, "createAssistantConversation": true, "renameAssistantConversation": true, "deleteAssistantConversation": true, "sendAssistantMessage": true, "stopAssistantRun": true, "respondToAssistantAction": true}
 
 type assistantAttachments interface {
 	GetAssistantAttachment(context.Context, string, string) (store.AssistantAttachment, error)
@@ -261,6 +261,16 @@ func (g *AssistantGateway) mutation(op assistant.Operation, args map[string]json
 	if selection == "" {
 		selection = g.selection(f.Type.Name(), 3, false)
 	}
+	if strings.HasPrefix(op.Field, "create") && assistantTargetHref(assistantPolicies[op.Field].Resource, "entity") != "" {
+		for _, name := range []string{"id", "name"} {
+			if g.schema.Types[f.Type.Name()].Fields.ForName(name) != nil {
+				selection += " " + name
+			}
+		}
+	}
+	if op.Field == "createWebhookEndpoint" {
+		selection += " endpoint { id name }"
+	}
 	query := "mutation AssistantAction"
 	if len(definitions) > 0 {
 		query += "(" + strings.Join(definitions, ",") + ")"
@@ -447,14 +457,7 @@ func (g *AssistantGateway) Assess(ctx context.Context, op assistant.Operation) (
 				chosen = append(chosen, b)
 			}
 		}
-		href := ""
-		if policy.Resource != "" && policy.Resource != "settings" {
-			resource := policy.Resource
-			if resource == "webhookEndpoints" {
-				resource = "webhooks"
-			}
-			href = "/" + resource + "/" + id
-		}
+		href := assistantTargetHref(policy.Resource, id)
 		a.Targets = append(a.Targets, assistant.Target{ID: id, Name: name, Href: href})
 	}
 	if len(ids) == 0 {

@@ -12,7 +12,7 @@
 	import { Select, SelectContent, SelectItem, SelectTrigger } from "$lib/components/ui/select";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import Conversation from "$lib/components/assistant/conversation.svelte";
-	import { Plus, Pencil, Trash2, MessageCircle, LockKeyhole } from "@lucide/svelte";
+	import { Plus, Pencil, Trash2, MessageCircle } from "@lucide/svelte";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
 	import { formatRelative, formatFull } from "$lib/time-format";
@@ -123,8 +123,8 @@
 	});
 </script>
 
-<div class="mx-auto flex h-[calc(100dvh-9rem)] min-h-96 w-full max-w-5xl flex-col gap-4">
-	<div class="flex items-center justify-between gap-2">
+<div class="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-4 overflow-hidden">
+	<div class="flex shrink-0 items-center justify-between gap-2">
 		<div class="min-w-0 flex-1">
 			<Select
 				type="single"
@@ -133,12 +133,12 @@
 				onValueChange={(v) => {
 					if (v) void choose(v);
 				}}
-				><SelectTrigger class="w-full max-w-sm" aria-label={m.assistant_history({}, options)}
-					>{selected ? chatName(selected) : m.assistant_history({}, options)}</SelectTrigger
-				><SelectContent
+				><SelectTrigger class="w-full min-w-0 max-w-sm" aria-label={m.assistant_history({}, options)}
+					><span class="min-w-0 flex-1 truncate text-left">{selected ? chatName(selected) : m.assistant_history({}, options)}</span></SelectTrigger
+				><SelectContent class="max-w-[calc(100vw-2rem)]"
 					>{#each chats as chat (chat.id)}<SelectItem value={chat.id} label={chatName(chat)}>
-							<div class="flex min-w-0 items-baseline gap-2">
-								<span class="truncate">{chatName(chat)}</span>
+							<div class="flex w-full min-w-0 items-baseline gap-2">
+								<span class="min-w-0 flex-1 truncate">{chatName(chat)}</span>
 								<time datetime={chat.updatedAt} title={formatFull(new Date(chat.updatedAt))} class="text-muted-foreground shrink-0 text-xs">{formatRelative(new Date(chat.updatedAt), now, "relative")}</time>
 							</div>
 						</SelectItem
@@ -149,6 +149,7 @@
 		{#if selected}<Button
 				variant="ghost"
 				size="icon-sm"
+				class="shrink-0"
 				aria-label={m.assistant_rename({}, options)}
 				onclick={() => {
 					title = selected?.titleOverride ?? "";
@@ -157,6 +158,7 @@
 			><Button
 				variant="ghost"
 				size="icon-sm"
+				class="shrink-0"
 				aria-label={m.assistant_delete({}, options)}
 				onclick={() => (deleting = true)}><Trash2 class="size-4" /></Button
 			>{/if}
@@ -183,12 +185,9 @@
 				><Plus class="size-4" />{m.assistant_new({}, options)}</Button
 			>
 		</div>{/if}
-	<p class="text-muted-foreground flex items-center justify-center gap-1 text-xs">
-		<LockKeyhole class="size-3" />{m.assistant_private({}, options)}
-	</p>
 </div>
 <ConfirmDialog
-	open={deleting}
+	bind:open={deleting}
 	title={m.assistant_delete({}, options)}
 	description={m.assistant_delete_description({}, options)}
 	confirmLabel={m.assistant_delete({}, options)}
@@ -199,7 +198,7 @@
 	oncancel={() => (deleting = false)}
 />
 <ConfirmDialog
-	open={renaming}
+	bind:open={renaming}
 	title={m.assistant_rename({}, options)}
 	description={m.assistant_name_hint({}, options)}
 	confirmLabel={m.common_save({}, options)}
