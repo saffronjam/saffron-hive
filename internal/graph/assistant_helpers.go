@@ -111,7 +111,7 @@ func assistantActionTargets(action assistant.Action) []assistant.Target {
 
 // AnnounceMutation refreshes clients after successful structural writes from any client.
 func (r *Resolver) AnnounceMutation(ctx context.Context, next graphql.Resolver) (any, error) {
-	result, err := next(ctx)
+	result, err := r.auditMutation(ctx, next)
 	fc := graphql.GetFieldContext(ctx)
 	if err == nil && fc != nil && fc.Object == "Mutation" && !strings.Contains(strings.ToLower(fc.Field.Name), "assistant") && structuralMutation(fc.Field.Name) {
 		r.ApplicationRevision.Add(1)

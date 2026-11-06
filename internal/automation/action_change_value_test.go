@@ -44,7 +44,7 @@ func TestChangeValue_AbsoluteDelta_InRange(t *testing.T) {
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionChangeValue,
 		TargetType: TargetDevice,
 		TargetID:   "light-1",
@@ -74,7 +74,7 @@ func TestChangeValue_PercentDelta_InRange(t *testing.T) {
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionChangeValue,
 		TargetType: TargetDevice,
 		TargetID:   "light-1",
@@ -105,7 +105,7 @@ func TestChangeValue_ClampsAtMax(t *testing.T) {
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionChangeValue,
 		TargetType: TargetDevice,
 		TargetID:   "light-1",
@@ -135,7 +135,7 @@ func TestChangeValue_ClampsAtMin(t *testing.T) {
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionChangeValue,
 		TargetType: TargetDevice,
 		TargetID:   "light-1",
@@ -168,7 +168,7 @@ func TestChangeValue_UnknownState_NoCommand(t *testing.T) {
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionChangeValue,
 		TargetType: TargetDevice,
 		TargetID:   "light-1",
@@ -194,7 +194,7 @@ func TestChangeValue_StateAlreadyMatches_Skips(t *testing.T) {
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionChangeValue,
 		TargetType: TargetDevice,
 		TargetID:   "light-1",
@@ -231,7 +231,7 @@ func TestChangeValue_FieldNotOnDevice_NoCommand(t *testing.T) {
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionChangeValue,
 		TargetType: TargetDevice,
 		TargetID:   "plug-1",
@@ -257,7 +257,7 @@ func TestChangeValue_ZeroDelta_NoCommand(t *testing.T) {
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionChangeValue,
 		TargetType: TargetDevice,
 		TargetID:   "light-1",

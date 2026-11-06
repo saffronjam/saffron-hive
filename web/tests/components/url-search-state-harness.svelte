@@ -10,8 +10,11 @@
 		return controller.value;
 	}
 
-	export function set(next: SearchState): void {
-		controller.set(next);
+  export function set(
+    next: SearchState,
+    options?: { replaceState?: boolean },
+  ): void {
+    controller.set(next, options);
 	}
 
 	export function setActive(next: boolean): void {

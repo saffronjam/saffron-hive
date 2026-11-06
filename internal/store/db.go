@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/saffronjam/saffron-hive/internal/audit"
 
 	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
 )
@@ -35,7 +36,21 @@ func (s *DB) execTx(ctx context.Context, fn func(*sqlite.Queries) error) error {
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	if err := fn(s.q.WithTx(tx)); err != nil {
+	q := s.q.WithTx(tx)
+	origin := audit.FromContext(ctx)
+	var operationID *string
+	if origin.OperationID != "" {
+		operationID = &origin.OperationID
+	}
+	if err := q.SetAuditWriteContext(ctx, operationID); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("audit context: %w", err)
+	}
+	if err := fn(q); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	if err := q.SetAuditWriteContext(ctx, nil); err != nil {
 		_ = tx.Rollback()
 		return err
 	}
@@ -48,3 +63,8 @@ func (s *DB) atomic(ctx context.Context, fn func(*DB) error) error {
 
 // ErrRevisionConflict prevents a stale snapshot from overwriting a configuration.
 var ErrRevisionConflict = errors.New("configuration changed; reload before saving")
+
+func writeTx[T any](s *DB, ctx context.Context, fn func(*DB) (T, error)) (result T, err error) {
+	err = s.atomic(ctx, func(tx *DB) error { result, err = fn(tx); return err })
+	return result, err
+}

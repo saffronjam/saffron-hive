@@ -31,7 +31,7 @@ func evaluateGates(t *testing.T, nodes []Node, edges []Edge, fired map[NodeID]bo
 	defer bus.Unsubscribe(activations)
 	st := newMockStore()
 	engine := NewEngine(bus, newMockStateReader(), st, st, nil, nil, &mockSceneRunner{})
-	result := engine.evaluateGraph(graph, env, fired)
+	result := engine.evaluateGraph(t.Context(), graph, env, fired)
 	seen := map[NodeID]bool{}
 	for len(activations) > 0 {
 		activation := (<-activations).Payload.(NodeActivation)
@@ -135,7 +135,7 @@ func TestGraceKeepsTriggerSignalsButReevaluatesConditions(t *testing.T) {
 	for _, elapsed := range []time.Duration{2 * time.Second, 6 * time.Second} {
 		for _, pass := range []bool{false, true} {
 			inputs := engine.combineWithGrace(graph, map[NodeID]bool{"tb": true}, now.Add(elapsed))
-			got := engine.evaluateGraph(graph, ExprEnv{SceneActive: func(string) bool { return pass }}, inputs)
+			got := engine.evaluateGraph(t.Context(), graph, ExprEnv{SceneActive: func(string) bool { return pass }}, inputs)
 			if got != (elapsed < 5*time.Second && pass) {
 				t.Fatalf("elapsed=%v pass=%v fired=%v", elapsed, pass, got)
 			}

@@ -449,7 +449,7 @@ func TestControllerSamplesContinuousWorkAtDispatchTime(t *testing.T) {
 	var sampledAt []time.Time
 	var transitions []time.Duration
 	var revisits []time.Duration
-	controller.RegisterContinuous(owner, []device.DeviceID{"b", "a"}, func(_ context.Context, _ device.DeviceID, at time.Time, revisit, transition time.Duration) (device.Command, error) {
+	controller.RegisterContinuous(t.Context(), owner, []device.DeviceID{"b", "a"}, func(_ context.Context, _ device.DeviceID, at time.Time, revisit, transition time.Duration) (device.Command, error) {
 		sampledAt = append(sampledAt, at)
 		revisits = append(revisits, revisit)
 		transitions = append(transitions, transition)
@@ -487,7 +487,7 @@ func TestControllerReportsProviderWideContinuousDevices(t *testing.T) {
 	)
 	owner := outputowner.Owner{Kind: outputowner.KindScene, RunID: "run"}
 	owners.Acquire(owner, []device.DeviceID{"zigbee-a", "zigbee-b", "tuya-a"}, nil)
-	controller.RegisterContinuous(owner, []device.DeviceID{"tuya-a", "zigbee-b", "zigbee-a"}, func(context.Context, device.DeviceID, time.Time, time.Duration, time.Duration) (device.Command, error) {
+	controller.RegisterContinuous(t.Context(), owner, []device.DeviceID{"tuya-a", "zigbee-b", "zigbee-a"}, func(context.Context, device.DeviceID, time.Time, time.Duration, time.Duration) (device.Command, error) {
 		return device.Command{Color: &device.Color{R: 1}}, nil
 	})
 
@@ -506,7 +506,7 @@ func TestControllerContinuousWorkYieldsWhileForegroundIsQueued(t *testing.T) {
 	)
 	owner := outputowner.Owner{Kind: outputowner.KindScene, RunID: "run"}
 	owners.Acquire(owner, []device.DeviceID{"a"}, nil)
-	controller.RegisterContinuous(owner, []device.DeviceID{"a"}, func(context.Context, device.DeviceID, time.Time, time.Duration, time.Duration) (device.Command, error) {
+	controller.RegisterContinuous(t.Context(), owner, []device.DeviceID{"a"}, func(context.Context, device.DeviceID, time.Time, time.Duration, time.Duration) (device.Command, error) {
 		return device.Command{Color: &device.Color{R: 1}}, nil
 	})
 	if err := controller.CommandTarget(context.Background(), device.TargetCommand{
@@ -537,7 +537,7 @@ func TestControllerPausesAndResumesContinuousProviderTraffic(t *testing.T) {
 	})
 	owner := outputowner.Owner{Kind: outputowner.KindScene, RunID: "run"}
 	owners.Acquire(owner, []device.DeviceID{"lamp"}, nil)
-	controller.RegisterContinuous(owner, []device.DeviceID{"lamp"}, func(context.Context, device.DeviceID, time.Time, time.Duration, time.Duration) (device.Command, error) {
+	controller.RegisterContinuous(t.Context(), owner, []device.DeviceID{"lamp"}, func(context.Context, device.DeviceID, time.Time, time.Duration, time.Duration) (device.Command, error) {
 		return device.Command{Color: &device.Color{R: 1}}, nil
 	})
 	start := time.Unix(675, 0)

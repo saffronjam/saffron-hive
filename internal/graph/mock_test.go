@@ -955,6 +955,20 @@ func (m *mockStore) QueryStateHistory(_ context.Context, q store.StateHistoryQue
 	return out, nil
 }
 
+func (m *mockStore) ActivityBounds(context.Context) (first, last int64, err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, event := range m.activityEvents {
+		if first == 0 || event.ID < first {
+			first = event.ID
+		}
+		if event.ID > last {
+			last = event.ID
+		}
+	}
+	return first, last, nil
+}
+
 func (m *mockStore) QueryActivityEvents(_ context.Context, q store.ActivityQuery) ([]store.ActivityEvent, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

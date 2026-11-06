@@ -29,6 +29,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/adapter/zigbee"
 	"github.com/saffronjam/saffron-hive/internal/alarms"
 	"github.com/saffronjam/saffron-hive/internal/assistant"
+	"github.com/saffronjam/saffron-hive/internal/audit"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/avatars"
@@ -87,6 +88,10 @@ func Run(ctx context.Context) error {
 	defer func() { _ = db.Close() }()
 
 	sqlStore := store.New(db)
+
+	if err := sqlStore.RecoverAudit(ctx); err != nil {
+		return fmt.Errorf("recover audit operations: %w", err)
+	}
 
 	if err := seedInitialUser(ctx, cfg, sqlStore); err != nil {
 		return err
@@ -220,16 +225,19 @@ func Run(ctx context.Context) error {
 	})
 	outputOwners := outputowner.New()
 	outputController := output.New(bus, sqlStore, memStore, nativeEffectSupport, outputOwners)
+	outputController.SetAudit(sqlStore)
 	mgr.output = outputController
 	spawn("output.controller", func() { outputController.Run(ctx) })
 	targetCommander := outputController
 	effectRunner := effect.NewRunner(bus, targetCommander, memStore, sqlStore, zigbeeTerminator{}, outputOwners)
+	effectRunner.SetAudit(sqlStore)
 	if err := effectRunner.Hydrate(ctx); err != nil {
 		serveLogger.Warn("effect runner hydrate failed", "error", err)
 	}
 	spawn("effect.runner", func() { effectRunner.Run(ctx) })
 
 	sceneRunner := scene.NewRunner(bus, sqlStore, targetCommander, targetCommander, memStore, spatialResolver, effectRunner, outputOwners)
+	sceneRunner.SetAudit(sqlStore)
 	if err := sceneRunner.Hydrate(ctx); err != nil {
 		serveLogger.Warn("scene runner hydrate failed", "error", err)
 	}
@@ -260,6 +268,7 @@ func Run(ctx context.Context) error {
 	}
 
 	engine := automation.NewEngine(bus, memStore, sqlStore, targetCommander, alarmSvc, effectRunner, sceneRunner)
+	engine.SetAudit(sqlStore)
 	if setting, err := sqlStore.GetSetting(ctx, automation.TimeZoneSettingKey); err == nil {
 		if location, err := automation.LoadTimeZone(setting.Value); err == nil {
 			engine.SetLocation(location)
@@ -323,6 +332,21 @@ func Run(ctx context.Context) error {
 		AvatarDir:           avatarDir,
 	}
 
+	resolver.Audit = sqlStore
+	go func() {
+		ticker := time.NewTicker(6 * time.Hour)
+		defer ticker.Stop()
+		for {
+			if err := sqlStore.PruneAudit(ctx); err != nil {
+				serveLogger.Error("Audit retention failed", "error", err)
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
 	resolver.Assistant = assistant.New(ctx, sqlStore, &assistant.CLIRunner{})
 	resolver.ApplicationChanges = pubsub.NewFanout[int]()
 	executable := graph.NewExecutableSchema(graph.Config{
@@ -333,6 +357,8 @@ func Run(ctx context.Context) error {
 	})
 	gqlSrv := handler.New(executable)
 	gqlSrv.AroundFields(resolver.AnnounceMutation)
+	gqlSrv.AroundOperations(graph.AuditOperationContext)
+	gqlSrv.AroundResponses(resolver.AuditRejectedResponses(executable.Schema()))
 	gqlSrv.AddTransport(transport.GET{})
 	gqlSrv.AddTransport(transport.POST{})
 	gqlSrv.AddTransport(transport.Websocket{
@@ -349,7 +375,8 @@ func Run(ctx context.Context) error {
 	})
 	gqlSrv.SetErrorPresenter(graph.ErrorPresenter)
 
-	resolver.Assistant.SetGateway(graph.NewAssistantGateway(executable, gqlSrv, resolver, sqlStore, avatars.NewUploadHandler(avatarDir, sqlStore)))
+	resolver.Assistant.SetAudit(sqlStore)
+	resolver.Assistant.SetGateway(graph.NewAssistantGateway(executable, gqlSrv, resolver, sqlStore, avatars.NewUploadHandler(avatarDir, sqlStore, sqlStore)))
 	if err := resolver.Assistant.Start(); err != nil {
 		return fmt.Errorf("start assistant: %w", err)
 	}
@@ -363,7 +390,7 @@ func Run(ctx context.Context) error {
 			),
 		),
 	))
-	mux.Handle("/api/avatars", auth.RequireUser(authSvc, sqlStore)(avatars.NewUploadHandler(avatarDir, sqlStore)))
+	mux.Handle("/api/avatars", auth.RequireUser(authSvc, sqlStore)(avatars.NewUploadHandler(avatarDir, sqlStore, sqlStore)))
 	mux.Handle("/api/device-images/", auth.RequireUser(authSvc, sqlStore)(deviceimage.NewHandler(deviceImageCache, sqlStore)))
 	mux.Handle(webhook.PathPrefix, auth.ClientIPMiddleware(cfg.TrustProxyHeaders)(webhookService))
 	mux.Handle("/avatars/", avatars.NewServeHandler(avatarDir))
@@ -1012,7 +1039,6 @@ func (r *engineReloader) PendingHolds(automationID string) map[string]time.Time 
 
 func runDevicePersister(ctx context.Context, bus eventbus.EventBus, ch <-chan eventbus.Event, s *store.DB) {
 	defer bus.Unsubscribe(ch)
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -1021,34 +1047,54 @@ func runDevicePersister(ctx context.Context, bus eventbus.EventBus, ch <-chan ev
 			if !ok {
 				return
 			}
-			switch evt.Type {
-			case eventbus.EventDeviceAdded, eventbus.EventDeviceSynced:
-				d, ok := evt.Payload.(device.Device)
-				if !ok {
-					continue
-				}
-				err := s.UpsertDevice(ctx, store.CreateDeviceParams{
-					ID:           d.ID,
-					FriendlyName: d.FriendlyName,
-					Source:       d.Source,
-					Type:         d.Type,
-					Capabilities: d.Capabilities,
-				})
-				if err != nil {
-					devicePersisterLogger.Error("failed to upsert device", "device_id", d.ID, "error", err)
-					continue
-				}
-
-			case eventbus.EventDeviceRemoved:
-				id := device.DeviceID(evt.DeviceID)
-				_, err := s.UpdateDevice(ctx, store.UpdateDeviceParams{
-					ID:      id,
-					Removed: true,
-				})
-				if err != nil {
-					devicePersisterLogger.Error("failed to mark device removed", "device_id", evt.DeviceID, "error", err)
-				}
+			if err := persistDeviceRegistryEvent(ctx, evt, s); err != nil {
+				devicePersisterLogger.Error("Device registry persistence failed", "device_id", evt.DeviceID, "error", err)
 			}
 		}
 	}
+}
+
+func persistDeviceRegistryEvent(ctx context.Context, evt eventbus.Event, s *store.DB) (returnErr error) {
+	var d device.Device
+	switch evt.Type {
+	case eventbus.EventDeviceAdded, eventbus.EventDeviceSynced:
+		var ok bool
+		d, ok = evt.Payload.(device.Device)
+		if !ok {
+			return nil
+		}
+	case eventbus.EventDeviceRemoved:
+		var err error
+		d, err = s.GetDevice(ctx, device.DeviceID(evt.DeviceID))
+		if err != nil {
+			return err
+		}
+	default:
+		return nil
+	}
+	origin := audit.Origin{Source: "integration", ActorID: string(d.Source), ActorName: string(d.Source)}
+	proposal, err := json.Marshal(struct {
+		DeviceID device.DeviceID `json:"deviceId"`
+	}{d.ID})
+	if err != nil {
+		return err
+	}
+	ctx, err = s.BeginAudit(audit.WithOrigin(ctx, origin), "syncDevice", string(proposal))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		status := "succeeded"
+		if returnErr != nil {
+			status = "failed"
+		}
+		if err := s.FinishAudit(context.WithoutCancel(ctx), status); err != nil {
+			returnErr = err
+		}
+	}()
+	if evt.Type == eventbus.EventDeviceRemoved {
+		_, err := s.UpdateDevice(ctx, store.UpdateDeviceParams{ID: d.ID, Removed: true})
+		return err
+	}
+	return s.UpsertDevice(ctx, store.CreateDeviceParams{ID: d.ID, FriendlyName: d.FriendlyName, Source: d.Source, Type: d.Type, Capabilities: d.Capabilities})
 }

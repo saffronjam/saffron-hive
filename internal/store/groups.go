@@ -368,10 +368,12 @@ func (s *DB) GetGroupMemberGroupID(ctx context.Context, id string) (string, erro
 
 // RemoveGroupMember deletes a group member by its ID.
 func (s *DB) RemoveGroupMember(ctx context.Context, id string) error {
-	if err := s.q.RemoveGroupMember(ctx, id); err != nil {
-		return fmt.Errorf("remove group member: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.RemoveGroupMember(ctx, id); err != nil {
+			return fmt.Errorf("remove group member: %w", err)
+		}
+		return nil
+	})
 }
 
 // ListGroupsContainingMember returns all groups that contain a specific member.

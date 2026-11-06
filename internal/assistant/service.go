@@ -26,6 +26,7 @@ type worker struct {
 }
 
 type Service struct {
+	audit          AuditRecorder
 	store          Store
 	runner         Runner
 	gateway        Gateway
@@ -824,3 +825,5 @@ func (s *Service) Watch(ctx context.Context, id string) (<-chan *Conversation, e
 	}()
 	return out, nil
 }
+
+func (s *Service) SetAudit(recorder AuditRecorder) { s.audit = recorder }

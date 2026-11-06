@@ -16,7 +16,7 @@ func TestMigration105AssistantNames(t *testing.T) {
 		t.Fatal(err)
 	}
 	st := New(db)
-	if _, err := st.CreateUser(t.Context(), CreateUserParams{ID: "owner", Username: "owner", Name: "Owner", PasswordHash: "hash"}); err != nil {
+	if _, err := db.Exec(`INSERT INTO users (id,username,name,password_hash) VALUES ('owner','owner','Owner','hash')`); err != nil {
 		t.Fatal(err)
 	}
 	for _, title := range []string{"New chat", "Ny chatt", "Новый чат", "My lighting"} {

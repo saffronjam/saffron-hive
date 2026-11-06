@@ -75,7 +75,9 @@
 	const committed = $derived(tokens.slice(0, -1));
 	const liveText = $derived(tokens[tokens.length - 1]?.text ?? "");
 	const liveChip = $derived(chipConfigForText(liveText));
-	const liveValue = $derived(liveChip ? liveText.slice(liveChip.keyword.length + 1) : liveText);
+  const liveValue = $derived(
+    liveChip ? liveText.slice(liveChip.keyword.length + 1) : liveText,
+  );
 
 	const keywordQuery = $derived.by<string | null>(() => {
 		if (!liveText.startsWith(":")) return null;
@@ -196,7 +198,9 @@
 
 	function onInput(e: Event) {
 		const input = e.currentTarget as HTMLInputElement;
-		const newText = liveChip ? `${liveChip.keyword}:${input.value}` : input.value;
+    const newText = liveChip
+      ? `${liveChip.keyword}:${input.value}`
+      : input.value;
 		setLive(newText);
 		open = true;
 		suggestionIdx = 0;
@@ -231,7 +235,8 @@
 
 	onMount(() => {
 		window.addEventListener("contextmenu", dismissForContextMenu, true);
-		return () => window.removeEventListener("contextmenu", dismissForContextMenu, true);
+    return () =>
+      window.removeEventListener("contextmenu", dismissForContextMenu, true);
 	});
 
 	function onKeydown(e: KeyboardEvent) {
@@ -267,7 +272,9 @@
 			e.preventDefault();
 			if (open) {
 				if (suggestionMode === "keyword" && keywordSuggestions.length > 0) {
-					pickKeyword(keywordSuggestions[suggestionIdx] ?? keywordSuggestions[0]);
+          pickKeyword(
+            keywordSuggestions[suggestionIdx] ?? keywordSuggestions[0],
+          );
 					return;
 				}
 				if (suggestionMode === "value" && valueSuggestions.length > 0) {
@@ -286,7 +293,14 @@
 		}
 
 		if (e.key === "Tab" && open) {
-			const len = suggestionMode === "item" ? items.length : suggestionMode === "keyword" ? keywordSuggestions.length : suggestionMode === "value" ? valueSuggestions.length : 0;
+      const len =
+        suggestionMode === "item"
+          ? items.length
+          : suggestionMode === "keyword"
+            ? keywordSuggestions.length
+            : suggestionMode === "value"
+              ? valueSuggestions.length
+              : 0;
 			if (len > 0) {
 				e.preventDefault();
 				if (e.shiftKey) {
@@ -299,7 +313,14 @@
 		}
 
 		if (e.key === "ArrowDown") {
-			const len = suggestionMode === "item" ? items.length : suggestionMode === "keyword" ? keywordSuggestions.length : suggestionMode === "value" ? valueSuggestions.length : 0;
+      const len =
+        suggestionMode === "item"
+          ? items.length
+          : suggestionMode === "keyword"
+            ? keywordSuggestions.length
+            : suggestionMode === "value"
+              ? valueSuggestions.length
+              : 0;
 			e.preventDefault();
 			if (open && len > 0) {
 				suggestionIdx = (suggestionIdx + 1) % len;
@@ -311,7 +332,14 @@
 		}
 
 		if (e.key === "ArrowUp") {
-			const len = suggestionMode === "item" ? items.length : suggestionMode === "keyword" ? keywordSuggestions.length : suggestionMode === "value" ? valueSuggestions.length : 0;
+      const len =
+        suggestionMode === "item"
+          ? items.length
+          : suggestionMode === "keyword"
+            ? keywordSuggestions.length
+            : suggestionMode === "value"
+              ? valueSuggestions.length
+              : 0;
 			if (open && len > 0) {
 				e.preventDefault();
 				suggestionIdx = (suggestionIdx - 1 + len) % len;
@@ -347,7 +375,10 @@
 				{...props}
 				data-hive-search-trigger
 				aria-disabled={disabled}
-				class={cn("inline-flex w-full flex-wrap items-stretch gap-1", className)}
+        class={cn(
+          "inline-flex min-w-0 w-full max-w-full flex-wrap items-stretch gap-1",
+          className,
+        )}
 				onmousedown={onTriggerMouseDown}
 				onclick={onTriggerClick}
 			>
@@ -356,8 +387,14 @@
 					{#if cfg}
 						{@const raw = token.text.slice(cfg.keyword.length + 1)}
 						{@const shown = cfg.resolveLabel?.(raw) ?? raw}
-						<span class={badgeVariants({ variant: cfg.variant ?? "secondary" })}>
-							{cfg.label}: {shown}
+            <span
+              class={cn(
+                badgeVariants({ variant: cfg.variant ?? "secondary" }),
+                "min-w-0 max-w-full justify-start",
+              )}
+              title={`${cfg.label}: ${shown}`}
+            >
+              <span class="truncate">{cfg.label}: {shown}</span>
 						</span>
 					{:else}
 						<span class="whitespace-pre text-foreground">{token.text}</span>
@@ -366,9 +403,12 @@
 
 				<span
 					class={cn(
-						"inline-flex items-center",
+            "inline-flex min-w-0 max-w-full items-center",
 						liveChip
-							? cn(badgeVariants({ variant: liveChip.variant ?? "secondary" }), "gap-0 px-2 py-0.5")
+              ? cn(
+                  badgeVariants({ variant: liveChip.variant ?? "secondary" }),
+                  "gap-0 px-2 py-0.5",
+                )
 							: "flex-1 min-w-[6ch]",
 					)}
 				>
@@ -419,7 +459,9 @@
 		>
 			<ul role="listbox" class="py-1">
 				{#if suggestionMode === "keyword"}
-					<li class="px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <li
+            class="px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+          >
 						{m.shared_filters({}, locale.messageOptions())}
 					</li>
 					{#each keywordSuggestions as opt, i (opt.value)}
@@ -468,7 +510,8 @@
 							aria-selected={i === suggestionIdx}
 							class={cn(
 								"border-l-2 px-3 py-1.5 text-sm transition-colors",
-								separatedItems && "border-b border-b-border py-2 last:border-b-0",
+                separatedItems &&
+                  "border-b border-b-border py-2 last:border-b-0",
 								i === suggestionIdx
 									? "border-l-primary bg-primary/10 text-foreground"
 									: "border-l-transparent text-foreground hover:bg-muted",

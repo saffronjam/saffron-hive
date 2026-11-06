@@ -135,26 +135,30 @@ func (s *DB) UpdateScene(ctx context.Context, id string, params UpdateSceneParam
 
 // DeleteScene deletes a Scene and every composition row through cascades.
 func (s *DB) DeleteScene(ctx context.Context, id string) error {
-	if err := s.q.DeleteScene(ctx, id); err != nil {
-		return fmt.Errorf("delete scene: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.DeleteScene(ctx, id); err != nil {
+			return fmt.Errorf("delete scene: %w", err)
+		}
+		return nil
+	})
 }
 
 // BatchDeleteScenes deletes matching Scenes and returns the affected count.
 func (s *DB) BatchDeleteScenes(ctx context.Context, ids []string) (int64, error) {
-	if len(ids) == 0 {
-		return 0, nil
-	}
-	encoded, err := marshalStringArray(ids)
-	if err != nil {
-		return 0, fmt.Errorf("batch delete scenes: %w", err)
-	}
-	count, err := s.q.BatchDeleteScenes(ctx, encoded)
-	if err != nil {
-		return 0, fmt.Errorf("batch delete scenes: %w", err)
-	}
-	return count, nil
+	return writeTx(s, ctx, func(s *DB) (int64, error) {
+		if len(ids) == 0 {
+			return 0, nil
+		}
+		encoded, err := marshalStringArray(ids)
+		if err != nil {
+			return 0, fmt.Errorf("batch delete scenes: %w", err)
+		}
+		count, err := s.q.BatchDeleteScenes(ctx, encoded)
+		if err != nil {
+			return 0, fmt.Errorf("batch delete scenes: %w", err)
+		}
+		return count, nil
+	})
 }
 
 // ValidateSceneDefinition enforces the typed composition invariants before a
@@ -621,23 +625,27 @@ func (s *DB) StartActiveSceneRun(ctx context.Context, run ActiveSceneRun) error 
 
 // UpdateActiveSceneMemberExpected persists the latest desired frame.
 func (s *DB) UpdateActiveSceneMemberExpected(ctx context.Context, sceneID string, deviceID device.DeviceID, expected DesiredState) error {
-	params := activeExpectedParams(expected)
-	params.SceneID = sceneID
-	params.DeviceID = deviceID
-	if err := s.q.UpdateActiveSceneMemberExpected(ctx, params); err != nil {
-		return fmt.Errorf("update active Scene expected state: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		params := activeExpectedParams(expected)
+		params.SceneID = sceneID
+		params.DeviceID = deviceID
+		if err := s.q.UpdateActiveSceneMemberExpected(ctx, params); err != nil {
+			return fmt.Errorf("update active Scene expected state: %w", err)
+		}
+		return nil
+	})
 }
 
 // UpdateActiveSceneMemberEffectRun records a supporting effect run identity.
 func (s *DB) UpdateActiveSceneMemberEffectRun(ctx context.Context, sceneID string, deviceID device.DeviceID, runID string) error {
-	if err := s.q.UpdateActiveSceneMemberEffectRun(ctx, sqlite.UpdateActiveSceneMemberEffectRunParams{
-		EffectRunID: optionalText(runID), SceneID: sceneID, DeviceID: deviceID,
-	}); err != nil {
-		return fmt.Errorf("update active Scene effect run: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.UpdateActiveSceneMemberEffectRun(ctx, sqlite.UpdateActiveSceneMemberEffectRunParams{
+			EffectRunID: optionalText(runID), SceneID: sceneID, DeviceID: deviceID,
+		}); err != nil {
+			return fmt.Errorf("update active Scene effect run: %w", err)
+		}
+		return nil
+	})
 }
 
 // StopActiveSceneRun deletes one persisted run and its member snapshot.

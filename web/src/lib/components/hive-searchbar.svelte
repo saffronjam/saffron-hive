@@ -159,7 +159,7 @@
 			bind:inputRef={liveInput}
 			chipConfigs={chips}
 			placeholder={committed.length === 0 ? resolvedPlaceholder : ""}
-			class="flex-1"
+      class="min-w-0 flex-1"
 			onchipcommit={handleChipCommit}
 			onfreetextcommit={handleFreeTextCommit}
 			onblur={handleBlur}

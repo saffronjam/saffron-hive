@@ -102,6 +102,65 @@ type AssistantConversation struct {
 	AutoTitle     string
 }
 
+type AuditEvent struct {
+	Sequence    int64
+	OperationID *string
+	OwnerID     *string
+	RecordedAt  string
+	EntityType  string
+	EntityID    string
+	EntityName  string
+	Action      string
+	BeforeJson  string
+	AfterJson   string
+	DetailsJson string
+}
+
+type AuditOperation struct {
+	ID             string
+	StartedAt      string
+	FinishedAt     *string
+	ActorID        string
+	ActorName      string
+	Source         string
+	Field          string
+	Status         string
+	Proposed       string
+	OwnerID        *string
+	ConversationID *string
+	RunID          *string
+	ActionID       *string
+	ParentID       *string
+	ErrorCode      *string
+}
+
+type AuditRunTarget struct {
+	OperationID string
+	DeviceID    string
+	Dispatched  int64
+	Confirmed   int64
+	Failed      int64
+	LastStatus  string
+	BeforeJson  string
+	AfterJson   string
+}
+
+type AuditSnapshot struct {
+	EntityType string
+	EntityID   string
+	Snapshot   interface{}
+}
+
+type AuditWatermark struct {
+	ID       int64
+	Sequence int64
+}
+
+type AuditWriteContext struct {
+	ID          int64
+	OperationID *string
+}
+
 type Automation struct {
 	ID          string
 	Name        string

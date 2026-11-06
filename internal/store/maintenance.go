@@ -66,17 +66,19 @@ func (s *DB) ResetMaintenanceAcknowledgements(ctx context.Context, taskKey strin
 
 // DeleteMaintenanceAcknowledgementFingerprints removes selected obsolete completions.
 func (s *DB) DeleteMaintenanceAcknowledgementFingerprints(ctx context.Context, taskKey string, fingerprints []string) error {
-	if len(fingerprints) == 0 {
+	return s.atomic(ctx, func(s *DB) error {
+		if len(fingerprints) == 0 {
+			return nil
+		}
+		encoded, err := json.Marshal(fingerprints)
+		if err != nil {
+			return fmt.Errorf("encode maintenance fingerprints: %w", err)
+		}
+		if _, err := s.q.DeleteMaintenanceAcknowledgementsByFingerprints(ctx, sqlite.DeleteMaintenanceAcknowledgementsByFingerprintsParams{
+			TaskKey: taskKey, FingerprintsJson: string(encoded),
+		}); err != nil {
+			return fmt.Errorf("delete maintenance acknowledgement fingerprints: %w", err)
+		}
 		return nil
-	}
-	encoded, err := json.Marshal(fingerprints)
-	if err != nil {
-		return fmt.Errorf("encode maintenance fingerprints: %w", err)
-	}
-	if _, err := s.q.DeleteMaintenanceAcknowledgementsByFingerprints(ctx, sqlite.DeleteMaintenanceAcknowledgementsByFingerprintsParams{
-		TaskKey: taskKey, FingerprintsJson: string(encoded),
-	}); err != nil {
-		return fmt.Errorf("delete maintenance acknowledgement fingerprints: %w", err)
-	}
-	return nil
+	})
 }

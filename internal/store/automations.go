@@ -193,27 +193,31 @@ func (s *DB) UpdateAutomationLastFired(ctx context.Context, id string, firedAt t
 
 // DeleteAutomation deletes an automation by its ID. Cascading deletes remove associated nodes and edges.
 func (s *DB) DeleteAutomation(ctx context.Context, id string) error {
-	if err := s.q.DeleteAutomation(ctx, id); err != nil {
-		return fmt.Errorf("delete automation: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.DeleteAutomation(ctx, id); err != nil {
+			return fmt.Errorf("delete automation: %w", err)
+		}
+		return nil
+	})
 }
 
 // BatchDeleteAutomations deletes the automations with the given IDs. Returns
 // the number of rows actually deleted; missing IDs are silently ignored.
 func (s *DB) BatchDeleteAutomations(ctx context.Context, ids []string) (int64, error) {
-	if len(ids) == 0 {
-		return 0, nil
-	}
-	js, err := marshalStringArray(ids)
-	if err != nil {
-		return 0, fmt.Errorf("batch delete automations: %w", err)
-	}
-	n, err := s.q.BatchDeleteAutomations(ctx, js)
-	if err != nil {
-		return 0, fmt.Errorf("batch delete automations: %w", err)
-	}
-	return n, nil
+	return writeTx(s, ctx, func(s *DB) (int64, error) {
+		if len(ids) == 0 {
+			return 0, nil
+		}
+		js, err := marshalStringArray(ids)
+		if err != nil {
+			return 0, fmt.Errorf("batch delete automations: %w", err)
+		}
+		n, err := s.q.BatchDeleteAutomations(ctx, js)
+		if err != nil {
+			return 0, fmt.Errorf("batch delete automations: %w", err)
+		}
+		return n, nil
+	})
 }
 
 // CreateAutomationNode inserts a new automation node.

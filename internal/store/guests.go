@@ -46,14 +46,16 @@ func (s *DB) CreateGuest(ctx context.Context, params CreateGuestParams) (Guest, 
 
 // UpdateGuestLanguage sets the guest's UI language.
 func (s *DB) UpdateGuestLanguage(ctx context.Context, id, language string) (Guest, error) {
-	n, err := s.q.UpdateGuestLanguage(ctx, sqlite.UpdateGuestLanguageParams{Language: language, ID: id})
-	if err != nil {
-		return Guest{}, fmt.Errorf("update guest language: %w", err)
-	}
-	if n == 0 {
-		return Guest{}, fmt.Errorf("guest not found")
-	}
-	return s.GetGuestByID(ctx, id)
+	return writeTx(s, ctx, func(s *DB) (Guest, error) {
+		n, err := s.q.UpdateGuestLanguage(ctx, sqlite.UpdateGuestLanguageParams{Language: language, ID: id})
+		if err != nil {
+			return Guest{}, fmt.Errorf("update guest language: %w", err)
+		}
+		if n == 0 {
+			return Guest{}, fmt.Errorf("guest not found")
+		}
+		return s.GetGuestByID(ctx, id)
+	})
 }
 
 // GetGuestByID retrieves a guest without applying its expiry.
@@ -101,48 +103,56 @@ func (s *DB) ListActiveGuests(ctx context.Context, now time.Time) ([]Guest, erro
 
 // UpdateGuestExpiresAt sets the guest's access deadline.
 func (s *DB) UpdateGuestExpiresAt(ctx context.Context, id string, expiresAt time.Time) (Guest, error) {
-	n, err := s.q.UpdateGuestExpiresAt(ctx, sqlite.UpdateGuestExpiresAtParams{ExpiresAt: expiresAt.UTC(), ID: id})
-	if err != nil {
-		return Guest{}, fmt.Errorf("update guest expiry: %w", err)
-	}
-	if n == 0 {
-		return Guest{}, fmt.Errorf("guest not found")
-	}
-	return s.GetGuestByID(ctx, id)
+	return writeTx(s, ctx, func(s *DB) (Guest, error) {
+		n, err := s.q.UpdateGuestExpiresAt(ctx, sqlite.UpdateGuestExpiresAtParams{ExpiresAt: expiresAt.UTC(), ID: id})
+		if err != nil {
+			return Guest{}, fmt.Errorf("update guest expiry: %w", err)
+		}
+		if n == 0 {
+			return Guest{}, fmt.Errorf("guest not found")
+		}
+		return s.GetGuestByID(ctx, id)
+	})
 }
 
 // DeleteGuest deletes one guest and reports whether it existed.
 func (s *DB) DeleteGuest(ctx context.Context, id string) (bool, error) {
-	n, err := s.q.DeleteGuest(ctx, id)
-	if err != nil {
-		return false, fmt.Errorf("delete guest: %w", err)
-	}
-	return n > 0, nil
+	return writeTx(s, ctx, func(s *DB) (bool, error) {
+		n, err := s.q.DeleteGuest(ctx, id)
+		if err != nil {
+			return false, fmt.Errorf("delete guest: %w", err)
+		}
+		return n > 0, nil
+	})
 }
 
 // BatchDeleteGuests deletes guests by ID and returns the deleted IDs.
 func (s *DB) BatchDeleteGuests(ctx context.Context, ids []string) ([]string, error) {
-	if len(ids) == 0 {
-		return nil, nil
-	}
-	idsJSON, err := marshalStringArray(ids)
-	if err != nil {
-		return nil, fmt.Errorf("batch delete guests: %w", err)
-	}
-	deleted, err := s.q.BatchDeleteGuests(ctx, idsJSON)
-	if err != nil {
-		return nil, fmt.Errorf("batch delete guests: %w", err)
-	}
-	return deleted, nil
+	return writeTx(s, ctx, func(s *DB) ([]string, error) {
+		if len(ids) == 0 {
+			return nil, nil
+		}
+		idsJSON, err := marshalStringArray(ids)
+		if err != nil {
+			return nil, fmt.Errorf("batch delete guests: %w", err)
+		}
+		deleted, err := s.q.BatchDeleteGuests(ctx, idsJSON)
+		if err != nil {
+			return nil, fmt.Errorf("batch delete guests: %w", err)
+		}
+		return deleted, nil
+	})
 }
 
 // DeleteExpiredGuests removes expired guests and returns the deleted IDs.
 func (s *DB) DeleteExpiredGuests(ctx context.Context, now time.Time) ([]string, error) {
-	ids, err := s.q.DeleteExpiredGuests(ctx, now.UTC())
-	if err != nil {
-		return nil, fmt.Errorf("delete expired guests: %w", err)
-	}
-	return ids, nil
+	return writeTx(s, ctx, func(s *DB) ([]string, error) {
+		ids, err := s.q.DeleteExpiredGuests(ctx, now.UTC())
+		if err != nil {
+			return nil, fmt.Errorf("delete expired guests: %w", err)
+		}
+		return ids, nil
+	})
 }
 
 func guestFromRow(row sqlite.Guest) Guest {

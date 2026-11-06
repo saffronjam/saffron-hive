@@ -10,6 +10,22 @@ import (
 	"time"
 )
 
+const activityBounds = `-- name: ActivityBounds :one
+SELECT CAST(COALESCE(MIN(id),0) AS INTEGER) AS first_id, CAST(COALESCE(MAX(id),0) AS INTEGER) AS last_id FROM activity_events
+`
+
+type ActivityBoundsRow struct {
+	FirstID int64
+	LastID  int64
+}
+
+func (q *Queries) ActivityBounds(ctx context.Context) (ActivityBoundsRow, error) {
+	row := q.db.QueryRowContext(ctx, activityBounds)
+	var i ActivityBoundsRow
+	err := row.Scan(&i.FirstID, &i.LastID)
+	return i, err
+}
+
 const insertActivityEvent = `-- name: InsertActivityEvent :one
 
 INSERT INTO activity_events (
@@ -101,8 +117,9 @@ WHERE
   AND (CAST(?4   AS TEXT) IS NULL OR room_id   = CAST(?4   AS TEXT))
   AND timestamp >= COALESCE(?5,  timestamp)
   AND id        <  COALESCE(?6, id + 1)
+AND id > COALESCE(?7,0)
 ORDER BY timestamp DESC, id DESC
-LIMIT IIF(CAST(?7 AS INTEGER) > 0, CAST(?7 AS INTEGER), -1)
+LIMIT IIF(CAST(?8 AS INTEGER) > 0, CAST(?8 AS INTEGER), -1)
 `
 
 type QueryActivityEventsParams struct {
@@ -112,6 +129,7 @@ type QueryActivityEventsParams struct {
 	RoomID            *string
 	Since             *time.Time
 	Before            *int64
+	After             *int64
 	Lim               int64
 }
 
@@ -123,6 +141,86 @@ func (q *Queries) QueryActivityEvents(ctx context.Context, arg QueryActivityEven
 		arg.RoomID,
 		arg.Since,
 		arg.Before,
+		arg.After,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ActivityEvent
+	for rows.Next() {
+		var i ActivityEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Timestamp,
+			&i.PayloadJson,
+			&i.DeviceID,
+			&i.DeviceName,
+			&i.DeviceType,
+			&i.RoomID,
+			&i.RoomName,
+			&i.SceneID,
+			&i.SceneName,
+			&i.AutomationID,
+			&i.AutomationName,
+			&i.WebhookID,
+			&i.WebhookName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const replayActivityEvents = `-- name: ReplayActivityEvents :many
+SELECT id, type, timestamp, payload_json,
+       device_id, device_name, device_type, room_id, room_name,
+       scene_id, scene_name,
+       automation_id, automation_name,
+       webhook_id, webhook_name
+FROM activity_events
+WHERE
+    (json_array_length(CAST(?1 AS TEXT)) = 0
+     OR type IN (SELECT value FROM json_each(CAST(?1 AS TEXT))))
+  AND type NOT IN (SELECT value FROM json_each(CAST(?2 AS TEXT)))
+  AND (CAST(?3 AS TEXT) IS NULL OR device_id = CAST(?3 AS TEXT))
+  AND (CAST(?4   AS TEXT) IS NULL OR room_id   = CAST(?4   AS TEXT))
+  AND timestamp >= COALESCE(?5,  timestamp)
+  AND id        <  COALESCE(?6, id + 1)
+AND id > COALESCE(?7,0)
+ORDER BY id ASC
+LIMIT IIF(CAST(?8 AS INTEGER) > 0, CAST(?8 AS INTEGER), -1)
+`
+
+type ReplayActivityEventsParams struct {
+	TypesJson         string
+	ExcludedTypesJson string
+	DeviceID          *string
+	RoomID            *string
+	Since             *time.Time
+	Before            *int64
+	After             *int64
+	Lim               int64
+}
+
+func (q *Queries) ReplayActivityEvents(ctx context.Context, arg ReplayActivityEventsParams) ([]ActivityEvent, error) {
+	rows, err := q.db.QueryContext(ctx, replayActivityEvents,
+		arg.TypesJson,
+		arg.ExcludedTypesJson,
+		arg.DeviceID,
+		arg.RoomID,
+		arg.Since,
+		arg.Before,
+		arg.After,
 		arg.Lim,
 	)
 	if err != nil {

@@ -2,8 +2,10 @@ package scene
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/saffronjam/saffron-hive/internal/audit"
 	"log/slog"
 	"slices"
 	"sync"
@@ -46,7 +48,7 @@ type EffectController interface {
 }
 
 type continuousController interface {
-	RegisterContinuous(outputowner.Owner, []device.DeviceID, func(context.Context, device.DeviceID, time.Time, time.Duration, time.Duration) (device.Command, error))
+	RegisterContinuous(context.Context, outputowner.Owner, []device.DeviceID, func(context.Context, device.DeviceID, time.Time, time.Duration, time.Duration) (device.Command, error))
 	UnregisterContinuous(outputowner.Owner)
 }
 
@@ -58,6 +60,7 @@ type RunEvent struct {
 }
 
 type activeScene struct {
+	auditOrigin   audit.Origin
 	mu            sync.Mutex
 	run           store.ActiveSceneRun
 	definition    store.SceneDefinition
@@ -73,6 +76,7 @@ type activeScene struct {
 
 // Runner owns Scene application, drift, dynamic rendering, and persistence.
 type Runner struct {
+	audit     audit.RunRecorder
 	bus       eventbus.EventBus
 	store     RunnerStore
 	resolver  device.TargetResolver
@@ -124,7 +128,7 @@ func NewRunner(
 }
 
 // Apply resolves and starts one fresh Scene run.
-func (r *Runner) Apply(ctx context.Context, sceneID string) (store.Scene, error) {
+func (r *Runner) Apply(ctx context.Context, sceneID string) (result store.Scene, returnErr error) {
 	r.lifecycle.Lock()
 	defer r.lifecycle.Unlock()
 	storedScene, err := r.store.GetScene(ctx, sceneID)
@@ -139,11 +143,32 @@ func (r *Runner) Apply(ctx context.Context, sceneID string) (store.Scene, error)
 	}
 	startedAt := r.now().UTC()
 	runID := uuid.NewString()
+	if r.audit != nil {
+		proposal, err := json.Marshal(struct {
+			SceneID    string                `json:"sceneId"`
+			Definition store.SceneDefinition `json:"definition"`
+		}{sceneID, storedScene.Definition})
+		if err != nil {
+			return store.Scene{}, err
+		}
+		ctx, err = r.audit.BeginAudit(audit.RunContext(ctx, "scene", runID), "sceneRun", string(proposal))
+		if err != nil {
+			return store.Scene{}, err
+		}
+		defer func() {
+			if returnErr != nil {
+				if err := r.audit.FinishAudit(context.WithoutCancel(ctx), "failed"); err != nil {
+					returnErr = err
+				}
+			}
+		}()
+	}
 	plan, err := BuildApplyPlan(ctx, r.resolver, r.reader, r.positions, runID, storedScene.Definition, startedAt)
 	if err != nil {
 		return store.Scene{}, err
 	}
 	active := r.newActive(storedScene, runID, startedAt, plan)
+	active.auditOrigin = audit.FromContext(ctx)
 	if len(active.run.Members) == 0 {
 		return store.Scene{}, errors.New("Scene resolves to no controllable devices")
 	}
@@ -233,41 +258,69 @@ func (r *Runner) Hydrate(ctx context.Context) error {
 		return err
 	}
 	for _, run := range runs {
-		storedScene, err := r.store.GetScene(ctx, run.SceneID)
+		runCtx := ctx
+		if r.audit != nil {
+			var err error
+			runCtx, err = r.audit.BeginAudit(audit.RunContext(ctx, "scene", run.RunID), "sceneRun", "{}")
+			if err != nil {
+				return err
+			}
+		}
+
+		storedScene, err := r.store.GetScene(runCtx, run.SceneID)
 		if err != nil || !storedScene.UpdatedAt.Equal(run.DefinitionUpdatedAt) {
-			_, _ = r.store.StopActiveSceneRun(ctx, run.SceneID)
+			if err := r.discardHydratedRun(runCtx, run.SceneID); err != nil {
+				return err
+			}
 			continue
 		}
-		if err := r.validateDefinition(ctx, storedScene.Definition); err != nil {
-			_, _ = r.store.StopActiveSceneRun(ctx, run.SceneID)
+		if err := r.validateDefinition(runCtx, storedScene.Definition); err != nil {
+			if err := r.discardHydratedRun(runCtx, run.SceneID); err != nil {
+				return err
+			}
 			continue
 		}
-		plan, err := BuildApplyPlan(ctx, r.resolver, r.reader, r.positions, run.RunID, storedScene.Definition, r.now().UTC())
+		plan, err := BuildApplyPlan(runCtx, r.resolver, r.reader, r.positions, run.RunID, storedScene.Definition, r.now().UTC())
 		if err != nil {
-			_, _ = r.store.StopActiveSceneRun(ctx, run.SceneID)
+			if err := r.discardHydratedRun(runCtx, run.SceneID); err != nil {
+				return err
+			}
 			continue
 		}
 		active := r.newActive(storedScene, run.RunID, run.StartedAt, plan)
+		active.auditOrigin = audit.FromContext(runCtx)
 		if len(active.run.Members) == 0 {
-			_, _ = r.store.StopActiveSceneRun(ctx, run.SceneID)
+			if err := r.discardHydratedRun(runCtx, run.SceneID); err != nil {
+				return err
+			}
 			continue
 		}
-		if err := r.store.StartActiveSceneRun(ctx, active.run); err != nil {
+		if err := r.store.StartActiveSceneRun(runCtx, active.run); err != nil {
 			return err
 		}
 		r.register(active)
 		r.acquireDynamic(active)
-		if err := dispatchPlan(ctx, r.commander, r.bus, storedScene.Definition, plan); err != nil {
-			_ = r.deactivate(ctx, run.SceneID)
+		if err := dispatchPlan(runCtx, r.commander, r.bus, storedScene.Definition, plan); err != nil {
+			_ = r.deactivate(runCtx, run.SceneID)
 			continue
 		}
-		if err := r.startEffects(ctx, active, plan.EffectRuns); err != nil {
-			_ = r.deactivate(ctx, run.SceneID)
+		if err := r.startEffects(runCtx, active, plan.EffectRuns); err != nil {
+			_ = r.deactivate(runCtx, run.SceneID)
 			continue
 		}
 		if dynamic := storedScene.Definition.Lighting.Dynamic; dynamic != nil && dynamic.Movement > 0 {
 			r.startContinuous(active)
 		}
+	}
+	return nil
+}
+
+func (r *Runner) discardHydratedRun(ctx context.Context, sceneID string) error {
+	if _, err := r.store.StopActiveSceneRun(ctx, sceneID); err != nil {
+		return err
+	}
+	if r.audit != nil {
+		return r.audit.FinishAudit(ctx, "interrupted")
 	}
 	return nil
 }
@@ -493,7 +546,7 @@ func (r *Runner) startContinuous(active *activeScene) {
 	}
 	active.mu.Unlock()
 	owner := sceneOwner(active.run.RunID)
-	controller.RegisterContinuous(owner, ids, func(ctx context.Context, id device.DeviceID, at time.Time, revisit, transition time.Duration) (device.Command, error) {
+	controller.RegisterContinuous(audit.WithOrigin(context.Background(), active.auditOrigin), owner, ids, func(ctx context.Context, id device.DeviceID, at time.Time, revisit, transition time.Duration) (device.Command, error) {
 		return r.sampleContinuous(ctx, active, id, at, revisit, transition)
 	})
 }
@@ -870,6 +923,13 @@ func (r *Runner) publishActivated(active *activeScene) {
 }
 
 func (r *Runner) publishDeactivated(active *activeScene) {
+	if r.audit != nil {
+		ctx := audit.RunContext(audit.WithOrigin(context.Background(), active.auditOrigin), "scene", active.run.RunID)
+		if err := r.audit.FinishAudit(ctx, "stopped"); err != nil {
+			logger.Error("Scene audit completion failed", "error", err)
+		}
+	}
+
 	r.bus.Publish(eventbus.Event{Type: eventbus.EventSceneDeactivated, Timestamp: r.now(), Payload: RunEvent{SceneID: active.run.SceneID, RunID: active.run.RunID}})
 }
 
@@ -905,3 +965,5 @@ func stringCompare(left, right string) int {
 	}
 	return 0
 }
+
+func (r *Runner) SetAudit(recorder audit.RunRecorder) { r.audit = recorder }

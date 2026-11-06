@@ -31,20 +31,24 @@ func (s *DB) ListSettings(ctx context.Context) ([]Setting, error) {
 
 // UpsertSetting inserts or updates a setting.
 func (s *DB) UpsertSetting(ctx context.Context, key, value string) error {
-	if err := s.q.UpsertSetting(ctx, sqlite.UpsertSettingParams{Key: key, Value: value}); err != nil {
-		return fmt.Errorf("upsert setting %q: %w", key, err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.UpsertSetting(ctx, sqlite.UpsertSettingParams{Key: key, Value: value}); err != nil {
+			return fmt.Errorf("upsert setting %q: %w", key, err)
+		}
+		return nil
+	})
 }
 
 // UpdateSetting saves a user preference only when its loaded revision is current.
 func (s *DB) UpdateSetting(ctx context.Context, key, value string, expectedRevision int64) (Setting, error) {
-	n, err := s.q.UpdateSetting(ctx, sqlite.UpdateSettingParams{Key: key, Value: value, ExpectedRevision: expectedRevision})
-	if err != nil {
-		return Setting{}, err
-	}
-	if n != 1 {
-		return Setting{}, ErrRevisionConflict
-	}
-	return Setting{Key: key, Value: value, Revision: expectedRevision + 1}, nil
+	return writeTx(s, ctx, func(s *DB) (Setting, error) {
+		n, err := s.q.UpdateSetting(ctx, sqlite.UpdateSettingParams{Key: key, Value: value, ExpectedRevision: expectedRevision})
+		if err != nil {
+			return Setting{}, err
+		}
+		if n != 1 {
+			return Setting{}, ErrRevisionConflict
+		}
+		return Setting{Key: key, Value: value, Revision: expectedRevision + 1}, nil
+	})
 }

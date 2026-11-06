@@ -2994,6 +2994,13 @@ func (r *queryResolver) Activity(ctx context.Context, filter *model.ActivityFilt
 		if lim, ok := filter.Limit.ValueOK(); ok && lim != nil && *lim > 0 {
 			q.Limit = *lim
 		}
+		if after, ok := filter.After.ValueOK(); ok && after != nil && *after != "" {
+			n, err := strconv.ParseInt(*after, 10, 64)
+			if err != nil || n < 0 {
+				return nil, fmt.Errorf("invalid after cursor")
+			}
+			q.After = &n
+		}
 		if before, ok := filter.Before.ValueOK(); ok && before != nil && *before != "" {
 			n, err := strconv.ParseInt(*before, 10, 64)
 			if err != nil {
@@ -3317,6 +3324,27 @@ func (r *queryResolver) NativeEffectSupport(ctx context.Context, name string) ([
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].DeviceID < out[j].DeviceID })
 	return out, nil
+}
+
+// Audit is the resolver for the audit field.
+func (r *queryResolver) Audit(ctx context.Context, filter *model.AuditFilter, before *string, limit *int) (*model.AuditPage, error) {
+	f, err := r.auditFilter(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	f.Before, err = auditSequence(before)
+	if err != nil {
+		return nil, err
+	}
+	if limit != nil {
+		f.Limit = *limit
+	}
+	return r.auditPage(ctx, f)
+}
+
+// ObserveEvents is the resolver for the observeEvents field.
+func (r *queryResolver) ObserveEvents(ctx context.Context, stream model.ObservationStream, after *string, auditFilter *model.AuditFilter, activityFilter *model.ActivityFilter, search *string, waitSeconds *int, limit *int) (*model.ObservationResult, error) {
+	return r.observe(ctx, stream, after, auditFilter, activityFilter, search, waitSeconds, limit)
 }
 
 // DeviceStateChanged is the resolver for the deviceStateChanged field.
@@ -4001,6 +4029,11 @@ func (r *subscriptionResolver) NetworkTopologyUpdated(ctx context.Context, provi
 	}()
 
 	return out, nil
+}
+
+// AuditStream is the resolver for the auditStream field.
+func (r *subscriptionResolver) AuditStream(ctx context.Context, filter *model.AuditFilter, after string) (<-chan *model.AuditPage, error) {
+	return r.streamAudit(ctx, filter, after)
 }
 
 // Documentation is the resolver for the documentation field.

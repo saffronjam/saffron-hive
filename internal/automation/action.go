@@ -62,11 +62,6 @@ type ActionExecutor struct {
 	commander  device.TargetCommander
 	configurer device.ConfigurationCommander
 
-	// baseCtx scopes every side-effect initiated by an action. Set by
-	// SetBaseContext at engine startup so shutdown cancels in-flight
-	// resolver lookups, scene expansions, and alarm service calls.
-	baseCtx context.Context
-
 	// stateMatchSkips counts how many commands were suppressed because the
 	// device already matched the desired state (loop-prevention mechanism
 	// #1). Exposed to operators via engine.Stats().
@@ -84,7 +79,6 @@ func NewActionExecutor(bus eventbus.Publisher, reader device.StateReader, s auto
 		alarms:   alarmSvc,
 		runner:   runner,
 		scenes:   scenes,
-		baseCtx:  context.Background(),
 	}
 	if commander, ok := resolver.(device.TargetCommander); ok {
 		executor.commander = commander
@@ -95,7 +89,7 @@ func NewActionExecutor(bus eventbus.Publisher, reader device.StateReader, s auto
 	return executor
 }
 
-func (a *ActionExecutor) executeTargetState(cfg ActionConfig, targetType device.TargetType, memberIDs []device.DeviceID) {
+func (a *ActionExecutor) executeTargetState(ctx context.Context, cfg ActionConfig, targetType device.TargetType, memberIDs []device.DeviceID) {
 	var desired map[string]any
 	if err := json.Unmarshal([]byte(cfg.Payload), &desired); err != nil {
 		logger.Error("invalid action payload", "target_id", cfg.TargetID, "error", err)
@@ -117,7 +111,7 @@ func (a *ActionExecutor) executeTargetState(cfg ActionConfig, targetType device.
 	}
 	cmd := buildCommand("", desired)
 	cmd.Origin = device.OriginAutomation(cfg.AutomationID)
-	if err := a.commander.CommandTarget(a.baseCtx, device.TargetCommand{
+	if err := a.commander.CommandTarget(ctx, device.TargetCommand{
 		TargetType: targetType,
 		TargetID:   cfg.TargetID,
 		State:      cmd,
@@ -126,16 +120,10 @@ func (a *ActionExecutor) executeTargetState(cfg ActionConfig, targetType device.
 	}
 }
 
-// SetBaseContext attaches a context whose cancellation propagates into every
-// downstream lookup and service call the executor initiates.
-func (a *ActionExecutor) SetBaseContext(ctx context.Context) {
-	a.baseCtx = ctx
-}
-
 // ExecuteGraphAction processes a graph-based action config. For
 // set_device_state, it compares desired state with current state and skips
 // no-ops. For activate_scene, it expands the scene into individual commands.
-func (a *ActionExecutor) ExecuteGraphAction(cfg ActionConfig) {
+func (a *ActionExecutor) ExecuteGraphAction(ctx context.Context, cfg ActionConfig) {
 	switch cfg.ActionType {
 	case ActionSetDeviceState:
 		if cfg.TargetID == "" {
@@ -169,7 +157,7 @@ func (a *ActionExecutor) ExecuteGraphAction(cfg ActionConfig) {
 
 		cmd := buildCommand(deviceID, desired)
 		cmd.Origin = device.OriginAutomation(cfg.AutomationID)
-		a.dispatchCommand(cmd)
+		a.dispatchCommand(ctx, cmd)
 	case ActionToggleDeviceState:
 		if cfg.TargetID == "" {
 			return
@@ -188,26 +176,26 @@ func (a *ActionExecutor) ExecuteGraphAction(cfg ActionConfig) {
 		}
 		cmd := buildCommand(deviceID, desired)
 		cmd.Origin = device.OriginAutomation(cfg.AutomationID)
-		a.dispatchCommand(cmd)
+		a.dispatchCommand(ctx, cmd)
 	case ActionChangeValue:
-		a.executeChangeValue(cfg)
+		a.executeChangeValue(ctx, cfg)
 	case ActionConfigureDevice:
-		a.executeConfigureDevice(cfg)
+		a.executeConfigureDevice(ctx, cfg)
 	case ActionActivateScene:
 		var payload activateScenePayload
 		if err := json.Unmarshal([]byte(cfg.Payload), &payload); err != nil {
 			logger.Error("invalid activate_scene payload", "automation_id", cfg.AutomationID, "node_id", cfg.NodeID, "error", err)
 			return
 		}
-		a.executeActivateScene(payload.SceneID)
+		a.executeActivateScene(ctx, payload.SceneID)
 	case ActionCycleScenes:
-		a.executeCycleScenes(cfg)
+		a.executeCycleScenes(ctx, cfg)
 	case ActionRaiseAlarm:
-		a.executeRaiseAlarm(cfg)
+		a.executeRaiseAlarm(ctx, cfg)
 	case ActionClearAlarm:
-		a.executeClearAlarm(cfg)
+		a.executeClearAlarm(ctx, cfg)
 	case ActionRunEffect:
-		a.executeRunEffect(cfg)
+		a.executeRunEffect(ctx, cfg)
 	}
 }
 
@@ -215,7 +203,7 @@ type configureDevicePayload struct {
 	Settings []device.AttributeValue `json:"settings"`
 }
 
-func (a *ActionExecutor) executeConfigureDevice(cfg ActionConfig) {
+func (a *ActionExecutor) executeConfigureDevice(ctx context.Context, cfg ActionConfig) {
 	if cfg.TargetType != TargetDevice || cfg.TargetID == "" {
 		return
 	}
@@ -247,7 +235,7 @@ func (a *ActionExecutor) executeConfigureDevice(cfg ActionConfig) {
 		Origin:   device.OriginAutomation(cfg.AutomationID),
 	}
 	if a.configurer != nil {
-		if err := a.configurer.CommandConfiguration(a.baseCtx, request); err != nil {
+		if err := a.configurer.CommandConfiguration(ctx, request); err != nil {
 			logger.Warn("configure_device dispatch failed", "device_id", id, "automation_id", cfg.AutomationID, "error", err)
 		}
 		return
@@ -315,7 +303,7 @@ func numericFieldByCap(name string) (numericFieldDef, bool) {
 // other value) takes Delta as raw units. The resulting value is clamped to
 // the capability's range and dispatched as an absolute set command, so loop
 // prevention via stateMatches still applies.
-func (a *ActionExecutor) executeChangeValue(cfg ActionConfig) {
+func (a *ActionExecutor) executeChangeValue(ctx context.Context, cfg ActionConfig) {
 	if cfg.TargetID == "" {
 		return
 	}
@@ -405,14 +393,14 @@ func (a *ActionExecutor) executeChangeValue(cfg ActionConfig) {
 
 	cmd := buildCommand(deviceID, desired)
 	cmd.Origin = device.OriginAutomation(cfg.AutomationID)
-	a.dispatchCommand(cmd)
+	a.dispatchCommand(ctx, cmd)
 }
 
-func (a *ActionExecutor) dispatchCommand(command device.Command) {
+func (a *ActionExecutor) dispatchCommand(ctx context.Context, command device.Command) {
 	if a.commander != nil {
 		id := command.DeviceID
 		command.DeviceID = ""
-		if err := a.commander.CommandTarget(a.baseCtx, device.TargetCommand{
+		if err := a.commander.CommandTarget(ctx, device.TargetCommand{
 			TargetType: device.TargetDevice,
 			TargetID:   string(id),
 			State:      command,
@@ -434,7 +422,7 @@ type runEffectPayload struct {
 	NativeName string `json:"native_name"`
 }
 
-func (a *ActionExecutor) executeRunEffect(cfg ActionConfig) {
+func (a *ActionExecutor) executeRunEffect(ctx context.Context, cfg ActionConfig) {
 	if a.runner == nil {
 		logger.Error("run_effect action with no effect runner configured",
 			"automation_id", cfg.AutomationID)
@@ -457,7 +445,7 @@ func (a *ActionExecutor) executeRunEffect(cfg ActionConfig) {
 	targetType := device.TargetType(cfg.TargetType)
 	var targets []effect.Target
 	if targetType == device.TargetExpression {
-		for _, id := range device.EvaluateExpression(a.baseCtx, a.reader, a.resolver, cfg.TargetExpr) {
+		for _, id := range device.EvaluateExpression(ctx, a.reader, a.resolver, cfg.TargetExpr) {
 			targets = append(targets, effect.Target{Type: device.TargetDevice, ID: string(id)})
 		}
 	} else {
@@ -479,9 +467,9 @@ func (a *ActionExecutor) executeRunEffect(cfg ActionConfig) {
 	for _, target := range targets {
 		var err error
 		if hasNative {
-			_, err = a.runner.StartNative(a.baseCtx, p.NativeName, target)
+			_, err = a.runner.StartNative(ctx, p.NativeName, target)
 		} else {
-			_, err = a.runner.Start(a.baseCtx, p.EffectID, target)
+			_, err = a.runner.Start(ctx, p.EffectID, target)
 		}
 		if err != nil {
 			logger.Error("run_effect start failed",
@@ -506,7 +494,7 @@ type clearAlarmPayload struct {
 	AlarmID string `json:"alarm_id"`
 }
 
-func (a *ActionExecutor) executeRaiseAlarm(cfg ActionConfig) {
+func (a *ActionExecutor) executeRaiseAlarm(ctx context.Context, cfg ActionConfig) {
 	if a.alarms == nil {
 		logger.Error("raise_alarm action with no alarm service configured")
 		return
@@ -520,7 +508,7 @@ func (a *ActionExecutor) executeRaiseAlarm(cfg ActionConfig) {
 	if cfg.AutomationID != "" {
 		source = fmt.Sprintf("automation.%s", cfg.AutomationID)
 	}
-	_, err := a.alarms.Raise(a.baseCtx, alarms.RaiseParams{
+	_, err := a.alarms.Raise(ctx, alarms.RaiseParams{
 		AlarmID:  p.AlarmID,
 		Severity: store.AlarmSeverity(p.Severity),
 		Kind:     store.AlarmKind(p.Kind),
@@ -532,7 +520,7 @@ func (a *ActionExecutor) executeRaiseAlarm(cfg ActionConfig) {
 	}
 }
 
-func (a *ActionExecutor) executeClearAlarm(cfg ActionConfig) {
+func (a *ActionExecutor) executeClearAlarm(ctx context.Context, cfg ActionConfig) {
 	if a.alarms == nil {
 		logger.Error("clear_alarm action with no alarm service configured")
 		return
@@ -542,7 +530,7 @@ func (a *ActionExecutor) executeClearAlarm(cfg ActionConfig) {
 		logger.Error("invalid clear_alarm payload", "error", err)
 		return
 	}
-	if _, err := a.alarms.DeleteByAlarmID(a.baseCtx, p.AlarmID); err != nil {
+	if _, err := a.alarms.DeleteByAlarmID(ctx, p.AlarmID); err != nil {
 		logger.Error("clear_alarm failed", "alarm_id", p.AlarmID, "error", err)
 	}
 }
@@ -769,12 +757,12 @@ type activateScenePayload struct {
 	SceneID string `json:"scene_id"`
 }
 
-func (a *ActionExecutor) executeActivateScene(sceneID string) {
+func (a *ActionExecutor) executeActivateScene(ctx context.Context, sceneID string) {
 	if a.scenes == nil {
 		logger.Error("Scene runner unavailable", "scene_id", sceneID)
 		return
 	}
-	if _, err := a.scenes.Apply(a.baseCtx, sceneID); err != nil {
+	if _, err := a.scenes.Apply(ctx, sceneID); err != nil {
 		logger.Error("Scene activation failed", "scene_id", sceneID, "error", err)
 	}
 }
@@ -788,7 +776,7 @@ type cycleScenesPayload struct {
 // the index counts positions in the filtered list. If every referenced scene
 // has been deleted the action is a no-op. Persists the next index back to
 // automation_node_state under cycleIndexStateKey.
-func (a *ActionExecutor) executeCycleScenes(cfg ActionConfig) {
+func (a *ActionExecutor) executeCycleScenes(ctx context.Context, cfg ActionConfig) {
 	var p cycleScenesPayload
 	if err := json.Unmarshal([]byte(cfg.Payload), &p); err != nil {
 		logger.Error("invalid cycle_scenes payload", "automation_id", cfg.AutomationID, "node_id", cfg.NodeID, "error", err)
@@ -798,7 +786,6 @@ func (a *ActionExecutor) executeCycleScenes(cfg ActionConfig) {
 		return
 	}
 
-	ctx := a.baseCtx
 	valid := make([]string, 0, len(p.Scenes))
 	for _, sid := range p.Scenes {
 		if _, err := a.store.GetScene(ctx, sid); err == nil {
@@ -820,7 +807,7 @@ func (a *ActionExecutor) executeCycleScenes(cfg ActionConfig) {
 		idx = 0
 	}
 
-	a.executeActivateScene(valid[idx])
+	a.executeActivateScene(ctx, valid[idx])
 
 	next := (idx + 1) % len(valid)
 	nextRaw, _ := json.Marshal(next)

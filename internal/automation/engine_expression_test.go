@@ -22,7 +22,7 @@ func TestExecuteActionExpressionTargetFiltersByType(t *testing.T) {
 	ch := bus.Subscribe(eventbus.EventCommandRequested)
 	defer bus.Unsubscribe(ch)
 
-	engine.executeAction(Node{
+	engine.executeAction(t.Context(), Node{
 		ID:   "action-1",
 		Type: NodeAction,
 		Config: ActionConfig{

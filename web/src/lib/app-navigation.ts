@@ -67,6 +67,7 @@ export function navigationGroups(): NavGroup[] {
       label: m.nav_monitoring({}, options),
       items: [
         { href: "/activity", label: m.nav_activity({}, options), icon: Activity },
+        { href: "/audit", label: m.nav_audit({}, options), icon: ScrollText },
         { href: "/alarms", label: m.nav_alarms({}, options), icon: BellRing },
         {
           href: "/maintenance",

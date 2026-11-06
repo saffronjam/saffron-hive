@@ -203,6 +203,7 @@ type GraphStore interface {
 	// State history, activity, settings, integrations, users
 	QueryStateHistory(ctx context.Context, query store.StateHistoryQuery) ([]store.StateHistoryPoint, error)
 	QueryActivityEvents(ctx context.Context, query store.ActivityQuery) ([]store.ActivityEvent, error)
+	ActivityBounds(context.Context) (int64, int64, error)
 	PruneActivityEventsOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
 	GetZigbee2MQTTConfig(ctx context.Context) (*store.Zigbee2MQTTConfig, error)
 	UpsertZigbee2MQTTConfig(ctx context.Context, cfg store.Zigbee2MQTTConfig) error
@@ -255,6 +256,7 @@ type ZigbeeDeviceDocumentationResolver interface {
 // Resolver is the root resolver that holds all dependencies required by the
 // GraphQL query, mutation, and subscription resolvers.
 type Resolver struct {
+	Audit               AuditStore
 	Assistant           *assistant.Service
 	ApplicationChanges  *pubsub.Fanout[int]
 	ApplicationRevision atomic.Int64

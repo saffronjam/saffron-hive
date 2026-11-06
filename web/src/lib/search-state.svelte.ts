@@ -4,7 +4,7 @@ import { emptySearchState, type SearchState } from "$lib/components/hive-searchb
 
 export interface UrlSearchState {
   readonly value: SearchState;
-  set(next: SearchState): void;
+  set(next: SearchState, options?: { replaceState?: boolean }): void;
 }
 
 export interface UrlSearchStateOptions {
@@ -75,13 +75,13 @@ export function createUrlSearchState(options: UrlSearchStateOptions): UrlSearchS
     get value() {
       return value;
     },
-    set(next: SearchState) {
+    set(next: SearchState, { replaceState = true } = {}) {
       const owned = copySearchState(next);
       value = owned;
       currentKey = searchStateKey(owned);
       if (!options.active()) return;
       void goto(urlWithSearchState(page.url, owned), {
-        replaceState: true,
+        replaceState,
         keepFocus: true,
         noScroll: true,
       });

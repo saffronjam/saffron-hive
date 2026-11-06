@@ -40,7 +40,7 @@ func TestRaiseAlarmActionDoesNotResolveTargets(t *testing.T) {
 	defer bus.Unsubscribe(ch)
 
 	executor := NewActionExecutor(bus, reader, s, s, alarm, nil, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType:   ActionRaiseAlarm,
 		Payload:      `{"alarm_id":"humidity.high","severity":"high","kind":"auto","message":"bathroom humid"}`,
 		AutomationID: "auto-123",
@@ -76,7 +76,7 @@ func TestClearAlarmActionDelegates(t *testing.T) {
 	alarm := &recordingAlarmSvc{}
 
 	executor := NewActionExecutor(bus, reader, s, s, alarm, nil, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionClearAlarm,
 		Payload:    `{"alarm_id":"humidity.high"}`,
 	})
@@ -95,11 +95,11 @@ func TestAlarmActionMalformedPayloadDoesNotCrash(t *testing.T) {
 	alarm := &recordingAlarmSvc{}
 
 	executor := NewActionExecutor(bus, reader, s, s, alarm, nil, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionRaiseAlarm,
 		Payload:    `not-json`,
 	})
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionClearAlarm,
 		Payload:    `not-json`,
 	})

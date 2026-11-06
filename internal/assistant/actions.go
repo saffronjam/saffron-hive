@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/saffronjam/saffron-hive/internal/audit"
 	"slices"
 	"time"
 
@@ -33,7 +34,34 @@ func (s *Service) toolAccess(ctx context.Context, p auth.Principal, conversation
 	return c, nil
 }
 
-func (s *Service) act(ctx context.Context, p auth.Principal, conversationID, runID string, op Operation, force bool) (string, error) {
+func (s *Service) act(ctx context.Context, p auth.Principal, conversationID, runID string, op Operation, force bool) (resultText string, returnErr error) {
+	auditStatus := "succeeded"
+	actionID := uuid.NewString()
+	if s.audit != nil {
+		actorName := p.Name
+		if actorName == "" {
+			actorName = p.Username
+		}
+		if actorName == "" {
+			actorName = p.ID
+		}
+		owner := p.ID
+		ctx = audit.WithOrigin(ctx, audit.Origin{ActorID: p.ID, ActorName: actorName, Source: "assistant", OwnerID: &owner, ConversationID: &conversationID, RunID: &runID, ActionID: &actionID})
+		var err error
+		ctx, err = s.audit.BeginAudit(ctx, op.Field, string(audit.Sanitize(op.Arguments)))
+		if err != nil {
+			return "", err
+		}
+		op.AuditID = audit.FromContext(ctx).OperationID
+		defer func() {
+			if returnErr != nil {
+				auditStatus = "failed"
+			}
+			if err := s.audit.FinishAudit(context.WithoutCancel(ctx), auditStatus); err != nil {
+				returnErr = err
+			}
+		}()
+	}
 	c, err := s.toolAccess(ctx, p, conversationID, runID, true)
 	if err != nil {
 		return "", err
@@ -58,7 +86,7 @@ func (s *Service) act(ctx context.Context, p auth.Principal, conversationID, run
 			return actionResponse(a), nil
 		}
 	}
-	action := Action{ID: uuid.NewString(), RunID: runID, Status: Executing, Title: assessment.Title, Description: assessment.Description, ButtonLabel: assessment.ButtonLabel, Targets: assessment.Targets, Inputs: assessment.Inputs, NeedsConfirmation: assessment.NeedsConfirmation, Operation: op, Fingerprint: assessment.Fingerprint, CreatedAt: timestamp(), Destructive: assessment.Destructive}
+	action := Action{ID: actionID, RunID: runID, Status: Executing, Title: assessment.Title, Description: assessment.Description, ButtonLabel: assessment.ButtonLabel, Targets: assessment.Targets, Inputs: assessment.Inputs, NeedsConfirmation: assessment.NeedsConfirmation, Operation: op, Fingerprint: assessment.Fingerprint, CreatedAt: timestamp(), Destructive: assessment.Destructive}
 	if assessment.NeedsConfirmation {
 		action.Status = Pending
 	}
@@ -81,6 +109,7 @@ func (s *Service) act(ctx context.Context, p auth.Principal, conversationID, run
 		return "", err
 	}
 	if action.Status != Executing {
+		auditStatus = "pending"
 		return actionResponse(action), nil
 	}
 	s.activity(ctx, p, conversationID, runID, op.Field)
@@ -225,8 +254,33 @@ func (s *Service) Respond(ctx context.Context, id, actionID string, approve, ack
 	if !claimed {
 		return s.Get(ctx, id)
 	}
+	if s.audit != nil && a.Operation.AuditID != "" {
+		actorName := p.Name
+		if actorName == "" {
+			actorName = p.Username
+		}
+		if actorName == "" {
+			actorName = p.ID
+		}
+		owner := p.ID
+		ctx = audit.WithOrigin(ctx, audit.Origin{OperationID: a.Operation.AuditID, ActorID: p.ID, ActorName: actorName, Source: "assistant", OwnerID: &owner, ConversationID: &id, RunID: &a.RunID, ActionID: &actionID})
+	}
+	if !approve && s.audit != nil {
+		if err := s.audit.FinishAudit(ctx, "rejected"); err != nil {
+			return nil, err
+		}
+	}
 	if approve {
 		result, execErr := s.gateway.Execute(ctx, a.Operation, values)
+		if s.audit != nil {
+			status := "succeeded"
+			if execErr != nil {
+				status = "failed"
+			}
+			if err := s.audit.FinishAudit(context.WithoutCancel(ctx), status); err != nil {
+				return nil, err
+			}
+		}
 		if err := s.recordAction(context.WithoutCancel(ctx), p, id, actionID, result, execErr); err != nil {
 			return nil, err
 		}

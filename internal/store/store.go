@@ -699,6 +699,7 @@ type InsertActivityEventParams struct {
 // automation.node_activated) are excluded. Before is an exclusive cursor
 // (id < Before) used for keyset pagination when scrolling into history.
 type ActivityQuery struct {
+	After    *int64
 	Types    []string
 	DeviceID *string
 	RoomID   *string

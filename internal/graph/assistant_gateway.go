@@ -99,18 +99,24 @@ func assistantReadable(field string) bool {
 
 func rootFields(doc *ast.QueryDocument, set ast.SelectionSet) []*ast.Field {
 	var out []*ast.Field
-	for _, sel := range set {
-		switch v := sel.(type) {
-		case *ast.Field:
-			out = append(out, v)
-		case *ast.InlineFragment:
-			out = append(out, rootFields(doc, v.SelectionSet)...)
-		case *ast.FragmentSpread:
-			if f := doc.Fragments.ForName(v.Name); f != nil {
-				out = append(out, rootFields(doc, f.SelectionSet)...)
+	seen := map[string]bool{}
+	var visit func(ast.SelectionSet)
+	visit = func(selections ast.SelectionSet) {
+		for _, sel := range selections {
+			switch v := sel.(type) {
+			case *ast.Field:
+				out = append(out, v)
+			case *ast.InlineFragment:
+				visit(v.SelectionSet)
+			case *ast.FragmentSpread:
+				if f := doc.Fragments.ForName(v.Name); f != nil && !seen[v.Name] {
+					seen[v.Name] = true
+					visit(f.SelectionSet)
+				}
 			}
 		}
 	}
+	visit(set)
 	return out
 }
 

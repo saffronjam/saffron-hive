@@ -12,10 +12,17 @@ import (
 )
 
 type Querier interface {
+	ActivityBounds(ctx context.Context) (ActivityBoundsRow, error)
 	AddGroupMember(ctx context.Context, arg AddGroupMemberParams) error
 	AddGroupMemberIfMissing(ctx context.Context, arg AddGroupMemberIfMissingParams) (int64, error)
 	AddRoomMember(ctx context.Context, arg AddRoomMemberParams) error
 	AddRoomMemberIfMissing(ctx context.Context, arg AddRoomMemberIfMissingParams) (int64, error)
+	AppendAuditEvent(ctx context.Context, arg AppendAuditEventParams) error
+	AuditEvents(ctx context.Context, arg AuditEventsParams) ([]AuditEventsRow, error)
+	AuditFloor(ctx context.Context) (int64, error)
+	AuditHighWater(ctx context.Context) (int64, error)
+	AuditRunTargets(ctx context.Context, operationID string) ([]AuditRunTarget, error)
+	AuditSnapshot(ctx context.Context, arg AuditSnapshotParams) (string, error)
 	BatchDeleteAlarmsByAlarmIDs(ctx context.Context, alarmIdsJson string) (int64, error)
 	BatchDeleteAutomations(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteEffects(ctx context.Context, idsJson string) (int64, error)
@@ -25,6 +32,7 @@ type Querier interface {
 	BatchDeleteScenes(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteUsers(ctx context.Context, idsJson string) (int64, error)
 	BatchDeleteWebhookEndpoints(ctx context.Context, idsJson string) (int64, error)
+	BeginAuditOperation(ctx context.Context, arg BeginAuditOperationParams) (int64, error)
 	// Invalidates every JWT previously issued for this user by incrementing the
 	// token_version column. The auth middleware refuses tokens whose embedded
 	// version no longer matches the row, so existing sessions are revoked the
@@ -55,6 +63,8 @@ type Querier interface {
 	// flow: only rows where the flag is currently set will be updated.
 	CompleteFirstPasswordChange(ctx context.Context, arg CompleteFirstPasswordChangeParams) (int64, error)
 	CountAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error)
+	CountAuditCommittedChanges(ctx context.Context, operationID *string) (int64, error)
+	CountAuditSharedEvents(ctx context.Context, operationID *string) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
 	CountWebhookDeliveriesSince(ctx context.Context, arg CountWebhookDeliveriesSinceParams) (int64, error)
 	CreateAssistantAttachment(ctx context.Context, arg CreateAssistantAttachmentParams) error
@@ -144,11 +154,13 @@ type Querier interface {
 	DeleteWebhookEndpoint(ctx context.Context, id string) error
 	DeleteZigbee2MQTTConfig(ctx context.Context) error
 	DeleteZigbeeDeviceMetadata(ctx context.Context, deviceID device.DeviceID) error
+	FinishAuditOperation(ctx context.Context, arg FinishAuditOperationParams) (int64, error)
 	GetActiveGuestByID(ctx context.Context, arg GetActiveGuestByIDParams) (Guest, error)
 	GetActiveGuestByNormalizedName(ctx context.Context, arg GetActiveGuestByNormalizedNameParams) (Guest, error)
 	GetActiveSceneRun(ctx context.Context, sceneID string) (ActiveSceneRun, error)
 	GetAssistantAttachment(ctx context.Context, arg GetAssistantAttachmentParams) (AssistantAttachment, error)
 	GetAssistantConversation(ctx context.Context, arg GetAssistantConversationParams) (AssistantConversation, error)
+	GetAuditOrigin(ctx context.Context, id string) (AuditOperation, error)
 	GetAutomation(ctx context.Context, id string) (GetAutomationRow, error)
 	// Per-node runtime state for stateful automation nodes (e.g. cycle_scenes
 	// index). Generic key/value JSON store keyed by (automation_id, node_id, key).
@@ -186,6 +198,7 @@ type Querier interface {
 	GetZigbee2MQTTConfig(ctx context.Context) (GetZigbee2MQTTConfigRow, error)
 	GetZigbeeDeviceMetadata(ctx context.Context, deviceID device.DeviceID) (ZigbeeDeviceMetadatum, error)
 	HasWebhookRateLimitDeliverySince(ctx context.Context, arg HasWebhookRateLimitDeliverySinceParams) (bool, error)
+	IdentifyAuditActor(ctx context.Context, arg IdentifyAuditActorParams) error
 	InsertActiveSceneMember(ctx context.Context, arg InsertActiveSceneMemberParams) error
 	// Activity event persistence. QueryActivityEvents is the only query in the
 	// codebase with fully-dynamic filters, so it uses every gate trick we have:
@@ -214,6 +227,7 @@ type Querier interface {
 	InsertSceneTarget(ctx context.Context, arg InsertSceneTargetParams) error
 	InsertStateSample(ctx context.Context, arg InsertStateSampleParams) (int64, error)
 	InsertWebhookDelivery(ctx context.Context, arg InsertWebhookDeliveryParams) error
+	InterruptedAuditOperations(ctx context.Context) ([]AuditOperation, error)
 	LatestStateSample(ctx context.Context, arg LatestStateSampleParams) (LatestStateSampleRow, error)
 	ListActiveEffects(ctx context.Context) ([]ActiveEffect, error)
 	ListActiveGuests(ctx context.Context, expiresAt time.Time) ([]Guest, error)
@@ -278,6 +292,8 @@ type Querier interface {
 	ParkEffectTrackIndexes(ctx context.Context, effectID string) error
 	ParkSceneTargetPositions(ctx context.Context, sceneID string) error
 	PruneActivityEventsOlderThan(ctx context.Context, timestamp time.Time) (int64, error)
+	PruneAuditEvents(ctx context.Context, recordedAt string) error
+	PruneAuditOperations(ctx context.Context, finishedAt *string) error
 	PruneDeviceStateSamplesOlderThan(ctx context.Context, cutoff string) (int64, error)
 	PruneWebhookDeliveriesOlderThan(ctx context.Context, receivedAt time.Time) (int64, error)
 	PruneWebhookDeliveriesOverLimit(ctx context.Context, arg PruneWebhookDeliveriesOverLimitParams) (int64, error)
@@ -296,12 +312,16 @@ type Querier interface {
 	// Mirrors group_members FK cascade for room-as-group-member; no FK because
 	// member_id is polymorphic.
 	RemoveRoomMembersByGroup(ctx context.Context, memberID string) error
+	ReplayActivityEvents(ctx context.Context, arg ReplayActivityEventsParams) ([]ActivityEvent, error)
+	ReplayAuditEvents(ctx context.Context, arg ReplayAuditEventsParams) ([]ReplayAuditEventsRow, error)
 	ResolveGroupIDByName(ctx context.Context, name *string) (string, error)
 	ResolveRoomIDByName(ctx context.Context, name string) (string, error)
 	ResolveSceneIDByName(ctx context.Context, name string) (string, error)
 	RestoreDevices(ctx context.Context, idsJson string) ([]device.DeviceID, error)
 	SaveAssistantConversation(ctx context.Context, arg SaveAssistantConversationParams) (int64, error)
 	SaveClaudeConfig(ctx context.Context, arg SaveClaudeConfigParams) (int64, error)
+	SetAuditEventDetails(ctx context.Context, detailsJson string) error
+	SetAuditWriteContext(ctx context.Context, operationID *string) error
 	SetAutomationNodeState(ctx context.Context, arg SetAutomationNodeStateParams) error
 	SetDeviceDisabled(ctx context.Context, arg SetDeviceDisabledParams) error
 	// The nullable icon and display_color columns need dedicated clear queries
@@ -359,6 +379,8 @@ type Querier interface {
 	UpdateWebhookEndpointSecretHash(ctx context.Context, arg UpdateWebhookEndpointSecretHashParams) error
 	UpsertActiveEffect(ctx context.Context, arg UpsertActiveEffectParams) error
 	UpsertActiveSceneRun(ctx context.Context, arg UpsertActiveSceneRunParams) error
+	UpsertAuditRunOutcome(ctx context.Context, arg UpsertAuditRunOutcomeParams) error
+	UpsertAuditRunState(ctx context.Context, arg UpsertAuditRunStateParams) error
 	// Refreshes every adapter-owned column, including the friendly name, and clears
 	// the removed flag when a device reappears. The name column is the user's
 	// override and is never touched here.

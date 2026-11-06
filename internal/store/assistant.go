@@ -48,21 +48,25 @@ func (s *DB) GetClaudeConfig(ctx context.Context) (*ClaudeConfig, error) {
 }
 
 func (s *DB) SaveClaudeConfig(ctx context.Context, c ClaudeConfig) error {
-	var enabled int64
-	if c.Enabled {
-		enabled = 1
-	}
-	n, err := s.q.SaveClaudeConfig(ctx, sqlite.SaveClaudeConfigParams{ExpectedRevision: c.Revision, Token: c.Token, Enabled: enabled, Model: c.Model})
-	if err != nil {
-		return err
-	}
-	if n != 1 {
-		return ErrRevisionConflict
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		var enabled int64
+		if c.Enabled {
+			enabled = 1
+		}
+		n, err := s.q.SaveClaudeConfig(ctx, sqlite.SaveClaudeConfigParams{ExpectedRevision: c.Revision, Token: c.Token, Enabled: enabled, Model: c.Model})
+		if err != nil {
+			return err
+		}
+		if n != 1 {
+			return ErrRevisionConflict
+		}
+		return nil
+	})
 }
 
-func (s *DB) DeleteClaudeConfig(ctx context.Context) error { return s.q.DeleteClaudeConfig(ctx) }
+func (s *DB) DeleteClaudeConfig(ctx context.Context) error {
+	return s.atomic(ctx, func(s *DB) error { return s.q.DeleteClaudeConfig(ctx) })
+}
 
 func (s *DB) ListAssistantConversations(ctx context.Context, userID string) ([]AssistantConversation, error) {
 	rows, err := s.q.ListAssistantConversations(ctx, userID)
@@ -83,14 +87,16 @@ func (s *DB) CreateAssistantConversation(ctx context.Context, c AssistantConvers
 }
 
 func (s *DB) SaveAssistantConversation(ctx context.Context, c AssistantConversation) error {
-	n, err := s.q.SaveAssistantConversation(ctx, sqlite.SaveAssistantConversationParams{ID: c.ID, UserID: c.UserID, AutoTitle: c.AutoTitle, TitleOverride: c.TitleOverride, Document: c.Document, Revision: c.Revision, UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano)})
-	if err != nil {
-		return err
-	}
-	if n != 1 {
-		return fmt.Errorf("conversation changed or is unavailable")
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		n, err := s.q.SaveAssistantConversation(ctx, sqlite.SaveAssistantConversationParams{ID: c.ID, UserID: c.UserID, AutoTitle: c.AutoTitle, TitleOverride: c.TitleOverride, Document: c.Document, Revision: c.Revision, UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano)})
+		if err != nil {
+			return err
+		}
+		if n != 1 {
+			return fmt.Errorf("conversation changed or is unavailable")
+		}
+		return s.auditAssistantActions(ctx, c)
+	})
 }
 
 func (s *DB) DeleteAssistantConversation(ctx context.Context, id, userID string) error {

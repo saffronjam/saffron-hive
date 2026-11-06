@@ -38,33 +38,37 @@ func (s *DB) GetZigbee2MQTTConfig(ctx context.Context) (*Zigbee2MQTTConfig, erro
 // UpsertZigbee2MQTTConfig inserts or replaces the singleton Zigbee2MQTT
 // configuration row.
 func (s *DB) UpsertZigbee2MQTTConfig(ctx context.Context, cfg Zigbee2MQTTConfig) error {
-	n, err := s.q.UpsertZigbee2MQTTConfig(ctx, sqlite.UpsertZigbee2MQTTConfigParams{
-		ExpectedRevision:             cfg.Revision,
-		Broker:                       cfg.Broker,
-		FrontendUrl:                  cfg.FrontendURL,
-		Username:                     cfg.Username,
-		Password:                     cfg.Password,
-		UseWss:                       cfg.UseWSS,
-		Enabled:                      cfg.Enabled,
-		ScanScheduleEnabled:          cfg.ScanScheduleEnabled,
-		ScanHour:                     cfg.ScanHour,
-		ScanMinute:                   cfg.ScanMinute,
-		InteractiveCommandsPerSecond: cfg.InteractiveCommandsPerSecond,
-		ContinuousCommandsPerSecond:  cfg.ContinuousCommandsPerSecond,
+	return s.atomic(ctx, func(s *DB) error {
+		n, err := s.q.UpsertZigbee2MQTTConfig(ctx, sqlite.UpsertZigbee2MQTTConfigParams{
+			ExpectedRevision:             cfg.Revision,
+			Broker:                       cfg.Broker,
+			FrontendUrl:                  cfg.FrontendURL,
+			Username:                     cfg.Username,
+			Password:                     cfg.Password,
+			UseWss:                       cfg.UseWSS,
+			Enabled:                      cfg.Enabled,
+			ScanScheduleEnabled:          cfg.ScanScheduleEnabled,
+			ScanHour:                     cfg.ScanHour,
+			ScanMinute:                   cfg.ScanMinute,
+			InteractiveCommandsPerSecond: cfg.InteractiveCommandsPerSecond,
+			ContinuousCommandsPerSecond:  cfg.ContinuousCommandsPerSecond,
+		})
+		if err != nil {
+			return fmt.Errorf("upsert zigbee2mqtt config: %w", err)
+		}
+		if n != 1 {
+			return ErrRevisionConflict
+		}
+		return nil
 	})
-	if err != nil {
-		return fmt.Errorf("upsert zigbee2mqtt config: %w", err)
-	}
-	if n != 1 {
-		return ErrRevisionConflict
-	}
-	return nil
 }
 
 // DeleteZigbee2MQTTConfig removes the Zigbee2MQTT integration configuration.
 func (s *DB) DeleteZigbee2MQTTConfig(ctx context.Context) error {
-	if err := s.q.DeleteZigbee2MQTTConfig(ctx); err != nil {
-		return fmt.Errorf("delete zigbee2mqtt config: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.DeleteZigbee2MQTTConfig(ctx); err != nil {
+			return fmt.Errorf("delete zigbee2mqtt config: %w", err)
+		}
+		return nil
+	})
 }

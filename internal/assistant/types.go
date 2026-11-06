@@ -133,6 +133,7 @@ type SecretValue struct {
 
 // Operation is a single GraphQL mutation and its JSON arguments.
 type Operation struct {
+	AuditID      string          `json:"auditId,omitempty"`
 	Field        string          `json:"field"`
 	Arguments    json.RawMessage `json:"arguments"`
 	Selection    string          `json:"selection"`
@@ -205,4 +206,10 @@ func principal(ctx context.Context) (auth.Principal, error) {
 		return p, ErrAccess
 	}
 	return p, nil
+}
+
+// AuditRecorder persists assistant proposal and execution outcomes.
+type AuditRecorder interface {
+	BeginAudit(context.Context, string, string) (context.Context, error)
+	FinishAudit(context.Context, string) error
 }

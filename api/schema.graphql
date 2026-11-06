@@ -1301,6 +1301,7 @@ type ActivityEvent {
 }
 
 input ActivityFilter {
+ after: ID
   types: [String!]
   deviceId: ID
   roomId: ID
@@ -1985,4 +1986,60 @@ type TuyaConfigResult {
 input GroupMemberInput {
   memberType: String!
   memberId: ID!
+}
+
+input AuditFilter {
+ operationId: ID
+ status: String
+ entityType: String
+ entityId: ID
+ actorId: ID
+ source: String
+ action: String
+ search: String
+ since: DateTime
+}
+type AuditChange { path: String! before: String! after: String! }
+type AuditEntry {
+ details: String!
+ id: ID!
+ operationId: ID
+ parentOperationId: ID
+ runId: ID
+ actionId: ID
+ timestamp: String!
+ entityType: String!
+ entityId: ID!
+ entityName: String!
+ action: String!
+ actorId: ID!
+ actorName: String!
+ source: String!
+ operation: String!
+ status: String!
+ conversationId: ID
+ proposed: String!
+ changes: [AuditChange!]!
+ before: String!
+ after: String!
+}
+type AuditPage { entries: [AuditEntry!]! cursor: String! hasMore: Boolean! resetRequired: Boolean! }
+extend type Query {
+ audit(filter: AuditFilter, before: String, limit: Int): AuditPage! @auth
+}
+extend type Subscription {
+ auditStream(filter: AuditFilter, after: String!): AuditPage! @auth
+}
+
+enum ObservationStream { AUDIT ACTIVITY LOGS }
+type ObservationResult {
+ cursor: String!
+ timedOut: Boolean!
+ resetRequired: Boolean!
+ audit: [AuditEntry!]!
+ activity: [ActivityEvent!]!
+ logs: [LogEntry!]!
+}
+extend type Query {
+ observeEvents(stream: ObservationStream!, after: String, auditFilter: AuditFilter, activityFilter: ActivityFilter, search: String, waitSeconds: Int = 15, limit: Int = 20): ObservationResult! @auth
 }

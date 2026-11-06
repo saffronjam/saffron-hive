@@ -55,28 +55,32 @@ func (s *DB) InsertAlarmTx(ctx context.Context, p InsertAlarmParams) (AlarmRow, 
 // DeleteAlarmsByAlarmID removes every row belonging to the given alarm_id
 // group and returns the number of rows removed.
 func (s *DB) DeleteAlarmsByAlarmID(ctx context.Context, alarmID string) (int64, error) {
-	n, err := s.q.DeleteAlarmsByAlarmID(ctx, alarmID)
-	if err != nil {
-		return 0, fmt.Errorf("delete alarms by alarm_id: %w", err)
-	}
-	return n, nil
+	return writeTx(s, ctx, func(s *DB) (int64, error) {
+		n, err := s.q.DeleteAlarmsByAlarmID(ctx, alarmID)
+		if err != nil {
+			return 0, fmt.Errorf("delete alarms by alarm_id: %w", err)
+		}
+		return n, nil
+	})
 }
 
 // BatchDeleteAlarmsByAlarmIDs removes every row belonging to any of the given
 // alarm_id groups. Returns the total number of rows removed.
 func (s *DB) BatchDeleteAlarmsByAlarmIDs(ctx context.Context, alarmIDs []string) (int64, error) {
-	if len(alarmIDs) == 0 {
-		return 0, nil
-	}
-	js, err := marshalStringArray(alarmIDs)
-	if err != nil {
-		return 0, fmt.Errorf("batch delete alarms: %w", err)
-	}
-	n, err := s.q.BatchDeleteAlarmsByAlarmIDs(ctx, js)
-	if err != nil {
-		return 0, fmt.Errorf("batch delete alarms: %w", err)
-	}
-	return n, nil
+	return writeTx(s, ctx, func(s *DB) (int64, error) {
+		if len(alarmIDs) == 0 {
+			return 0, nil
+		}
+		js, err := marshalStringArray(alarmIDs)
+		if err != nil {
+			return 0, fmt.Errorf("batch delete alarms: %w", err)
+		}
+		n, err := s.q.BatchDeleteAlarmsByAlarmIDs(ctx, js)
+		if err != nil {
+			return 0, fmt.Errorf("batch delete alarms: %w", err)
+		}
+		return n, nil
+	})
 }
 
 // ListAlarms returns every persisted alarm row ordered most-recent first.

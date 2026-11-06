@@ -87,6 +87,7 @@ type intent struct {
 }
 
 type delivery struct {
+	auditBefore device.DeviceState
 	intent      intent
 	desired     device.Command
 	generation  uint64
@@ -108,6 +109,7 @@ type configurationDelivery struct {
 }
 
 type continuousProgram struct {
+	auditID string
 	owner   outputowner.Owner
 	devices []device.DeviceID
 	sample  ContinuousSample
@@ -128,6 +130,7 @@ type providerState struct {
 
 // Controller resolves, coalesces, schedules, dispatches, and verifies physical output.
 type Controller struct {
+	audit   AuditRecorder
 	bus     eventbus.EventBus
 	store   Store
 	reader  device.StateReader
@@ -221,7 +224,11 @@ func (c *Controller) ResumeContinuous(provider device.Source) {
 }
 
 // CommandTarget accepts a structural state or native-effect operation.
-func (c *Controller) CommandTarget(ctx context.Context, request device.TargetCommand) error {
+func (c *Controller) CommandTarget(ctx context.Context, request device.TargetCommand) (returnErr error) {
+	if err := auditRequest(c, ctx, &request.State.Origin, "command", request); err != nil {
+		return err
+	}
+	defer func() { c.auditRejected(request.State.Origin, "", returnErr) }()
 	if err := device.ValidateCommand(request.State); err != nil {
 		return err
 	}
@@ -282,7 +289,11 @@ func (c *Controller) CommandTarget(ctx context.Context, request device.TargetCom
 }
 
 // CommandConfiguration accepts one validated configuration operation.
-func (c *Controller) CommandConfiguration(_ context.Context, request device.ConfigurationRequest) error {
+func (c *Controller) CommandConfiguration(ctx context.Context, request device.ConfigurationRequest) (returnErr error) {
+	if err := auditRequest(c, ctx, &request.Origin, "configuration", request); err != nil {
+		return err
+	}
+	defer func() { c.auditRejected(request.Origin, request.DeviceID, returnErr) }()
 	dev, ok := c.reader.GetDevice(request.DeviceID)
 	if !ok || dev.RuntimeDisabled() || dev.Removed {
 		return ErrNoControllableDevices
@@ -299,7 +310,7 @@ func (c *Controller) CommandConfiguration(_ context.Context, request device.Conf
 		members: []device.DeviceID{request.DeviceID}, generations: map[device.DeviceID]uint64{request.DeviceID: generation}}
 	c.enqueueLocked(provider, next)
 	c.mu.Unlock()
-	c.bus.Publish(eventbus.Event{Type: eventbus.EventConfigurationRequested, DeviceID: string(request.DeviceID), Timestamp: time.Now().UTC(), Payload: request})
+	c.publish(eventbus.Event{Type: eventbus.EventConfigurationRequested, DeviceID: string(request.DeviceID), Timestamp: time.Now().UTC(), Payload: request})
 	c.signal()
 	return nil
 }
@@ -308,7 +319,11 @@ func (c *Controller) CommandConfiguration(_ context.Context, request device.Conf
 // changes no reported state, so it neither supersedes pending output for the
 // device nor revokes output ownership, and it is delivered once without a
 // confirmation step.
-func (c *Controller) CommandDevice(_ context.Context, request device.DeviceCommandRequest) error {
+func (c *Controller) CommandDevice(ctx context.Context, request device.DeviceCommandRequest) (returnErr error) {
+	if err := auditRequest(c, ctx, &request.Origin, "deviceCommand", request); err != nil {
+		return err
+	}
+	defer func() { c.auditRejected(request.Origin, request.DeviceID, returnErr) }()
 	dev, ok := c.reader.GetDevice(request.DeviceID)
 	if !ok || dev.RuntimeDisabled() || dev.Removed {
 		return ErrNoControllableDevices
@@ -328,13 +343,19 @@ func (c *Controller) CommandDevice(_ context.Context, request device.DeviceComma
 }
 
 // RegisterContinuous installs a dynamic program sampled at provider dispatch time.
-func (c *Controller) RegisterContinuous(owner outputowner.Owner, devices []device.DeviceID, sample ContinuousSample) {
+func (c *Controller) RegisterContinuous(ctx context.Context, owner outputowner.Owner, devices []device.DeviceID, sample ContinuousSample) {
+	origin := device.CommandOrigin{Kind: string(owner.Kind), ID: owner.RunID}
+	if err := auditRequest(c, ctx, &origin, "continuousRun", device.TargetCommand{DeviceIDs: devices, State: device.Command{Origin: origin}}); err != nil {
+		logger.Error("Continuous run blocked by audit failure", "error", err)
+		return
+	}
+
 	devices = uniqueDevices(devices)
 	c.mu.Lock()
 	if owner.RunID == "" || len(devices) == 0 || sample == nil {
 		delete(c.continuous, owner)
 	} else {
-		c.continuous[owner] = &continuousProgram{owner: owner, devices: devices, sample: sample}
+		c.continuous[owner] = &continuousProgram{auditID: origin.AuditID, owner: owner, devices: devices, sample: sample}
 	}
 	c.mu.Unlock()
 	c.signal()
@@ -375,7 +396,12 @@ func (c *Controller) ObserveState(id device.DeviceID, reported device.DeviceStat
 	}
 	c.mu.Unlock()
 	if confirmed != nil {
-		c.bus.Publish(eventbus.Event{Type: eventbus.EventCommandConfirmed, DeviceID: string(id), Timestamp: confirmed.At, Payload: *confirmed})
+		if c.audit != nil && origin.AuditID != "" {
+			if err := c.audit.RecordAuditState(context.Background(), origin.AuditID, id, commandAuditState(current.desired, current.auditBefore), commandAuditState(current.desired, merged), current.intent.class); err != nil {
+				logger.Error("Audit confirmation persistence failed", "error", err)
+			}
+		}
+		c.publish(eventbus.Event{Type: eventbus.EventCommandConfirmed, DeviceID: string(id), Timestamp: confirmed.At, Payload: *confirmed})
 	}
 	return device.OutputObservation{Origin: origin, Transition: transition}
 }
@@ -397,7 +423,7 @@ func (c *Controller) ObserveConfiguration(id device.DeviceID, reported []device.
 	}
 	c.mu.Unlock()
 	if confirmed != nil {
-		c.bus.Publish(eventbus.Event{Type: eventbus.EventCommandConfirmed, DeviceID: string(id), Timestamp: confirmed.At, Payload: *confirmed})
+		c.publish(eventbus.Event{Type: eventbus.EventCommandConfirmed, DeviceID: string(id), Timestamp: confirmed.At, Payload: *confirmed})
 	}
 	return origin
 }
@@ -530,7 +556,7 @@ func (c *Controller) sampleAndDispatch(ctx context.Context, actuator Actuator, s
 		return
 	}
 	command.DeviceID = selected.members[0]
-	command.Origin = device.CommandOrigin{Kind: string(program.owner.Kind), ID: program.owner.RunID}
+	command.Origin = device.CommandOrigin{Kind: string(program.owner.Kind), ID: program.owner.RunID, AuditID: program.auditID}
 	c.mu.Lock()
 	if c.continuous[program.owner] != program || !c.owners.Owns(program.owner, command.DeviceID) {
 		c.mu.Unlock()
@@ -584,11 +610,11 @@ func (c *Controller) recordDispatch(next *intent, now time.Time, dispatchErr err
 		}
 		if dispatchErr != nil {
 			failure := deliveryEvent(id, origin, next.class, attempt, now, dispatchErr.Error())
-			c.bus.Publish(eventbus.Event{Type: eventbus.EventCommandFailed, DeviceID: string(id), Timestamp: now, Payload: failure})
+			c.publish(eventbus.Event{Type: eventbus.EventCommandFailed, DeviceID: string(id), Timestamp: now, Payload: failure})
 			continue
 		}
 		dispatched := deliveryEvent(id, origin, next.class, attempt, now, "")
-		c.bus.Publish(eventbus.Event{Type: eventbus.EventCommandDispatched, DeviceID: string(id), Timestamp: now, Payload: dispatched})
+		c.publish(eventbus.Event{Type: eventbus.EventCommandDispatched, DeviceID: string(id), Timestamp: now, Payload: dispatched})
 	}
 
 	c.mu.Lock()
@@ -609,7 +635,11 @@ func (c *Controller) recordDispatch(next *intent, now time.Time, dispatchErr err
 			}
 			desired.DeviceID = id
 			deadline := now.Add(confirmationGrace + transitionDuration(desired))
-			d := &delivery{intent: *next, desired: desired, generation: generation, attempts: attempt, dispatched: now, deadline: deadline}
+			var auditBefore device.DeviceState
+			if state, ok := c.reader.GetDeviceState(id); ok && state != nil {
+				auditBefore = *state
+			}
+			d := &delivery{auditBefore: auditBefore, intent: *next, desired: desired, generation: generation, attempts: attempt, dispatched: now, deadline: deadline}
 			if dispatchErr != nil {
 				d.lastFailure = dispatchErr.Error()
 			}
@@ -634,7 +664,7 @@ func (c *Controller) queueRetriesLocked(now time.Time) {
 		}
 		if !current.intent.persistent && current.attempts >= 3 {
 			failure := deliveryEvent(id, current.desired.Origin, current.intent.class, current.attempts, now, "device did not confirm requested state")
-			c.bus.Publish(eventbus.Event{Type: eventbus.EventCommandFailed, DeviceID: string(id), Timestamp: now, Payload: failure})
+			c.publish(eventbus.Event{Type: eventbus.EventCommandFailed, DeviceID: string(id), Timestamp: now, Payload: failure})
 			logger.Warn("device did not confirm requested state", slog.String("device_id", string(id)), slog.Int("attempts", current.attempts))
 			delete(c.deliveries, id)
 			continue
@@ -659,7 +689,7 @@ func (c *Controller) queueRetriesLocked(now time.Time) {
 		}
 		if current.attempts >= 3 {
 			failure := deliveryEvent(id, current.request.Origin, current.class, current.attempts, now, "device did not confirm requested configuration")
-			c.bus.Publish(eventbus.Event{Type: eventbus.EventCommandFailed, DeviceID: string(id), Timestamp: now, Payload: failure})
+			c.publish(eventbus.Event{Type: eventbus.EventCommandFailed, DeviceID: string(id), Timestamp: now, Payload: failure})
 			logger.Warn("device did not confirm requested configuration", slog.String("device_id", string(id)), slog.Int("attempts", current.attempts))
 			delete(c.configurationDelivery, id)
 			continue
@@ -785,7 +815,7 @@ func (c *Controller) enqueueGroup(group device.ProviderGroupCommand, class devic
 	c.mu.Unlock()
 	for _, id := range group.MemberIDs {
 		if group.NativeEffect != "" {
-			c.bus.Publish(eventbus.Event{
+			c.publish(eventbus.Event{
 				Type: eventbus.EventNativeEffectRequested, DeviceID: string(id), Timestamp: time.Now().UTC(),
 				Payload: device.NativeEffectRequest{DeviceID: id, Name: group.NativeEffect, Origin: group.State.Origin},
 			})
@@ -807,12 +837,17 @@ func (c *Controller) enqueueNative(request device.NativeEffectRequest, provider 
 		members: []device.DeviceID{request.DeviceID}, generations: map[device.DeviceID]uint64{request.DeviceID: generation}}
 	c.enqueueLocked(state, next)
 	c.mu.Unlock()
-	c.bus.Publish(eventbus.Event{Type: eventbus.EventNativeEffectRequested, DeviceID: string(request.DeviceID), Timestamp: time.Now().UTC(), Payload: request})
+	c.publish(eventbus.Event{Type: eventbus.EventNativeEffectRequested, DeviceID: string(request.DeviceID), Timestamp: time.Now().UTC(), Payload: request})
 	c.signal()
 }
 
 func (c *Controller) enqueueLocked(state *providerState, next *intent) {
 	if existing := state.queued[next.key]; existing != nil {
+		if existing.kind == intentState && existing.command.Origin.AuditID != next.command.Origin.AuditID {
+			for _, id := range existing.members {
+				c.auditSuperseded(existing.command.Origin, id, existing.class)
+			}
+		}
 		wasInteractive := existing.class == device.OutputInteractive
 		existing.class = higherPriority(existing.class, next.class)
 		if existing.kind == intentState && next.kind == intentState {
@@ -965,6 +1000,12 @@ func (c *Controller) providerLocked(provider device.Source) *providerState {
 }
 
 func (c *Controller) nextGenerationLocked(id device.DeviceID) uint64 {
+	if pending := c.deliveries[id]; pending != nil {
+		c.auditSuperseded(pending.desired.Origin, id, pending.intent.class)
+	}
+	if pending := c.configurationDelivery[id]; pending != nil {
+		c.auditSuperseded(pending.request.Origin, id, pending.class)
+	}
 	c.generations[id]++
 	delete(c.deliveries, id)
 	delete(c.configurationDelivery, id)
@@ -978,7 +1019,7 @@ func (c *Controller) providerForDevice(id device.DeviceID) device.Source {
 
 func (c *Controller) publishRequestedCommand(command device.Command) {
 	now := time.Now().UTC()
-	c.bus.Publish(eventbus.Event{Type: eventbus.EventCommandRequested, DeviceID: string(command.DeviceID), Timestamp: now, Payload: command})
+	c.publish(eventbus.Event{Type: eventbus.EventCommandRequested, DeviceID: string(command.DeviceID), Timestamp: now, Payload: command})
 }
 
 func (c *Controller) signal() {

@@ -16,6 +16,9 @@ const allowlist = JSON.parse(
 );
 const errors = [];
 const englishKeys = Object.keys(catalogs.en);
+const fragmentPrefixes = allowlist.messageFragments
+  .filter((entry) => entry.prefix && entry.reason)
+  .map((entry) => entry.prefix);
 
 function balancedEnd(value, start) {
   let depth = 0;
@@ -94,12 +97,19 @@ for (const language of languages) {
         translatedInitial &&
         translatedInitial !== translatedInitial.toLocaleUpperCase(language) &&
         translatedInitial === translatedInitial.toLocaleLowerCase(language);
-      if (englishStartsUppercase && translationStartsLowercase) {
+      if (
+        englishStartsUppercase &&
+        translationStartsLowercase &&
+        !fragmentPrefixes.some((prefix) => key.startsWith(prefix))
+      ) {
         errors.push(`${language}.${key}: standalone message must begin with a capital letter`);
       }
     }
     if (language === "ru" && /,\s*plural,/.test(catalogs[language][key])) {
-      if (!/\bfew\s*\{/.test(catalogs[language][key]) || !/\bmany\s*\{/.test(catalogs[language][key])) {
+      if (
+        !/\bfew\s*\{/.test(catalogs[language][key]) ||
+        !/\bmany\s*\{/.test(catalogs[language][key])
+      ) {
         errors.push(`ru.${key}: Russian plural requires few and many branches`);
       }
     }
@@ -112,7 +122,8 @@ async function sourceFiles(directory) {
   for (const entry of entries) {
     const absolute = path.join(directory, entry.name);
     if (entry.isDirectory()) {
-      if (entry.name !== "paraglide" && entry.name !== "gql") files.push(...(await sourceFiles(absolute)));
+      if (entry.name !== "paraglide" && entry.name !== "gql")
+        files.push(...(await sourceFiles(absolute)));
     } else if (entry.name.endsWith(".svelte") || entry.name.endsWith(".ts")) {
       files.push(absolute);
     }
@@ -196,7 +207,9 @@ for (const absolute of await sourceFiles(path.join(root, "src"))) {
     if (/[A-Za-z]/.test(text)) literals.push({ path: relative, text });
   }
   for (const line of markup.split("\n")) {
-    for (const match of line.matchAll(/(?:aria-label|aria-description|placeholder|title)="([A-Za-z][^"]+)"/g)) {
+    for (const match of line.matchAll(
+      /(?:aria-label|aria-description|placeholder|title)="([A-Za-z][^"]+)"/g,
+    )) {
       literals.push({ path: relative, text: match[1] });
     }
   }
@@ -206,11 +219,13 @@ for (const literal of literals) {
   const allowed = allowlist.sourceLiterals.some(
     (entry) => entry.path === literal.path && entry.text === literal.text && entry.reason,
   );
-  if (!allowed) errors.push(`${literal.path}: hard-coded visible text: ${JSON.stringify(literal.text)}`);
+  if (!allowed)
+    errors.push(`${literal.path}: hard-coded visible text: ${JSON.stringify(literal.text)}`);
 }
 
 for (const entry of allowlist.sourceLiterals) {
-  if (!entry.path || !entry.text || !entry.reason) errors.push("invalid source literal allowlist entry");
+  if (!entry.path || !entry.text || !entry.reason)
+    errors.push("invalid source literal allowlist entry");
 }
 const unusedAllowed = new Set(
   allowlist.unusedMessages.filter((entry) => entry.path && entry.reason).map((entry) => entry.key),

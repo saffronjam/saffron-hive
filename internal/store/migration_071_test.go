@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/saffronjam/saffron-hive/internal/store/sqlite"
 	_ "modernc.org/sqlite"
 )
 
@@ -25,7 +26,7 @@ func TestMigration071MaintenanceAcknowledgements(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO users (id, username, name, password_hash) VALUES ('u-1', 'user', 'User', 'hash')`); err != nil {
 		t.Fatal(err)
 	}
-	s := New(db)
+	s := &DB{q: sqlite.New(db)}
 	user := "u-1"
 	row := InsertMaintenanceAcknowledgementParams{
 		TaskKey: "battery:one", ConditionFingerprint: "band:25",

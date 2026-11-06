@@ -29,26 +29,30 @@ func (s *DB) GetTuyaConfig(ctx context.Context) (*TuyaConfig, error) {
 
 // UpsertTuyaConfig inserts or replaces the singleton Tuya configuration row.
 func (s *DB) UpsertTuyaConfig(ctx context.Context, cfg TuyaConfig) error {
-	n, err := s.q.UpsertTuyaConfig(ctx, sqlite.UpsertTuyaConfigParams{
-		ExpectedRevision: cfg.Revision,
-		AccessID:         cfg.AccessID,
-		AccessSecret:     cfg.AccessSecret,
-		Region:           cfg.Region,
-		Enabled:          cfg.Enabled,
+	return s.atomic(ctx, func(s *DB) error {
+		n, err := s.q.UpsertTuyaConfig(ctx, sqlite.UpsertTuyaConfigParams{
+			ExpectedRevision: cfg.Revision,
+			AccessID:         cfg.AccessID,
+			AccessSecret:     cfg.AccessSecret,
+			Region:           cfg.Region,
+			Enabled:          cfg.Enabled,
+		})
+		if err != nil {
+			return fmt.Errorf("upsert tuya config: %w", err)
+		}
+		if n != 1 {
+			return ErrRevisionConflict
+		}
+		return nil
 	})
-	if err != nil {
-		return fmt.Errorf("upsert tuya config: %w", err)
-	}
-	if n != 1 {
-		return ErrRevisionConflict
-	}
-	return nil
 }
 
 // DeleteTuyaConfig removes the Tuya integration configuration.
 func (s *DB) DeleteTuyaConfig(ctx context.Context) error {
-	if err := s.q.DeleteTuyaConfig(ctx); err != nil {
-		return fmt.Errorf("delete tuya config: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.DeleteTuyaConfig(ctx); err != nil {
+			return fmt.Errorf("delete tuya config: %w", err)
+		}
+		return nil
+	})
 }

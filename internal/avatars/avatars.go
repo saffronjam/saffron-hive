@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/saffronjam/saffron-hive/internal/audit"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/logging"
 )
@@ -46,8 +47,43 @@ type ProfileWriter interface {
 // in auth.RequireUser so the current user can be read from the request
 // context. POST uploads a new avatar; DELETE clears the current user's avatar
 // (removes the file from disk and nulls the column).
-func NewUploadHandler(dir string, writer ProfileWriter) http.Handler {
+type AuditRecorder interface {
+	BeginAudit(context.Context, string, string) (context.Context, error)
+	FinishAudit(context.Context, string) error
+}
+
+func NewUploadHandler(dir string, writer ProfileWriter, recorder AuditRecorder) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if recorder != nil && audit.FromContext(r.Context()).OperationID == "" && (r.Method == http.MethodPost || r.Method == http.MethodDelete) {
+			p, ok := auth.PrincipalFromContext(r.Context())
+			if !ok || p.Guest {
+				http.Error(w, "authentication required", http.StatusUnauthorized)
+				return
+			}
+			origin := audit.Origin{ActorID: p.ID, ActorName: p.Name, Source: "human"}
+			field := "setAvatar"
+			if r.Method == http.MethodDelete {
+				field = "clearAvatar"
+			}
+			ctx, err := recorder.BeginAudit(audit.WithOrigin(r.Context(), origin), field, "{}")
+			if err != nil {
+				http.Error(w, "audit recording unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			r = r.WithContext(ctx)
+			tracked := &auditResponseWriter{ResponseWriter: w, status: 200}
+			w = tracked
+			defer func() {
+				status := "succeeded"
+				if tracked.status >= 400 {
+					status = "failed"
+				}
+				if err := recorder.FinishAudit(context.WithoutCancel(ctx), status); err != nil {
+					logger.Error("Avatar audit failed", "error", err)
+				}
+			}()
+		}
+
 		if r.Method == http.MethodDelete {
 			handleDelete(w, r, dir, writer)
 			return
@@ -206,4 +242,14 @@ func NewServeHandler(dir string) http.Handler {
 // the location of uploaded files.
 func Dir(dataDir string) string {
 	return filepath.Join(dataDir, "avatars")
+}
+
+type auditResponseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *auditResponseWriter) WriteHeader(status int) {
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
 }

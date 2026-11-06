@@ -6,7 +6,10 @@ import { resetMockPage, setMockPageUrl } from "../mocks/app-state.svelte";
 
 type HarnessInstance = {
   value(): { chips: Array<{ keyword: string; value: string }>; freeText: string };
-  set(next: { chips: Array<{ keyword: string; value: string }>; freeText: string }): void;
+  set(
+    next: { chips: Array<{ keyword: string; value: string }>; freeText: string },
+    options?: { replaceState?: boolean },
+  ): void;
   setActive(next: boolean): void;
 };
 
@@ -72,6 +75,30 @@ describe("createUrlSearchState", () => {
     expect(harness.value().freeText).toBe("instant");
     expect(gotoCalls).toHaveLength(1);
     expect(gotoCalls[0].url.searchParams.get("q")).toBe("instant");
+  });
+
+  it("pushes explicit filter navigation and restores the prior URL filters", () => {
+    const previous = "https://hive.test/audit?q=bedroom&filter=room%3ABedroom";
+    const harness = mountHarness(previous);
+    harness.set(
+      {
+        freeText: "bedroom",
+        chips: [{ keyword: "room", value: "Kitchen" }],
+      },
+      { replaceState: false },
+    );
+    flushSync();
+    expect(gotoCalls).toHaveLength(1);
+    expect(gotoCalls[0].options.replaceState).toBe(false);
+    expect(gotoCalls[0].url.searchParams.getAll("filter")).toEqual(["room:Kitchen"]);
+    setMockPageUrl(previous);
+    runAfterNavigate();
+    flushSync();
+    expect(harness.value()).toEqual({
+      freeText: "bedroom",
+      chips: [{ keyword: "room", value: "Bedroom" }],
+    });
+    expect(gotoCalls).toHaveLength(1);
   });
 
   it("clears an empty active filter with Backspace", () => {

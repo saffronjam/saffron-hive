@@ -20,16 +20,18 @@ type TuyaDevice struct {
 
 // UpsertTuyaDevice inserts or updates a Tuya device's local-control metadata.
 func (s *DB) UpsertTuyaDevice(ctx context.Context, d TuyaDevice) error {
-	if err := s.q.UpsertTuyaDevice(ctx, sqlite.UpsertTuyaDeviceParams{
-		DeviceID:        d.DeviceID,
-		LocalKey:        d.LocalKey,
-		ProtocolVersion: d.ProtocolVersion,
-		LanIp:           d.LANIP,
-		ProductID:       d.ProductID,
-	}); err != nil {
-		return fmt.Errorf("upsert tuya device: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.UpsertTuyaDevice(ctx, sqlite.UpsertTuyaDeviceParams{
+			DeviceID:        d.DeviceID,
+			LocalKey:        d.LocalKey,
+			ProtocolVersion: d.ProtocolVersion,
+			LanIp:           d.LANIP,
+			ProductID:       d.ProductID,
+		}); err != nil {
+			return fmt.Errorf("upsert tuya device: %w", err)
+		}
+		return nil
+	})
 }
 
 // ListTuyaDevices returns all stored Tuya device local-control metadata.

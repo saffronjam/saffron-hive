@@ -50,7 +50,7 @@ func TestRunEffectStartsRunOnDeviceTarget(t *testing.T) {
 	runner := &recordingRunner{}
 
 	executor := NewActionExecutor(bus, reader, s, s, nil, runner, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionRunEffect,
 		TargetType: TargetDevice,
 		TargetID:   "light-1",
@@ -78,7 +78,7 @@ func TestRunEffectStartsRunOnGroupTargetWithoutFanOut(t *testing.T) {
 	runner := &recordingRunner{}
 
 	executor := NewActionExecutor(bus, reader, s, s, nil, runner, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionRunEffect,
 		TargetType: TargetGroup,
 		TargetID:   "living",
@@ -104,7 +104,7 @@ func TestRunEffectStartsOneRunPerExpressionDevice(t *testing.T) {
 	reader.addDevice(device.Device{ID: "lamp-2", Type: device.Light})
 
 	executor := NewActionExecutor(bus, reader, s, s, nil, runner, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionRunEffect,
 		TargetType: TargetType(device.TargetExpression),
 		TargetExpr: []device.Clause{{
@@ -134,7 +134,7 @@ func TestRunEffectMissingEffectIDIsNoop(t *testing.T) {
 	runner := &recordingRunner{}
 
 	executor := NewActionExecutor(bus, reader, s, s, nil, runner, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionRunEffect,
 		TargetType: TargetDevice,
 		TargetID:   "light-1",
@@ -155,7 +155,7 @@ func TestRunEffectInvalidTargetTypeIsNoop(t *testing.T) {
 	runner := &recordingRunner{}
 
 	executor := NewActionExecutor(bus, reader, s, s, nil, runner, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionRunEffect,
 		TargetType: "scene",
 		TargetID:   "scene-1",
@@ -175,7 +175,7 @@ func TestRunEffectNoRunnerIsNoop(t *testing.T) {
 	s := newMockStore()
 
 	executor := NewActionExecutor(bus, reader, s, s, nil, nil, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionRunEffect,
 		TargetType: TargetDevice,
 		TargetID:   "light-1",
@@ -190,7 +190,7 @@ func TestRunEffectStartsNativeRunOnDeviceTarget(t *testing.T) {
 	runner := &recordingRunner{}
 
 	executor := NewActionExecutor(bus, reader, s, s, nil, runner, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionRunEffect,
 		TargetType: TargetDevice,
 		TargetID:   "light-1",
@@ -221,7 +221,7 @@ func TestRunEffectRejectsBothEffectIDAndNativeName(t *testing.T) {
 	runner := &recordingRunner{}
 
 	executor := NewActionExecutor(bus, reader, s, s, nil, runner, nil)
-	executor.ExecuteGraphAction(ActionConfig{
+	executor.ExecuteGraphAction(t.Context(), ActionConfig{
 		ActionType: ActionRunEffect,
 		TargetType: TargetDevice,
 		TargetID:   "light-1",

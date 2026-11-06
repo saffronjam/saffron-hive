@@ -13,14 +13,16 @@ import (
 
 // CreateRoom inserts a new room and returns it.
 func (s *DB) CreateRoom(ctx context.Context, params CreateRoomParams) (Room, error) {
-	if err := s.q.CreateRoom(ctx, sqlite.CreateRoomParams{
-		ID:        params.ID,
-		Name:      params.Name,
-		CreatedBy: params.CreatedBy,
-	}); err != nil {
-		return Room{}, fmt.Errorf("create room: %w", err)
-	}
-	return s.GetRoom(ctx, params.ID)
+	return writeTx(s, ctx, func(s *DB) (Room, error) {
+		if err := s.q.CreateRoom(ctx, sqlite.CreateRoomParams{
+			ID:        params.ID,
+			Name:      params.Name,
+			CreatedBy: params.CreatedBy,
+		}); err != nil {
+			return Room{}, fmt.Errorf("create room: %w", err)
+		}
+		return s.GetRoom(ctx, params.ID)
+	})
 }
 
 // GetRoom retrieves a room by its ID.
@@ -272,10 +274,12 @@ func (s *DB) GetRoomMemberRoomID(ctx context.Context, id string) (string, error)
 
 // RemoveRoomMember deletes a room membership by its ID.
 func (s *DB) RemoveRoomMember(ctx context.Context, id string) error {
-	if err := s.q.RemoveRoomMember(ctx, id); err != nil {
-		return fmt.Errorf("remove room member: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.RemoveRoomMember(ctx, id); err != nil {
+			return fmt.Errorf("remove room member: %w", err)
+		}
+		return nil
+	})
 }
 
 // ListRoomsContainingMember returns all rooms that directly contain a specific member.

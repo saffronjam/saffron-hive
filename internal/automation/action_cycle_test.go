@@ -16,7 +16,6 @@ func fixtureCycleScenes(s *mockStore) {
 
 func newCycleExecutor(s *mockStore, runner *mockSceneRunner) *ActionExecutor {
 	executor := NewActionExecutor(eventbus.NewChannelBus(), newMockStateReader(), s, s, nil, nil, runner)
-	executor.SetBaseContext(context.Background())
 	return executor
 }
 
@@ -37,7 +36,7 @@ func TestCycleScenesAdvancesAndWraps(t *testing.T) {
 	cfg := cycleConfig(`["scene-a","scene-b","scene-c"]`)
 
 	for range 4 {
-		executor.ExecuteGraphAction(cfg)
+		executor.ExecuteGraphAction(t.Context(), cfg)
 	}
 
 	want := []string{"scene-a", "scene-b", "scene-c", "scene-a"}
@@ -61,7 +60,7 @@ func TestCycleScenesFiltersMissingScenes(t *testing.T) {
 	cfg := cycleConfig(`["scene-a","scene-b","scene-c"]`)
 
 	for range 4 {
-		executor.ExecuteGraphAction(cfg)
+		executor.ExecuteGraphAction(t.Context(), cfg)
 	}
 
 	want := []string{"scene-a", "scene-c", "scene-a", "scene-c"}
@@ -79,7 +78,7 @@ func TestCycleScenesFiltersMissingScenes(t *testing.T) {
 func TestCycleScenesWithNoExistingScenesIsNoOp(t *testing.T) {
 	s := newMockStore()
 	runner := &mockSceneRunner{}
-	newCycleExecutor(s, runner).ExecuteGraphAction(cycleConfig(`["scene-a","scene-b"]`))
+	newCycleExecutor(s, runner).ExecuteGraphAction(t.Context(), cycleConfig(`["scene-a","scene-b"]`))
 	if got := runner.appliedScenes(); len(got) != 0 {
 		t.Fatalf("applied scenes = %v, want none", got)
 	}
@@ -92,13 +91,13 @@ func TestCycleScenesPersistsCursor(t *testing.T) {
 	executor := newCycleExecutor(s, runner)
 	cfg := cycleConfig(`["scene-a","scene-b"]`)
 
-	executor.ExecuteGraphAction(cfg)
+	executor.ExecuteGraphAction(t.Context(), cfg)
 	v, ok, err := s.GetAutomationNodeState(context.Background(), "auto-1", "n1", cycleIndexStateKey)
 	if err != nil || !ok || v != "1" {
 		t.Fatalf("first cursor = %q, found=%v, err=%v", v, ok, err)
 	}
 
-	executor.ExecuteGraphAction(cfg)
+	executor.ExecuteGraphAction(t.Context(), cfg)
 	v, ok, err = s.GetAutomationNodeState(context.Background(), "auto-1", "n1", cycleIndexStateKey)
 	if err != nil || !ok || v != "0" {
 		t.Fatalf("wrapped cursor = %q, found=%v, err=%v", v, ok, err)

@@ -13,45 +13,49 @@ import (
 
 // CreateDevice inserts a new device and returns it.
 func (s *DB) CreateDevice(ctx context.Context, params CreateDeviceParams) (device.Device, error) {
-	capsJSON, err := marshalCapabilities(params.Capabilities)
-	if err != nil {
-		return device.Device{}, fmt.Errorf("create device: %w", err)
-	}
-	roles := device.DefaultDeviceRoles(device.Device{Type: params.Type, Capabilities: params.Capabilities})
-	if err := s.q.CreateDevice(ctx, sqlite.CreateDeviceParams{
-		ID:                 params.ID,
-		FriendlyName:       params.FriendlyName,
-		Source:             params.Source,
-		Type:               params.Type,
-		Capabilities:       capsJSON,
-		ControlledLoadRole: controlledLoadRoleString(roles.ControlledLoad),
-		ContactRole:        contactRoleString(roles.Contact),
-	}); err != nil {
-		return device.Device{}, fmt.Errorf("create device: %w", err)
-	}
-	return s.GetDevice(ctx, params.ID)
+	return writeTx(s, ctx, func(s *DB) (device.Device, error) {
+		capsJSON, err := marshalCapabilities(params.Capabilities)
+		if err != nil {
+			return device.Device{}, fmt.Errorf("create device: %w", err)
+		}
+		roles := device.DefaultDeviceRoles(device.Device{Type: params.Type, Capabilities: params.Capabilities})
+		if err := s.q.CreateDevice(ctx, sqlite.CreateDeviceParams{
+			ID:                 params.ID,
+			FriendlyName:       params.FriendlyName,
+			Source:             params.Source,
+			Type:               params.Type,
+			Capabilities:       capsJSON,
+			ControlledLoadRole: controlledLoadRoleString(roles.ControlledLoad),
+			ContactRole:        contactRoleString(roles.Contact),
+		}); err != nil {
+			return device.Device{}, fmt.Errorf("create device: %w", err)
+		}
+		return s.GetDevice(ctx, params.ID)
+	})
 }
 
 // UpsertDevice inserts a device or refreshes its adapter-owned fields if it already exists.
 // It also clears the removed flag on conflict so devices become active when seen again.
 func (s *DB) UpsertDevice(ctx context.Context, params CreateDeviceParams) error {
-	capsJSON, err := marshalCapabilities(params.Capabilities)
-	if err != nil {
-		return fmt.Errorf("upsert device: %w", err)
-	}
-	roles := device.DefaultDeviceRoles(device.Device{Type: params.Type, Capabilities: params.Capabilities})
-	if err := s.q.UpsertDevice(ctx, sqlite.UpsertDeviceParams{
-		ID:                 params.ID,
-		FriendlyName:       params.FriendlyName,
-		Source:             params.Source,
-		Type:               params.Type,
-		Capabilities:       capsJSON,
-		ControlledLoadRole: controlledLoadRoleString(roles.ControlledLoad),
-		ContactRole:        contactRoleString(roles.Contact),
-	}); err != nil {
-		return fmt.Errorf("upsert device: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		capsJSON, err := marshalCapabilities(params.Capabilities)
+		if err != nil {
+			return fmt.Errorf("upsert device: %w", err)
+		}
+		roles := device.DefaultDeviceRoles(device.Device{Type: params.Type, Capabilities: params.Capabilities})
+		if err := s.q.UpsertDevice(ctx, sqlite.UpsertDeviceParams{
+			ID:                 params.ID,
+			FriendlyName:       params.FriendlyName,
+			Source:             params.Source,
+			Type:               params.Type,
+			Capabilities:       capsJSON,
+			ControlledLoadRole: controlledLoadRoleString(roles.ControlledLoad),
+			ContactRole:        contactRoleString(roles.Contact),
+		}); err != nil {
+			return fmt.Errorf("upsert device: %w", err)
+		}
+		return nil
+	})
 }
 
 // GetDevice retrieves a device by its ID.
@@ -228,35 +232,39 @@ func contactRoleString(role *device.ContactRole) *string {
 // it names and is called with an otherwise zero-value struct by the
 // device-removal path.
 func (s *DB) SetDeviceDisabled(ctx context.Context, id device.DeviceID, disabled bool) (device.Device, error) {
-	if !disabled {
-		current, err := s.GetDevice(ctx, id)
-		if err != nil {
-			return device.Device{}, err
+	return writeTx(s, ctx, func(s *DB) (device.Device, error) {
+		if !disabled {
+			current, err := s.GetDevice(ctx, id)
+			if err != nil {
+				return device.Device{}, err
+			}
+			if current.Deleted {
+				return device.Device{}, fmt.Errorf("enable device: restore %q before enabling it", current.DisplayName())
+			}
 		}
-		if current.Deleted {
-			return device.Device{}, fmt.Errorf("enable device: restore %q before enabling it", current.DisplayName())
+		if err := s.q.SetDeviceDisabled(ctx, sqlite.SetDeviceDisabledParams{
+			Disabled: disabled,
+			ID:       id,
+		}); err != nil {
+			return device.Device{}, fmt.Errorf("set device disabled: %w", err)
 		}
-	}
-	if err := s.q.SetDeviceDisabled(ctx, sqlite.SetDeviceDisabledParams{
-		Disabled: disabled,
-		ID:       id,
-	}); err != nil {
-		return device.Device{}, fmt.Errorf("set device disabled: %w", err)
-	}
-	return s.GetDevice(ctx, id)
+		return s.GetDevice(ctx, id)
+	})
 }
 
 // MarkDeviceDeleted hides and disables a device in Hive while retaining its
 // stored row and references.
 func (s *DB) MarkDeviceDeleted(ctx context.Context, id device.DeviceID) (device.Device, error) {
-	changed, err := s.BatchMarkDevicesDeleted(ctx, []device.DeviceID{id})
-	if err != nil {
-		return device.Device{}, err
-	}
-	if len(changed) > 0 {
-		return changed[0], nil
-	}
-	return s.GetDevice(ctx, id)
+	return writeTx(s, ctx, func(s *DB) (device.Device, error) {
+		changed, err := s.BatchMarkDevicesDeleted(ctx, []device.DeviceID{id})
+		if err != nil {
+			return device.Device{}, err
+		}
+		if len(changed) > 0 {
+			return changed[0], nil
+		}
+		return s.GetDevice(ctx, id)
+	})
 }
 
 // RestoreDevice makes a deleted device visible while leaving it disabled.
@@ -274,13 +282,17 @@ func (s *DB) RestoreDevice(ctx context.Context, id device.DeviceID) (device.Devi
 // BatchMarkDevicesDeleted hides and disables existing non-deleted devices and
 // returns the rows that changed.
 func (s *DB) BatchMarkDevicesDeleted(ctx context.Context, ids []device.DeviceID) ([]device.Device, error) {
-	return s.setDevicesDeleted(ctx, ids, true)
+	return writeTx(s, ctx, func(s *DB) ([]device.Device, error) {
+		return s.setDevicesDeleted(ctx, ids, true)
+	})
 }
 
 // BatchRestoreDevices restores existing deleted devices and returns the rows
 // that changed. Their disabled flag remains set.
 func (s *DB) BatchRestoreDevices(ctx context.Context, ids []device.DeviceID) ([]device.Device, error) {
-	return s.setDevicesDeleted(ctx, ids, false)
+	return writeTx(s, ctx, func(s *DB) ([]device.Device, error) {
+		return s.setDevicesDeleted(ctx, ids, false)
+	})
 }
 
 func (s *DB) setDevicesDeleted(ctx context.Context, ids []device.DeviceID, deleted bool) ([]device.Device, error) {
@@ -319,22 +331,24 @@ func (s *DB) setDevicesDeleted(ctx context.Context, ids []device.DeviceID, delet
 // many rows changed. The device list calls it with everything it just rendered,
 // so an empty slice is the common case and does no work.
 func (s *DB) MarkDevicesSeen(ctx context.Context, ids []device.DeviceID) (int64, error) {
-	if len(ids) == 0 {
-		return 0, nil
-	}
-	raw := make([]string, len(ids))
-	for i, id := range ids {
-		raw[i] = string(id)
-	}
-	js, err := marshalStringArray(raw)
-	if err != nil {
-		return 0, fmt.Errorf("mark devices seen: %w", err)
-	}
-	n, err := s.q.MarkDevicesSeen(ctx, js)
-	if err != nil {
-		return 0, fmt.Errorf("mark devices seen: %w", err)
-	}
-	return n, nil
+	return writeTx(s, ctx, func(s *DB) (int64, error) {
+		if len(ids) == 0 {
+			return 0, nil
+		}
+		raw := make([]string, len(ids))
+		for i, id := range ids {
+			raw[i] = string(id)
+		}
+		js, err := marshalStringArray(raw)
+		if err != nil {
+			return 0, fmt.Errorf("mark devices seen: %w", err)
+		}
+		n, err := s.q.MarkDevicesSeen(ctx, js)
+		if err != nil {
+			return 0, fmt.Errorf("mark devices seen: %w", err)
+		}
+		return n, nil
+	})
 }
 
 // ListRuntimeDisabledDeviceIDs returns the ids of devices excluded from command
@@ -353,13 +367,15 @@ func (s *DB) ListRuntimeDisabledDeviceIDs(ctx context.Context) ([]device.DeviceI
 // reason SetDeviceDisabled is: UpdateDevice overwrites every column it names and
 // the device-removal path calls it with an otherwise zero-value struct.
 func (s *DB) SetDeviceName(ctx context.Context, id device.DeviceID, name *string) (device.Device, error) {
-	if err := s.q.SetDeviceName(ctx, sqlite.SetDeviceNameParams{
-		Name: name,
-		ID:   id,
-	}); err != nil {
-		return device.Device{}, fmt.Errorf("set device name: %w", err)
-	}
-	return s.GetDevice(ctx, id)
+	return writeTx(s, ctx, func(s *DB) (device.Device, error) {
+		if err := s.q.SetDeviceName(ctx, sqlite.SetDeviceNameParams{
+			Name: name,
+			ID:   id,
+		}); err != nil {
+			return device.Device{}, fmt.Errorf("set device name: %w", err)
+		}
+		return s.GetDevice(ctx, id)
+	})
 }
 
 // UpdateDeviceIcon sets a device's user-overridable icon and returns the updated
@@ -367,63 +383,69 @@ func (s *DB) SetDeviceName(ctx context.Context, id device.DeviceID, name *string
 // type-based icon). SetIcon must be true; this is a dedicated entry point and
 // the bool exists for parity with UpdateRoomParams / UpdateGroupParams callers.
 func (s *DB) UpdateDeviceIcon(ctx context.Context, params UpdateDeviceIconParams) (device.Device, error) {
-	if params.SetIcon {
-		if params.Icon == nil {
-			if err := s.q.ClearDeviceIcon(ctx, params.ID); err != nil {
-				return device.Device{}, fmt.Errorf("clear device icon: %w", err)
-			}
-		} else {
-			if err := s.q.UpdateDeviceIcon(ctx, sqlite.UpdateDeviceIconParams{
-				Icon: params.Icon,
-				ID:   params.ID,
-			}); err != nil {
-				return device.Device{}, fmt.Errorf("update device icon: %w", err)
+	return writeTx(s, ctx, func(s *DB) (device.Device, error) {
+		if params.SetIcon {
+			if params.Icon == nil {
+				if err := s.q.ClearDeviceIcon(ctx, params.ID); err != nil {
+					return device.Device{}, fmt.Errorf("clear device icon: %w", err)
+				}
+			} else {
+				if err := s.q.UpdateDeviceIcon(ctx, sqlite.UpdateDeviceIconParams{
+					Icon: params.Icon,
+					ID:   params.ID,
+				}); err != nil {
+					return device.Device{}, fmt.Errorf("update device icon: %w", err)
+				}
 			}
 		}
-	}
-	return s.GetDevice(ctx, params.ID)
+		return s.GetDevice(ctx, params.ID)
+	})
 }
 
 // UpdateDeviceDisplayColor sets the colour the floor plan gives a device that
 // reports none of its own, and returns the updated device. A nil params.Color
 // clears the column. SetColor must be true, matching UpdateDeviceIcon.
 func (s *DB) UpdateDeviceDisplayColor(ctx context.Context, params UpdateDeviceDisplayColorParams) (device.Device, error) {
-	if params.SetColor {
-		if params.Color == nil {
-			if err := s.q.ClearDeviceDisplayColor(ctx, params.ID); err != nil {
-				return device.Device{}, fmt.Errorf("clear device display color: %w", err)
-			}
-		} else {
-			if err := s.q.UpdateDeviceDisplayColor(ctx, sqlite.UpdateDeviceDisplayColorParams{
-				DisplayColor: params.Color,
-				ID:           params.ID,
-			}); err != nil {
-				return device.Device{}, fmt.Errorf("update device display color: %w", err)
+	return writeTx(s, ctx, func(s *DB) (device.Device, error) {
+		if params.SetColor {
+			if params.Color == nil {
+				if err := s.q.ClearDeviceDisplayColor(ctx, params.ID); err != nil {
+					return device.Device{}, fmt.Errorf("clear device display color: %w", err)
+				}
+			} else {
+				if err := s.q.UpdateDeviceDisplayColor(ctx, sqlite.UpdateDeviceDisplayColorParams{
+					DisplayColor: params.Color,
+					ID:           params.ID,
+				}); err != nil {
+					return device.Device{}, fmt.Errorf("update device display color: %w", err)
+				}
 			}
 		}
-	}
-	return s.GetDevice(ctx, params.ID)
+		return s.GetDevice(ctx, params.ID)
+	})
 }
 
 // UpdateDeviceDisplayBrightness sets how bright a device shows on the floor
 // plan when it reports no brightness of its own, and returns the updated
 // device. A nil params.Brightness clears the column.
 func (s *DB) UpdateDeviceDisplayBrightness(ctx context.Context, params UpdateDeviceDisplayBrightnessParams) (device.Device, error) {
-	if params.SetBrightness {
-		if params.Brightness == nil {
-			if err := s.q.ClearDeviceDisplayBrightness(ctx, params.ID); err != nil {
-				return device.Device{}, fmt.Errorf("clear device display brightness: %w", err)
-			}
-		} else {
-			if err := s.q.UpdateDeviceDisplayBrightness(ctx, sqlite.UpdateDeviceDisplayBrightnessParams{
-				DisplayBrightness: params.Brightness,
-				ID:                params.ID,
-			}); err != nil {
-				return device.Device{}, fmt.Errorf("update device display brightness: %w", err)
+	return writeTx(s, ctx, func(s *DB) (device.Device, error) {
+		if params.SetBrightness {
+			if params.Brightness == nil {
+				if err := s.q.ClearDeviceDisplayBrightness(ctx, params.ID); err != nil {
+					return device.Device{}, fmt.Errorf("clear device display brightness: %w", err)
+				}
+			} else {
+				if err := s.q.UpdateDeviceDisplayBrightness(ctx, sqlite.UpdateDeviceDisplayBrightnessParams{
+					DisplayBrightness: params.Brightness,
+					ID:                params.ID,
+				}); err != nil {
+					return device.Device{}, fmt.Errorf("update device display brightness: %w", err)
+				}
 			}
 		}
-	}
-	return s.GetDevice(ctx, params.ID)
+		return s.GetDevice(ctx, params.ID)
+	})
 }
 
 // PurgeDevice deletes a device and its polymorphic floorplan placement atomically.

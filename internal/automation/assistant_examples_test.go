@@ -92,7 +92,7 @@ func TestAssistantNightLightExampleGuardsActions(t *testing.T) {
 			if tc.trigger != "" {
 				fired[tc.trigger] = true
 			}
-			if got := engine.evaluateGraph(compiled, env, fired); got != (tc.want != "") {
+			if got := engine.evaluateGraph(t.Context(), compiled, env, fired); got != (tc.want != "") {
 				t.Fatalf("action fired = %v, want %q", got, tc.want)
 			}
 			var actions []NodeID
@@ -119,7 +119,7 @@ func TestAssistantAlternativeGuardExample(t *testing.T) {
 				engine := NewEngine(bus, newMockStateReader(), st, st, nil, nil, &mockSceneRunner{})
 				now := time.Date(2026, 10, 18+int(weekday), hour, 0, 0, 0, time.UTC)
 				env := ExprEnv{Time: buildTimeContext(now), Day: buildDayContext(now)}
-				got := engine.evaluateGraph(compiled, env, map[NodeID]bool{"motion": fired})
+				got := engine.evaluateGraph(t.Context(), compiled, env, map[NodeID]bool{"motion": fired})
 				want := fired && (hour == 1 || weekday == time.Sunday)
 				if got != want {
 					t.Fatalf("hour=%d weekday=%s trigger=%v fired=%v", hour, weekday, fired, got)

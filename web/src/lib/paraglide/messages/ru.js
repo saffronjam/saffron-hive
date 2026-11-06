@@ -135,6 +135,138 @@
 /** @typedef {{}} Assistant_Upload_ImageInputs */
 /** @typedef {{}} Assistant_WaitingInputs */
 /** @typedef {{}} Assistant_WritingInputs */
+/** @typedef {{}} Audit_ActionInputs */
+/** @typedef {{}} Audit_Action_Noun_AlarmInputs */
+/** @typedef {{}} Audit_Action_Noun_AlarmsInputs */
+/** @typedef {{}} Audit_Action_Noun_AutomationInputs */
+/** @typedef {{}} Audit_Action_Noun_Automation_EdgeInputs */
+/** @typedef {{}} Audit_Action_Noun_Automation_NodeInputs */
+/** @typedef {{}} Audit_Action_Noun_AutomationsInputs */
+/** @typedef {{}} Audit_Action_Noun_AvatarInputs */
+/** @typedef {{}} Audit_Action_Noun_Claude_ConnectionInputs */
+/** @typedef {{}} Audit_Action_Noun_Claude_ModelsInputs */
+/** @typedef {{}} Audit_Action_Noun_Claude_SettingsInputs */
+/** @typedef {{}} Audit_Action_Noun_DeviceInputs */
+/** @typedef {{}} Audit_Action_Noun_Device_ActionInputs */
+/** @typedef {{}} Audit_Action_Noun_Device_CommandInputs */
+/** @typedef {{}} Audit_Action_Noun_Device_SettingsInputs */
+/** @typedef {{}} Audit_Action_Noun_Device_StateInputs */
+/** @typedef {{}} Audit_Action_Noun_DevicesInputs */
+/** @typedef {{}} Audit_Action_Noun_EffectInputs */
+/** @typedef {{}} Audit_Action_Noun_Effect_ClipInputs */
+/** @typedef {{}} Audit_Action_Noun_Effect_TrackInputs */
+/** @typedef {{}} Audit_Action_Noun_EffectsInputs */
+/** @typedef {{}} Audit_Action_Noun_FloorplanInputs */
+/** @typedef {{}} Audit_Action_Noun_Floorplan_Door_BindingInputs */
+/** @typedef {{}} Audit_Action_Noun_Floorplan_FurnitureInputs */
+/** @typedef {{}} Audit_Action_Noun_Floorplan_OpeningInputs */
+/** @typedef {{}} Audit_Action_Noun_Floorplan_PlacementInputs */
+/** @typedef {{}} Audit_Action_Noun_Floorplan_RoomInputs */
+/** @typedef {{}} Audit_Action_Noun_Floorplan_VertexInputs */
+/** @typedef {{}} Audit_Action_Noun_Floorplan_WallInputs */
+/** @typedef {{}} Audit_Action_Noun_FloorplansInputs */
+/** @typedef {{}} Audit_Action_Noun_GroupInputs */
+/** @typedef {{}} Audit_Action_Noun_Group_MemberInputs */
+/** @typedef {{}} Audit_Action_Noun_Group_MembersInputs */
+/** @typedef {{}} Audit_Action_Noun_Group_TagInputs */
+/** @typedef {{}} Audit_Action_Noun_GroupsInputs */
+/** @typedef {{}} Audit_Action_Noun_GuestInputs */
+/** @typedef {{}} Audit_Action_Noun_Guest_AccessInputs */
+/** @typedef {{}} Audit_Action_Noun_Guest_LanguageInputs */
+/** @typedef {{}} Audit_Action_Noun_Guest_Sign_InInputs */
+/** @typedef {{}} Audit_Action_Noun_GuestsInputs */
+/** @typedef {{}} Audit_Action_Noun_IntegrationInputs */
+/** @typedef {{}} Audit_Action_Noun_IntegrationsInputs */
+/** @typedef {{}} Audit_Action_Noun_LightingInputs */
+/** @typedef {{}} Audit_Action_Noun_Maintenance_TaskInputs */
+/** @typedef {{}} Audit_Action_Noun_Maintenance_TasksInputs */
+/** @typedef {{}} Audit_Action_Noun_Network_ScanInputs */
+/** @typedef {{}} Audit_Action_Noun_OperationInputs */
+/** @typedef {{}} Audit_Action_Noun_PasswordInputs */
+/** @typedef {{}} Audit_Action_Noun_ProfileInputs */
+/** @typedef {{}} Audit_Action_Noun_RoomInputs */
+/** @typedef {{}} Audit_Action_Noun_Room_MemberInputs */
+/** @typedef {{}} Audit_Action_Noun_Room_MembersInputs */
+/** @typedef {{}} Audit_Action_Noun_RoomsInputs */
+/** @typedef {{}} Audit_Action_Noun_SceneInputs */
+/** @typedef {{}} Audit_Action_Noun_Scene_LightingInputs */
+/** @typedef {{}} Audit_Action_Noun_Scene_OverrideInputs */
+/** @typedef {{}} Audit_Action_Noun_Scene_TargetInputs */
+/** @typedef {{}} Audit_Action_Noun_ScenesInputs */
+/** @typedef {{}} Audit_Action_Noun_Seen_DevicesInputs */
+/** @typedef {{}} Audit_Action_Noun_SessionsInputs */
+/** @typedef {{}} Audit_Action_Noun_SettingInputs */
+/** @typedef {{}} Audit_Action_Noun_SettingsInputs */
+/** @typedef {{}} Audit_Action_Noun_Sign_InInputs */
+/** @typedef {{}} Audit_Action_Noun_TranslationInputs */
+/** @typedef {{}} Audit_Action_Noun_TranslationsInputs */
+/** @typedef {{}} Audit_Action_Noun_Tuya_ConnectionInputs */
+/** @typedef {{}} Audit_Action_Noun_Tuya_DevicesInputs */
+/** @typedef {{}} Audit_Action_Noun_Tuya_SettingsInputs */
+/** @typedef {{}} Audit_Action_Noun_UserInputs */
+/** @typedef {{}} Audit_Action_Noun_UsersInputs */
+/** @typedef {{}} Audit_Action_Noun_WebhookInputs */
+/** @typedef {{}} Audit_Action_Noun_Webhook_SecretInputs */
+/** @typedef {{}} Audit_Action_Noun_WebhooksInputs */
+/** @typedef {{}} Audit_Action_Noun_Zigbee_ConnectionInputs */
+/** @typedef {{}} Audit_Action_Noun_Zigbee_SettingsInputs */
+/** @typedef {{ verb: NonNullable<unknown>, noun: NonNullable<unknown> }} Audit_Action_PhraseInputs */
+/** @typedef {{}} Audit_Action_Verb_AddedInputs */
+/** @typedef {{}} Audit_Action_Verb_AppliedInputs */
+/** @typedef {{}} Audit_Action_Verb_AttemptedInputs */
+/** @typedef {{}} Audit_Action_Verb_ChangedInputs */
+/** @typedef {{}} Audit_Action_Verb_CompletedInputs */
+/** @typedef {{}} Audit_Action_Verb_ConfirmedInputs */
+/** @typedef {{}} Audit_Action_Verb_CreatedInputs */
+/** @typedef {{}} Audit_Action_Verb_DeactivatedInputs */
+/** @typedef {{}} Audit_Action_Verb_DeletedInputs */
+/** @typedef {{}} Audit_Action_Verb_DisabledInputs */
+/** @typedef {{}} Audit_Action_Verb_DiscoveredInputs */
+/** @typedef {{}} Audit_Action_Verb_EnabledInputs */
+/** @typedef {{}} Audit_Action_Verb_EndedInputs */
+/** @typedef {{}} Audit_Action_Verb_ExtendedInputs */
+/** @typedef {{}} Audit_Action_Verb_MarkedInputs */
+/** @typedef {{}} Audit_Action_Verb_RaisedInputs */
+/** @typedef {{}} Audit_Action_Verb_RanInputs */
+/** @typedef {{}} Audit_Action_Verb_RemovedInputs */
+/** @typedef {{}} Audit_Action_Verb_RequestedInputs */
+/** @typedef {{}} Audit_Action_Verb_ResetInputs */
+/** @typedef {{}} Audit_Action_Verb_RestoredInputs */
+/** @typedef {{}} Audit_Action_Verb_RotatedInputs */
+/** @typedef {{}} Audit_Action_Verb_SentInputs */
+/** @typedef {{}} Audit_Action_Verb_SetInputs */
+/** @typedef {{}} Audit_Action_Verb_SimulatedInputs */
+/** @typedef {{}} Audit_Action_Verb_StartedInputs */
+/** @typedef {{}} Audit_Action_Verb_StoppedInputs */
+/** @typedef {{}} Audit_Action_Verb_SummarizedInputs */
+/** @typedef {{}} Audit_Action_Verb_SupersededInputs */
+/** @typedef {{}} Audit_Action_Verb_SyncedInputs */
+/** @typedef {{}} Audit_Action_Verb_TestedInputs */
+/** @typedef {{}} Audit_Action_Verb_ToggledInputs */
+/** @typedef {{}} Audit_Action_Verb_TriggeredInputs */
+/** @typedef {{}} Audit_Action_Verb_UpdatedInputs */
+/** @typedef {{}} Audit_ActorInputs */
+/** @typedef {{}} Audit_ActualInputs */
+/** @typedef {{}} Audit_AfterInputs */
+/** @typedef {{}} Audit_BeforeInputs */
+/** @typedef {{}} Audit_ConversationInputs */
+/** @typedef {{}} Audit_EmptyInputs */
+/** @typedef {{}} Audit_EntityInputs */
+/** @typedef {{}} Audit_JsonInputs */
+/** @typedef {{}} Audit_Json_DetailsInputs */
+/** @typedef {{}} Audit_LiveInputs */
+/** @typedef {{ count: NonNullable<unknown> }} Audit_NewInputs */
+/** @typedef {{}} Audit_No_ChangeInputs */
+/** @typedef {{}} Audit_OperationInputs */
+/** @typedef {{}} Audit_ParentInputs */
+/** @typedef {{}} Audit_PausedInputs */
+/** @typedef {{}} Audit_PropertyInputs */
+/** @typedef {{}} Audit_ProposedInputs */
+/** @typedef {{}} Audit_ResultInputs */
+/** @typedef {{}} Audit_SinceInputs */
+/** @typedef {{}} Audit_SourceInputs */
+/** @typedef {{}} Audit_TimeInputs */
+/** @typedef {{}} Audit_TypeInputs */
 /** @typedef {{ path: NonNullable<unknown> }} Auth_Bootstrap_HelpInputs */
 /** @typedef {{}} Auth_Bootstrap_TokenInputs */
 /** @typedef {{}} Auth_Choose_PasswordInputs */
@@ -1169,6 +1301,7 @@
 /** @typedef {{ count: NonNullable<unknown> }} Nav_Active_AlarmsInputs */
 /** @typedef {{}} Nav_ActivityInputs */
 /** @typedef {{}} Nav_AlarmsInputs */
+/** @typedef {{}} Nav_AuditInputs */
 /** @typedef {{}} Nav_AutomationsInputs */
 /** @typedef {{}} Nav_ChatInputs */
 /** @typedef {{}} Nav_DashboardInputs */
@@ -2485,6 +2618,534 @@ export const assistant_waiting = /** @type {(inputs: Assistant_WaitingInputs) =>
 
 export const assistant_writing = /** @type {(inputs: Assistant_WritingInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Пишу…`)
+};
+
+export const audit_action = /** @type {(inputs: Audit_ActionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Действие`)
+};
+
+export const audit_action_noun_alarm = /** @type {(inputs: Audit_Action_Noun_AlarmInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`оповещение`)
+};
+
+export const audit_action_noun_alarms = /** @type {(inputs: Audit_Action_Noun_AlarmsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`оповещения`)
+};
+
+export const audit_action_noun_automation = /** @type {(inputs: Audit_Action_Noun_AutomationInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`автоматизацию`)
+};
+
+export const audit_action_noun_automation_edge = /** @type {(inputs: Audit_Action_Noun_Automation_EdgeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`связь автоматизации`)
+};
+
+export const audit_action_noun_automation_node = /** @type {(inputs: Audit_Action_Noun_Automation_NodeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`узел автоматизации`)
+};
+
+export const audit_action_noun_automations = /** @type {(inputs: Audit_Action_Noun_AutomationsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`автоматизации`)
+};
+
+export const audit_action_noun_avatar = /** @type {(inputs: Audit_Action_Noun_AvatarInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`аватар`)
+};
+
+export const audit_action_noun_claude_connection = /** @type {(inputs: Audit_Action_Noun_Claude_ConnectionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`соединение Claude`)
+};
+
+export const audit_action_noun_claude_models = /** @type {(inputs: Audit_Action_Noun_Claude_ModelsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`модели Claude`)
+};
+
+export const audit_action_noun_claude_settings = /** @type {(inputs: Audit_Action_Noun_Claude_SettingsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`настройки Claude`)
+};
+
+export const audit_action_noun_device = /** @type {(inputs: Audit_Action_Noun_DeviceInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`устройство`)
+};
+
+export const audit_action_noun_device_action = /** @type {(inputs: Audit_Action_Noun_Device_ActionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`событие устройства`)
+};
+
+export const audit_action_noun_device_command = /** @type {(inputs: Audit_Action_Noun_Device_CommandInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`команду устройства`)
+};
+
+export const audit_action_noun_device_settings = /** @type {(inputs: Audit_Action_Noun_Device_SettingsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`настройки устройства`)
+};
+
+export const audit_action_noun_device_state = /** @type {(inputs: Audit_Action_Noun_Device_StateInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`состояние устройства`)
+};
+
+export const audit_action_noun_devices = /** @type {(inputs: Audit_Action_Noun_DevicesInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`устройства`)
+};
+
+export const audit_action_noun_effect = /** @type {(inputs: Audit_Action_Noun_EffectInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`эффект`)
+};
+
+export const audit_action_noun_effect_clip = /** @type {(inputs: Audit_Action_Noun_Effect_ClipInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`клип эффекта`)
+};
+
+export const audit_action_noun_effect_track = /** @type {(inputs: Audit_Action_Noun_Effect_TrackInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`дорожку эффекта`)
+};
+
+export const audit_action_noun_effects = /** @type {(inputs: Audit_Action_Noun_EffectsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`эффекты`)
+};
+
+export const audit_action_noun_floorplan = /** @type {(inputs: Audit_Action_Noun_FloorplanInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`план помещения`)
+};
+
+export const audit_action_noun_floorplan_door_binding = /** @type {(inputs: Audit_Action_Noun_Floorplan_Door_BindingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`привязку двери`)
+};
+
+export const audit_action_noun_floorplan_furniture = /** @type {(inputs: Audit_Action_Noun_Floorplan_FurnitureInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`расположение мебели`)
+};
+
+export const audit_action_noun_floorplan_opening = /** @type {(inputs: Audit_Action_Noun_Floorplan_OpeningInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`проём плана помещения`)
+};
+
+export const audit_action_noun_floorplan_placement = /** @type {(inputs: Audit_Action_Noun_Floorplan_PlacementInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`расположение устройства`)
+};
+
+export const audit_action_noun_floorplan_room = /** @type {(inputs: Audit_Action_Noun_Floorplan_RoomInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`комнату плана помещения`)
+};
+
+export const audit_action_noun_floorplan_vertex = /** @type {(inputs: Audit_Action_Noun_Floorplan_VertexInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`вершину плана помещения`)
+};
+
+export const audit_action_noun_floorplan_wall = /** @type {(inputs: Audit_Action_Noun_Floorplan_WallInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`стену плана помещения`)
+};
+
+export const audit_action_noun_floorplans = /** @type {(inputs: Audit_Action_Noun_FloorplansInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`планы помещений`)
+};
+
+export const audit_action_noun_group = /** @type {(inputs: Audit_Action_Noun_GroupInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`группу`)
+};
+
+export const audit_action_noun_group_member = /** @type {(inputs: Audit_Action_Noun_Group_MemberInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`участника группы`)
+};
+
+export const audit_action_noun_group_members = /** @type {(inputs: Audit_Action_Noun_Group_MembersInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`участников группы`)
+};
+
+export const audit_action_noun_group_tag = /** @type {(inputs: Audit_Action_Noun_Group_TagInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`метку группы`)
+};
+
+export const audit_action_noun_groups = /** @type {(inputs: Audit_Action_Noun_GroupsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`группы`)
+};
+
+export const audit_action_noun_guest = /** @type {(inputs: Audit_Action_Noun_GuestInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`гостя`)
+};
+
+export const audit_action_noun_guest_access = /** @type {(inputs: Audit_Action_Noun_Guest_AccessInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`гостевой доступ`)
+};
+
+export const audit_action_noun_guest_language = /** @type {(inputs: Audit_Action_Noun_Guest_LanguageInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`язык гостя`)
+};
+
+export const audit_action_noun_guest_sign_in = /** @type {(inputs: Audit_Action_Noun_Guest_Sign_InInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`гостевой вход`)
+};
+
+export const audit_action_noun_guests = /** @type {(inputs: Audit_Action_Noun_GuestsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`гостей`)
+};
+
+export const audit_action_noun_integration = /** @type {(inputs: Audit_Action_Noun_IntegrationInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`интеграцию`)
+};
+
+export const audit_action_noun_integrations = /** @type {(inputs: Audit_Action_Noun_IntegrationsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`интеграции`)
+};
+
+export const audit_action_noun_lighting = /** @type {(inputs: Audit_Action_Noun_LightingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`освещение`)
+};
+
+export const audit_action_noun_maintenance_task = /** @type {(inputs: Audit_Action_Noun_Maintenance_TaskInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`задачу обслуживания`)
+};
+
+export const audit_action_noun_maintenance_tasks = /** @type {(inputs: Audit_Action_Noun_Maintenance_TasksInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`задачи обслуживания`)
+};
+
+export const audit_action_noun_network_scan = /** @type {(inputs: Audit_Action_Noun_Network_ScanInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`сканирование сети`)
+};
+
+export const audit_action_noun_operation = /** @type {(inputs: Audit_Action_Noun_OperationInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`операцию`)
+};
+
+export const audit_action_noun_password = /** @type {(inputs: Audit_Action_Noun_PasswordInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`пароль`)
+};
+
+export const audit_action_noun_profile = /** @type {(inputs: Audit_Action_Noun_ProfileInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`профиль`)
+};
+
+export const audit_action_noun_room = /** @type {(inputs: Audit_Action_Noun_RoomInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`комнату`)
+};
+
+export const audit_action_noun_room_member = /** @type {(inputs: Audit_Action_Noun_Room_MemberInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`участника комнаты`)
+};
+
+export const audit_action_noun_room_members = /** @type {(inputs: Audit_Action_Noun_Room_MembersInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`участников комнаты`)
+};
+
+export const audit_action_noun_rooms = /** @type {(inputs: Audit_Action_Noun_RoomsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`комнаты`)
+};
+
+export const audit_action_noun_scene = /** @type {(inputs: Audit_Action_Noun_SceneInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`сцену`)
+};
+
+export const audit_action_noun_scene_lighting = /** @type {(inputs: Audit_Action_Noun_Scene_LightingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`освещение сцены`)
+};
+
+export const audit_action_noun_scene_override = /** @type {(inputs: Audit_Action_Noun_Scene_OverrideInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`переопределение сцены`)
+};
+
+export const audit_action_noun_scene_target = /** @type {(inputs: Audit_Action_Noun_Scene_TargetInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`цель сцены`)
+};
+
+export const audit_action_noun_scenes = /** @type {(inputs: Audit_Action_Noun_ScenesInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`сцены`)
+};
+
+export const audit_action_noun_seen_devices = /** @type {(inputs: Audit_Action_Noun_Seen_DevicesInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`устройства как просмотренные`)
+};
+
+export const audit_action_noun_sessions = /** @type {(inputs: Audit_Action_Noun_SessionsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`сеансы`)
+};
+
+export const audit_action_noun_setting = /** @type {(inputs: Audit_Action_Noun_SettingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`настройку`)
+};
+
+export const audit_action_noun_settings = /** @type {(inputs: Audit_Action_Noun_SettingsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`настройки`)
+};
+
+export const audit_action_noun_sign_in = /** @type {(inputs: Audit_Action_Noun_Sign_InInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`вход`)
+};
+
+export const audit_action_noun_translation = /** @type {(inputs: Audit_Action_Noun_TranslationInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`перевод`)
+};
+
+export const audit_action_noun_translations = /** @type {(inputs: Audit_Action_Noun_TranslationsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`переводы`)
+};
+
+export const audit_action_noun_tuya_connection = /** @type {(inputs: Audit_Action_Noun_Tuya_ConnectionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`соединение Tuya`)
+};
+
+export const audit_action_noun_tuya_devices = /** @type {(inputs: Audit_Action_Noun_Tuya_DevicesInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`устройства Tuya`)
+};
+
+export const audit_action_noun_tuya_settings = /** @type {(inputs: Audit_Action_Noun_Tuya_SettingsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`настройки Tuya`)
+};
+
+export const audit_action_noun_user = /** @type {(inputs: Audit_Action_Noun_UserInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`пользователя`)
+};
+
+export const audit_action_noun_users = /** @type {(inputs: Audit_Action_Noun_UsersInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`пользователей`)
+};
+
+export const audit_action_noun_webhook = /** @type {(inputs: Audit_Action_Noun_WebhookInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`вебхук`)
+};
+
+export const audit_action_noun_webhook_secret = /** @type {(inputs: Audit_Action_Noun_Webhook_SecretInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`секрет вебхука`)
+};
+
+export const audit_action_noun_webhooks = /** @type {(inputs: Audit_Action_Noun_WebhooksInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`вебхуки`)
+};
+
+export const audit_action_noun_zigbee_connection = /** @type {(inputs: Audit_Action_Noun_Zigbee_ConnectionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`соединение Zigbee2MQTT`)
+};
+
+export const audit_action_noun_zigbee_settings = /** @type {(inputs: Audit_Action_Noun_Zigbee_SettingsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`настройки Zigbee2MQTT`)
+};
+
+export const audit_action_phrase = /** @type {(inputs: Audit_Action_PhraseInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.verb} ${i?.noun}`)
+};
+
+export const audit_action_verb_added = /** @type {(inputs: Audit_Action_Verb_AddedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Добавили`)
+};
+
+export const audit_action_verb_applied = /** @type {(inputs: Audit_Action_Verb_AppliedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Применили`)
+};
+
+export const audit_action_verb_attempted = /** @type {(inputs: Audit_Action_Verb_AttemptedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Попытались выполнить`)
+};
+
+export const audit_action_verb_changed = /** @type {(inputs: Audit_Action_Verb_ChangedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Изменили`)
+};
+
+export const audit_action_verb_completed = /** @type {(inputs: Audit_Action_Verb_CompletedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Завершили`)
+};
+
+export const audit_action_verb_confirmed = /** @type {(inputs: Audit_Action_Verb_ConfirmedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Подтвердили`)
+};
+
+export const audit_action_verb_created = /** @type {(inputs: Audit_Action_Verb_CreatedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Создали`)
+};
+
+export const audit_action_verb_deactivated = /** @type {(inputs: Audit_Action_Verb_DeactivatedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Деактивировали`)
+};
+
+export const audit_action_verb_deleted = /** @type {(inputs: Audit_Action_Verb_DeletedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Удалили`)
+};
+
+export const audit_action_verb_disabled = /** @type {(inputs: Audit_Action_Verb_DisabledInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Отключили`)
+};
+
+export const audit_action_verb_discovered = /** @type {(inputs: Audit_Action_Verb_DiscoveredInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Получили`)
+};
+
+export const audit_action_verb_enabled = /** @type {(inputs: Audit_Action_Verb_EnabledInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Включили`)
+};
+
+export const audit_action_verb_ended = /** @type {(inputs: Audit_Action_Verb_EndedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Завершили`)
+};
+
+export const audit_action_verb_extended = /** @type {(inputs: Audit_Action_Verb_ExtendedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Продлили`)
+};
+
+export const audit_action_verb_marked = /** @type {(inputs: Audit_Action_Verb_MarkedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Отметили`)
+};
+
+export const audit_action_verb_raised = /** @type {(inputs: Audit_Action_Verb_RaisedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Создали`)
+};
+
+export const audit_action_verb_ran = /** @type {(inputs: Audit_Action_Verb_RanInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Выполнили`)
+};
+
+export const audit_action_verb_removed = /** @type {(inputs: Audit_Action_Verb_RemovedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Убрали`)
+};
+
+export const audit_action_verb_requested = /** @type {(inputs: Audit_Action_Verb_RequestedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Запросили`)
+};
+
+export const audit_action_verb_reset = /** @type {(inputs: Audit_Action_Verb_ResetInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Сбросили`)
+};
+
+export const audit_action_verb_restored = /** @type {(inputs: Audit_Action_Verb_RestoredInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Восстановили`)
+};
+
+export const audit_action_verb_rotated = /** @type {(inputs: Audit_Action_Verb_RotatedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Сменили`)
+};
+
+export const audit_action_verb_sent = /** @type {(inputs: Audit_Action_Verb_SentInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Отправили`)
+};
+
+export const audit_action_verb_set = /** @type {(inputs: Audit_Action_Verb_SetInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Задали`)
+};
+
+export const audit_action_verb_simulated = /** @type {(inputs: Audit_Action_Verb_SimulatedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Сымитировали`)
+};
+
+export const audit_action_verb_started = /** @type {(inputs: Audit_Action_Verb_StartedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Запустили`)
+};
+
+export const audit_action_verb_stopped = /** @type {(inputs: Audit_Action_Verb_StoppedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Остановили`)
+};
+
+export const audit_action_verb_summarized = /** @type {(inputs: Audit_Action_Verb_SummarizedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Подвели итоги для`)
+};
+
+export const audit_action_verb_superseded = /** @type {(inputs: Audit_Action_Verb_SupersededInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Заменили`)
+};
+
+export const audit_action_verb_synced = /** @type {(inputs: Audit_Action_Verb_SyncedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Синхронизировали`)
+};
+
+export const audit_action_verb_tested = /** @type {(inputs: Audit_Action_Verb_TestedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Проверили`)
+};
+
+export const audit_action_verb_toggled = /** @type {(inputs: Audit_Action_Verb_ToggledInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Переключили`)
+};
+
+export const audit_action_verb_triggered = /** @type {(inputs: Audit_Action_Verb_TriggeredInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Активировали`)
+};
+
+export const audit_action_verb_updated = /** @type {(inputs: Audit_Action_Verb_UpdatedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Обновили`)
+};
+
+export const audit_actor = /** @type {(inputs: Audit_ActorInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Кто`)
+};
+
+export const audit_actual = /** @type {(inputs: Audit_ActualInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Изменения`)
+};
+
+export const audit_after = /** @type {(inputs: Audit_AfterInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`После`)
+};
+
+export const audit_before = /** @type {(inputs: Audit_BeforeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`До`)
+};
+
+export const audit_conversation = /** @type {(inputs: Audit_ConversationInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Открыть беседу`)
+};
+
+export const audit_empty = /** @type {(inputs: Audit_EmptyInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Нет записей, соответствующих поиску.`)
+};
+
+export const audit_entity = /** @type {(inputs: Audit_EntityInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Объект`)
+};
+
+export const audit_json = /** @type {(inputs: Audit_JsonInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Разница JSON`)
+};
+
+export const audit_json_details = /** @type {(inputs: Audit_Json_DetailsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Данные JSON`)
+};
+
+export const audit_live = /** @type {(inputs: Audit_LiveInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`В реальном времени`)
+};
+
+export const audit_new = /** @type {(inputs: Audit_NewInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Новых изменений: ${i?.count}`)
+};
+
+export const audit_no_change = /** @type {(inputs: Audit_No_ChangeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Изменений не зарегистрировано.`)
+};
+
+export const audit_operation = /** @type {(inputs: Audit_OperationInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Операция`)
+};
+
+export const audit_parent = /** @type {(inputs: Audit_ParentInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Открыть исходную операцию`)
+};
+
+export const audit_paused = /** @type {(inputs: Audit_PausedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Приостановлено`)
+};
+
+export const audit_property = /** @type {(inputs: Audit_PropertyInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Свойство`)
+};
+
+export const audit_proposed = /** @type {(inputs: Audit_ProposedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Предложенные изменения`)
+};
+
+export const audit_result = /** @type {(inputs: Audit_ResultInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Результат`)
+};
+
+export const audit_since = /** @type {(inputs: Audit_SinceInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`За период`)
+};
+
+export const audit_source = /** @type {(inputs: Audit_SourceInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Источник`)
+};
+
+export const audit_time = /** @type {(inputs: Audit_TimeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Время`)
+};
+
+export const audit_type = /** @type {(inputs: Audit_TypeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Тип`)
 };
 
 export const auth_bootstrap_help = /** @type {(inputs: Auth_Bootstrap_HelpInputs) => LocalizedString} */ (i) => {
@@ -6828,6 +7489,10 @@ export const nav_activity = /** @type {(inputs: Nav_ActivityInputs) => Localized
 
 export const nav_alarms = /** @type {(inputs: Nav_AlarmsInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Оповещения`)
+};
+
+export const nav_audit = /** @type {(inputs: Nav_AuditInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Журнал изменений`)
 };
 
 export const nav_automations = /** @type {(inputs: Nav_AutomationsInputs) => LocalizedString} */ () => {

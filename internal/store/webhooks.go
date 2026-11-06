@@ -12,18 +12,20 @@ const webhookDeliveryLimit = 1000
 
 // CreateWebhookEndpoint inserts an incoming webhook endpoint.
 func (s *DB) CreateWebhookEndpoint(ctx context.Context, params CreateWebhookEndpointParams) (WebhookEndpoint, error) {
-	if err := s.q.CreateWebhookEndpoint(ctx, sqlite.CreateWebhookEndpointParams{
-		ID:                params.ID,
-		Name:              params.Name,
-		Enabled:           params.Enabled,
-		SecretHash:        params.SecretHash,
-		RateLimitCount:    int64(params.RateLimitCount),
-		RateLimitWindowMs: int64(params.RateLimitWindowMs),
-		CreatedBy:         params.CreatedBy,
-	}); err != nil {
-		return WebhookEndpoint{}, fmt.Errorf("create webhook endpoint: %w", err)
-	}
-	return s.GetWebhookEndpoint(ctx, params.ID)
+	return writeTx(s, ctx, func(s *DB) (WebhookEndpoint, error) {
+		if err := s.q.CreateWebhookEndpoint(ctx, sqlite.CreateWebhookEndpointParams{
+			ID:                params.ID,
+			Name:              params.Name,
+			Enabled:           params.Enabled,
+			SecretHash:        params.SecretHash,
+			RateLimitCount:    int64(params.RateLimitCount),
+			RateLimitWindowMs: int64(params.RateLimitWindowMs),
+			CreatedBy:         params.CreatedBy,
+		}); err != nil {
+			return WebhookEndpoint{}, fmt.Errorf("create webhook endpoint: %w", err)
+		}
+		return s.GetWebhookEndpoint(ctx, params.ID)
+	})
 }
 
 // GetWebhookEndpoint returns an endpoint without its secret hash.
@@ -118,37 +120,43 @@ func (s *DB) UpdateWebhookEndpoint(ctx context.Context, params UpdateWebhookEndp
 
 // UpdateWebhookEndpointSecretHash rotates an endpoint credential.
 func (s *DB) UpdateWebhookEndpointSecretHash(ctx context.Context, id, secretHash string) error {
-	if err := s.q.UpdateWebhookEndpointSecretHash(ctx, sqlite.UpdateWebhookEndpointSecretHashParams{
-		SecretHash: secretHash,
-		ID:         id,
-	}); err != nil {
-		return fmt.Errorf("rotate webhook endpoint secret: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.UpdateWebhookEndpointSecretHash(ctx, sqlite.UpdateWebhookEndpointSecretHashParams{
+			SecretHash: secretHash,
+			ID:         id,
+		}); err != nil {
+			return fmt.Errorf("rotate webhook endpoint secret: %w", err)
+		}
+		return nil
+	})
 }
 
 // DeleteWebhookEndpoint deletes an endpoint and its deliveries.
 func (s *DB) DeleteWebhookEndpoint(ctx context.Context, id string) error {
-	if err := s.q.DeleteWebhookEndpoint(ctx, id); err != nil {
-		return fmt.Errorf("delete webhook endpoint: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.DeleteWebhookEndpoint(ctx, id); err != nil {
+			return fmt.Errorf("delete webhook endpoint: %w", err)
+		}
+		return nil
+	})
 }
 
 // BatchDeleteWebhookEndpoints deletes unreferenced endpoints with the given IDs.
 func (s *DB) BatchDeleteWebhookEndpoints(ctx context.Context, ids []string) (int64, error) {
-	if len(ids) == 0 {
-		return 0, nil
-	}
-	js, err := marshalStringArray(ids)
-	if err != nil {
-		return 0, fmt.Errorf("batch delete webhook endpoints: %w", err)
-	}
-	n, err := s.q.BatchDeleteWebhookEndpoints(ctx, js)
-	if err != nil {
-		return 0, fmt.Errorf("batch delete webhook endpoints: %w", err)
-	}
-	return n, nil
+	return writeTx(s, ctx, func(s *DB) (int64, error) {
+		if len(ids) == 0 {
+			return 0, nil
+		}
+		js, err := marshalStringArray(ids)
+		if err != nil {
+			return 0, fmt.Errorf("batch delete webhook endpoints: %w", err)
+		}
+		n, err := s.q.BatchDeleteWebhookEndpoints(ctx, js)
+		if err != nil {
+			return 0, fmt.Errorf("batch delete webhook endpoints: %w", err)
+		}
+		return n, nil
+	})
 }
 
 // ListWebhookEndpointAutomationReferences returns automations whose trigger

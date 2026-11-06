@@ -5,8 +5,9 @@ package device
 // drift; scenes and automations use it for activity-log attribution and to
 // disambiguate overlapping commands during loop-prevention checks.
 type CommandOrigin struct {
-	Kind string `json:"kind,omitempty"`
-	ID   string `json:"id,omitempty"`
+	AuditID string `json:"auditId,omitempty"`
+	Kind    string `json:"kind,omitempty"`
+	ID      string `json:"id,omitempty"`
 }
 
 const (

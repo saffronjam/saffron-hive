@@ -182,27 +182,31 @@ func (s *DB) UpdateEffect(ctx context.Context, id string, params UpdateEffectPar
 // DeleteEffect deletes an effect by its ID. Cascading deletes remove the
 // associated tracks + clips and any active_effects rows pointing at the effect.
 func (s *DB) DeleteEffect(ctx context.Context, id string) error {
-	if err := s.q.DeleteEffect(ctx, id); err != nil {
-		return fmt.Errorf("delete effect: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.DeleteEffect(ctx, id); err != nil {
+			return fmt.Errorf("delete effect: %w", err)
+		}
+		return nil
+	})
 }
 
 // BatchDeleteEffects deletes the effects with the given IDs and returns the
 // number of rows deleted.
 func (s *DB) BatchDeleteEffects(ctx context.Context, ids []string) (int64, error) {
-	if len(ids) == 0 {
-		return 0, nil
-	}
-	js, err := marshalStringArray(ids)
-	if err != nil {
-		return 0, fmt.Errorf("batch delete effects: %w", err)
-	}
-	n, err := s.q.BatchDeleteEffects(ctx, js)
-	if err != nil {
-		return 0, fmt.Errorf("batch delete effects: %w", err)
-	}
-	return n, nil
+	return writeTx(s, ctx, func(s *DB) (int64, error) {
+		if len(ids) == 0 {
+			return 0, nil
+		}
+		js, err := marshalStringArray(ids)
+		if err != nil {
+			return 0, fmt.Errorf("batch delete effects: %w", err)
+		}
+		n, err := s.q.BatchDeleteEffects(ctx, js)
+		if err != nil {
+			return 0, fmt.Errorf("batch delete effects: %w", err)
+		}
+		return n, nil
+	})
 }
 
 // saveEffectTracks atomically replaces the timeline of an effect with the
@@ -370,30 +374,34 @@ func (s *DB) listEffectClips(ctx context.Context, trackID string) ([]EffectClip,
 // effect. An existing row for the target is overwritten so a target can only
 // have one effect active at a time.
 func (s *DB) UpsertActiveEffect(ctx context.Context, params effect.UpsertActiveEffectParams) error {
-	if err := s.q.UpsertActiveEffect(ctx, sqlite.UpsertActiveEffectParams{
-		ID:         params.ID,
-		EffectID:   params.EffectID,
-		TargetType: params.TargetType,
-		TargetID:   params.TargetID,
-		StartedAt:  params.StartedAt,
-		Volatile:   boolToInt64(params.Volatile),
-	}); err != nil {
-		return fmt.Errorf("upsert active effect: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.UpsertActiveEffect(ctx, sqlite.UpsertActiveEffectParams{
+			ID:         params.ID,
+			EffectID:   params.EffectID,
+			TargetType: params.TargetType,
+			TargetID:   params.TargetID,
+			StartedAt:  params.StartedAt,
+			Volatile:   boolToInt64(params.Volatile),
+		}); err != nil {
+			return fmt.Errorf("upsert active effect: %w", err)
+		}
+		return nil
+	})
 }
 
 // DeleteActiveEffect removes the active-effect row for a target tuple. The
 // unique constraint on (target_type, target_id) makes this deterministic;
 // callers do not need to know the row's surrogate ID.
 func (s *DB) DeleteActiveEffect(ctx context.Context, targetType, targetID string) error {
-	if err := s.q.DeleteActiveEffectByTarget(ctx, sqlite.DeleteActiveEffectByTargetParams{
-		TargetType: targetType,
-		TargetID:   targetID,
-	}); err != nil {
-		return fmt.Errorf("delete active effect: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.DeleteActiveEffectByTarget(ctx, sqlite.DeleteActiveEffectByTargetParams{
+			TargetType: targetType,
+			TargetID:   targetID,
+		}); err != nil {
+			return fmt.Errorf("delete active effect: %w", err)
+		}
+		return nil
+	})
 }
 
 // ListActiveEffects returns every active-effect row.
@@ -420,11 +428,13 @@ func (s *DB) ListActiveEffects(ctx context.Context) ([]effect.ActiveEffectRecord
 // flag is set. Called at process startup so transient runner state from a
 // previous lifetime does not look like still-active effects.
 func (s *DB) DeleteVolatileActiveEffects(ctx context.Context) (int64, error) {
-	n, err := s.q.DeleteVolatileActiveEffects(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("delete volatile active effects: %w", err)
-	}
-	return n, nil
+	return writeTx(s, ctx, func(s *DB) (int64, error) {
+		n, err := s.q.DeleteVolatileActiveEffects(ctx)
+		if err != nil {
+			return 0, fmt.Errorf("delete volatile active effects: %w", err)
+		}
+		return n, nil
+	})
 }
 
 func boolToInt64(b bool) int64 {

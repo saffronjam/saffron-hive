@@ -1893,6 +1893,1854 @@ export const assistant_writing: ((inputs?: Assistant_WritingInputs, options?: {
 /**
 * | output |
 * | --- |
+* | "Action" |
+*
+* @param {Audit_ActionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action: ((inputs?: Audit_ActionInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_ActionInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "alarm" |
+*
+* @param {Audit_Action_Noun_AlarmInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_alarm: ((inputs?: Audit_Action_Noun_AlarmInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_AlarmInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "alarms" |
+*
+* @param {Audit_Action_Noun_AlarmsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_alarms: ((inputs?: Audit_Action_Noun_AlarmsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_AlarmsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "automation" |
+*
+* @param {Audit_Action_Noun_AutomationInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_automation: ((inputs?: Audit_Action_Noun_AutomationInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_AutomationInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "automation connection" |
+*
+* @param {Audit_Action_Noun_Automation_EdgeInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_automation_edge: ((inputs?: Audit_Action_Noun_Automation_EdgeInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Automation_EdgeInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "automation node" |
+*
+* @param {Audit_Action_Noun_Automation_NodeInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_automation_node: ((inputs?: Audit_Action_Noun_Automation_NodeInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Automation_NodeInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "automations" |
+*
+* @param {Audit_Action_Noun_AutomationsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_automations: ((inputs?: Audit_Action_Noun_AutomationsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_AutomationsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "avatar" |
+*
+* @param {Audit_Action_Noun_AvatarInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_avatar: ((inputs?: Audit_Action_Noun_AvatarInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_AvatarInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Claude connection" |
+*
+* @param {Audit_Action_Noun_Claude_ConnectionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_claude_connection: ((inputs?: Audit_Action_Noun_Claude_ConnectionInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Claude_ConnectionInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Claude models" |
+*
+* @param {Audit_Action_Noun_Claude_ModelsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_claude_models: ((inputs?: Audit_Action_Noun_Claude_ModelsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Claude_ModelsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Claude settings" |
+*
+* @param {Audit_Action_Noun_Claude_SettingsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_claude_settings: ((inputs?: Audit_Action_Noun_Claude_SettingsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Claude_SettingsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "device" |
+*
+* @param {Audit_Action_Noun_DeviceInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_device: ((inputs?: Audit_Action_Noun_DeviceInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_DeviceInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "device action" |
+*
+* @param {Audit_Action_Noun_Device_ActionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_device_action: ((inputs?: Audit_Action_Noun_Device_ActionInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Device_ActionInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "device command" |
+*
+* @param {Audit_Action_Noun_Device_CommandInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_device_command: ((inputs?: Audit_Action_Noun_Device_CommandInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Device_CommandInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "device settings" |
+*
+* @param {Audit_Action_Noun_Device_SettingsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_device_settings: ((inputs?: Audit_Action_Noun_Device_SettingsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Device_SettingsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "device state" |
+*
+* @param {Audit_Action_Noun_Device_StateInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_device_state: ((inputs?: Audit_Action_Noun_Device_StateInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Device_StateInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "devices" |
+*
+* @param {Audit_Action_Noun_DevicesInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_devices: ((inputs?: Audit_Action_Noun_DevicesInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_DevicesInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "effect" |
+*
+* @param {Audit_Action_Noun_EffectInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_effect: ((inputs?: Audit_Action_Noun_EffectInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_EffectInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "effect clip" |
+*
+* @param {Audit_Action_Noun_Effect_ClipInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_effect_clip: ((inputs?: Audit_Action_Noun_Effect_ClipInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Effect_ClipInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "effect track" |
+*
+* @param {Audit_Action_Noun_Effect_TrackInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_effect_track: ((inputs?: Audit_Action_Noun_Effect_TrackInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Effect_TrackInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "effects" |
+*
+* @param {Audit_Action_Noun_EffectsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_effects: ((inputs?: Audit_Action_Noun_EffectsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_EffectsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "floor plan" |
+*
+* @param {Audit_Action_Noun_FloorplanInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_floorplan: ((inputs?: Audit_Action_Noun_FloorplanInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_FloorplanInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "door binding" |
+*
+* @param {Audit_Action_Noun_Floorplan_Door_BindingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_floorplan_door_binding: ((inputs?: Audit_Action_Noun_Floorplan_Door_BindingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Floorplan_Door_BindingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "furniture placement" |
+*
+* @param {Audit_Action_Noun_Floorplan_FurnitureInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_floorplan_furniture: ((inputs?: Audit_Action_Noun_Floorplan_FurnitureInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Floorplan_FurnitureInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "floor plan opening" |
+*
+* @param {Audit_Action_Noun_Floorplan_OpeningInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_floorplan_opening: ((inputs?: Audit_Action_Noun_Floorplan_OpeningInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Floorplan_OpeningInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "device placement" |
+*
+* @param {Audit_Action_Noun_Floorplan_PlacementInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_floorplan_placement: ((inputs?: Audit_Action_Noun_Floorplan_PlacementInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Floorplan_PlacementInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "floor plan room" |
+*
+* @param {Audit_Action_Noun_Floorplan_RoomInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_floorplan_room: ((inputs?: Audit_Action_Noun_Floorplan_RoomInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Floorplan_RoomInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "floor plan vertex" |
+*
+* @param {Audit_Action_Noun_Floorplan_VertexInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_floorplan_vertex: ((inputs?: Audit_Action_Noun_Floorplan_VertexInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Floorplan_VertexInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "floor plan wall" |
+*
+* @param {Audit_Action_Noun_Floorplan_WallInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_floorplan_wall: ((inputs?: Audit_Action_Noun_Floorplan_WallInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Floorplan_WallInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "floor plans" |
+*
+* @param {Audit_Action_Noun_FloorplansInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_floorplans: ((inputs?: Audit_Action_Noun_FloorplansInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_FloorplansInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "group" |
+*
+* @param {Audit_Action_Noun_GroupInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_group: ((inputs?: Audit_Action_Noun_GroupInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_GroupInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "group member" |
+*
+* @param {Audit_Action_Noun_Group_MemberInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_group_member: ((inputs?: Audit_Action_Noun_Group_MemberInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Group_MemberInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "group members" |
+*
+* @param {Audit_Action_Noun_Group_MembersInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_group_members: ((inputs?: Audit_Action_Noun_Group_MembersInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Group_MembersInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "group tag" |
+*
+* @param {Audit_Action_Noun_Group_TagInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_group_tag: ((inputs?: Audit_Action_Noun_Group_TagInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Group_TagInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "groups" |
+*
+* @param {Audit_Action_Noun_GroupsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_groups: ((inputs?: Audit_Action_Noun_GroupsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_GroupsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "guest" |
+*
+* @param {Audit_Action_Noun_GuestInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_guest: ((inputs?: Audit_Action_Noun_GuestInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_GuestInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "guest access" |
+*
+* @param {Audit_Action_Noun_Guest_AccessInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_guest_access: ((inputs?: Audit_Action_Noun_Guest_AccessInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Guest_AccessInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "guest language" |
+*
+* @param {Audit_Action_Noun_Guest_LanguageInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_guest_language: ((inputs?: Audit_Action_Noun_Guest_LanguageInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Guest_LanguageInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "guest sign-in" |
+*
+* @param {Audit_Action_Noun_Guest_Sign_InInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_guest_sign_in: ((inputs?: Audit_Action_Noun_Guest_Sign_InInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Guest_Sign_InInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "guests" |
+*
+* @param {Audit_Action_Noun_GuestsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_guests: ((inputs?: Audit_Action_Noun_GuestsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_GuestsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "integration" |
+*
+* @param {Audit_Action_Noun_IntegrationInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_integration: ((inputs?: Audit_Action_Noun_IntegrationInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_IntegrationInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "integrations" |
+*
+* @param {Audit_Action_Noun_IntegrationsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_integrations: ((inputs?: Audit_Action_Noun_IntegrationsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_IntegrationsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "lighting" |
+*
+* @param {Audit_Action_Noun_LightingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_lighting: ((inputs?: Audit_Action_Noun_LightingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_LightingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "maintenance task" |
+*
+* @param {Audit_Action_Noun_Maintenance_TaskInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_maintenance_task: ((inputs?: Audit_Action_Noun_Maintenance_TaskInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Maintenance_TaskInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "maintenance tasks" |
+*
+* @param {Audit_Action_Noun_Maintenance_TasksInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_maintenance_tasks: ((inputs?: Audit_Action_Noun_Maintenance_TasksInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Maintenance_TasksInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "network scan" |
+*
+* @param {Audit_Action_Noun_Network_ScanInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_network_scan: ((inputs?: Audit_Action_Noun_Network_ScanInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Network_ScanInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "operation" |
+*
+* @param {Audit_Action_Noun_OperationInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_operation: ((inputs?: Audit_Action_Noun_OperationInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_OperationInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "password" |
+*
+* @param {Audit_Action_Noun_PasswordInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_password: ((inputs?: Audit_Action_Noun_PasswordInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_PasswordInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "profile" |
+*
+* @param {Audit_Action_Noun_ProfileInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_profile: ((inputs?: Audit_Action_Noun_ProfileInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_ProfileInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "room" |
+*
+* @param {Audit_Action_Noun_RoomInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_room: ((inputs?: Audit_Action_Noun_RoomInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_RoomInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "room member" |
+*
+* @param {Audit_Action_Noun_Room_MemberInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_room_member: ((inputs?: Audit_Action_Noun_Room_MemberInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Room_MemberInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "room members" |
+*
+* @param {Audit_Action_Noun_Room_MembersInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_room_members: ((inputs?: Audit_Action_Noun_Room_MembersInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Room_MembersInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "rooms" |
+*
+* @param {Audit_Action_Noun_RoomsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_rooms: ((inputs?: Audit_Action_Noun_RoomsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_RoomsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "scene" |
+*
+* @param {Audit_Action_Noun_SceneInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_scene: ((inputs?: Audit_Action_Noun_SceneInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_SceneInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "scene lighting" |
+*
+* @param {Audit_Action_Noun_Scene_LightingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_scene_lighting: ((inputs?: Audit_Action_Noun_Scene_LightingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Scene_LightingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "scene override" |
+*
+* @param {Audit_Action_Noun_Scene_OverrideInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_scene_override: ((inputs?: Audit_Action_Noun_Scene_OverrideInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Scene_OverrideInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "scene target" |
+*
+* @param {Audit_Action_Noun_Scene_TargetInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_scene_target: ((inputs?: Audit_Action_Noun_Scene_TargetInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Scene_TargetInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "scenes" |
+*
+* @param {Audit_Action_Noun_ScenesInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_scenes: ((inputs?: Audit_Action_Noun_ScenesInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_ScenesInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "devices as seen" |
+*
+* @param {Audit_Action_Noun_Seen_DevicesInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_seen_devices: ((inputs?: Audit_Action_Noun_Seen_DevicesInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Seen_DevicesInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "sessions" |
+*
+* @param {Audit_Action_Noun_SessionsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_sessions: ((inputs?: Audit_Action_Noun_SessionsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_SessionsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "setting" |
+*
+* @param {Audit_Action_Noun_SettingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_setting: ((inputs?: Audit_Action_Noun_SettingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_SettingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "settings" |
+*
+* @param {Audit_Action_Noun_SettingsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_settings: ((inputs?: Audit_Action_Noun_SettingsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_SettingsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "sign-in" |
+*
+* @param {Audit_Action_Noun_Sign_InInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_sign_in: ((inputs?: Audit_Action_Noun_Sign_InInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Sign_InInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "translation" |
+*
+* @param {Audit_Action_Noun_TranslationInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_translation: ((inputs?: Audit_Action_Noun_TranslationInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_TranslationInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "translations" |
+*
+* @param {Audit_Action_Noun_TranslationsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_translations: ((inputs?: Audit_Action_Noun_TranslationsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_TranslationsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Tuya connection" |
+*
+* @param {Audit_Action_Noun_Tuya_ConnectionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_tuya_connection: ((inputs?: Audit_Action_Noun_Tuya_ConnectionInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Tuya_ConnectionInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Tuya devices" |
+*
+* @param {Audit_Action_Noun_Tuya_DevicesInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_tuya_devices: ((inputs?: Audit_Action_Noun_Tuya_DevicesInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Tuya_DevicesInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Tuya settings" |
+*
+* @param {Audit_Action_Noun_Tuya_SettingsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_tuya_settings: ((inputs?: Audit_Action_Noun_Tuya_SettingsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Tuya_SettingsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "user" |
+*
+* @param {Audit_Action_Noun_UserInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_user: ((inputs?: Audit_Action_Noun_UserInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_UserInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "users" |
+*
+* @param {Audit_Action_Noun_UsersInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_users: ((inputs?: Audit_Action_Noun_UsersInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_UsersInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "webhook endpoint" |
+*
+* @param {Audit_Action_Noun_WebhookInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_webhook: ((inputs?: Audit_Action_Noun_WebhookInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_WebhookInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "webhook secret" |
+*
+* @param {Audit_Action_Noun_Webhook_SecretInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_webhook_secret: ((inputs?: Audit_Action_Noun_Webhook_SecretInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Webhook_SecretInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "webhook endpoints" |
+*
+* @param {Audit_Action_Noun_WebhooksInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_webhooks: ((inputs?: Audit_Action_Noun_WebhooksInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_WebhooksInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Zigbee2MQTT connection" |
+*
+* @param {Audit_Action_Noun_Zigbee_ConnectionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_zigbee_connection: ((inputs?: Audit_Action_Noun_Zigbee_ConnectionInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Zigbee_ConnectionInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Zigbee2MQTT settings" |
+*
+* @param {Audit_Action_Noun_Zigbee_SettingsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_noun_zigbee_settings: ((inputs?: Audit_Action_Noun_Zigbee_SettingsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Noun_Zigbee_SettingsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "{verb} {noun}" |
+*
+* @param {Audit_Action_PhraseInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_phrase: ((inputs: Audit_Action_PhraseInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_PhraseInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Added" |
+*
+* @param {Audit_Action_Verb_AddedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_added: ((inputs?: Audit_Action_Verb_AddedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_AddedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Applied" |
+*
+* @param {Audit_Action_Verb_AppliedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_applied: ((inputs?: Audit_Action_Verb_AppliedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_AppliedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Attempted" |
+*
+* @param {Audit_Action_Verb_AttemptedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_attempted: ((inputs?: Audit_Action_Verb_AttemptedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_AttemptedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Changed" |
+*
+* @param {Audit_Action_Verb_ChangedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_changed: ((inputs?: Audit_Action_Verb_ChangedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_ChangedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Completed" |
+*
+* @param {Audit_Action_Verb_CompletedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_completed: ((inputs?: Audit_Action_Verb_CompletedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_CompletedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Confirmed" |
+*
+* @param {Audit_Action_Verb_ConfirmedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_confirmed: ((inputs?: Audit_Action_Verb_ConfirmedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_ConfirmedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Created" |
+*
+* @param {Audit_Action_Verb_CreatedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_created: ((inputs?: Audit_Action_Verb_CreatedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_CreatedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Deactivated" |
+*
+* @param {Audit_Action_Verb_DeactivatedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_deactivated: ((inputs?: Audit_Action_Verb_DeactivatedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_DeactivatedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Deleted" |
+*
+* @param {Audit_Action_Verb_DeletedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_deleted: ((inputs?: Audit_Action_Verb_DeletedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_DeletedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Disabled" |
+*
+* @param {Audit_Action_Verb_DisabledInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_disabled: ((inputs?: Audit_Action_Verb_DisabledInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_DisabledInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Discovered" |
+*
+* @param {Audit_Action_Verb_DiscoveredInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_discovered: ((inputs?: Audit_Action_Verb_DiscoveredInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_DiscoveredInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Enabled" |
+*
+* @param {Audit_Action_Verb_EnabledInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_enabled: ((inputs?: Audit_Action_Verb_EnabledInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_EnabledInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Ended" |
+*
+* @param {Audit_Action_Verb_EndedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_ended: ((inputs?: Audit_Action_Verb_EndedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_EndedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Extended" |
+*
+* @param {Audit_Action_Verb_ExtendedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_extended: ((inputs?: Audit_Action_Verb_ExtendedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_ExtendedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Marked" |
+*
+* @param {Audit_Action_Verb_MarkedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_marked: ((inputs?: Audit_Action_Verb_MarkedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_MarkedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Raised" |
+*
+* @param {Audit_Action_Verb_RaisedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_raised: ((inputs?: Audit_Action_Verb_RaisedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_RaisedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Ran" |
+*
+* @param {Audit_Action_Verb_RanInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_ran: ((inputs?: Audit_Action_Verb_RanInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_RanInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Removed" |
+*
+* @param {Audit_Action_Verb_RemovedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_removed: ((inputs?: Audit_Action_Verb_RemovedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_RemovedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Requested" |
+*
+* @param {Audit_Action_Verb_RequestedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_requested: ((inputs?: Audit_Action_Verb_RequestedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_RequestedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Reset" |
+*
+* @param {Audit_Action_Verb_ResetInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_reset: ((inputs?: Audit_Action_Verb_ResetInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_ResetInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Restored" |
+*
+* @param {Audit_Action_Verb_RestoredInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_restored: ((inputs?: Audit_Action_Verb_RestoredInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_RestoredInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Rotated" |
+*
+* @param {Audit_Action_Verb_RotatedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_rotated: ((inputs?: Audit_Action_Verb_RotatedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_RotatedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Sent" |
+*
+* @param {Audit_Action_Verb_SentInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_sent: ((inputs?: Audit_Action_Verb_SentInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_SentInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Set" |
+*
+* @param {Audit_Action_Verb_SetInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_set: ((inputs?: Audit_Action_Verb_SetInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_SetInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Simulated" |
+*
+* @param {Audit_Action_Verb_SimulatedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_simulated: ((inputs?: Audit_Action_Verb_SimulatedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_SimulatedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Started" |
+*
+* @param {Audit_Action_Verb_StartedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_started: ((inputs?: Audit_Action_Verb_StartedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_StartedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Stopped" |
+*
+* @param {Audit_Action_Verb_StoppedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_stopped: ((inputs?: Audit_Action_Verb_StoppedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_StoppedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Summarized" |
+*
+* @param {Audit_Action_Verb_SummarizedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_summarized: ((inputs?: Audit_Action_Verb_SummarizedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_SummarizedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Superseded" |
+*
+* @param {Audit_Action_Verb_SupersededInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_superseded: ((inputs?: Audit_Action_Verb_SupersededInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_SupersededInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Synced" |
+*
+* @param {Audit_Action_Verb_SyncedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_synced: ((inputs?: Audit_Action_Verb_SyncedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_SyncedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Tested" |
+*
+* @param {Audit_Action_Verb_TestedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_tested: ((inputs?: Audit_Action_Verb_TestedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_TestedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Toggled" |
+*
+* @param {Audit_Action_Verb_ToggledInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_toggled: ((inputs?: Audit_Action_Verb_ToggledInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_ToggledInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Triggered" |
+*
+* @param {Audit_Action_Verb_TriggeredInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_triggered: ((inputs?: Audit_Action_Verb_TriggeredInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_TriggeredInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Updated" |
+*
+* @param {Audit_Action_Verb_UpdatedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_action_verb_updated: ((inputs?: Audit_Action_Verb_UpdatedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Action_Verb_UpdatedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Actor" |
+*
+* @param {Audit_ActorInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_actor: ((inputs?: Audit_ActorInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_ActorInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Changes" |
+*
+* @param {Audit_ActualInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_actual: ((inputs?: Audit_ActualInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_ActualInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "After" |
+*
+* @param {Audit_AfterInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_after: ((inputs?: Audit_AfterInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_AfterInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Before" |
+*
+* @param {Audit_BeforeInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_before: ((inputs?: Audit_BeforeInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_BeforeInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Open conversation" |
+*
+* @param {Audit_ConversationInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_conversation: ((inputs?: Audit_ConversationInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_ConversationInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "No audit entries match this search." |
+*
+* @param {Audit_EmptyInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_empty: ((inputs?: Audit_EmptyInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_EmptyInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Entity" |
+*
+* @param {Audit_EntityInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_entity: ((inputs?: Audit_EntityInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_EntityInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "JSON diff" |
+*
+* @param {Audit_JsonInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_json: ((inputs?: Audit_JsonInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_JsonInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "JSON details" |
+*
+* @param {Audit_Json_DetailsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_json_details: ((inputs?: Audit_Json_DetailsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_Json_DetailsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Live" |
+*
+* @param {Audit_LiveInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_live: ((inputs?: Audit_LiveInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_LiveInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "{count} new changes" |
+*
+* @param {Audit_NewInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_new: ((inputs: Audit_NewInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_NewInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "No changes recorded." |
+*
+* @param {Audit_No_ChangeInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_no_change: ((inputs?: Audit_No_ChangeInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_No_ChangeInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Operation" |
+*
+* @param {Audit_OperationInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_operation: ((inputs?: Audit_OperationInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_OperationInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Open initiating operation" |
+*
+* @param {Audit_ParentInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_parent: ((inputs?: Audit_ParentInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_ParentInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Paused" |
+*
+* @param {Audit_PausedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_paused: ((inputs?: Audit_PausedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_PausedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Property" |
+*
+* @param {Audit_PropertyInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_property: ((inputs?: Audit_PropertyInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_PropertyInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Proposed changes" |
+*
+* @param {Audit_ProposedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_proposed: ((inputs?: Audit_ProposedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_ProposedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Result" |
+*
+* @param {Audit_ResultInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_result: ((inputs?: Audit_ResultInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_ResultInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Since" |
+*
+* @param {Audit_SinceInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_since: ((inputs?: Audit_SinceInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_SinceInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Source" |
+*
+* @param {Audit_SourceInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_source: ((inputs?: Audit_SourceInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_SourceInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Time" |
+*
+* @param {Audit_TimeInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_time: ((inputs?: Audit_TimeInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_TimeInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Type" |
+*
+* @param {Audit_TypeInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const audit_type: ((inputs?: Audit_TypeInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Audit_TypeInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Printed to the server logs on first boot, or read {path} on the host." |
 *
 * @param {Auth_Bootstrap_HelpInputs} inputs
@@ -16421,6 +18269,20 @@ export const nav_alarms: ((inputs?: Nav_AlarmsInputs, options?: {
 /**
 * | output |
 * | --- |
+* | "Audit" |
+*
+* @param {Nav_AuditInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const nav_audit: ((inputs?: Nav_AuditInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Nav_AuditInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Automations" |
 *
 * @param {Nav_AutomationsInputs} inputs
@@ -27207,6 +29069,143 @@ export type Assistant_TitleInputs = {};
 export type Assistant_Upload_ImageInputs = {};
 export type Assistant_WaitingInputs = {};
 export type Assistant_WritingInputs = {};
+export type Audit_ActionInputs = {};
+export type Audit_Action_Noun_AlarmInputs = {};
+export type Audit_Action_Noun_AlarmsInputs = {};
+export type Audit_Action_Noun_AutomationInputs = {};
+export type Audit_Action_Noun_Automation_EdgeInputs = {};
+export type Audit_Action_Noun_Automation_NodeInputs = {};
+export type Audit_Action_Noun_AutomationsInputs = {};
+export type Audit_Action_Noun_AvatarInputs = {};
+export type Audit_Action_Noun_Claude_ConnectionInputs = {};
+export type Audit_Action_Noun_Claude_ModelsInputs = {};
+export type Audit_Action_Noun_Claude_SettingsInputs = {};
+export type Audit_Action_Noun_DeviceInputs = {};
+export type Audit_Action_Noun_Device_ActionInputs = {};
+export type Audit_Action_Noun_Device_CommandInputs = {};
+export type Audit_Action_Noun_Device_SettingsInputs = {};
+export type Audit_Action_Noun_Device_StateInputs = {};
+export type Audit_Action_Noun_DevicesInputs = {};
+export type Audit_Action_Noun_EffectInputs = {};
+export type Audit_Action_Noun_Effect_ClipInputs = {};
+export type Audit_Action_Noun_Effect_TrackInputs = {};
+export type Audit_Action_Noun_EffectsInputs = {};
+export type Audit_Action_Noun_FloorplanInputs = {};
+export type Audit_Action_Noun_Floorplan_Door_BindingInputs = {};
+export type Audit_Action_Noun_Floorplan_FurnitureInputs = {};
+export type Audit_Action_Noun_Floorplan_OpeningInputs = {};
+export type Audit_Action_Noun_Floorplan_PlacementInputs = {};
+export type Audit_Action_Noun_Floorplan_RoomInputs = {};
+export type Audit_Action_Noun_Floorplan_VertexInputs = {};
+export type Audit_Action_Noun_Floorplan_WallInputs = {};
+export type Audit_Action_Noun_FloorplansInputs = {};
+export type Audit_Action_Noun_GroupInputs = {};
+export type Audit_Action_Noun_Group_MemberInputs = {};
+export type Audit_Action_Noun_Group_MembersInputs = {};
+export type Audit_Action_Noun_Group_TagInputs = {};
+export type Audit_Action_Noun_GroupsInputs = {};
+export type Audit_Action_Noun_GuestInputs = {};
+export type Audit_Action_Noun_Guest_AccessInputs = {};
+export type Audit_Action_Noun_Guest_LanguageInputs = {};
+export type Audit_Action_Noun_Guest_Sign_InInputs = {};
+export type Audit_Action_Noun_GuestsInputs = {};
+export type Audit_Action_Noun_IntegrationInputs = {};
+export type Audit_Action_Noun_IntegrationsInputs = {};
+export type Audit_Action_Noun_LightingInputs = {};
+export type Audit_Action_Noun_Maintenance_TaskInputs = {};
+export type Audit_Action_Noun_Maintenance_TasksInputs = {};
+export type Audit_Action_Noun_Network_ScanInputs = {};
+export type Audit_Action_Noun_OperationInputs = {};
+export type Audit_Action_Noun_PasswordInputs = {};
+export type Audit_Action_Noun_ProfileInputs = {};
+export type Audit_Action_Noun_RoomInputs = {};
+export type Audit_Action_Noun_Room_MemberInputs = {};
+export type Audit_Action_Noun_Room_MembersInputs = {};
+export type Audit_Action_Noun_RoomsInputs = {};
+export type Audit_Action_Noun_SceneInputs = {};
+export type Audit_Action_Noun_Scene_LightingInputs = {};
+export type Audit_Action_Noun_Scene_OverrideInputs = {};
+export type Audit_Action_Noun_Scene_TargetInputs = {};
+export type Audit_Action_Noun_ScenesInputs = {};
+export type Audit_Action_Noun_Seen_DevicesInputs = {};
+export type Audit_Action_Noun_SessionsInputs = {};
+export type Audit_Action_Noun_SettingInputs = {};
+export type Audit_Action_Noun_SettingsInputs = {};
+export type Audit_Action_Noun_Sign_InInputs = {};
+export type Audit_Action_Noun_TranslationInputs = {};
+export type Audit_Action_Noun_TranslationsInputs = {};
+export type Audit_Action_Noun_Tuya_ConnectionInputs = {};
+export type Audit_Action_Noun_Tuya_DevicesInputs = {};
+export type Audit_Action_Noun_Tuya_SettingsInputs = {};
+export type Audit_Action_Noun_UserInputs = {};
+export type Audit_Action_Noun_UsersInputs = {};
+export type Audit_Action_Noun_WebhookInputs = {};
+export type Audit_Action_Noun_Webhook_SecretInputs = {};
+export type Audit_Action_Noun_WebhooksInputs = {};
+export type Audit_Action_Noun_Zigbee_ConnectionInputs = {};
+export type Audit_Action_Noun_Zigbee_SettingsInputs = {};
+export type Audit_Action_PhraseInputs = {
+    verb: NonNullable<unknown>;
+    noun: NonNullable<unknown>;
+};
+export type Audit_Action_Verb_AddedInputs = {};
+export type Audit_Action_Verb_AppliedInputs = {};
+export type Audit_Action_Verb_AttemptedInputs = {};
+export type Audit_Action_Verb_ChangedInputs = {};
+export type Audit_Action_Verb_CompletedInputs = {};
+export type Audit_Action_Verb_ConfirmedInputs = {};
+export type Audit_Action_Verb_CreatedInputs = {};
+export type Audit_Action_Verb_DeactivatedInputs = {};
+export type Audit_Action_Verb_DeletedInputs = {};
+export type Audit_Action_Verb_DisabledInputs = {};
+export type Audit_Action_Verb_DiscoveredInputs = {};
+export type Audit_Action_Verb_EnabledInputs = {};
+export type Audit_Action_Verb_EndedInputs = {};
+export type Audit_Action_Verb_ExtendedInputs = {};
+export type Audit_Action_Verb_MarkedInputs = {};
+export type Audit_Action_Verb_RaisedInputs = {};
+export type Audit_Action_Verb_RanInputs = {};
+export type Audit_Action_Verb_RemovedInputs = {};
+export type Audit_Action_Verb_RequestedInputs = {};
+export type Audit_Action_Verb_ResetInputs = {};
+export type Audit_Action_Verb_RestoredInputs = {};
+export type Audit_Action_Verb_RotatedInputs = {};
+export type Audit_Action_Verb_SentInputs = {};
+export type Audit_Action_Verb_SetInputs = {};
+export type Audit_Action_Verb_SimulatedInputs = {};
+export type Audit_Action_Verb_StartedInputs = {};
+export type Audit_Action_Verb_StoppedInputs = {};
+export type Audit_Action_Verb_SummarizedInputs = {};
+export type Audit_Action_Verb_SupersededInputs = {};
+export type Audit_Action_Verb_SyncedInputs = {};
+export type Audit_Action_Verb_TestedInputs = {};
+export type Audit_Action_Verb_ToggledInputs = {};
+export type Audit_Action_Verb_TriggeredInputs = {};
+export type Audit_Action_Verb_UpdatedInputs = {};
+export type Audit_ActorInputs = {};
+export type Audit_ActualInputs = {};
+export type Audit_AfterInputs = {};
+export type Audit_BeforeInputs = {};
+export type Audit_ConversationInputs = {};
+export type Audit_EmptyInputs = {};
+export type Audit_EntityInputs = {};
+export type Audit_JsonInputs = {};
+export type Audit_Json_DetailsInputs = {};
+export type Audit_LiveInputs = {};
+export type Audit_NewInputs = {
+    count: NonNullable<unknown>;
+};
+export type Audit_No_ChangeInputs = {};
+export type Audit_OperationInputs = {};
+export type Audit_ParentInputs = {};
+export type Audit_PausedInputs = {};
+export type Audit_PropertyInputs = {};
+export type Audit_ProposedInputs = {};
+export type Audit_ResultInputs = {};
+export type Audit_SinceInputs = {};
+export type Audit_SourceInputs = {};
+export type Audit_TimeInputs = {};
+export type Audit_TypeInputs = {};
 export type Auth_Bootstrap_HelpInputs = {
     path: NonNullable<unknown>;
 };
@@ -28512,6 +30511,7 @@ export type Nav_Active_AlarmsInputs = {
 };
 export type Nav_ActivityInputs = {};
 export type Nav_AlarmsInputs = {};
+export type Nav_AuditInputs = {};
 export type Nav_AutomationsInputs = {};
 export type Nav_ChatInputs = {};
 export type Nav_DashboardInputs = {};

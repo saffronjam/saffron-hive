@@ -39,6 +39,7 @@ type ActivityEvent struct {
 }
 
 type ActivityFilter struct {
+	After    graphql.Omittable[*string]    `json:"after,omitempty"`
 	Types    graphql.Omittable[[]string]   `json:"types,omitempty"`
 	DeviceID graphql.Omittable[*string]    `json:"deviceId,omitempty"`
 	RoomID   graphql.Omittable[*string]    `json:"roomId,omitempty"`
@@ -251,6 +252,55 @@ type AssistantTarget struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 	Href string `json:"href"`
+}
+
+type AuditChange struct {
+	Path   string `json:"path"`
+	Before string `json:"before"`
+	After  string `json:"after"`
+}
+
+type AuditEntry struct {
+	Details           string         `json:"details"`
+	ID                string         `json:"id"`
+	OperationID       *string        `json:"operationId,omitempty"`
+	ParentOperationID *string        `json:"parentOperationId,omitempty"`
+	RunID             *string        `json:"runId,omitempty"`
+	ActionID          *string        `json:"actionId,omitempty"`
+	Timestamp         string         `json:"timestamp"`
+	EntityType        string         `json:"entityType"`
+	EntityID          string         `json:"entityId"`
+	EntityName        string         `json:"entityName"`
+	Action            string         `json:"action"`
+	ActorID           string         `json:"actorId"`
+	ActorName         string         `json:"actorName"`
+	Source            string         `json:"source"`
+	Operation         string         `json:"operation"`
+	Status            string         `json:"status"`
+	ConversationID    *string        `json:"conversationId,omitempty"`
+	Proposed          string         `json:"proposed"`
+	Changes           []*AuditChange `json:"changes"`
+	Before            string         `json:"before"`
+	After             string         `json:"after"`
+}
+
+type AuditFilter struct {
+	OperationID graphql.Omittable[*string]    `json:"operationId,omitempty"`
+	Status      graphql.Omittable[*string]    `json:"status,omitempty"`
+	EntityType  graphql.Omittable[*string]    `json:"entityType,omitempty"`
+	EntityID    graphql.Omittable[*string]    `json:"entityId,omitempty"`
+	ActorID     graphql.Omittable[*string]    `json:"actorId,omitempty"`
+	Source      graphql.Omittable[*string]    `json:"source,omitempty"`
+	Action      graphql.Omittable[*string]    `json:"action,omitempty"`
+	Search      graphql.Omittable[*string]    `json:"search,omitempty"`
+	Since       graphql.Omittable[*time.Time] `json:"since,omitempty"`
+}
+
+type AuditPage struct {
+	Entries       []*AuditEntry `json:"entries"`
+	Cursor        string        `json:"cursor"`
+	HasMore       bool          `json:"hasMore"`
+	ResetRequired bool          `json:"resetRequired"`
 }
 
 type AuthPayload struct {
@@ -1061,6 +1111,15 @@ type NetworkTopologyEvent struct {
 type NumericSeriesPoint struct {
 	At    time.Time `json:"at"`
 	Value float64   `json:"value"`
+}
+
+type ObservationResult struct {
+	Cursor        string           `json:"cursor"`
+	TimedOut      bool             `json:"timedOut"`
+	ResetRequired bool             `json:"resetRequired"`
+	Audit         []*AuditEntry    `json:"audit"`
+	Activity      []*ActivityEvent `json:"activity"`
+	Logs          []*LogEntry      `json:"logs"`
 }
 
 type PhotoSampleInput struct {
@@ -3057,6 +3116,63 @@ func (e *NativeEffectSupportStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e NativeEffectSupportStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type ObservationStream string
+
+const (
+	ObservationStreamAudit    ObservationStream = "AUDIT"
+	ObservationStreamActivity ObservationStream = "ACTIVITY"
+	ObservationStreamLogs     ObservationStream = "LOGS"
+)
+
+var AllObservationStream = []ObservationStream{
+	ObservationStreamAudit,
+	ObservationStreamActivity,
+	ObservationStreamLogs,
+}
+
+func (e ObservationStream) IsValid() bool {
+	switch e {
+	case ObservationStreamAudit, ObservationStreamActivity, ObservationStreamLogs:
+		return true
+	}
+	return false
+}
+
+func (e ObservationStream) String() string {
+	return string(e)
+}
+
+func (e *ObservationStream) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ObservationStream(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ObservationStream", str)
+	}
+	return nil
+}
+
+func (e ObservationStream) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ObservationStream) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ObservationStream) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

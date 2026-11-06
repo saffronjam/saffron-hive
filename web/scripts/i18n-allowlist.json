@@ -252,5 +252,11 @@
       "key": "zigbee_pan_id",
       "reason": "Protocol vocabulary"
     }
+  ],
+  "messageFragments": [
+    {
+      "prefix": "audit_action_noun_",
+      "reason": "Noun fragments composed into the localized audit action phrase."
+    }
   ]
 }

@@ -17,6 +17,12 @@ var internalEventTypes = []string{
 	"automation.node_activated",
 }
 
+// ActivityBounds identifies the retained replay window.
+func (s *DB) ActivityBounds(ctx context.Context) (first, last int64, err error) {
+	bounds, err := s.q.ActivityBounds(ctx)
+	return bounds.FirstID, bounds.LastID, err
+}
+
 // InsertActivityEvent inserts an activity event and returns it with the generated ID.
 func (s *DB) InsertActivityEvent(ctx context.Context, params InsertActivityEventParams) (ActivityEvent, error) {
 	id, err := s.q.InsertActivityEvent(ctx, sqlite.InsertActivityEventParams{
@@ -72,7 +78,8 @@ func (s *DB) QueryActivityEvents(ctx context.Context, query ActivityQuery) ([]Ac
 		return nil, fmt.Errorf("query activity events: excluded types: %w", err)
 	}
 
-	rows, err := s.q.QueryActivityEvents(ctx, sqlite.QueryActivityEventsParams{
+	params := sqlite.QueryActivityEventsParams{
+		After:             query.After,
 		TypesJson:         typesJSON,
 		ExcludedTypesJson: excludedJSON,
 		DeviceID:          query.DeviceID,
@@ -80,7 +87,17 @@ func (s *DB) QueryActivityEvents(ctx context.Context, query ActivityQuery) ([]Ac
 		Since:             query.Since,
 		Before:            query.Before,
 		Lim:               int64(query.Limit),
-	})
+	}
+	var rows []sqlite.ActivityEvent
+	if query.After != nil {
+		replay, queryErr := s.q.ReplayActivityEvents(ctx, sqlite.ReplayActivityEventsParams(params))
+		err = queryErr
+		for _, row := range replay {
+			rows = append(rows, sqlite.ActivityEvent(row))
+		}
+	} else {
+		rows, err = s.q.QueryActivityEvents(ctx, params)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("query activity events: %w", err)
 	}

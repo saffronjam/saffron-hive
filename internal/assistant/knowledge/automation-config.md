@@ -2,7 +2,7 @@
 
 These are GraphQL input and result types. Use discover for operation arguments and selection sets. Configuration objects contain exactly one matching variant.
 
-<!-- source: api/schema.graphql sha256: b4d9b5b69275be117e56d73ffb3ed62bb32010a912d3d646c82dbbe9d776a1b5 -->
+<!-- source: api/schema.graphql sha256: 0f70d61c0fc17d5b5ef9cac639ca3428a31e7ea8ada27f15938c90674183fa71 -->
 <!-- source: api/authoring.graphql sha256: 923bc19aa3e079890eeaff0ebddb9acb4462edd0882cf702ae23c66102a73f2e -->
 
 ```graphql

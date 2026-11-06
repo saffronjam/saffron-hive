@@ -9,16 +9,18 @@ import (
 
 // CreateUser inserts a new user row and returns it.
 func (s *DB) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
-	if err := s.q.CreateUser(ctx, sqlite.CreateUserParams{
-		ID:                 params.ID,
-		Username:           params.Username,
-		Name:               params.Name,
-		PasswordHash:       params.PasswordHash,
-		MustChangePassword: params.MustChangePassword,
-	}); err != nil {
-		return User{}, fmt.Errorf("create user: %w", err)
-	}
-	return s.GetUserByID(ctx, params.ID)
+	return writeTx(s, ctx, func(s *DB) (User, error) {
+		if err := s.q.CreateUser(ctx, sqlite.CreateUserParams{
+			ID:                 params.ID,
+			Username:           params.Username,
+			Name:               params.Name,
+			PasswordHash:       params.PasswordHash,
+			MustChangePassword: params.MustChangePassword,
+		}); err != nil {
+			return User{}, fmt.Errorf("create user: %w", err)
+		}
+		return s.GetUserByID(ctx, params.ID)
+	})
 }
 
 // GetUserByID retrieves a user by its ID.
@@ -101,10 +103,12 @@ func (s *DB) ListUsers(ctx context.Context) ([]User, error) {
 // JWT previously issued for them. The auth middleware compares the version
 // embedded in the token against this column on each request.
 func (s *DB) BumpUserTokenVersion(ctx context.Context, id string) error {
-	if err := s.q.BumpUserTokenVersion(ctx, id); err != nil {
-		return fmt.Errorf("bump user token version: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.BumpUserTokenVersion(ctx, id); err != nil {
+			return fmt.Errorf("bump user token version: %w", err)
+		}
+		return nil
+	})
 }
 
 // CountUsers returns the total number of users.
@@ -120,42 +124,48 @@ func (s *DB) CountUsers(ctx context.Context) (int, error) {
 // Nil fields leave their column untouched. AvatarPath cannot clear to NULL
 // here; use ClearUserAvatar for that.
 func (s *DB) UpdateUserProfile(ctx context.Context, params UpdateUserProfileParams) (User, error) {
-	n, err := s.q.UpdateUserProfile(ctx, sqlite.UpdateUserProfileParams{
-		ExpectedRevision: params.ExpectedRevision,
-		ID:               params.ID,
-		Name:             params.Name,
-		Theme:            params.Theme,
-		TimeFormat:       params.TimeFormat,
-		TemperatureUnit:  params.TemperatureUnit,
-		HapticsEnabled:   params.HapticsEnabled,
-		Language:         params.Language,
+	return writeTx(s, ctx, func(s *DB) (User, error) {
+		n, err := s.q.UpdateUserProfile(ctx, sqlite.UpdateUserProfileParams{
+			ExpectedRevision: params.ExpectedRevision,
+			ID:               params.ID,
+			Name:             params.Name,
+			Theme:            params.Theme,
+			TimeFormat:       params.TimeFormat,
+			TemperatureUnit:  params.TemperatureUnit,
+			HapticsEnabled:   params.HapticsEnabled,
+			Language:         params.Language,
+		})
+		if err != nil {
+			return User{}, fmt.Errorf("update user profile: %w", err)
+		}
+		if n != 1 {
+			return User{}, ErrRevisionConflict
+		}
+		return s.GetUserByID(ctx, params.ID)
 	})
-	if err != nil {
-		return User{}, fmt.Errorf("update user profile: %w", err)
-	}
-	if n != 1 {
-		return User{}, ErrRevisionConflict
-	}
-	return s.GetUserByID(ctx, params.ID)
 }
 
 // ClearUserAvatar sets the avatar_path column to NULL for the given user.
 func (s *DB) ClearUserAvatar(ctx context.Context, id string) error {
-	if err := s.q.ClearUserAvatar(ctx, id); err != nil {
-		return fmt.Errorf("clear user avatar: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.ClearUserAvatar(ctx, id); err != nil {
+			return fmt.Errorf("clear user avatar: %w", err)
+		}
+		return nil
+	})
 }
 
 // UpdateUserPasswordHash replaces the stored password hash for the given user.
 func (s *DB) UpdateUserPasswordHash(ctx context.Context, id, hash string) error {
-	if err := s.q.UpdateUserPasswordHash(ctx, sqlite.UpdateUserPasswordHashParams{
-		ID:           id,
-		PasswordHash: hash,
-	}); err != nil {
-		return fmt.Errorf("update user password hash: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.UpdateUserPasswordHash(ctx, sqlite.UpdateUserPasswordHashParams{
+			ID:           id,
+			PasswordHash: hash,
+		}); err != nil {
+			return fmt.Errorf("update user password hash: %w", err)
+		}
+		return nil
+	})
 }
 
 // CompleteFirstPasswordChange sets a fresh password hash and clears the
@@ -163,35 +173,41 @@ func (s *DB) UpdateUserPasswordHash(ctx context.Context, id, hash string) error 
 // affected: 0 means the user was not in the forced-change state and the
 // caller should not let the request through.
 func (s *DB) CompleteFirstPasswordChange(ctx context.Context, id, hash string) (int64, error) {
-	n, err := s.q.CompleteFirstPasswordChange(ctx, sqlite.CompleteFirstPasswordChangeParams{
-		PasswordHash: hash,
-		ID:           id,
+	return writeTx(s, ctx, func(s *DB) (int64, error) {
+		n, err := s.q.CompleteFirstPasswordChange(ctx, sqlite.CompleteFirstPasswordChangeParams{
+			PasswordHash: hash,
+			ID:           id,
+		})
+		if err != nil {
+			return 0, fmt.Errorf("complete first password change: %w", err)
+		}
+		return n, nil
 	})
-	if err != nil {
-		return 0, fmt.Errorf("complete first password change: %w", err)
-	}
-	return n, nil
 }
 
 // SetUserMustChangePassword sets or clears the must_change_password flag.
 func (s *DB) SetUserMustChangePassword(ctx context.Context, id string, flag bool) error {
-	if err := s.q.SetUserMustChangePassword(ctx, sqlite.SetUserMustChangePasswordParams{
-		MustChangePassword: flag,
-		ID:                 id,
-	}); err != nil {
-		return fmt.Errorf("set user must change password: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.SetUserMustChangePassword(ctx, sqlite.SetUserMustChangePasswordParams{
+			MustChangePassword: flag,
+			ID:                 id,
+		}); err != nil {
+			return fmt.Errorf("set user must change password: %w", err)
+		}
+		return nil
+	})
 }
 
 // DeleteUser removes a user row. Foreign keys on scenes/automations/groups/rooms
 // are configured ON DELETE SET NULL, so creator attribution becomes null but
 // the attributed rows remain.
 func (s *DB) DeleteUser(ctx context.Context, id string) error {
-	if err := s.q.DeleteUser(ctx, id); err != nil {
-		return fmt.Errorf("delete user: %w", err)
-	}
-	return nil
+	return s.atomic(ctx, func(s *DB) error {
+		if err := s.q.DeleteUser(ctx, id); err != nil {
+			return fmt.Errorf("delete user: %w", err)
+		}
+		return nil
+	})
 }
 
 // BatchDeleteUsers deletes the users with the given IDs. Same FK semantics as
@@ -199,18 +215,20 @@ func (s *DB) DeleteUser(ctx context.Context, id string) error {
 // deleted; missing IDs are silently ignored. The caller is responsible for
 // excluding the currently authenticated user from the input.
 func (s *DB) BatchDeleteUsers(ctx context.Context, ids []string) (int64, error) {
-	if len(ids) == 0 {
-		return 0, nil
-	}
-	js, err := marshalStringArray(ids)
-	if err != nil {
-		return 0, fmt.Errorf("batch delete users: %w", err)
-	}
-	n, err := s.q.BatchDeleteUsers(ctx, js)
-	if err != nil {
-		return 0, fmt.Errorf("batch delete users: %w", err)
-	}
-	return n, nil
+	return writeTx(s, ctx, func(s *DB) (int64, error) {
+		if len(ids) == 0 {
+			return 0, nil
+		}
+		js, err := marshalStringArray(ids)
+		if err != nil {
+			return 0, fmt.Errorf("batch delete users: %w", err)
+		}
+		n, err := s.q.BatchDeleteUsers(ctx, js)
+		if err != nil {
+			return 0, fmt.Errorf("batch delete users: %w", err)
+		}
+		return n, nil
+	})
 }
 
 // GetUserAvatarPath returns the stored avatar filename for a user, or nil when
@@ -248,5 +266,7 @@ func (s *DB) GetUserAvatarPathsByIDs(ctx context.Context, ids []string) (map[str
 
 // SetUserAvatar assigns the uploaded avatar without modifying profile preferences.
 func (s *DB) SetUserAvatar(ctx context.Context, id, path string) error {
-	return s.q.SetUserAvatar(ctx, sqlite.SetUserAvatarParams{ID: id, AvatarPath: &path})
+	return s.atomic(ctx, func(s *DB) error {
+		return s.q.SetUserAvatar(ctx, sqlite.SetUserAvatarParams{ID: id, AvatarPath: &path})
+	})
 }

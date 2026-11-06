@@ -220,3 +220,23 @@ func TestPruneActivityEventsOlderThan(t *testing.T) {
 		t.Errorf("remaining: expected 2, got %d", len(remaining))
 	}
 }
+
+func TestActivityReplayReturnsEarliestUnseenEvents(t *testing.T) {
+	s := newTestStore(t)
+	ids := []int64{}
+	for i := 0; i < 12; i++ {
+		event, err := s.InsertActivityEvent(t.Context(), InsertActivityEventParams{Type: "device.action_fired", Timestamp: time.Now(), PayloadJSON: `{"action":"on_press"}`})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, event.ID)
+	}
+	cursor := ids[2]
+	rows, err := s.QueryActivityEvents(t.Context(), ActivityQuery{After: &cursor, Limit: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 3 || rows[0].ID != ids[3] || rows[2].ID != ids[5] {
+		t.Fatalf("replay=%+v", rows)
+	}
+}

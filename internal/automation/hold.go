@@ -178,7 +178,7 @@ func (e *Engine) fireHold(ct compiledTrigger, generation uint64) {
 	}
 	e.recordTriggerFired(ct.graphID, ct.nodeID, now)
 	triggerResults := e.combineWithGrace(cg, map[NodeID]bool{ct.nodeID: true}, now)
-	if e.evaluateGraph(cg, env, triggerResults) {
+	if e.evaluateGraph(e.baseCtx, cg, env, triggerResults) {
 		e.recordAutomationFired(ct.graphID, now)
 	}
 }

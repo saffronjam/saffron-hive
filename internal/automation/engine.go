@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/saffronjam/saffron-hive/internal/audit"
 	"io"
 	"strings"
 	"sync"
@@ -52,6 +53,7 @@ type automationStore interface {
 
 // Engine evaluates automation graphs against incoming events.
 type Engine struct {
+	audit     AuditRecorder
 	bus       eventbus.EventBus
 	reader    device.StateReader
 	store     automationStore
@@ -285,7 +287,6 @@ func (e *Engine) Stop() {
 // Run starts the event loop. It blocks until ctx is cancelled.
 func (e *Engine) Run(ctx context.Context) error {
 	e.baseCtx = ctx
-	e.executor.SetBaseContext(ctx)
 	e.seedChanges()
 
 	if err := e.Reload(ctx); err != nil {
@@ -369,7 +370,7 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 	for graphID, freshFires := range firedThisTick {
 		cg := graphs[graphID]
 		triggerResults := e.combineWithGrace(cg, freshFires, now)
-		if e.evaluateGraph(cg, env, triggerResults) {
+		if e.evaluateGraph(e.baseCtx, cg, env, triggerResults) {
 			e.recordAutomationFired(graphID, now)
 		}
 	}
@@ -380,7 +381,7 @@ func (e *Engine) handleEvent(event eventbus.Event) {
 // FireTrigger injects a trigger node directly into its loaded automation graph.
 // Per-trigger cooldown still applies. A trigger with a hold duration first
 // counts down its hold, as if its condition had just become true.
-func (e *Engine) FireTrigger(_ context.Context, automationID string, nodeID NodeID) error {
+func (e *Engine) FireTrigger(ctx context.Context, automationID string, nodeID NodeID) error {
 	e.mu.RLock()
 	cg, ok := e.graphs[automationID]
 	e.mu.RUnlock()
@@ -409,7 +410,7 @@ func (e *Engine) FireTrigger(_ context.Context, automationID string, nodeID Node
 
 	env := e.exprScope().env(nil, now)
 	triggerResults := e.combineWithGrace(cg, map[NodeID]bool{nodeID: true}, now)
-	if e.evaluateGraph(cg, env, triggerResults) {
+	if e.evaluateGraph(ctx, cg, env, triggerResults) {
 		e.recordAutomationFired(automationID, now)
 	}
 	return nil
@@ -440,7 +441,7 @@ func (e *Engine) handleScheduledTrigger(automationID string, nodeID NodeID) {
 
 	env := e.exprScope().env(nil, now)
 	triggerResults := e.combineWithGrace(cg, map[NodeID]bool{nodeID: true}, now)
-	if e.evaluateGraph(cg, env, triggerResults) {
+	if e.evaluateGraph(e.baseCtx, cg, env, triggerResults) {
 		e.recordAutomationFired(automationID, now)
 	}
 }
@@ -479,13 +480,21 @@ func (e *Engine) combineWithGrace(cg compiledGraph, freshFires map[NodeID]bool, 
 	return active
 }
 
-func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map[NodeID]bool) bool {
+func (e *Engine) evaluateGraph(ctx context.Context, cg compiledGraph, env ExprEnv, triggerResults map[NodeID]bool) bool {
 	active := make(map[NodeID]bool)
 	for id, result := range triggerResults {
 		active[id] = result
 	}
 
 	anyActionFired := false
+	audited := false
+	defer func() {
+		if audited {
+			if err := e.audit.FinishAudit(context.WithoutCancel(ctx), "accepted"); err != nil {
+				logger.Error("Automation audit failed", "error", err)
+			}
+		}
+	}()
 
 	for _, nodeID := range cg.topoOrder {
 		node := cg.nodes[nodeID]
@@ -527,9 +536,32 @@ func (e *Engine) evaluateGraph(cg compiledGraph, env ExprEnv, triggerResults map
 			e.publishNodeActivation(cg.automationID, nodeID, nodeActive)
 
 		case NodeAction:
+			if !audited && e.audit != nil {
+				origin := audit.FromContext(ctx)
+				parent := origin.OperationID
+				origin.ParentID = &parent
+				origin.OperationID = ""
+				origin.Source = "automation"
+				origin.ActorID = cg.automationID
+				origin.ActorName = ""
+				proposal, err := json.Marshal(struct {
+					AutomationID string          `json:"automationId"`
+					Nodes        map[NodeID]Node `json:"nodes"`
+				}{cg.automationID, cg.nodes})
+				if err != nil {
+					logger.Error("Automation audit proposal failed", "error", err)
+					return false
+				}
+				ctx, err = e.audit.BeginAudit(audit.WithOrigin(ctx, origin), "automationRun", string(proposal))
+				if err != nil {
+					logger.Error("Automation blocked by audit failure", "error", err)
+					return false
+				}
+				audited = true
+			}
 			active[nodeID] = true
 			e.publishNodeActivation(cg.automationID, nodeID, true)
-			e.executeAction(node, cg.automationID)
+			e.executeAction(ctx, node, cg.automationID)
 			anyActionFired = true
 		}
 	}
@@ -570,7 +602,7 @@ func actionUsesTargetResolver(actionType string) bool {
 	}
 }
 
-func (e *Engine) executeAction(node Node, automationID string) {
+func (e *Engine) executeAction(ctx context.Context, node Node, automationID string) {
 	actionCfg, ok := node.Config.(ActionConfig)
 	if !ok {
 		return
@@ -587,16 +619,16 @@ func (e *Engine) executeAction(node Node, automationID string) {
 	// and cycle actions resolve their own scene targets, while effect runs
 	// resolve their target at each iteration boundary.
 	if !actionUsesTargetResolver(actionCfg.ActionType) {
-		e.executor.ExecuteGraphAction(actionCfg)
+		e.executor.ExecuteGraphAction(ctx, actionCfg)
 		return
 	}
 
 	var deviceIDs []device.DeviceID
 	if actionCfg.TargetType == TargetType(device.TargetExpression) {
-		deviceIDs = device.EvaluateExpression(e.baseCtx, e.reader, e.resolver, actionCfg.TargetExpr)
+		deviceIDs = device.EvaluateExpression(ctx, e.reader, e.resolver, actionCfg.TargetExpr)
 	} else {
 		deviceIDs = e.resolver.ResolveTargetDeviceIDs(
-			e.baseCtx,
+			ctx,
 			device.TargetType(actionCfg.TargetType),
 			actionCfg.TargetID,
 		)
@@ -617,11 +649,11 @@ func (e *Engine) executeAction(node Node, automationID string) {
 		if e.commander != nil && actionCfg.TargetType != TargetType(device.TargetExpression) {
 			actionCfg.ActionType = ActionSetDeviceState
 			actionCfg.Payload = string(payload)
-			e.executor.executeTargetState(actionCfg, device.TargetType(actionCfg.TargetType), deviceIDs)
+			e.executor.executeTargetState(ctx, actionCfg, device.TargetType(actionCfg.TargetType), deviceIDs)
 			return
 		}
 		for _, devID := range deviceIDs {
-			e.executor.ExecuteGraphAction(ActionConfig{
+			e.executor.ExecuteGraphAction(ctx, ActionConfig{
 				ActionType:   ActionSetDeviceState,
 				TargetType:   TargetDevice,
 				TargetID:     string(devID),
@@ -633,7 +665,7 @@ func (e *Engine) executeAction(node Node, automationID string) {
 	}
 
 	if actionCfg.ActionType == ActionSetDeviceState && e.commander != nil && actionCfg.TargetType != TargetType(device.TargetExpression) {
-		e.executor.executeTargetState(actionCfg, device.TargetType(actionCfg.TargetType), deviceIDs)
+		e.executor.executeTargetState(ctx, actionCfg, device.TargetType(actionCfg.TargetType), deviceIDs)
 		return
 	}
 
@@ -645,7 +677,7 @@ func (e *Engine) executeAction(node Node, automationID string) {
 			Payload:      actionCfg.Payload,
 			AutomationID: automationID,
 		}
-		e.executor.ExecuteGraphAction(perDevice)
+		e.executor.ExecuteGraphAction(ctx, perDevice)
 	}
 }
 
@@ -994,3 +1026,11 @@ func ValidateNodeShape(nodeType NodeType, raw string) error {
 	}
 	return nil
 }
+
+// AuditRecorder captures one operation for an automation graph evaluation.
+type AuditRecorder interface {
+	BeginAudit(context.Context, string, string) (context.Context, error)
+	FinishAudit(context.Context, string) error
+}
+
+func (e *Engine) SetAudit(recorder AuditRecorder) { e.audit = recorder }

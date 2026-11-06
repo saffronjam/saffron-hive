@@ -37,8 +37,31 @@ WHERE
   AND (CAST(sqlc.narg('room_id')   AS TEXT) IS NULL OR room_id   = CAST(sqlc.narg('room_id')   AS TEXT))
   AND timestamp >= COALESCE(sqlc.narg('since'),  timestamp)
   AND id        <  COALESCE(sqlc.narg('before'), id + 1)
+AND id > COALESCE(sqlc.narg('after'),0)
 ORDER BY timestamp DESC, id DESC
+LIMIT IIF(CAST(sqlc.arg('lim') AS INTEGER) > 0, CAST(sqlc.arg('lim') AS INTEGER), -1);
+
+-- name: ReplayActivityEvents :many
+SELECT id, type, timestamp, payload_json,
+       device_id, device_name, device_type, room_id, room_name,
+       scene_id, scene_name,
+       automation_id, automation_name,
+       webhook_id, webhook_name
+FROM activity_events
+WHERE
+    (json_array_length(CAST(sqlc.arg('types_json') AS TEXT)) = 0
+     OR type IN (SELECT value FROM json_each(CAST(sqlc.arg('types_json') AS TEXT))))
+  AND type NOT IN (SELECT value FROM json_each(CAST(sqlc.arg('excluded_types_json') AS TEXT)))
+  AND (CAST(sqlc.narg('device_id') AS TEXT) IS NULL OR device_id = CAST(sqlc.narg('device_id') AS TEXT))
+  AND (CAST(sqlc.narg('room_id')   AS TEXT) IS NULL OR room_id   = CAST(sqlc.narg('room_id')   AS TEXT))
+  AND timestamp >= COALESCE(sqlc.narg('since'),  timestamp)
+  AND id        <  COALESCE(sqlc.narg('before'), id + 1)
+AND id > COALESCE(sqlc.narg('after'),0)
+ORDER BY id ASC
 LIMIT IIF(CAST(sqlc.arg('lim') AS INTEGER) > 0, CAST(sqlc.arg('lim') AS INTEGER), -1);
 
 -- name: PruneActivityEventsOlderThan :execrows
 DELETE FROM activity_events WHERE timestamp < ?;
+
+-- name: ActivityBounds :one
+SELECT CAST(COALESCE(MIN(id),0) AS INTEGER) AS first_id, CAST(COALESCE(MAX(id),0) AS INTEGER) AS last_id FROM activity_events;

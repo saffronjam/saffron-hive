@@ -2,8 +2,10 @@ package effect
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/saffronjam/saffron-hive/internal/audit"
 	"math/rand/v2"
 	"sort"
 	"sync"
@@ -61,12 +63,13 @@ func keyFor(t Target) targetKey {
 }
 
 type activeRun struct {
-	runID    string
-	effectID string
-	kind     Kind
-	target   Target
-	cancel   context.CancelFunc
-	done     chan struct{}
+	auditOrigin audit.Origin
+	runID       string
+	effectID    string
+	kind        Kind
+	target      Target
+	cancel      context.CancelFunc
+	done        chan struct{}
 
 	// members is the device set the run is currently driving. Refreshed at
 	// each iteration boundary by the timeline worker (and once at start by the
@@ -82,6 +85,7 @@ type activeRun struct {
 // Output ownership stops a run synchronously when another producer takes any
 // device in its currently resolved member set.
 type Runner struct {
+	audit     audit.RunRecorder
 	bus       eventbus.EventBus
 	targets   device.TargetResolver
 	commander device.TargetCommander
@@ -171,51 +175,7 @@ func (r *Runner) Start(ctx context.Context, effectID string, target Target) (str
 		return "", fmt.Errorf("invalid effect: %w", err)
 	}
 
-	runID := uuid.New().String()
-
-	runCtx, cancel := context.WithCancel(context.Background())
-	run := &activeRun{
-		runID:    runID,
-		effectID: eff.ID,
-		kind:     eff.Kind,
-		target:   target,
-		cancel:   cancel,
-		done:     make(chan struct{}),
-		members:  make(map[device.DeviceID]struct{}),
-	}
-
-	key := keyFor(target)
-
-	r.mu.Lock()
-	old := r.active[key]
-	r.active[key] = run
-	r.mu.Unlock()
-
-	if old != nil {
-		r.preempt(old)
-		r.publishEnded(old, eventbus.EffectEndReasonPreempted)
-	}
-
-	go r.run(runCtx, run, eff)
-
-	volatile := !(eff.Loop && eff.Kind == KindTimeline)
-	if err := r.store.UpsertActiveEffect(ctx, UpsertActiveEffectParams{
-		ID:         runID,
-		EffectID:   eff.ID,
-		TargetType: string(target.Type),
-		TargetID:   target.ID,
-		StartedAt:  time.Now(),
-		Volatile:   volatile,
-	}); err != nil {
-		logger.Error("persist active effect failed",
-			"run_id", runID,
-			"effect_id", eff.ID,
-			"target_type", target.Type,
-			"target_id", target.ID,
-			"error", err)
-	}
-
-	return runID, nil
+	return r.startRun(ctx, eff, target, uuid.NewString(), true)
 }
 
 // StartNative launches an ad-hoc native effect by name against a target with
@@ -233,35 +193,7 @@ func (r *Runner) StartNative(ctx context.Context, nativeName string, target Targ
 		NativeName: nativeName,
 	}
 
-	runID := uuid.New().String()
-
-	runCtx, cancel := context.WithCancel(context.Background())
-	run := &activeRun{
-		runID:    runID,
-		effectID: "",
-		kind:     eff.Kind,
-		target:   target,
-		cancel:   cancel,
-		done:     make(chan struct{}),
-		members:  make(map[device.DeviceID]struct{}),
-	}
-
-	key := keyFor(target)
-
-	r.mu.Lock()
-	old := r.active[key]
-	r.active[key] = run
-	r.mu.Unlock()
-
-	if old != nil {
-		r.preempt(old)
-		r.publishEnded(old, eventbus.EffectEndReasonPreempted)
-	}
-
-	go r.run(runCtx, run, eff)
-
-	_ = ctx
-	return runID, nil
+	return r.startRun(ctx, eff, target, uuid.NewString(), false)
 }
 
 // Stop cancels any active run for the given target. Returns true if a run
@@ -305,7 +237,22 @@ func (r *Runner) Hydrate(ctx context.Context) error {
 
 	for _, row := range rows {
 		target := Target{Type: device.TargetType(row.TargetType), ID: row.TargetID}
-		if _, err := r.Start(ctx, row.EffectID, target); err != nil {
+		eff, loadErr := r.store.LoadEffect(ctx, row.EffectID)
+		if loadErr != nil {
+			logger.Error("Hydrate effect load failed", "error", loadErr)
+			if err := r.discardHydratedRun(ctx, row.ID, target); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := Validate(eff); err != nil {
+			logger.Error("Hydrate effect validation failed", "error", err)
+			if err := r.discardHydratedRun(ctx, row.ID, target); err != nil {
+				return err
+			}
+			continue
+		}
+		if _, err := r.startRun(ctx, eff, target, row.ID, true); err != nil {
 			logger.Error("hydrate active effect failed",
 				"row_id", row.ID,
 				"effect_id", row.EffectID,
@@ -313,6 +260,21 @@ func (r *Runner) Hydrate(ctx context.Context) error {
 				"target_id", row.TargetID,
 				"error", err)
 		}
+	}
+	return nil
+}
+
+func (r *Runner) discardHydratedRun(ctx context.Context, runID string, target Target) error {
+	if err := r.store.DeleteActiveEffect(ctx, string(target.Type), target.ID); err != nil {
+		return err
+	}
+	if r.audit != nil {
+		var err error
+		ctx, err = r.audit.BeginAudit(audit.RunContext(ctx, "effect", runID), "effectRun", "{}")
+		if err != nil {
+			return err
+		}
+		return r.audit.FinishAudit(ctx, "interrupted")
 	}
 	return nil
 }
@@ -768,6 +730,13 @@ func (r *Runner) publishCommand(ctx context.Context, run *activeRun, cmd device.
 }
 
 func (r *Runner) publishEnded(run *activeRun, reason eventbus.EffectEndReason) {
+	if r.audit != nil {
+		ctx := audit.WithOrigin(context.Background(), run.auditOrigin)
+		if err := r.audit.FinishAudit(ctx, string(reason)); err != nil {
+			logger.Error("Effect audit completion failed", "error", err)
+		}
+	}
+
 	deviceID := ""
 	if run.target.Type == device.TargetDevice {
 		deviceID = run.target.ID
@@ -844,4 +813,64 @@ func applyClipToCommand(cmd *device.Command, c Clip) {
 			cmd.ColorTemp = &v
 		}
 	}
+}
+
+func (r *Runner) SetAudit(recorder audit.RunRecorder) { r.audit = recorder }
+
+func (r *Runner) startRun(ctx context.Context, eff Effect, target Target, runID string, persist bool) (string, error) {
+	if r.audit != nil {
+		proposal, err := json.Marshal(struct {
+			Effect Effect `json:"effect"`
+			Target Target `json:"target"`
+		}{eff, target})
+		if err != nil {
+			return "", err
+		}
+		ctx, err = r.audit.BeginAudit(audit.RunContext(ctx, "effect", runID), "effectRun", string(proposal))
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if persist {
+		volatile := !(eff.Loop && eff.Kind == KindTimeline)
+		if err := r.store.UpsertActiveEffect(ctx, UpsertActiveEffectParams{
+			ID:         runID,
+			EffectID:   eff.ID,
+			TargetType: string(target.Type),
+			TargetID:   target.ID,
+			StartedAt:  time.Now(),
+			Volatile:   volatile,
+		}); err != nil {
+			logger.Error("persist active effect failed", "run_id", runID, "effect_id", eff.ID, "error", err)
+		}
+
+	}
+	runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	run := &activeRun{
+		auditOrigin: audit.FromContext(ctx),
+		runID:       runID,
+		effectID:    eff.ID,
+		kind:        eff.Kind,
+		target:      target,
+		cancel:      cancel,
+		done:        make(chan struct{}),
+		members:     make(map[device.DeviceID]struct{}),
+	}
+
+	key := keyFor(target)
+
+	r.mu.Lock()
+	old := r.active[key]
+	r.active[key] = run
+	r.mu.Unlock()
+
+	if old != nil {
+		r.preempt(old)
+		r.publishEnded(old, eventbus.EffectEndReasonPreempted)
+	}
+
+	go r.run(runCtx, run, eff)
+
+	return runID, nil
 }

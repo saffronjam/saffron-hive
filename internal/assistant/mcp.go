@@ -122,6 +122,48 @@ type deleteFormInput struct {
 }
 
 func (t *ToolServer) register(g *grant) {
+	mcp.AddTool(g.server, &mcp.Tool{Name: "observe", Description: "Observe live AUDIT, ACTIVITY, or LOGS events for up to 30 seconds. Use the returned cursor to continue. A timeout means no matching events arrived. Private audit proposals remain owner-only."}, func(ctx context.Context, _ *mcp.CallToolRequest, in struct {
+		Stream         string `json:"stream"`
+		AuditFilter    string `json:"auditFilter,omitempty" jsonschema:"Optional AuditFilter JSON object encoded as a string"`
+		ActivityFilter string `json:"activityFilter,omitempty" jsonschema:"Optional ActivityFilter JSON object encoded as a string"`
+		Search         string `json:"search,omitempty"`
+		After          string `json:"after,omitempty"`
+		WaitSeconds    int    `json:"waitSeconds,omitempty"`
+		Limit          int    `json:"limit,omitempty"`
+	}) (*mcp.CallToolResult, any, error) {
+		if _, err := t.service.toolAccess(ctx, g.principal, g.conversationID, g.runID, false); err != nil {
+			return nil, nil, err
+		}
+		seconds := in.WaitSeconds
+		if seconds == 0 {
+			seconds = 15
+		}
+		limit := in.Limit
+		if limit == 0 {
+			limit = 20
+		}
+		filters := map[string]any{"stream": strings.ToUpper(in.Stream), "after": in.After, "wait": seconds, "limit": limit, "search": in.Search}
+		for key, value := range map[string]string{"auditFilter": in.AuditFilter, "activityFilter": in.ActivityFilter} {
+			if value != "" {
+				if !json.Valid([]byte(value)) {
+					return nil, nil, fmt.Errorf("invalid %s JSON", key)
+				}
+				filters[key] = json.RawMessage(value)
+			}
+		}
+		variables, err := json.Marshal(filters)
+		if err != nil {
+			return nil, nil, err
+		}
+		v, err := t.service.gateway.Query(ctx, `query($stream:ObservationStream!,$after:String,$wait:Int,$limit:Int,$auditFilter:AuditFilter,$activityFilter:ActivityFilter,$search:String){observeEvents(stream:$stream,after:$after,waitSeconds:$wait,limit:$limit,auditFilter:$auditFilter,activityFilter:$activityFilter,search:$search){cursor timedOut resetRequired audit{id timestamp entityName action actorName status changes{path before after}} activity{id type timestamp payload} logs{timestamp level message attrs}}}`, variables)
+		if err == nil {
+			g.mu.Lock()
+			g.observations = append(g.observations, v)
+			g.mu.Unlock()
+		}
+		return toolText(v), nil, err
+	})
+
 	mcp.AddTool(g.server, &mcp.Tool{Name: "define_chat_form", Description: "Create or update real controls in this chat: SLIDER, TEXT, NUMBER, COLOR, IMAGE, SELECT, TOGGLE. Chat-only data; does not control the home or invoke the model. Keys are unique per chat. User values are preserved. Use chat_forms to inspect definitions and get_chat_inputs for the current message's submitted values. Never use for secrets or confirmations."}, func(ctx context.Context, _ *mcp.CallToolRequest, in formInput) (*mcp.CallToolResult, any, error) {
 		value, err := t.service.defineForm(ctx, g.principal, g.conversationID, g.runID, ChatForm{ID: in.ID, Title: in.Title, Description: in.Description, Revision: in.ExpectedRevision, Fields: in.Fields})
 		return toolText(value), nil, err

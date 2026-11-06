@@ -46,6 +46,28 @@ func TestAssistantQueryCannotWriteOrReadChats(t *testing.T) {
 		}
 	}
 }
+
+func TestAssistantReadsAuditAndObservesAuthorizedStreams(t *testing.T) {
+	g, env, ctx := testAssistantGateway(t)
+	env.resolver.Audit = &auditFixture{}
+	if _, err := g.Query(ctx, `{audit{cursor entries{id action}}}`, nil); err != nil {
+		t.Fatalf("assistant cannot read native audit: %v", err)
+	}
+	for _, stream := range []string{"AUDIT", "ACTIVITY", "LOGS"} {
+		variables, err := json.Marshal(map[string]string{"stream": stream})
+		if err != nil {
+			t.Fatal(err)
+		}
+		result, err := g.Query(ctx, `query($stream:ObservationStream!){observeEvents(stream:$stream,waitSeconds:0){cursor timedOut resetRequired}}`, variables)
+		if err != nil || !strings.Contains(result, `"timedOut":true`) {
+			t.Fatalf("%s observation: %s %v", stream, result, err)
+		}
+	}
+	guest := auth.WithPrincipal(ctx, auth.Principal{ID: "guest", Guest: true})
+	if _, err := g.Query(guest, `{audit{cursor}}`, nil); err == nil {
+		t.Fatal("guest assistant accessed audit")
+	}
+}
 func TestAssistantUsesGraphQLAuthorizationAndValidation(t *testing.T) {
 	g, _, ctx := testAssistantGateway(t)
 	op := assistant.Operation{Field: "createRoom", Arguments: json.RawMessage(`{"input":{"name":"Office"}}`), Selection: "id name"}
