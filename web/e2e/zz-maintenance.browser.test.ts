@@ -201,11 +201,11 @@ describe("Maintenance", () => {
       await completeCard("System maintenance");
     }
     await expect
-      .poll(() => page.getByText("Nothing needs maintenance.", { exact: true }).count())
+      .poll(() => page.getByText("No maintenance needed", { exact: true }).count())
       .toBe(1);
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect
-      .poll(() => page.getByText("Nothing needs maintenance.", { exact: true }).count())
+      .poll(() => page.getByText("No maintenance needed", { exact: true }).count())
       .toBe(1);
 
     await publishDeviceState("Door sensor T1", { battery: 20 });
