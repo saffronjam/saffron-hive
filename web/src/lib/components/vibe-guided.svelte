@@ -1,8 +1,8 @@
 <script lang="ts">
+  import { watchErrorToast } from "$lib/error-toast.svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import { Button } from "$lib/components/ui/button/index.js";
-	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import VibeChoiceCard from "$lib/components/vibe-choice-card.svelte";
 	import { Loader2 } from "@lucide/svelte";
 	import { fade } from "svelte/transition";
@@ -98,14 +98,13 @@
 		onchange(next);
 		if (next.length === 5) onuse(next);
 	}
+  watchErrorToast(() => error);
 </script>
 
 <div class="space-y-4">
 	<p class="font-medium">{m.vibe_choose_closest({}, locale.messageOptions())}</p>
 
-	{#if error}
-		<ErrorBanner message={error} ondismiss={() => (error = null)} />
-	{/if}
+
 
 	{#if loading && !round}
 		<div class="flex h-40 items-center justify-center rounded-lg bg-muted">

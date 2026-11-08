@@ -108,11 +108,7 @@ describe("translated catalog plurals", () => {
     expect(m.vibe_category_whites({}, { locale: "ru" })).toBe("Бесцветные");
     expect(m.scene_editor_pace({}, { locale: "ru" })).toBe("Цикл");
     expect(m.scene_editor_shuffle({}, { locale: "ru" })).toBe("Рандомизировать");
-    expect(m.scene_create_adjust_lighting({}, { locale: "ru" })).toBe("Выбор освещения");
-    expect(m.scene_create_choose_location({}, { locale: "ru" })).toBe("Локация");
-    expect(m.scene_create_name_title({}, { locale: "ru" })).toBe("Название сцены");
-    expect(m.scene_create_choose_look({}, { locale: "ru" })).toBe("Выбор внешнего вида");
-    expect(m.scene_create_title({}, { locale: "ru" })).toBe("Создание сцены");
+    expect(m.common_back({}, { locale: "ru" })).toBe("Назад");
     expect(m.scene_create_breadcrumb({}, { locale: "ru" })).toBe("Создание");
     expect(m.shared_unsaved_leave({}, { locale: "ru" })).toBe("Выйти без сохранения");
     expect(m.webhooks_url_once({}, { locale: "ru" })).toBe(

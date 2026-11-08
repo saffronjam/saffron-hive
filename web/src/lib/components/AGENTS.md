@@ -4,22 +4,26 @@ Shared UI components. Before adding a new file, scan this index — most needs a
 
 ## Cards & list rows
 
-- `entity-card.svelte` — base card layout (icon + name + actions + optional footer). Props: `tintColors` + `tintStrength` for radial tint, `brightnessFill` for horizontal fill, `iconArea` snippet to replace the icon block, `dragOpts` for press-and-drag, `onclick` for whole-card click, `readOnly` to suppress the IconPicker / inline-rename / dropdown menu. Used by every dashboard / scene / group / room card.
+- `entity-card.svelte` — base card layout (icon + name + actions + optional footer). Props: `tintColors` + `tintStrength` for radial tint, `brightnessFill` for horizontal fill, `iconArea` snippet to replace the icon block, `dragOpts` for press-and-drag, `onclick` for whole-card click, `readOnly` to suppress editing and the dropdown menu. Names navigate to `nameHref` or `editHref`; Rename is a menu action when provided. Used by every dashboard / scene / group / room card.
 - `device-collection-card.svelte` — wraps `EntityCard` with brightness, colour, temp and sensor controls for a list of devices (rooms and groups pages).
 - `dashboard-room-card.svelte` — room summary. Compact mode shows readings and brightness fill with drag control; desktop navigation uses full-surface tint, with unselected cards slightly faded by the dashboard.
 - `dashboard-light-card.svelte` — single light or group, with compact tap/drag controls or explicit desktop switches and brightness sliders. Colour and group members use popovers.
 - `dashboard-apartment-card.svelte` — whole-home summary. Compact mode shows aggregate readings and controls lighting; desktop mode selects Apartment with full-surface tint.
 - `dashboard-target-panel.svelte` — shared Apartment/Room content: aggregate controls, sensor/contact boxes, room scenes, lights and appliances. Apartment shows aggregate controls and stats. Key each instance by target and presentation so drag and picker callbacks remain scoped to their target.
 - `room-drawer.svelte` — bottom Sheet shell for compact room controls, rendered by `DashboardTargetPanel`.
-- `device-card.svelte` — the card the `/devices` list renders. Icon + inline rename + quick controls + membership chips, with `BulkBrightnessSlider` and shared optimistic power feedback. Shows disabled devices greyed and without controls.
+- `device-card.svelte` — the card the `/devices` list renders. Linked name + menu rename + quick controls + membership chips, with `BulkBrightnessSlider` and shared optimistic power feedback. Shows disabled devices greyed and without controls.
 - `device-quick-controls.svelte` — toggle + brightness slider + colour picker for a single device, designed for the device detail view.
 
 ## Controls
 
+- `device-battery-card.svelte` — reported battery percentage and level bar for any device; hides missing or invalid readings. `progress-bar.svelte` provides the shared level/progress bar used by battery, cleaning progress and consumables.
+
+- `resource-link.svelte` — resource name link with shared hover underline, focus styling and isolation from card actions.
+
 - `bulk-brightness-slider.svelte` — **the** brightness slider. Anti-flicker (1500 ms interacting cooldown), 250 ms throttle, trailing edge. Pass `devices` (single element list works for per-device control). **Do not write a raw `<Slider>` over `setTargetState` for brightness.**
 - `light-color-picker.svelte` — colour wheel + colour-temp slider. Pass capability flags from `capabilityUnion()`.
 - `number-input.svelte` — buffered numeric input. Use for any numeric field — never raw `<input type="number">`.
-- `inline-edit-name.svelte` — click-to-rename text used inside `EntityCard`.
+- `inline-edit-name.svelte` — localized name editor, opened by card Rename actions; editor-only uses may enable double-click editing.
 - `bulk-brightness-slider.svelte` is the only brightness-input primitive — every other surface should compose it.
 
 ## Pickers / drawers / modals
@@ -48,7 +52,7 @@ Shared UI components. Before adding a new file, scan this index — most needs a
   alert icon plus the message under the field it belongs to, and renders nothing
   when the message is null. Pair it with `aria-invalid` on the input, which the
   shadcn `Input` already styles with a destructive border and ring.
-- `error-banner.svelte` — top-of-page error banner (paired with `BannerError` store).
+- Request and action errors use `toast.error`; reactive loading errors use `watchErrorToast` from `$lib/error-toast.svelte`. Keep field validation on `FieldError`.
 - `activity-feed.svelte` — recent automation node activations.
 - `sensor-display.svelte` — formatted sensor reading list.
 

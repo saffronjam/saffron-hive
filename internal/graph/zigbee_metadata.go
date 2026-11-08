@@ -3,17 +3,14 @@ package graph
 import (
 	"strconv"
 
-	"github.com/saffronjam/saffron-hive/internal/deviceimage"
 	"github.com/saffronjam/saffron-hive/internal/graph/model"
 	"github.com/saffronjam/saffron-hive/internal/zigbeedocs"
 	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 )
 
 func mapZigbeeDeviceMetadata(metadata zigbeemetadata.Metadata, vendors AddressVendorResolver) *model.Zigbee2MqttDeviceMetadata {
-	imageSource := deviceimage.ResolveSource(metadata)
 	out := &model.Zigbee2MqttDeviceMetadata{
-		ImageCandidate: len(imageSource.Candidates) > 0,
-		NetworkType:    metadata.NetworkType, NetworkAddress: intFromInt64(metadata.NetworkAddress),
+		NetworkType: metadata.NetworkType, NetworkAddress: intFromInt64(metadata.NetworkAddress),
 		Supported: metadata.Supported, InterviewState: metadata.InterviewState,
 		InterviewCompleted: metadata.InterviewCompleted, Interviewing: metadata.Interviewing,
 		Description: metadata.Description, Manufacturer: metadata.Manufacturer,
@@ -23,9 +20,6 @@ func mapZigbeeDeviceMetadata(metadata zigbeemetadata.Metadata, vendors AddressVe
 			State: metadata.OTA.State, InstalledVersion: versionString(metadata.OTA.InstalledVersion),
 			LatestVersion: versionString(metadata.OTA.LatestVersion), Progress: metadata.OTA.Progress,
 		},
-	}
-	if imageSource.Fingerprint != "" {
-		out.ImageVersion = &imageSource.Fingerprint
 	}
 	if metadata.IEEEAddress != "" {
 		out.IeeeAddress = &metadata.IEEEAddress

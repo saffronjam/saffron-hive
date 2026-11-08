@@ -205,6 +205,54 @@ type ClaudeConfig struct {
 	Revision int64
 }
 
+type CleaningCalibration struct {
+	DeviceID          string
+	MapID             string
+	FloorplanID       string
+	Revision          int64
+	MapRevision       string
+	FloorplanRevision int64
+	Anchors           string
+	FloorplanGeometry string
+	Enabled           bool
+	MapRotation       float64
+}
+
+type CleaningLinkSet struct {
+	DeviceID string
+	MapID    string
+	Revision int64
+}
+
+type CleaningRoomLink struct {
+	DeviceID    string
+	MapID       string
+	RoomID      string
+	AreaID      string
+	MapRevision string
+}
+
+type CleaningSnapshot struct {
+	DeviceID string
+	Snapshot string
+}
+
+type CleaningTask struct {
+	ID                string
+	DeviceID          string
+	RequestID         string
+	Plan              string
+	State             string
+	Origin            string
+	Error             string
+	CreatedAt         string
+	UpdatedAt         string
+	CompletedAt       *string
+	ProviderHistoryID *string
+	ElapsedMinutes    *float64
+	CleanedArea       *float64
+}
+
 type Device struct {
 	ID                 device.DeviceID
 	Name               *string
@@ -233,6 +281,23 @@ type DeviceStateSample struct {
 	NumericValue *float64
 	TextValue    *string
 	RecordedAt   time.Time
+}
+
+type DreameConfig struct {
+	ID       int64
+	Revision int64
+	Email    string
+	Password string
+	Region   string
+	Enabled  bool
+}
+
+type DreameDevice struct {
+	DeviceID   string
+	AccountID  string
+	ExternalID string
+	Model      string
+	Shard      string
 }
 
 type Effect struct {

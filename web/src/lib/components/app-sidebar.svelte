@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { deviceStore } from "$lib/stores/devices";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import {
@@ -27,7 +28,7 @@
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
 
-	const navGroups = $derived(navigationGroups());
+	const navGroups = $derived(navigationGroups($deviceStore));
 	const adminItems = $derived(systemItems());
 
 	function isActive(href: string): boolean {

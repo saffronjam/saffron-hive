@@ -2,7 +2,9 @@ package graph
 
 import (
 	"context"
+	"github.com/saffronjam/saffron-hive/internal/adapter/dreame"
 	"github.com/saffronjam/saffron-hive/internal/assistant"
+	"github.com/saffronjam/saffron-hive/internal/cleaning"
 	"github.com/saffronjam/saffron-hive/internal/pubsub"
 	"log/slog"
 	"sync/atomic"
@@ -76,6 +78,17 @@ type TuyaController interface {
 	TuyaConnected() bool
 }
 
+// DreameDiagnostics reads an account without registering or commanding devices.
+type DreameDiagnostics interface {
+	Inspect(context.Context, dreame.Credentials) (dreame.Report, error)
+}
+
+type DreameController interface {
+	ReconnectDreame(context.Context) error
+	TestDreame(context.Context, store.DreameConfig) error
+	DreameConnected() bool
+}
+
 // IntegrationManager owns the provider-agnostic integration lifecycle.
 type IntegrationManager interface {
 	// DeleteIntegration removes a provider's configuration and returns the
@@ -114,6 +127,8 @@ type OutputStatusReader interface {
 // invoked by a resolver, mutation, or helper in this package; *store.DB
 // satisfies it implicitly.
 type GraphStore interface {
+	GetDreameConfig(context.Context) (*store.DreameConfig, error)
+	UpsertDreameConfig(context.Context, store.DreameConfig) error
 	UpdateDeviceMetadata(context.Context, store.UpdateDeviceMetadataParams) (device.Device, error)
 	// Devices
 	GetDevice(ctx context.Context, id device.DeviceID) (device.Device, error)
@@ -131,6 +146,7 @@ type GraphStore interface {
 	BatchRestoreDevices(ctx context.Context, ids []device.DeviceID) ([]device.Device, error)
 	MarkDevicesSeen(ctx context.Context, ids []device.DeviceID) (int64, error)
 	GetZigbeeDeviceMetadata(ctx context.Context, id device.DeviceID) (*zigbeemetadata.Metadata, error)
+	DeviceImageSources(ctx context.Context, id device.DeviceID) ([]string, error)
 
 	// Scenes
 	CreateScene(ctx context.Context, params store.CreateSceneParams) (store.Scene, error)
@@ -278,6 +294,9 @@ type Resolver struct {
 	LevelVar            *slog.LevelVar
 	Zigbee2MQTT         Zigbee2MQTTController
 	Tuya                TuyaController
+	Dreame              DreameDiagnostics
+	DreameIntegration   DreameController
+	Cleaning            *cleaning.Service
 	Integrations        IntegrationManager
 	EffectRunner        EffectRunner
 	SceneRunner         SceneRunner

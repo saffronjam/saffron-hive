@@ -6,6 +6,8 @@ import "time"
 type EventType string
 
 const (
+	EventCleaningChanged           EventType = "cleaning.changed"
+	EventCleaningUpdated           EventType = "cleaning.updated"
 	EventDeviceStateChanged        EventType = "device.state_changed"
 	EventDeviceAttributesChanged   EventType = "device.attributes_changed"
 	EventDeviceActionFired         EventType = "device.action_fired"

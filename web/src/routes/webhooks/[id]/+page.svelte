@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { toast } from "svelte-sonner";
  import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
  let externalConflict=$state(false);
 	import { goto } from "$app/navigation";
@@ -32,14 +33,12 @@
 	import JsonInline from "$lib/components/json-inline.svelte";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
-	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import FieldError from "$lib/components/field-error.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { webhooksStore } from "$lib/stores/webhooks.svelte";
 	import { automationsStore } from "$lib/stores/automations.svelte";
 	import { automationsByWebhookEndpoint } from "$lib/automation-config";
 	import AutomationComposition from "$lib/components/automation-composition.svelte";
-	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { me } from "$lib/stores/me.svelte";
 	import { formatTooltip } from "$lib/time-format";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
@@ -163,7 +162,6 @@
 	let automationSearch = $state("");
 	let selectedDelivery = $state<WebhookDelivery | null>(null);
 	let bodyCopied = $state(false);
-	const errors = new BannerError();
 
 	function snapshot() {
 		return JSON.stringify({ name, enabled, rateLimitCount, rateLimitWindowMs });
@@ -220,7 +218,7 @@
 	async function save() {
 		if (externalConflict || !endpoint || !isValid || rateLimitCount === null || rateLimitWindowMs === null) return;
 		saving = true;
-		errors.clear();
+
 		try {
 			await webhooksStore.update(client, endpoint.id, {
  expectedRevision:endpoint.revision,
@@ -231,7 +229,7 @@
 			});
 			original = snapshot();
 		} catch (error) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, m.webhooks_save_failed({}, messageOptions)));
+			toast.error(graphqlErrorMessage(error, m.webhooks_save_failed({}, messageOptions)));
 		} finally {
 			saving = false;
 		}
@@ -240,13 +238,13 @@
 	async function rotateSecret() {
 		if (!endpoint) return;
 		rotating = true;
-		errors.clear();
+
 		try {
 			const result = await webhooksStore.rotate(client, endpoint.id);
 			secretUrl = new URL(result.secretPath, window.location.origin).toString();
 			rotateConfirm = false;
 		} catch (error) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, m.webhooks_rotate_failed({}, messageOptions)));
+			toast.error(graphqlErrorMessage(error, m.webhooks_rotate_failed({}, messageOptions)));
 		} finally {
 			rotating = false;
 		}
@@ -255,12 +253,12 @@
 	async function deleteEndpoint() {
 		if (!endpoint) return;
 		deleting = true;
-		errors.clear();
+
 		try {
 			await webhooksStore.delete(client, endpoint.id);
 			await goto("/webhooks");
 		} catch (error) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, m.webhooks_delete_failed({}, messageOptions)));
+			toast.error(graphqlErrorMessage(error, m.webhooks_delete_failed({}, messageOptions)));
 		} finally {
 			deleting = false;
 		}
@@ -320,9 +318,7 @@
 
 <UnsavedGuard dirty={isDirty} />
 
-{#if errors.message}
-	<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
-{/if}
+
 
 {#if endpoint && draftReady}
 	<div class="flex flex-col gap-6 lg:h-[calc(100dvh-7rem)] lg:min-h-[32rem]">

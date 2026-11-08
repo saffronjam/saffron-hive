@@ -795,6 +795,31 @@ class Compiler {
         }
         break;
       }
+      case "clean":
+      case "cleaning": {
+        const clean = bodyObject();
+        this.allowKeys(
+          clean,
+          at,
+          kind === "clean" ? ["device", "rooms", "options"] : ["device", "action"],
+        );
+        target = {
+          targetType: "device",
+          targetId: this.resolve("device", clean.device, [...at, "device"]),
+          targetExpr: [],
+        };
+        payload = JSON.stringify(
+          kind === "clean"
+            ? {
+                roomIds: this.array(clean.rooms, [...at, "rooms"]).map((room, i) =>
+                  this.resolve("room", room, [...at, "rooms", i]),
+                ),
+                options: clean.options ?? { repeats: 1 },
+              }
+            : { action: this.string(clean.action, [...at, "action"]) },
+        );
+        break;
+      }
       case "configure": {
         const configure = bodyObject();
         this.allowKeys(configure, at, ["device", "settings"]);

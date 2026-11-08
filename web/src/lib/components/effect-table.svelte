@@ -2,7 +2,7 @@
 	import { entityDisplayName } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import EffectCapabilityChip from "$lib/components/effect-capability-chip.svelte";
-	import InlineEditName from "$lib/components/inline-edit-name.svelte";
+	import ResourceLink from "$lib/components/resource-link.svelte";
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
 	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
 	import HiveDataTable from "$lib/components/hive-data-table.svelte";
@@ -61,7 +61,7 @@
 		onrun: (effect: EffectTableEffect) => void;
 		onrunnative: (option: EffectTableNativeOption) => void;
 		ondelete: (effect: EffectTableEffect) => void;
-		onrename: (effect: EffectTableEffect, newName: string) => void;
+
 		oniconchange: (effect: EffectTableEffect, icon: string | null) => void;
 	}
 
@@ -72,7 +72,7 @@
 		onrun,
 		onrunnative,
 		ondelete,
-		onrename,
+
 		oniconchange,
 	}: Props = $props();
 
@@ -156,7 +156,7 @@
 
 {#snippet nameCell(row: EffectTableRow)}
 	{#if row.kind === "timeline"}
-		<InlineEditName name={entityDisplayName("effect", row.effect)} entityType="effect" entityId={row.effect.id} onsave={(name) => onrename(row.effect, name)} />
+		<ResourceLink href={`/effects/${row.effect.id}`}>{entityDisplayName("effect", row.effect)}</ResourceLink>
 	{:else}
 		<span class="text-sm font-medium text-foreground">{row.option.displayName}</span>
 	{/if}

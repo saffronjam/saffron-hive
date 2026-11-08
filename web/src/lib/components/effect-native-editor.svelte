@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { Button } from "$lib/components/ui/button";
+  import { watchErrorToast } from "$lib/error-toast.svelte";
 	import { getContextClient, queryStore, subscriptionStore } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
 	import { onGraphQLRecovered } from "$lib/graphql/app-recovery";
@@ -57,6 +59,7 @@
 	const selected = $derived(
 		options.find((o) => o.name === nativeName) ?? null,
 	);
+  watchErrorToast(() => $optionsStore.error ? m.effects_native_load_error({}, locale.messageOptions()) : null);
 </script>
 
 <div class="rounded-lg shadow-card bg-card p-4 flex flex-col gap-3">
@@ -67,10 +70,8 @@
 
 	{#if $optionsStore.fetching && options.length === 0}
 		<p class="text-sm text-muted-foreground">{m.effects_native_loading({}, locale.messageOptions())}</p>
-	{:else if $optionsStore.error}
-		<p class="text-sm text-destructive">
-			{m.effects_native_load_error({}, locale.messageOptions())}
-		</p>
+		{:else if $optionsStore.error}
+		<Button variant="outline" onclick={() => optionsStore.reexecute({ requestPolicy: "network-only" })}>{m.common_try_again({}, locale.messageOptions())}</Button>
 	{:else if options.length === 0}
 		<p class="text-sm text-muted-foreground">
 			{m.effects_native_empty({}, locale.messageOptions())}

@@ -174,7 +174,7 @@ func (c *Cache) fetchAndStore(ctx context.Context, deviceID string, source Sourc
 			transient = true
 			continue
 		}
-		mime, format, err := validateImage(data)
+		data, mime, format, err := trimPadding(data)
 		if err != nil {
 			continue
 		}

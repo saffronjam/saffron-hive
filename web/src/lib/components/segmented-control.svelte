@@ -18,14 +18,16 @@
 		options: Option[];
 		size?: "sm" | "default";
 		class?: string;
+		ariaLabel?: string;
 	}
 
-	let { value, onchange, options, size = "sm", class: klass = "" }: Props = $props();
+	let { value, onchange, options, size = "sm", class: klass = "", ariaLabel }: Props = $props();
 </script>
 
 <div
 	class="inline-flex items-center rounded-md border border-border dark:border-input {klass}"
 	role="group"
+	aria-label={ariaLabel}
 >
 	{#each options as opt, i (opt.value)}
 		{@const isFirst = i === 0}

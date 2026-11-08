@@ -30,6 +30,10 @@ type operationPolicy struct {
 }
 
 var assistantPolicies = map[string]operationPolicy{
+	"updateDreameConfig":   {Resource: "integrations", Confirm: true, Secrets: []assistant.SecretField{{Path: "input.password", Label: "Dreamehome password"}}},
+	"testDreameConnection": {Secrets: []assistant.SecretField{{Path: "input.password", Label: "Dreamehome password"}}},
+	"prepareCleaning":      {}, "startCleaning": {Resource: "devices", Confirm: true}, "controlCleaning": {Resource: "devices", Confirm: true},
+	"updateCleaningRoomLinks": {Resource: "devices"}, "updateCleaningCalibration": {Resource: "floorplan"},
 	"updateLocalizedNameSet": {}, "updateDevice": {Resource: "devices"}, "deleteDevice": {Resource: "devices", Destructive: true}, "restoreDevice": {Resource: "devices"}, "batchDeleteDevices": {Resource: "devices", Destructive: true}, "batchRestoreDevices": {Resource: "devices"},
 	"setTargetState": {}, "setDeviceConfiguration": {Resource: "devices"}, "runDeviceCommand": {Resource: "devices", Confirm: true}, "simulateDeviceAction": {Resource: "devices"},
 	"applyScene": {Resource: "scenes"}, "deactivateScene": {Resource: "scenes"}, "createScene": {Resource: "scenes"}, "updateScene": {Resource: "scenes"}, "deleteScene": {Resource: "scenes", Destructive: true}, "batchDeleteScenes": {Resource: "scenes", Destructive: true},
@@ -45,7 +49,7 @@ var assistantPolicies = map[string]operationPolicy{
 	"raiseAlarm": {Resource: "alarms"}, "deleteAlarm": {Resource: "alarms", Destructive: true}, "batchDeleteAlarms": {Resource: "alarms", Destructive: true}, "completeMaintenanceTasks": {Resource: "maintenanceTasks"}, "markDevicesSeen": {Resource: "devices"},
 	"createEffect": {Resource: "effects"}, "updateEffect": {Resource: "effects"}, "deleteEffect": {Resource: "effects", Destructive: true}, "batchDeleteEffects": {Resource: "effects", Destructive: true}, "runEffect": {Resource: "effects"}, "runNativeEffect": {}, "stopEffect": {},
 }
-var assistantExcludedMutations = map[string]bool{"discoverClaudeModels": true, "login": true, "guestLogin": true, "createInitialUser": true, "completeFirstPasswordChange": true, "updateCurrentGuestLanguage": true, "updateAssistantField": true, "createAssistantConversation": true, "renameAssistantConversation": true, "deleteAssistantConversation": true, "sendAssistantMessage": true, "stopAssistantRun": true, "respondToAssistantAction": true}
+var assistantExcludedMutations = map[string]bool{"readDreameDiagnostics": true, "discoverClaudeModels": true, "login": true, "guestLogin": true, "createInitialUser": true, "completeFirstPasswordChange": true, "updateCurrentGuestLanguage": true, "updateAssistantField": true, "createAssistantConversation": true, "renameAssistantConversation": true, "deleteAssistantConversation": true, "sendAssistantMessage": true, "stopAssistantRun": true, "respondToAssistantAction": true}
 
 type assistantAttachments interface {
 	GetAssistantAttachment(context.Context, string, string) (store.AssistantAttachment, error)

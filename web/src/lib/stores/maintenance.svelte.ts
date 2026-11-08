@@ -1,3 +1,5 @@
+import { toast } from "svelte-sonner";
+import { graphqlErrorMessage } from "$lib/graphql-error";
 import type { Client } from "@urql/svelte";
 import { graphql } from "$lib/gql";
 import { MaintenanceKind, type ContactRole } from "$lib/gql/graphql";
@@ -24,6 +26,7 @@ export interface MaintenanceTask {
   value?: number | null;
   context?: string | null;
   actionUrl?: string | null;
+  canComplete: boolean;
 }
 
 const MAINTENANCE_QUERY = graphql(`
@@ -36,6 +39,7 @@ const MAINTENANCE_QUERY = graphql(`
       value
       context
       actionUrl
+      canComplete
       device {
         id
         name
@@ -65,7 +69,7 @@ const MAINTENANCE_CHANGED = graphql(`
   }
 `);
 
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 4;
 
 function storage(): Storage | null {
   return typeof window === "undefined" ? null : window.sessionStorage;
@@ -100,25 +104,33 @@ export function createMaintenanceStore() {
 
   async function completeMany(ids: string[]): Promise<boolean> {
     if (!client) return false;
-    const selected = [...new Set(ids.filter((id) => items.some((item) => item.id === id)))];
+    const selected = [
+      ...new Set(ids.filter((id) => items.some((item) => item.id === id && item.canComplete))),
+    ];
     if (selected.length === 0) return true;
     const before = items;
     pending = new Set([...pending, ...selected]);
-    items = items.filter((item) => !selected.includes(item.id));
+    items = items.filter(
+      (item) => !selected.includes(item.id) || item.kind === MaintenanceKind.Cleaning,
+    );
     save();
-    const result = await client.mutation(COMPLETE_MAINTENANCE, { ids: selected }).toPromise();
-    pending = new Set([...pending].filter((id) => !selected.includes(id)));
-    if (result.error) {
+    try {
+      const result = await client.mutation(COMPLETE_MAINTENANCE, { ids: selected }).toPromise();
+      if (result.error) throw result.error;
+      await refresh();
+      return true;
+    } catch (error) {
       const currentIDs = new Set(items.map((item) => item.id));
       items = [
         ...items,
         ...before.filter((item) => selected.includes(item.id) && !currentIDs.has(item.id)),
       ];
       save();
+      toast.error(graphqlErrorMessage(error));
       return false;
+    } finally {
+      pending = new Set([...pending].filter((id) => !selected.includes(id)));
     }
-    await refresh();
-    return true;
   }
 
   return {
@@ -133,6 +145,7 @@ export function createMaintenanceStore() {
         },
         {
           [MaintenanceKind.Battery]: [],
+          [MaintenanceKind.Cleaning]: [],
           [MaintenanceKind.Firmware]: [],
           [MaintenanceKind.Posture]: [],
           [MaintenanceKind.Storage]: [],

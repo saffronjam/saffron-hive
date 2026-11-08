@@ -286,9 +286,6 @@
 	{#if alarmsStore.activeCount === 0}
 		<div class="rounded-lg shadow-card bg-card p-12 text-center">
 			<p class="text-foreground">{m.alarms_empty({}, messageOptions)}</p>
-			<p class="mt-2 text-sm text-muted-foreground">
-				{m.alarms_empty_help({}, messageOptions)}
-			</p>
 		</div>
 	{:else if filtered.length === 0}
 		<div class="rounded-lg shadow-card bg-card p-12 text-center">

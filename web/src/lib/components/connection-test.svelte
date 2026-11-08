@@ -1,7 +1,8 @@
 <script lang="ts">
+	import { watchErrorToast } from "$lib/error-toast.svelte";
 	import type { Snippet } from "svelte";
 	import { Button } from "$lib/components/ui/button";
-	import { CircleCheck, CircleX, Loader2, Unplug } from "@lucide/svelte";
+	import { CircleCheck, Loader2, Unplug } from "@lucide/svelte";
 	import { connectionResultMessage, type ConnectionResult } from "$lib/i18n/connection";
 	let {
 		label,
@@ -18,6 +19,7 @@
 		ontest: () => void;
 		children?: Snippet;
 	} = $props();
+	watchErrorToast(() => !testing && result && !result.success ? connectionResultMessage(result) : null);
 </script>
 
 <div class="flex flex-wrap items-center gap-3 pt-2">
@@ -34,10 +36,7 @@
 			>
 				<CircleCheck class="size-5" /><span>{connectionResultMessage(result)}</span>
 			</div>
-		{:else}
-			<div class="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400" role="status">
-				<CircleX class="size-5 shrink-0" /><span>{connectionResultMessage(result)}</span>
-			</div>
+
 		{/if}
 	{/if}
 </div>

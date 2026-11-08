@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { watchErrorToast } from "$lib/error-toast.svelte";
  import {authorSceneStates} from "$lib/scene-authoring";
 	import { onMount, tick } from "svelte";
 	import { goto, pushState, replaceState } from "$app/navigation";
@@ -16,7 +17,6 @@
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import FieldError from "$lib/components/field-error.svelte";
-	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
 	import VibePreview from "$lib/components/vibe-preview.svelte";
 	import VibeChoiceCard from "$lib/components/vibe-choice-card.svelte";
@@ -212,6 +212,12 @@
 		return () => media.removeEventListener("change", syncMotion);
 	});
 
+	function goBack() {
+		if (saving || pendingStage) return;
+		if (window.history.length > 1) window.history.back();
+		else void goto("/scenes");
+	}
+
 	function moveTo(next: Stage) {
 		if (next === stage || next === pendingStage) return;
 		queueStage(next);
@@ -310,9 +316,7 @@
 		error = null;
 	}
 
-	function goBack() {
-		history.back();
-	}
+
 
 	function apiSource(value: VibeSource): VibeSourceInput {
 		if ("photo" in value) return { photo: { ...value.photo, domain: value.photo.domain as VibeFieldDomain } };
@@ -553,20 +557,21 @@
 		}
 	}
 
+  watchErrorToast(() => error);
+  watchErrorToast(() => vibeCatalog.error, () => vibeCatalog.load(client));
 </script>
 
 <UnsavedGuard {dirty} />
 
 <div class="mx-auto {stage === 'adjust' ? 'max-w-[90rem]' : 'max-w-5xl'} space-y-6" in:fly={{ y: -4, duration: reducedMotion ? 0 : 150 }}>
-	{#if stage !== "start"}
-		<Button variant="ghost" size="sm" onclick={goBack}>
-			<ArrowLeft class="size-4" /> {m.scene_create_back({}, locale.messageOptions())}
-		</Button>
-	{/if}
 
-	{#if error}
-		<ErrorBanner message={error} ondismiss={() => (error = null)} />
-	{/if}
+  {#if stage !== "start"}
+  <Button variant="ghost" size="sm" class="-ml-3 hidden md:inline-flex" disabled={saving || pendingStage !== null} onclick={goBack}>
+    <ArrowLeft class="size-4" />{m.common_back({}, locale.messageOptions())}
+  </Button>
+  {/if}
+
+
 
 	{#if stageVisible}
 	<div
@@ -584,9 +589,6 @@
 		}}
 	>
 	{#if stage === "start"}
-		<div>
-			<h1 class="text-2xl font-semibold">{m.scene_create_title({}, locale.messageOptions())}</h1>
-		</div>
 		<div class="grid gap-4 sm:grid-cols-2">
 			{#each [
 				{ id: "gallery", title: m.vibe_gallery({}, locale.messageOptions()), detail: m.vibe_source_gallery_detail({}, locale.messageOptions()), icon: Image },
@@ -602,9 +604,6 @@
 			{/each}
 		</div>
 	{:else if stage === "look"}
-		<div>
-			<h1 class="text-2xl font-semibold">{m.scene_create_choose_look({}, locale.messageOptions())}</h1>
-		</div>
 
 		{#if kind === "gallery"}
 			{#if vibeCatalog.loading && presets.length === 0}
@@ -614,7 +613,7 @@
 					{/each}
 				</div>
 			{:else if vibeCatalog.error}
-				<ErrorBanner message={vibeCatalog.error} />
+				<Button variant="outline" onclick={() => void vibeCatalog.load(client)}>{m.common_try_again({}, locale.messageOptions())}</Button>
 			{:else if presets.length === 0}
 				<div class="rounded-lg shadow-card bg-card p-8 text-center text-muted-foreground">{m.scene_create_no_gallery({}, locale.messageOptions())}</div>
 			{:else}
@@ -680,9 +679,6 @@
 			<div class="flex justify-end"><Button onclick={continueFromLook} disabled={loadingPreview || !source}>{loadingPreview ? m.scene_create_building({}, locale.messageOptions()) : m.common_continue({}, locale.messageOptions())}</Button></div>
 		{/if}
 	{:else if stage === "targets"}
-		<div>
-			<h1 class="text-2xl font-semibold">{m.scene_create_choose_location({}, locale.messageOptions())}</h1>
-		</div>
 		<div class="overflow-hidden rounded-lg shadow-card bg-card p-5 space-y-4">
 			<div class="flex flex-wrap gap-2">
 				<Button variant="outline" size="sm" onclick={() => (targetDrawerOpen = true)}><Plus class="size-4" /> {m.scenes_add_target({}, locale.messageOptions())}</Button>
@@ -730,9 +726,6 @@
 		</div>
 		<div class="flex justify-end"><Button onclick={continueFromTargets} disabled={!canContinueTargets}>{m.common_continue({}, locale.messageOptions())}</Button></div>
 	{:else if stage === "adjust"}
-		<div>
-			<h1 class="text-2xl font-semibold">{m.scene_create_adjust_lighting({}, locale.messageOptions())}</h1>
-		</div>
 		<SceneEditor
             bind:authoringBusy={editorAuthoringBusy}
 			editor={creationEditor}
@@ -746,9 +739,6 @@
 		/>
 		<div class="flex justify-end"><Button onclick={() => moveTo("name")} disabled={editorAuthoringBusy}>{m.common_continue({}, locale.messageOptions())}</Button></div>
 	{:else if stage === "name"}
-		<div>
-			<h1 class="text-2xl font-semibold">{m.scene_create_name_title({}, locale.messageOptions())}</h1>
-		</div>
 		<div class="space-y-4">
 			<Input id="scene-name" bind:value={name} placeholder={m.scene_create_name_placeholder({}, locale.messageOptions())} aria-label={m.scene_name_aria({}, locale.messageOptions())} autofocus />
 			<div class="flex justify-end"><Button onclick={save} disabled={saving || authoringRequests > 0 || editorAuthoringBusy || !name.trim()}>{#if saving}<Loader2 class="size-4 animate-spin" />{/if}{saving ? m.scene_create_creating({}, locale.messageOptions()) : m.scenes_create({}, locale.messageOptions())}</Button></div>

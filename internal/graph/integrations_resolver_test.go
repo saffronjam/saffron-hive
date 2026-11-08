@@ -83,8 +83,8 @@ func TestIntegrationsResolverReportsProviders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("integrations: %v", err)
 	}
-	if len(list) != 3 {
-		t.Fatalf("want 3 integrations, got %d", len(list))
+	if len(list) != 4 {
+		t.Fatalf("want 4 integrations, got %d", len(list))
 	}
 	if list[0].Provider != "zigbee2mqtt" || list[1].Provider != "tuya" {
 		t.Fatalf("unexpected providers: %q, %q", list[0].Provider, list[1].Provider)

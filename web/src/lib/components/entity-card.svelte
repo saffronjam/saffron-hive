@@ -10,12 +10,13 @@
 		DropdownMenuSeparator,
 		DropdownMenuTrigger,
 	} from "$lib/components/ui/dropdown-menu/index.js";
+	import ResourceLink from "$lib/components/resource-link.svelte";
 	import InlineEditName from "$lib/components/inline-edit-name.svelte";
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import IconPickerTrigger from "$lib/components/icon-picker-trigger.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
 	import { tintIconGradient } from "$lib/device-tint";
-	import { DoorOpen, EllipsisVertical, Pencil, Plus, Trash2 } from "@lucide/svelte";
+	import { DoorOpen, EllipsisVertical, Pencil, Plus, TextCursorInput, Trash2 } from "@lucide/svelte";
 	import { deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
@@ -69,7 +70,7 @@
 		/**
 		 * Read-only mode. The dropdown menu (edit / add / delete) is hidden,
 		 * the icon picker is replaced with a static icon, and the name renders
-		 * as plain text without inline rename. `leadingActions` and `footer`
+		 * without rename controls; explicit name links remain available. `leadingActions` and `footer`
 		 * snippets still render so a Play button or badge remains visible.
 		 */
 		readOnly?: boolean;
@@ -184,6 +185,8 @@
 	const sizeClass = $derived(size === "sm" ? "p-3 rounded-xl" : "p-4 rounded-lg");
 	const iconBlockClass = $derived(iconAreaSize === "sm" ? "size-7" : "size-10");
 	const iconInnerClass = $derived(iconAreaSize === "sm" ? "size-3.5" : "size-5");
+	let nameEditor: InlineEditName | undefined = $state();
+	const resolvedNameHref = $derived(nameHref ?? editHref);
 	const canEditIcon = $derived(iconEditable && !!oniconchange && !readOnly);
 	const displayName = $derived(
 		entityType === "device"
@@ -390,17 +393,17 @@
 				</IconPicker>
 			{/if}
 			<div class="min-w-0 flex-1">
-				{#if nameHref}
-					<h3 class="truncate font-medium text-card-foreground"><a href={nameHref} class="rounded-sm outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring">{displayName}</a></h3>
-				{:else if readOnly}
-					<h3 class="truncate font-medium text-card-foreground">{displayName}</h3>
-				{:else}
+				{#if !readOnly && onrename}
 					<InlineEditName
+						bind:this={nameEditor}
 						name={displayName}
+						href={resolvedNameHref}
 						{entityType}
 						entityId={entity.id}
 						onsave={(newName) => onrename?.(entity, newName)}
 					/>
+				{:else}
+					<h3 class="truncate font-medium text-card-foreground">{#if resolvedNameHref}<ResourceLink href={resolvedNameHref}>{displayName}</ResourceLink>{:else}{displayName}{/if}</h3>
 				{/if}
 				{#if subtitle || subtitleTrailing}
 					<p class="text-xs {bodyTextClass}">
@@ -427,6 +430,12 @@
 							<DropdownMenuItem onclick={openEditor}>
 								<Pencil class="size-4" />
 								{resolvedEditLabel}
+							</DropdownMenuItem>
+						{/if}
+						{#if onrename}
+							<DropdownMenuItem onclick={() => nameEditor?.startEditing()}>
+								<TextCursorInput class="size-4" />
+								{m.common_rename({}, locale.messageOptions())}
 							</DropdownMenuItem>
 						{/if}
 						{#if onAddTo}

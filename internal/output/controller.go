@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/saffronjam/saffron-hive/internal/cleaning"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/outputowner"
@@ -68,22 +69,26 @@ const (
 	intentConfiguration
 	intentNativeEffect
 	intentDeviceCommand
+	intentCleaning
 )
 
 type intent struct {
-	key           string
-	kind          intentKind
-	provider      device.Source
-	class         device.OutputClass
-	command       device.Command
-	group         device.ProviderGroupCommand
-	configuration device.ConfigurationRequest
-	nativeEffect  device.NativeEffectRequest
-	deviceCommand device.DeviceCommandRequest
-	members       []device.DeviceID
-	generations   map[device.DeviceID]uint64
-	attempt       int
-	persistent    bool
+	key             string
+	kind            intentKind
+	provider        device.Source
+	class           device.OutputClass
+	command         device.Command
+	group           device.ProviderGroupCommand
+	configuration   device.ConfigurationRequest
+	nativeEffect    device.NativeEffectRequest
+	deviceCommand   device.DeviceCommandRequest
+	cleaning        cleaning.Operation
+	cleaningContext context.Context
+	done            chan error
+	members         []device.DeviceID
+	generations     map[device.DeviceID]uint64
+	attempt         int
+	persistent      bool
 }
 
 type delivery struct {
@@ -142,6 +147,7 @@ type Controller struct {
 	generations           map[device.DeviceID]uint64
 	deliveries            map[device.DeviceID]*delivery
 	configurationDelivery map[device.DeviceID]*configurationDelivery
+	cleaningDeliveries    map[string]cleaningDelivery
 	continuous            map[outputowner.Owner]*continuousProgram
 	wake                  chan struct{}
 }
@@ -153,7 +159,8 @@ func New(bus eventbus.EventBus, st Store, reader device.StateReader, support dev
 	}
 	return &Controller{
 		bus: bus, store: st, reader: reader, support: support, owners: owners,
-		providers: map[device.Source]*providerState{}, generations: map[device.DeviceID]uint64{},
+		cleaningDeliveries: map[string]cleaningDelivery{},
+		providers:          map[device.Source]*providerState{}, generations: map[device.DeviceID]uint64{},
 		deliveries: map[device.DeviceID]*delivery{}, configurationDelivery: map[device.DeviceID]*configurationDelivery{},
 		continuous: map[outputowner.Owner]*continuousProgram{}, wake: make(chan struct{}, 1),
 	}
@@ -432,12 +439,21 @@ func (c *Controller) ObserveConfiguration(id device.DeviceID, reported []device.
 func (c *Controller) Run(ctx context.Context) {
 	ticker := time.NewTicker(schedulerResolution)
 	defer ticker.Stop()
+	cleaningUpdates := c.bus.Subscribe(eventbus.EventCleaningUpdated)
+	defer c.bus.Unsubscribe(cleaningUpdates)
 	topologyScans := c.bus.Subscribe(eventbus.EventNetworkTopologyScanned)
 	defer c.bus.Unsubscribe(topologyScans)
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case update, ok := <-cleaningUpdates:
+			if !ok {
+				return
+			}
+			if snapshot, ok := update.Payload.(cleaning.Snapshot); ok {
+				c.observeCleaning(snapshot)
+			}
 		case <-ticker.C:
 		case <-c.wake:
 		case event, ok := <-topologyScans:
@@ -574,7 +590,15 @@ func (c *Controller) dispatch(ctx context.Context, actuator Actuator, next *inte
 	if !c.intentCurrent(next) {
 		return
 	}
-	dispatchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	timeout := 5 * time.Second
+	if next.kind == intentCleaning {
+		timeout = 45 * time.Second
+		if err := next.cleaningContext.Err(); err != nil {
+			next.done <- err
+			return
+		}
+	}
+	dispatchCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	var err error
 	switch next.kind {
@@ -588,8 +612,17 @@ func (c *Controller) dispatch(ctx context.Context, actuator Actuator, next *inte
 		err = actuator.DispatchNativeEffect(dispatchCtx, next.nativeEffect)
 	case intentDeviceCommand:
 		err = actuator.DispatchDeviceCommand(dispatchCtx, next.deviceCommand)
+	case intentCleaning:
+		if target, ok := actuator.(CleaningActuator); ok {
+			err = target.DispatchCleaning(dispatchCtx, next.cleaning)
+		} else {
+			err = errors.New("provider does not support cleaning")
+		}
 	}
 	c.recordDispatch(next, now, err)
+	if next.kind == intentCleaning {
+		next.done <- err
+	}
 }
 
 func (c *Controller) recordDispatch(next *intent, now time.Time, dispatchErr error) {
@@ -625,6 +658,11 @@ func (c *Controller) recordDispatch(next *intent, now time.Time, dispatchErr err
 	for _, id := range next.members {
 		generation := next.generations[id]
 		switch next.kind {
+		case intentCleaning:
+			action := next.cleaning.Action
+			if action != "locate" && action != "empty_bin" && !cleaning.IsRejected(dispatchErr) {
+				c.cleaningDeliveries[next.key] = cleaningDelivery{operation: next.cleaning, origin: next.command.Origin, class: next.class, at: now, deadline: time.Now().UTC().Add(time.Minute)}
+			}
 		case intentState, intentGroup:
 			if next.kind == intentGroup && next.group.NativeEffect != "" {
 				continue
@@ -658,6 +696,7 @@ func (c *Controller) recordDispatch(next *intent, now time.Time, dispatchErr err
 }
 
 func (c *Controller) queueRetriesLocked(now time.Time) {
+	c.expireCleaningLocked(now)
 	for id, current := range c.deliveries {
 		if now.Before(current.nextRetry) || c.generations[id] != current.generation {
 			continue
@@ -887,7 +926,7 @@ func (c *Controller) intentCurrent(next *intent) bool {
 }
 
 func (c *Controller) intentCurrentLocked(next *intent) bool {
-	if next.kind == intentDeviceCommand {
+	if next.kind == intentDeviceCommand || next.kind == intentCleaning {
 		return true
 	}
 	currentMembers := next.members[:0]

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { graphqlErrorMessage } from "$lib/graphql-error";
+  import { watchErrorToast } from "$lib/error-toast.svelte";
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
@@ -42,7 +44,7 @@
 	async function load() {
 		const r = await client.query(CHAT_LIST, {}, { requestPolicy: "network-only" }).toPromise();
 		if (r.error) {
-			error = r.error.message;
+			error = graphqlErrorMessage(r.error, m.assistant_error({}, options));
 			return;
 		}
 		chats = (r.data?.assistantConversations ?? []).map((chat) => {
@@ -71,7 +73,7 @@
 				await load();
 			}
 		} catch (e) {
-			error = e instanceof Error ? e.message : m.assistant_error({}, options);
+			error = graphqlErrorMessage(e, m.assistant_error({}, options));
 		} finally {
 			busy = false;
 		}
@@ -81,7 +83,7 @@
 		const r = await client.mutation(CHAT_DELETE, { id }).toPromise();
 		busy = false;
 		if (r.error) {
-			error = r.error.message;
+			error = graphqlErrorMessage(r.error, m.assistant_error({}, options));
 			return;
 		}
 		deleting = false;
@@ -93,7 +95,7 @@
 		const r = await client.mutation(CHAT_RENAME, { id, title }).toPromise();
 		busy = false;
 		if (r.error) {
-			error = r.error.message;
+			error = graphqlErrorMessage(r.error, m.assistant_error({}, options));
 			return;
 		}
 		renaming = false;
@@ -121,6 +123,7 @@
 	onGraphQLRecovered(() => {
 		void load();
 	});
+  watchErrorToast(() => error);
 </script>
 
 <div class="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-4 overflow-hidden">
@@ -163,7 +166,7 @@
 				onclick={() => (deleting = true)}><Trash2 class="size-4" /></Button
 			>{/if}
 	</div>
-	{#if error}<p role="alert" class="text-destructive text-sm">{error}</p>{/if}
+
 	{#if loaded && !enabled}<div
 			class="bg-card shadow-card flex flex-wrap items-center justify-between gap-3 rounded-lg p-4"
 		>

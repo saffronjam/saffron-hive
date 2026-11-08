@@ -59,6 +59,7 @@ type RaiseParams struct {
 // MessageArguments contains the structured values used by monitor alarm messages.
 type MessageArguments struct {
 	DeviceName string  `json:"deviceName,omitempty"`
+	Consumable string  `json:"consumable,omitempty"`
 	Value      float64 `json:"value,omitempty"`
 	Threshold  float64 `json:"threshold,omitempty"`
 }

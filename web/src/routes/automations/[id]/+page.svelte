@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { toast } from "svelte-sonner";
+  import FieldError from "$lib/components/field-error.svelte";
  import {AUTOMATION_NODE_PREVIEW} from "$lib/graphql/authoring";
  import {authoringInput} from "$lib/automation-authoring";
  import type {AutomationConfigInput} from "$lib/gql/graphql";
@@ -139,8 +141,6 @@
 		DropdownMenuTrigger,
 	} from "$lib/components/ui/dropdown-menu/index.js";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import ErrorBanner from "$lib/components/error-banner.svelte";
-	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
@@ -402,7 +402,6 @@
 	let syncSource = $state<"visual" | "code" | null>(null);
 	let loading = $state(true);
 	let saving = $state(false);
-	const errors = new BannerError();
 	let deleteConfirmOpen = $state(false);
 	let deleteLoading = $state(false);
 
@@ -1612,7 +1611,7 @@
 		if (node?.type !== "trigger") return;
 		const config = (node.data as Record<string, unknown>).config as TriggerConfig;
 		const result=await client.query(AUTOMATION_NODE_PREVIEW,{type:"trigger",config:authoringInput(JSON.parse(serializeTriggerConfig(config)))},{requestPolicy:"network-only"}).toPromise();
- if(result.error){errors.setWithAutoDismiss(result.error.message);return;}
+ if(result.error){toast.error(result.error.message);return;}
  if(result.data) await navigator.clipboard.writeText(result.data.automationNodePreview.expression);
 	}
 
@@ -1738,13 +1737,13 @@
 
 	async function handleFireTrigger(nodeId: string) {
 		if (!client || !automationId || !savedAutomationEnabled) return;
-		errors.clear();
+
 		const result = await client
 			.mutation(FIRE_AUTOMATION_TRIGGER, { automationId, nodeId })
 			.toPromise();
 		if (result.error) {
 			console.error(result.error);
-			errors.setWithAutoDismiss(m.automation_editor_fire_failed({}, messageOptions));
+			toast.error(m.automation_editor_fire_failed({}, messageOptions));
 		}
 	}
 
@@ -1785,7 +1784,7 @@
 		if (!client) return;
 		if (saving || externalConflict) return;
 		saving = true;
-		errors.clear();
+
 
 		const result = await client
 			.mutation<UpdateAutomationResult>(UPDATE_AUTOMATION, {
@@ -1806,7 +1805,7 @@
 
 		if (result.error) {
 			console.error(result.error);
-			errors.setWithAutoDismiss(m.automation_editor_save_failed({}, messageOptions));
+			toast.error(m.automation_editor_save_failed({}, messageOptions));
 			return;
 		}
 
@@ -1850,14 +1849,14 @@
 	async function handleDelete() {
 		if (!client) return;
 		deleteLoading = true;
-		errors.clear();
+
 
 		try {
 			await automationsStore.delete(client, automationId);
 		} catch (error) {
 			deleteLoading = false;
 			console.error(graphqlErrorMessage(error, m.automation_editor_delete_failed({}, messageOptions)));
-			errors.setWithAutoDismiss(m.automation_editor_delete_failed({}, messageOptions));
+			toast.error(m.automation_editor_delete_failed({}, messageOptions));
 			return;
 		}
 
@@ -1988,12 +1987,10 @@
 {/if}
 
 <div class="flex h-[calc(100vh-6rem)] flex-col">
-	{#if errors.message}
-		<ErrorBanner class="mb-2" message={errors.message} ondismiss={() => errors.clear()} />
- {/if}
+
 {#if !isDirty}
  {#each savedIssues.filter((issue) => issue.severity === "error") as issue}
- <ErrorBanner class="mb-2" message={issue.nodeId ? `${issue.nodeId}: ${issue.message}` : issue.message} />
+ <FieldError message={issue.nodeId ? `${issue.nodeId}: ${issue.message}` : issue.message} />
  {/each}
  {/if}
 

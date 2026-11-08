@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount, unmount } from "svelte";
-import ZigbeeDeviceInfoCard from "$lib/components/zigbee-device-info-card.svelte";
+import DeviceInfoCard from "$lib/components/device-info-card.svelte";
 import ZigbeeDetailsCard from "$lib/components/zigbee-details-card.svelte";
 import type { Device, Zigbee2MqttDeviceMetadata } from "$lib/gql/graphql";
 
@@ -23,8 +23,8 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-describe("ZigbeeDeviceInfoCard", () => {
-  it("reserves the image column while Zigbee metadata loads", () => {
+describe("DeviceInfoCard", () => {
+  it("reserves the image column while product artwork metadata loads", () => {
     const device: Device = {
     revision: 1,
       id: "0x123",
@@ -42,7 +42,7 @@ describe("ZigbeeDeviceInfoCard", () => {
       state: {},
     };
 
-    component = mount(ZigbeeDeviceInfoCard, {
+    component = mount(DeviceInfoCard, {
       target: host,
       props: { device },
     });
@@ -67,14 +67,9 @@ describe("ZigbeeDeviceInfoCard", () => {
       attributes: [],
       state: { battery: 92, linkQuality: 180 },
     };
-    const metadata: Zigbee2MqttDeviceMetadata = {
-      imageCandidate: false,
-      ota: {},
-    };
-
-    component = mount(ZigbeeDeviceInfoCard, {
+    component = mount(DeviceInfoCard, {
       target: host,
-      props: { device, metadata },
+      props: { device, image: null },
     });
 
     expect(host.textContent).toContain("92%");
@@ -99,7 +94,6 @@ describe("ZigbeeDeviceInfoCard", () => {
       state: { battery: 100 },
     };
     const metadata: Zigbee2MqttDeviceMetadata = {
-      imageCandidate: false,
       supported: true,
       interviewState: "SUCCESSFUL",
       definition: { supportsOta: true },
@@ -141,7 +135,6 @@ describe("ZigbeeDeviceInfoCard", () => {
       state: {},
     };
     const metadata: Zigbee2MqttDeviceMetadata = {
-      imageCandidate: false,
       supported: false,
       ota: {},
     };
@@ -173,7 +166,6 @@ describe("ZigbeeDeviceInfoCard", () => {
       state: {},
     };
     const metadata: Zigbee2MqttDeviceMetadata = {
-      imageCandidate: false,
       powerSource: "Battery",
       ota: {},
     };
@@ -212,7 +204,6 @@ describe("ZigbeeDeviceInfoCard", () => {
       state: {},
     };
     const metadata: Zigbee2MqttDeviceMetadata = {
-      imageCandidate: false,
       powerSource: "Battery",
       ota: {},
     };
@@ -243,7 +234,6 @@ describe("ZigbeeDeviceInfoCard", () => {
       state: {},
     };
     const metadata: Zigbee2MqttDeviceMetadata = {
-      imageCandidate: false,
       ota: {},
       bridgeInfo: {
         adapterType: "ZStack3x0",

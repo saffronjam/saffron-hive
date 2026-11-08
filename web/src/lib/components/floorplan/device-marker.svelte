@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ChargingIndicator from "$lib/components/charging-indicator.svelte";
+	import { deviceChargeState } from "$lib/device-charging";
 	import { getContextClient } from "@urql/svelte";
 	import type { Device, DeviceState } from "$lib/gql/graphql";
 	import HiveIcon from "$lib/components/hive-icon.svelte";
@@ -132,6 +134,7 @@
 		stroke={selected ? "var(--primary)" : "var(--border)"}
 		stroke-width={selected ? 2 : 1}
 	/>
+	<ChargingIndicator state={deviceChargeState(device)} radius={14} />
 	<foreignObject x="-8" y="-8" width="16" height="16" class="pointer-events-none">
 		<div class="flex h-4 w-4 items-center justify-center text-foreground">
 			<HiveIcon

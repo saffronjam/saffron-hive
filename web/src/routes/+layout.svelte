@@ -27,7 +27,8 @@
 	import { automationsStore } from "$lib/stores/automations.svelte";
 	import { effectsStore } from "$lib/stores/effects.svelte";
 	import { webhooksStore } from "$lib/stores/webhooks.svelte";
-	import { floorplanStore } from "$lib/stores/floorplan.svelte";
+	import { cleaningStore } from "$lib/stores/cleaning.svelte";
+ import { floorplanStore } from "$lib/stores/floorplan.svelte";
 	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
 	import { prepareGuestDashboard } from "$lib/guest-dashboard";
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
@@ -122,6 +123,7 @@
 								effectsStore.refresh(client),
 								webhooksStore.refresh(client),
 								floorplanStore.refresh(client),
+ cleaningStore.refresh(client),
 								alarmsStore.refresh(client),
 								maintenanceStore.refresh(),
 							],
@@ -296,6 +298,7 @@
 				void webhooksStore.start(client);
 				void effectsStore.start(client);
 				void floorplanStore.start(client);
+ void cleaningStore.start(client);
 				if (!me.user) void me.refresh(client);
 			}
 		}
@@ -355,6 +358,7 @@
 		webhooksStore.stop();
 		effectsStore.stop();
 		floorplanStore.stop();
+ cleaningStore.stop();
 		localizedNamesStore.clear();
 	});
 </script>

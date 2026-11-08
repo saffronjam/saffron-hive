@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { toast } from "svelte-sonner";
  import { graphqlErrorMessage } from "$lib/graphql-error";
  import {createEditorRefresh} from "$lib/editor-refresh.svelte";
  import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
@@ -17,7 +18,7 @@
 	} from "$lib/components/ui/dialog/index.js";
 	import DeviceCollectionCard from "$lib/components/device-collection-card.svelte";
 	import GroupTable from "$lib/components/group-table.svelte";
-	import { groupMemberBreakdown } from "$lib/list-helpers";
+	import { groupMemberBreakdown, uniqueFilterOptions } from "$lib/list-helpers";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
@@ -33,7 +34,6 @@
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import IconPickerTrigger from "$lib/components/icon-picker-trigger.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
-	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import GroupTagsSelect, { type GroupTag } from "$lib/components/group-tags-select.svelte";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
@@ -50,7 +50,6 @@
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { deviceStore, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import { groupsStore, type Group, type GroupMember } from "$lib/stores/groups.svelte";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
@@ -120,10 +119,7 @@
 		{ value: "yes", label: m.common_yes({}, locale.messageOptions()) },
 		{ value: "no", label: m.common_no({}, locale.messageOptions()) },
 	]);
-	const sourceOptions = $derived([
-		{ value: "hive", label: "Hive" },
-		{ value: "zigbee2mqtt", label: "Zigbee" },
-	]);
+	const sourceOptions = $derived(uniqueFilterOptions(groups.map(group => group.source)));
 
 	const searchChipConfigs: ChipConfig[] = $derived([
 		{
@@ -322,11 +318,9 @@
 			await groupsStore.addMember(client, groupId, memberType, memberId);
 		} catch (e) {
 			console.error(e);
-			errors.setWithAutoDismiss(m.member_add_failed({}, locale.messageOptions()));
+			toast.error(m.member_add_failed({}, locale.messageOptions()));
 		}
 	}
-
-	const errors = new BannerError();
 
 	const hasPendingChanges = $derived(
 		editNameDirty || editIconDirty || editTagsDirty || pendingAdds.length > 0 || pendingRemovals.size > 0
@@ -364,7 +358,7 @@
 	async function handleCreateGroup(options: { keepOpen?: boolean } = {}) {
 		if (!newGroupName.trim()) return;
 		createLoading = true;
-		errors.clear();
+
 
 		let created: Group;
 		try {
@@ -372,7 +366,7 @@
 		} catch (e) {
 			createLoading = false;
 			console.error(e);
-			errors.setWithAutoDismiss(m.group_create_failed({}, locale.messageOptions()));
+			toast.error(m.group_create_failed({}, locale.messageOptions()));
 			return;
 		}
 
@@ -451,7 +445,7 @@
 		if (!editingGroup || refreshGuard.conflict) return;
 		const groupId = editingGroup.id;
 		editLoading = true;
-		errors.clear();
+
 
 		let latest = editingGroup;
  try {
@@ -461,7 +455,7 @@
 		} catch (e) {
 			editLoading = false;
 			console.error(e);
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.group_save_failed({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.group_save_failed({}, locale.messageOptions())));
 			return;
 		}
 
@@ -484,13 +478,13 @@
 			return;
 		}
 		batchDeleteLoading = true;
-		errors.clear();
+
 		try {
 			await groupsStore.deleteMany(client, ids);
 		} catch (e) {
 			batchDeleteLoading = false;
 			console.error(e);
-			errors.setWithAutoDismiss(m.group_delete_many_failed({}, locale.messageOptions()));
+			toast.error(m.group_delete_many_failed({}, locale.messageOptions()));
 			return;
 		}
 		batchDeleteLoading = false;
@@ -502,14 +496,14 @@
 	async function handleDeleteGroup() {
 		if (!deleteConfirmGroup) return;
 		deleteLoading = true;
-		errors.clear();
+
 
 		try {
 			await groupsStore.delete(client, deleteConfirmGroup.id);
 		} catch (e) {
 			deleteLoading = false;
 			console.error(e);
-			errors.setWithAutoDismiss(m.group_delete_failed({}, locale.messageOptions()));
+			toast.error(m.group_delete_failed({}, locale.messageOptions()));
 			return;
 		}
 
@@ -535,22 +529,22 @@
 	}
 
 	async function handleRename(group: Group, newName: string) {
-		errors.clear();
+
 		try {
 			await groupsStore.update(client, group.id, { expectedRevision:group.revision, name: newName });
 		} catch (e) {
 			console.error(e);
-			errors.setWithAutoDismiss(m.group_rename_failed({}, locale.messageOptions()));
+			toast.error(m.group_rename_failed({}, locale.messageOptions()));
 		}
 	}
 
 	async function handleIconChange(group: Group, icon: string | null) {
-		errors.clear();
+
 		try {
 			await groupsStore.update(client, group.id, { expectedRevision:group.revision, icon });
 		} catch (e) {
 			console.error(e);
-			errors.setWithAutoDismiss(m.icon_change_failed({}, locale.messageOptions()));
+			toast.error(m.icon_change_failed({}, locale.messageOptions()));
 		}
 	}
 
@@ -649,10 +643,7 @@
 <UnsavedGuard dirty={hasPendingChanges} />
 
 <div>
-	{#if errors.message}
-		{#if refreshGuard.conflict}<ExternalChangeBanner onreload={()=>refreshGuard.refresh(true)} />{/if}
-		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
-	{/if}
+	{#if refreshGuard.conflict}<ExternalChangeBanner onreload={()=>refreshGuard.refresh(true)} />{/if}
 
 	{#if editingGroup}
 		<div class="mx-auto max-w-6xl" in:fly={{ y: -4, duration: 150 }}>
@@ -737,9 +728,6 @@
 						<GroupIcon class="size-6 text-muted-foreground" />
 					</div>
 					<p class="text-muted-foreground">{m.group_none({}, locale.messageOptions())}</p>
-					<p class="mt-2 text-sm text-muted-foreground">
-						{m.group_none_help({}, locale.messageOptions())}
-					</p>
 					<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
 						<Plus class="size-4" />
 						<span>{m.group_create_first({}, locale.messageOptions())}</span>
@@ -811,7 +799,6 @@
 								{selection}
 								editHref={(group) => editGroupHref(group.id)}
 								ondelete={(g) => (deleteConfirmGroup = g)}
-								onrename={handleRename}
 								oniconchange={handleIconChange}
 								onAddTo={handleAddToGroup}
 								getDevices={flattenGroupDevices}

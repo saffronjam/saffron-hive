@@ -6,6 +6,7 @@ declare global {
     // interface Locals {}
     // interface PageData {}
     interface PageState {
+      cleaningStep?: "start" | "rooms" | "options";
       dashboardRoomId?: string;
       mapRoomId?: string;
       sceneCreateStage?: "start" | "look" | "targets" | "adjust" | "name";

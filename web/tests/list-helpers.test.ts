@@ -4,6 +4,7 @@ import {
   compareDevicesByName,
   compareDevicesByNewThenName,
   filterDevices,
+  deviceTypeFilterOptions,
   groupMemberBreakdown,
   sceneRoomLabel,
   sceneTargetBreakdown,
@@ -255,5 +256,24 @@ describe("compareDevicesByNewThenName", () => {
     const byName = [...input].sort(compareDevicesByName);
     input.sort(compareDevicesByNewThenName(new Set()));
     expect(input).toEqual(byName);
+  });
+});
+
+
+describe("deviceTypeFilterOptions", () => {
+  it("uses present types, deduplicates them, and preserves unfamiliar integration types", () => {
+    const options = deviceTypeFilterOptions([{type:"vacuum"},{type:"plug"},{type:"vacuum"},{type:"button"},{type:"future_device"}]);
+    expect(options).toHaveLength(4);
+    expect(options).toContainEqual({value:"vacuum",label:"Vacuum"});
+    expect(options).toContainEqual({value:"plug",label:"Plug"});
+    expect(options).toContainEqual({value:"button",label:"Button"});
+    expect(options).toContainEqual({value:"future_device",label:"future_device"});
+    expect(deviceTypeFilterOptions([])).toEqual([]);
+  });
+  it("filters by the actual selected type and includes a newly added type", () => {
+    const devices = [{...device("vacuum", "Robot"), type:"vacuum"}, device("light", "Light")];
+    const option = deviceTypeFilterOptions(devices).find(option => option.value === "vacuum")!;
+    expect(filterDevices(devices, {freeText:"", chips:[{keyword:"type",value:option.value}]}).map(device => device.id)).toEqual(["vacuum"]);
+    expect(deviceTypeFilterOptions([...devices,{...device("new", "New"),type:"speaker"}])).toContainEqual({value:"speaker",label:"Speaker"});
   });
 });

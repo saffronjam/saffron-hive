@@ -1,4 +1,5 @@
 <script lang="ts">
+  import FieldError from "$lib/components/field-error.svelte";
 	import { deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
 	import {
 		Select,
@@ -451,7 +452,7 @@
 			{/if}
 
 		{#if validationError && !data.readOnly}
-			<p class="text-xs text-destructive">{automationValidationMessage(validationError.code)}</p>
+			<FieldError message={automationValidationMessage(validationError.code)} />
 		{/if}
 	<div class="flex items-center gap-2 pt-2">
   <Switch id={`${id}-negate`} checked={data.config.negate ?? false} disabled={data.readOnly} onCheckedChange={(negate) => update({ negate })} />

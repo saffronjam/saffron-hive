@@ -27,6 +27,8 @@ func ValidateAction(c ActionConfig) error {
 		}
 	}
 	switch c.ActionType {
+	case ActionStartCleaning, ActionControlCleaning:
+		return validateCleaningAction(c)
 	case ActionSetDeviceState:
 		var payload struct {
 			On                *bool         `json:"on"`

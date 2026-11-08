@@ -30,7 +30,7 @@ func evaluateGates(t *testing.T, nodes []Node, edges []Edge, fired map[NodeID]bo
 	activations := bus.Subscribe(eventbus.EventAutomationNodeActivated)
 	defer bus.Unsubscribe(activations)
 	st := newMockStore()
-	engine := NewEngine(bus, newMockStateReader(), st, st, nil, nil, &mockSceneRunner{})
+	engine := NewEngine(bus, newMockStateReader(), st, st, nil, nil, &mockSceneRunner{}, nil)
 	result := engine.evaluateGraph(t.Context(), graph, env, fired)
 	seen := map[NodeID]bool{}
 	for len(activations) > 0 {
@@ -129,7 +129,7 @@ func TestGraceKeepsTriggerSignalsButReevaluatesConditions(t *testing.T) {
 		t.Fatal(err)
 	}
 	st := newMockStore()
-	engine := NewEngine(eventbus.NewChannelBus(), newMockStateReader(), st, st, nil, nil, &mockSceneRunner{})
+	engine := NewEngine(eventbus.NewChannelBus(), newMockStateReader(), st, st, nil, nil, &mockSceneRunner{}, nil)
 	now := time.Now()
 	engine.recordTriggerFired("grace", "ta", now)
 	for _, elapsed := range []time.Duration{2 * time.Second, 6 * time.Second} {

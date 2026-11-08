@@ -74,6 +74,13 @@ graphql(`
         values
       }
       payload {
+        roomIds
+        options {
+          suction
+          water
+          repeats
+        }
+        action
         on
         brightness
         colorTemp

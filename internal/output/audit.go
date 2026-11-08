@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/saffronjam/saffron-hive/internal/audit"
+	"github.com/saffronjam/saffron-hive/internal/cleaning"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 )
@@ -19,7 +20,7 @@ type AuditRecorder interface {
 func (c *Controller) SetAudit(recorder AuditRecorder) { c.audit = recorder }
 
 type auditedRequest interface {
-	device.TargetCommand | device.ConfigurationRequest | device.DeviceCommandRequest
+	device.TargetCommand | device.ConfigurationRequest | device.DeviceCommandRequest | cleaning.Operation
 }
 
 func auditRequest[T auditedRequest](c *Controller, ctx context.Context, origin *device.CommandOrigin, field string, request T) error {

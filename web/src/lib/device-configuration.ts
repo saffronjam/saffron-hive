@@ -16,11 +16,16 @@ export function deviceCommandCapabilities(capabilities: Capability[]): Capabilit
   );
 }
 
-/** Generic readings the device reports that Hive does not model as typed state. */
+const electricalMeasurements = new Set(["power", "voltage", "current", "energy"]);
+
+/** Reported diagnostic readings, including electrical measurements from typed state. */
 export function diagnosticCapabilities(capabilities: Capability[]): Capability[] {
   return capabilities.filter(
     (capability) =>
-      capability.category === CapabilityCategory.Diagnostic && capability.reportsValue,
+      capability.reportsValue &&
+      (capability.category === CapabilityCategory.Diagnostic ||
+        (capability.category === CapabilityCategory.State &&
+          electricalMeasurements.has(capability.name))),
   );
 }
 

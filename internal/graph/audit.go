@@ -66,7 +66,7 @@ func (r *Resolver) auditMutation(ctx context.Context, next graphql.Resolver) (an
 	}
 	status := "succeeded"
 	switch fc.Field.Name {
-	case "setTargetState", "setDeviceConfiguration", "runDeviceCommand", "applyScene", "runEffect", "runNativeEffect":
+	case "startCleaning", "controlCleaning", "setTargetState", "setDeviceConfiguration", "runDeviceCommand", "applyScene", "runEffect", "runNativeEffect":
 		status = "accepted"
 	}
 	if callErr != nil {
@@ -74,6 +74,10 @@ func (r *Resolver) auditMutation(ctx context.Context, next graphql.Resolver) (an
 	}
 	switch result := result.(type) {
 	case *model.Zigbee2MqttConfigResult:
+		if result.Application != nil && !result.Application.Success {
+			status = "partial"
+		}
+	case *model.DreameConfigResult:
 		if result.Application != nil && !result.Application.Success {
 			status = "partial"
 		}

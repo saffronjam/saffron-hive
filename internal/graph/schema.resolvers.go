@@ -20,10 +20,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/saffronjam/saffron-hive/internal/adapter/dreame"
 	"github.com/saffronjam/saffron-hive/internal/alarms"
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
+	"github.com/saffronjam/saffron-hive/internal/cleaning"
 	"github.com/saffronjam/saffron-hive/internal/device"
+	"github.com/saffronjam/saffron-hive/internal/deviceimage"
 	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/graph/model"
@@ -46,6 +49,149 @@ func (r *deviceResolver) Zigbee2Mqtt(ctx context.Context, obj *model.Device) (*m
 		return nil, err
 	}
 	return mapZigbeeDeviceMetadata(*metadata, r.AddressVendors), nil
+}
+
+// Image is the resolver for the image field.
+func (r *deviceResolver) Image(ctx context.Context, obj *model.Device) (*model.DeviceImage, error) {
+	sources, err := r.Store.DeviceImageSources(ctx, device.DeviceID(obj.ID))
+	if err != nil {
+		return nil, err
+	}
+	image := deviceimage.ResolveSource(sources)
+	if image.Fingerprint == "" {
+		return nil, nil
+	}
+	return &model.DeviceImage{Version: image.Fingerprint}, nil
+}
+
+// UpdateDreameConfig is the resolver for the updateDreameConfig field.
+func (r *mutationResolver) UpdateDreameConfig(ctx context.Context, input model.DreameConfigInput, expectedRevision int) (*model.DreameConfigResult, error) {
+	cfg, err := r.dreameConfigInput(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Revision = int64(expectedRevision)
+	if err = r.Store.UpsertDreameConfig(ctx, cfg); err != nil {
+		return nil, err
+	}
+	cfg.Revision++
+	application := &model.ConnectionTestResult{Success: true, Code: model.ConnectionTestCodeConnected}
+	if r.DreameIntegration == nil {
+		application = &model.ConnectionTestResult{Success: false, Code: model.ConnectionTestCodeUnconfigured}
+	} else if err = r.DreameIntegration.ReconnectDreame(ctx); err != nil {
+		message := err.Error()
+		application = &model.ConnectionTestResult{Success: false, Code: connectionTestCode(err), Diagnostic: &message}
+	}
+	return &model.DreameConfigResult{Config: mapDreameConfig(&cfg), Application: application}, nil
+}
+
+// TestDreameConnection is the resolver for the testDreameConnection field.
+func (r *mutationResolver) TestDreameConnection(ctx context.Context, input model.DreameConfigInput) (*model.ConnectionTestResult, error) {
+	if r.DreameIntegration == nil {
+		return &model.ConnectionTestResult{Success: false, Code: model.ConnectionTestCodeUnconfigured}, nil
+	}
+	cfg, err := r.dreameConfigInput(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	if err = r.DreameIntegration.TestDreame(ctx, cfg); err != nil {
+		message := err.Error()
+		return &model.ConnectionTestResult{Success: false, Code: connectionTestCode(err), Diagnostic: &message}, nil
+	}
+	return &model.ConnectionTestResult{Success: true, Code: model.ConnectionTestCodeConnected}, nil
+}
+
+// PrepareCleaning is the resolver for the prepareCleaning field.
+func (r *mutationResolver) PrepareCleaning(ctx context.Context, input model.CleaningSelectionInput) (*model.CleaningPlan, error) {
+	if r.Cleaning == nil {
+		return nil, errors.New("cleaning is unavailable")
+	}
+	plan, err := r.Cleaning.Prepare(ctx, input.DeviceID, input.MapID, input.RoomIds, cleaningOptions(input.Options), cleaningScope(input.Scope))
+	if err != nil {
+		return nil, err
+	}
+	return mapCleaningPlan(plan), nil
+}
+
+// StartCleaning is the resolver for the startCleaning field.
+func (r *mutationResolver) StartCleaning(ctx context.Context, input model.StartCleaningInput) (*model.CleaningTask, error) {
+	if r.Cleaning == nil {
+		return nil, errors.New("cleaning is unavailable")
+	}
+	if input.Selection == nil {
+		return nil, errors.New("cleaning selection is required")
+	}
+	selection := input.Selection
+	approved := cleaning.Plan{Scope: cleaningScope(selection.Scope), DeviceID: selection.DeviceID, MapID: selection.MapID, RoomIDs: selection.RoomIds, Options: cleaningOptions(selection.Options), Revision: input.ExpectedRevision}
+	replace := ""
+	if input.ReplaceTaskID.Value() != nil {
+		replace = *input.ReplaceTaskID.Value()
+	}
+	task, err := r.Cleaning.Start(ctx, approved, input.RequestID, replace, device.OriginKindUser)
+	return mapCleaningTask(task), cleaningAPIError(err)
+}
+
+// ControlCleaning is the resolver for the controlCleaning field.
+func (r *mutationResolver) ControlCleaning(ctx context.Context, deviceID string, action model.CleaningAction) (bool, error) {
+	if r.Cleaning == nil {
+		return false, errors.New("cleaning is unavailable")
+	}
+	err := r.Cleaning.Control(ctx, deviceID, strings.ToLower(string(action)), device.OriginKindUser)
+	return err == nil, cleaningAPIError(err)
+}
+
+// UpdateCleaningRoomLinks is the resolver for the updateCleaningRoomLinks field.
+func (r *mutationResolver) UpdateCleaningRoomLinks(ctx context.Context, input model.CleaningRoomLinksInput) ([]*model.CleaningRoomLinks, error) {
+	if r.Cleaning == nil {
+		return nil, errors.New("cleaning is unavailable")
+	}
+	links := cleaning.RoomLinks{MapID: input.MapID, MapRevision: input.MapRevision, Revision: int64(input.ExpectedRevision)}
+	for _, l := range input.Links {
+		links.Links = append(links.Links, cleaning.RoomLink{RoomID: l.RoomID, AreaID: l.AreaID})
+	}
+	if err := r.Cleaning.SaveLinks(ctx, input.DeviceID, links); err != nil {
+		return nil, err
+	}
+	result, err := r.Cleaning.Links(ctx, input.DeviceID)
+	return mapCleaningLinks(result), err
+}
+
+// UpdateCleaningCalibration is the resolver for the updateCleaningCalibration field.
+func (r *mutationResolver) UpdateCleaningCalibration(ctx context.Context, input model.CleaningCalibrationInput) (*model.CleaningCalibration, error) {
+	if r.Cleaning == nil {
+		return nil, errors.New("cleaning is unavailable")
+	}
+	c := cleaning.Calibration{MapRotation: input.MapRotation, Enabled: input.Enabled, DeviceID: input.DeviceID, MapID: input.MapID, FloorplanID: input.FloorplanID, Revision: int64(input.ExpectedRevision), MapRevision: input.MapRevision, FloorplanRevision: int64(input.FloorplanRevision)}
+	for _, a := range input.Anchors {
+		c.Anchors = append(c.Anchors, cleaning.Anchor{Robot: cleaning.Point{X: a.Robot.X, Y: a.Robot.Y}, Hive: cleaning.Point{X: a.Hive.X, Y: a.Hive.Y}})
+	}
+	if err := r.Cleaning.SaveCalibration(ctx, c); err != nil {
+		return nil, err
+	}
+	saved, err := r.Cleaning.Calibration(ctx, c.DeviceID, c.MapID, c.FloorplanID)
+	if err != nil {
+		return nil, err
+	}
+	return r.mapCleaningCalibration(ctx, saved)
+}
+
+// ReadDreameDiagnostics is the resolver for the readDreameDiagnostics field.
+func (r *mutationResolver) ReadDreameDiagnostics(ctx context.Context) (*model.DreameDiagnosticsReport, error) {
+	if r.Dreame == nil {
+		return nil, errors.New("Dreame diagnostics are unavailable")
+	}
+	config, err := r.Store.GetDreameConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if config == nil {
+		return nil, errors.New("connect Dreame before reading diagnostics")
+	}
+	report, err := r.Dreame.Inspect(ctx, dreame.Credentials{Email: config.Email, Password: config.Password, Region: config.Region})
+	if err != nil {
+		return nil, err
+	}
+	return mapDreameReport(report), nil
 }
 
 // UpdateLocalizedNameSet is the resolver for the updateLocalizedNameSet field.
@@ -2311,6 +2457,80 @@ func (r *mutationResolver) StopEffect(ctx context.Context, targetType string, ta
 	return true, nil
 }
 
+// DreameConfig is the resolver for the dreameConfig field.
+func (r *queryResolver) DreameConfig(ctx context.Context) (*model.DreameConfig, error) {
+	cfg, err := r.Store.GetDreameConfig(ctx)
+	return mapDreameConfig(cfg), err
+}
+
+// CleaningDevices is the resolver for the cleaningDevices field.
+func (r *queryResolver) CleaningDevices(ctx context.Context) ([]*model.CleaningDevice, error) {
+	if r.Cleaning == nil {
+		return []*model.CleaningDevice{}, nil
+	}
+	snapshots, err := r.Cleaning.Snapshots(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*model.CleaningDevice, 0, len(snapshots))
+	for _, snapshot := range snapshots {
+		d, err := r.mapCleaningDevice(ctx, snapshot)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, d)
+	}
+	return result, nil
+}
+
+// CleaningDevice is the resolver for the cleaningDevice field.
+func (r *queryResolver) CleaningDevice(ctx context.Context, deviceID string) (*model.CleaningDevice, error) {
+	if r.Cleaning == nil {
+		return nil, errors.New("cleaning is unavailable")
+	}
+	snap, err := r.Cleaning.Snapshot(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	return r.mapCleaningDevice(ctx, snap)
+}
+
+// CleaningHistory is the resolver for the cleaningHistory field.
+func (r *queryResolver) CleaningHistory(ctx context.Context, deviceID string, before *string, limit *int) ([]*model.CleaningTask, error) {
+	if r.Cleaning == nil {
+		return []*model.CleaningTask{}, nil
+	}
+	cursor := ""
+	count := 20
+	if before != nil {
+		cursor = *before
+	}
+	if limit != nil {
+		count = *limit
+	}
+	tasks, err := r.Cleaning.History(ctx, deviceID, cursor, count)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*model.CleaningTask, 0, len(tasks))
+	for _, task := range tasks {
+		result = append(result, mapCleaningTask(&task))
+	}
+	return result, nil
+}
+
+// CleaningCalibration is the resolver for the cleaningCalibration field.
+func (r *queryResolver) CleaningCalibration(ctx context.Context, deviceID string, mapID string, floorplanID string) (*model.CleaningCalibration, error) {
+	if r.Cleaning == nil {
+		return nil, errors.New("cleaning is unavailable")
+	}
+	c, err := r.Cleaning.Calibration(ctx, deviceID, mapID, floorplanID)
+	if err != nil {
+		return nil, err
+	}
+	return r.mapCleaningCalibration(ctx, c)
+}
+
 // LocalizedNameSets is the resolver for the localizedNameSets field.
 func (r *queryResolver) LocalizedNameSets(ctx context.Context) ([]*model.LocalizedNameSet, error) {
 	sets, err := r.Store.ListLocalizedNameSets(ctx)
@@ -2851,6 +3071,12 @@ func (r *queryResolver) Integrations(ctx context.Context) ([]*model.Integration,
 		return nil, err
 	}
 
+	dreameCfg, err := r.Store.GetDreameConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	dreameConfigured := dreameCfg != nil && dreameCfg.Email != "" && dreameCfg.Password != ""
+	dreameEnabled := dreameConfigured && dreameCfg.Enabled
 	z2mConfigured := z2m != nil && z2m.Broker != ""
 	z2mEnabled := z2mConfigured && z2m.Enabled
 	tuyaConfigured := tuyaCfg != nil && tuyaCfg.AccessID != "" && tuyaCfg.AccessSecret != "" && tuyaCfg.Region != ""
@@ -2887,6 +3113,7 @@ func (r *queryResolver) Integrations(ctx context.Context) ([]*model.Integration,
 			Connected:   tuyaEnabled && r.Tuya != nil && r.Tuya.TuyaConnected(),
 			DeviceCount: countBySource[device.SourceTuya],
 		},
+		{Kind: model.IntegrationKindDeviceProvider, Provider: string(device.SourceDreame), Name: "Dreame", Configured: dreameConfigured, Enabled: dreameEnabled, Connected: dreameEnabled && r.DreameIntegration != nil && r.DreameIntegration.DreameConnected(), DeviceCount: countBySource[device.SourceDreame]},
 		{Provider: "claude", Name: "Claude", Kind: model.IntegrationKindAssistant, Configured: claudeConfigured, Enabled: claudeEnabled, Connected: claudeEnabled && claudeReady},
 	}, nil
 }
@@ -3345,6 +3572,33 @@ func (r *queryResolver) Audit(ctx context.Context, filter *model.AuditFilter, be
 // ObserveEvents is the resolver for the observeEvents field.
 func (r *queryResolver) ObserveEvents(ctx context.Context, stream model.ObservationStream, after *string, auditFilter *model.AuditFilter, activityFilter *model.ActivityFilter, search *string, waitSeconds *int, limit *int) (*model.ObservationResult, error) {
 	return r.observe(ctx, stream, after, auditFilter, activityFilter, search, waitSeconds, limit)
+}
+
+// CleaningChanged is the resolver for the cleaningChanged field.
+func (r *subscriptionResolver) CleaningChanged(ctx context.Context) (<-chan string, error) {
+	events := r.EventBus.Subscribe(eventbus.EventCleaningChanged)
+	out := make(chan string, 1)
+	go func() {
+		defer close(out)
+		defer r.EventBus.Unsubscribe(events)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case event, ok := <-events:
+				if !ok {
+					return
+				}
+				select {
+				case out <- event.DeviceID:
+				case <-ctx.Done():
+					return
+				default:
+				}
+			}
+		}
+	}()
+	return out, nil
 }
 
 // DeviceStateChanged is the resolver for the deviceStateChanged field.

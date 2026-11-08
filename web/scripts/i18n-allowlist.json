@@ -129,6 +129,11 @@
       "path": "src/lib/components/icons/claude-icon.svelte",
       "text": "Claude",
       "reason": "Provider icon accessible name"
+    },
+    {
+      "path": "src/routes/integrations/dreame/+page.svelte",
+      "text": "Dreame",
+      "reason": "Brand name."
     }
   ],
   "unusedMessages": [

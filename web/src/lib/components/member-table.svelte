@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ResourceLink from "$lib/components/resource-link.svelte";
 	import {
 		Table,
 		TableBody,
@@ -131,9 +132,9 @@
 						</TableCell>
 						<TableCell>
 							{#if row.href}
-								<a href={row.href} class="text-left hover:underline">
+								<ResourceLink href={row.href} class="text-left">
 									<span class="truncate">{row.name}</span>
-								</a>
+								</ResourceLink>
 							{:else}
 								<span class="truncate">{row.name}</span>
 							{/if}

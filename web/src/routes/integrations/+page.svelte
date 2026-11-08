@@ -165,9 +165,6 @@
 				<PlugZap class="size-6 text-muted-foreground" />
 			</div>
 			<p class="text-muted-foreground">{m.integrations_empty({}, messageOptions)}</p>
-			<p class="mt-2 text-sm text-muted-foreground">
-				{m.integrations_empty_help({}, messageOptions)}
-			</p>
 			<Button class="mt-4" disabled={!canAddIntegration} onclick={openAddDialog}>
 				<Plus class="size-4" />
 				<span>{m.integrations_add({}, messageOptions)}</span>

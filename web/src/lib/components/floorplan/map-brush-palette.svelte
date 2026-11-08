@@ -7,6 +7,7 @@
 </script>
 
 <script lang="ts">
+	import { onMount } from "svelte";
 	import { Minus, Palette, Plus, Power, PowerOff } from "@lucide/svelte";
 	import { Button } from "$lib/components/ui/button";
 	import {
@@ -43,6 +44,42 @@
 		$props();
 
 	const DIVIDER = "mx-1 h-4 w-px shrink-0 bg-border";
+	let palette: HTMLDivElement;
+	let row: HTMLDivElement;
+	let peekWidth = $state<number | null>(null);
+
+	function fitPeek() {
+		const padding = getComputedStyle(palette);
+		const inset = parseFloat(getComputedStyle(document.documentElement).fontSize) * 1.5;
+		const available = palette.parentElement!.clientWidth - inset - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight);
+		if (row.scrollWidth <= available) { peekWidth = null; return; }
+		const left = row.getBoundingClientRect().left;
+		let edge = available;
+		for (const child of row.children) {
+			if (!(child instanceof HTMLElement) || !(child.matches('button') || child.querySelector('button'))) continue;
+			const bounds = child.getBoundingClientRect();
+			const middle = bounds.left - left + row.scrollLeft + bounds.width / 2;
+			if (middle <= available) edge = middle;
+		}
+		peekWidth = Math.max(1, edge);
+	}
+
+	onMount(() => {
+		let frame = 0;
+		const observer = new ResizeObserver(() => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(fitPeek);
+		});
+		observer.observe(palette.parentElement!);
+		observer.observe(row);
+		return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+	});
+	$effect(() => {
+		void hasColor; void hasColorTemp; void hasSwitchable;
+		if (!palette || !row) return;
+		const frame = requestAnimationFrame(fitPeek);
+		return () => cancelAnimationFrame(frame);
+	});
 
 	const COLOR_PRESETS: { r: number; g: number; b: number }[] = [
 		{ r: 239, g: 68, b: 68 },
@@ -116,9 +153,11 @@
 <!-- The box is width-bounded and stays put; the row inside it scrolls, so a
      palette too wide for a phone stays reachable without resizing itself. -->
 <div
-	class="absolute top-14 left-1/2 -translate-x-1/2 z-10 max-w-[calc(100%-1.5rem)] rounded-lg bg-card/90 shadow-card px-2 py-1.5 backdrop-blur-sm"
+	bind:this={palette}
+	data-map-brush-palette
+	class="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 max-w-[calc(100%-1.5rem)] rounded-lg bg-card/90 shadow-card px-2 py-1.5 backdrop-blur-sm md:bottom-auto md:top-14"
 >
-	<div class="no-scrollbar flex items-center gap-1 overflow-x-auto">
+	<div bind:this={row} style:width={peekWidth === null ? undefined : `${peekWidth}px`} class="no-scrollbar flex items-center gap-1 overflow-x-auto">
 		<!-- A swatch says what it paints, so none of these need words. -->
 		{#if hasColor}
 			{#each COLOR_PRESETS as c (css(c))}

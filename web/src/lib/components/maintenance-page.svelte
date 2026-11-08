@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { deviceTypeFilterOptions } from "$lib/list-helpers";
 	import { page } from "$app/state";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import {
@@ -16,7 +17,8 @@
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { createUrlSearchState } from "$lib/search-state.svelte";
 	import { deviceDisplayName } from "$lib/utils";
-	import { CircleCheck, ExternalLink } from "@lucide/svelte";
+	import { prefersReducedMotion } from "svelte/motion";
+	import { CircleCheck, ExternalLink, Loader2 } from "@lucide/svelte";
 	import type { Action } from "svelte/action";
 	import { slide } from "svelte/transition";
 	import { maintenancePresentation } from "$lib/i18n/maintenance";
@@ -33,6 +35,7 @@
 
 	const messageOptions = $derived(locale.messageOptions());
 	const groups = $derived.by<{ kind: MaintenanceKind; title: string }[]>(() => [
+		{ kind: MaintenanceKind.Cleaning, title: m.maintenance_group_cleaning({}, messageOptions) },
 		{ kind: MaintenanceKind.Battery, title: m.maintenance_group_batteries({}, messageOptions) },
 		{ kind: MaintenanceKind.Firmware, title: m.maintenance_group_updates({}, messageOptions) },
 		{ kind: MaintenanceKind.Posture, title: m.maintenance_group_posture({}, messageOptions) },
@@ -91,14 +94,9 @@
 		}
 		return [...devices.values()].sort((a, b) => compareLocalized(a.label, b.label));
 	});
-	const deviceTypeOptions = $derived.by(() => {
-		const types = new Set(
-			maintenanceStore.items.flatMap((task) => (task.device ? [task.device.type] : [])),
-		);
-		return [...types]
-			.map((type) => ({ value: type, label: chipLabel(type) }))
-			.sort((a, b) => compareLocalized(a.label, b.label));
-	});
+	const deviceTypeOptions = $derived(deviceTypeFilterOptions(
+    maintenanceStore.items.flatMap(task => task.device ? [task.device] : []),
+  ));
 	const searchChipConfigs = $derived.by<ChipConfig[]>(() => [
 		{
 			keyword: "maintenance",
@@ -232,10 +230,10 @@
 												variant="outline"
 												size="xs"
 												haptic="execute"
-												disabled={tasks.some((task) => maintenanceStore.isPending(task.id))}
-												onclick={() => void maintenanceStore.completeMany(tasks.map((task) => task.id))}
+												disabled={tasks.some((task) => maintenanceStore.isPending(task.id)) || !tasks.some(task => task.canComplete)}
+												onclick={() => void maintenanceStore.completeMany(tasks.filter(task => task.canComplete).map((task) => task.id))}
 											>
-								{m.maintenance_mark_all_done({}, messageOptions)}
+								{#if tasks.some(task => maintenanceStore.isPending(task.id))}<Loader2 class="size-3.5 animate-spin" />{/if}{m.maintenance_mark_all_done({}, messageOptions)}
 											</Button>
 										</div>
 									</CardHeader>
@@ -247,7 +245,7 @@
 							{@const presentation = maintenancePresentation(task)}
 											<div
 												class="flex flex-col gap-3 px-3 py-5 last:pb-0 sm:flex-row sm:items-center"
-												out:slide|global={{ duration: 200 }}
+												out:slide|global={{ duration: prefersReducedMotion.current ? 0 : 200 }}
 											>
 												<div class="flex min-w-0 flex-1 items-center gap-4">
 													{#if task.device}
@@ -294,10 +292,10 @@
 													variant="outline"
 													size="xs"
 													haptic="execute"
-													disabled={maintenanceStore.isPending(task.id)}
+													disabled={!task.canComplete || maintenanceStore.isPending(task.id)}
 													onclick={() => void maintenanceStore.completeOne(task.id)}
 												>
-													{m.maintenance_mark_done({}, messageOptions)}
+													{#if maintenanceStore.isPending(task.id)}<Loader2 class="size-3.5 animate-spin" />{/if}{task.kind === MaintenanceKind.Cleaning ? (task.context === "sensors" ? m.cleaning_mark_cleaned({},messageOptions) : m.cleaning_mark_replaced({},messageOptions)) : m.maintenance_mark_done({}, messageOptions)}
 												</Button>
 											</div>
 										{/each}

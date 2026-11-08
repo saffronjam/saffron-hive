@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { watchErrorToast } from "$lib/error-toast.svelte";
   import { onMount, untrack, type Snippet } from "svelte";
   import { page } from "$app/state";
   import { getContextClient, subscriptionStore } from "@urql/svelte";
@@ -663,6 +664,7 @@
     pending = [];
     listScroller?.scrollTo({ top: 0, behavior: "smooth" });
   }
+  watchErrorToast(() => error, retry);
 </script>
 
 <div class="flex h-[calc(100dvh-8rem)] min-h-0 flex-col gap-4">
@@ -679,12 +681,7 @@
         />{m.audit_paused({}, options)}{/if}</Button
     >
   </div>
-  {#if error}<div class="flex shrink-0 items-center gap-3">
-      <p role="alert" class="text-destructive">{error}</p>
-      <Button variant="outline" size="sm" onclick={retry}
-        >{m.common_try_again({}, options)}</Button
-      >
-    </div>{/if}
+
   {#if pending.length}<Button variant="outline" onclick={showNew}
       >{m.audit_new({ count: pending.length }, options)}</Button
     >{/if}

@@ -18,7 +18,7 @@ func setupEngine(t *testing.T, reader *mockStateReader, s *mockStore) (*Engine, 
 func setupEngineWithScenes(t *testing.T, reader *mockStateReader, s *mockStore, scenes SceneRunner) (*Engine, eventbus.EventBus, func()) {
 	t.Helper()
 	bus := eventbus.NewChannelBus()
-	engine := NewEngine(bus, reader, s, s, nil, nil, scenes)
+	engine := NewEngine(bus, reader, s, s, nil, nil, scenes, nil)
 	engine.now = func() time.Time {
 		return time.Date(2025, 1, 6, 22, 30, 0, 0, time.UTC)
 	}

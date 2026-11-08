@@ -25,6 +25,7 @@ import (
 	"os"
 
 	"github.com/saffronjam/saffron-hive/internal/activity"
+	"github.com/saffronjam/saffron-hive/internal/adapter/dreame"
 	"github.com/saffronjam/saffron-hive/internal/adapter/tuya"
 	"github.com/saffronjam/saffron-hive/internal/adapter/zigbee"
 	"github.com/saffronjam/saffron-hive/internal/alarms"
@@ -33,6 +34,7 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/auth"
 	"github.com/saffronjam/saffron-hive/internal/automation"
 	"github.com/saffronjam/saffron-hive/internal/avatars"
+	"github.com/saffronjam/saffron-hive/internal/cleaning"
 	"github.com/saffronjam/saffron-hive/internal/config"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/deviceimage"
@@ -151,6 +153,7 @@ func Run(ctx context.Context) error {
 	}
 
 	mgr := &adapterManager{
+		ctx:          ctx,
 		store:        sqlStore,
 		bus:          bus,
 		memStore:     memStore,
@@ -228,6 +231,8 @@ func Run(ctx context.Context) error {
 	outputController.SetAudit(sqlStore)
 	mgr.output = outputController
 	spawn("output.controller", func() { outputController.Run(ctx) })
+	cleaningService := cleaning.NewService(sqlStore, memStore, outputController, bus)
+	spawn("cleaning", func() { cleaningService.Run(ctx) })
 	targetCommander := outputController
 	effectRunner := effect.NewRunner(bus, targetCommander, memStore, sqlStore, zigbeeTerminator{}, outputOwners)
 	effectRunner.SetAudit(sqlStore)
@@ -246,9 +251,11 @@ func Run(ctx context.Context) error {
 	alarmBuffer := alarms.NewBuffer()
 	alarmSvc := alarms.NewService(sqlStore, alarmBuffer)
 	spawn("alarms.monitor", func() { alarms.RunMonitor(ctx, alarmSvc, memStore, mgr, cfg.DataDir) })
+	spawn("alarms.cleaning", func() { alarms.RunCleaningMonitor(ctx, alarmSvc, memStore, cleaningService, bus) })
 	maintenanceBuffer := maintenance.NewBuffer()
-	maintenanceSvc := maintenance.NewService(sqlStore, memStore, maintenanceBuffer, cfg.DataDir, health.DiskFreeFraction)
+	maintenanceSvc := maintenance.NewService(sqlStore, memStore, maintenanceBuffer, cfg.DataDir, health.DiskFreeFraction, cleaningService)
 	maintenanceEvents := bus.Subscribe(
+		eventbus.EventCleaningUpdated,
 		eventbus.EventDeviceStateChanged,
 		eventbus.EventDeviceAvailabilityChanged,
 		eventbus.EventDeviceUpdated,
@@ -267,7 +274,11 @@ func Run(ctx context.Context) error {
 		serveLogger.Warn("Tuya integration did not start", "error", err)
 	}
 
-	engine := automation.NewEngine(bus, memStore, sqlStore, targetCommander, alarmSvc, effectRunner, sceneRunner)
+	if err := mgr.ReconnectDreame(ctx); err != nil {
+		serveLogger.Warn("Dreame integration did not start", "error", err)
+	}
+
+	engine := automation.NewEngine(bus, memStore, sqlStore, targetCommander, alarmSvc, effectRunner, sceneRunner, cleaningService)
 	engine.SetAudit(sqlStore)
 	if setting, err := sqlStore.GetSetting(ctx, automation.TimeZoneSettingKey); err == nil {
 		if location, err := automation.LoadTimeZone(setting.Value); err == nil {
@@ -317,6 +328,9 @@ func Run(ctx context.Context) error {
 		LevelVar:            levelVar,
 		Zigbee2MQTT:         mgr,
 		Tuya:                mgr,
+		Dreame:              dreame.NewProbe(),
+		DreameIntegration:   mgr,
+		Cleaning:            cleaningService,
 		Integrations:        mgr,
 		EffectRunner:        effectRunner,
 		SceneRunner:         sceneRunner,
@@ -616,6 +630,8 @@ func seedInitialUser(ctx context.Context, cfg config.Config, s *store.DB) error 
 }
 
 type adapterManager struct {
+	ctx                context.Context
+	dreame             *dreame.Adapter
 	mu                 sync.Mutex
 	adapter            *zigbee.ZigbeeAdapter
 	zigbee2mqttEnabled bool
@@ -740,6 +756,13 @@ func (m *adapterManager) Stop() {
 		}
 		m.tuya.Stop()
 		m.tuya = nil
+	}
+	if m.dreame != nil {
+		if m.output != nil {
+			m.output.UnregisterActuator(device.SourceDreame, m.dreame)
+		}
+		m.dreame.Stop()
+		m.dreame = nil
 	}
 }
 
@@ -953,7 +976,7 @@ func (m *adapterManager) SyncTuya(ctx context.Context) ([]device.Device, error) 
 // re-derived on every sync.
 func (m *adapterManager) DeleteIntegration(ctx context.Context, provider string) (int, error) {
 	source := device.Source(provider)
-	if source != device.SourceZigbee2MQTT && source != device.SourceTuya {
+	if source != device.SourceZigbee2MQTT && source != device.SourceTuya && source != device.SourceDreame {
 		return 0, fmt.Errorf("unknown integration %q", provider)
 	}
 	m.mu.Lock()
@@ -968,6 +991,14 @@ func (m *adapterManager) DeleteIntegration(ctx context.Context, provider string)
 		}
 		m.zigbee2mqttEnabled = false
 		m.stopScanCronLocked()
+	case device.SourceDreame:
+		if m.dreame != nil {
+			if m.output != nil {
+				m.output.UnregisterActuator(source, m.dreame)
+			}
+			m.dreame.Stop()
+			m.dreame = nil
+		}
 	case device.SourceTuya:
 		if m.tuya != nil {
 			if m.output != nil {
@@ -983,6 +1014,8 @@ func (m *adapterManager) DeleteIntegration(ctx context.Context, provider string)
 		var restoreErr error
 		if source == device.SourceZigbee2MQTT {
 			restoreErr = m.ReconnectZigbee2MQTT(context.WithoutCancel(ctx))
+		} else if source == device.SourceDreame {
+			restoreErr = m.ReconnectDreame(context.WithoutCancel(ctx))
 		} else {
 			restoreErr = m.ReconnectTuya(context.WithoutCancel(ctx))
 		}
@@ -1097,4 +1130,54 @@ func persistDeviceRegistryEvent(ctx context.Context, evt eventbus.Event, s *stor
 		return err
 	}
 	return s.UpsertDevice(ctx, store.CreateDeviceParams{ID: d.ID, FriendlyName: d.FriendlyName, Source: d.Source, Type: d.Type, Capabilities: d.Capabilities})
+}
+
+func (m *adapterManager) ReconnectDreame(ctx context.Context) error {
+	cfg, err := m.store.GetDreameConfig(ctx)
+	if err != nil {
+		return err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.dreame != nil {
+		if m.output != nil {
+			m.output.UnregisterActuator(device.SourceDreame, m.dreame)
+		}
+		m.dreame.Stop()
+		m.dreame = nil
+	}
+	if cfg == nil || !cfg.Enabled {
+		return nil
+	}
+	session, err := dreame.NewSession(dreame.Credentials{Email: cfg.Email, Password: cfg.Password, Region: cfg.Region})
+	if err != nil {
+		return err
+	}
+	adapter := dreame.NewAdapter(session, m.bus, m.memStore, m.store)
+	if m.output != nil {
+		adapter.SetOutputObserver(m.output)
+	}
+	runtimeCtx := m.ctx
+	if runtimeCtx == nil {
+		runtimeCtx = context.WithoutCancel(ctx)
+	}
+	startErr := adapter.Start(runtimeCtx)
+	m.dreame = adapter
+	if m.output != nil {
+		m.output.RegisterActuator(device.SourceDreame, adapter, output.Policy{InteractivePerSecond: 1, ContinuousPerSecond: 1})
+	}
+	return startErr
+}
+func (m *adapterManager) TestDreame(ctx context.Context, cfg store.DreameConfig) error {
+	session, err := dreame.NewSession(dreame.Credentials{Email: cfg.Email, Password: cfg.Password, Region: cfg.Region})
+	if err != nil {
+		return err
+	}
+	_, err = session.Discover(ctx)
+	return err
+}
+func (m *adapterManager) DreameConnected() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.dreame != nil && m.dreame.Connected()
 }

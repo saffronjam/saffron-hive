@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { watchErrorToast } from "$lib/error-toast.svelte";
  import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { measureMount } from "$lib/perf";
 	import { deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
@@ -20,15 +21,15 @@
 	import ListView from "$lib/components/list-view.svelte";
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
-	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import { chipsByDevice } from "$lib/memberships";
-	import { compareDevicesByNewThenName, filterDevices } from "$lib/list-helpers";
+	import { compareDevicesByNewThenName, deviceTypeFilterOptions, filterDevices } from "$lib/list-helpers";
 	import { DoorOpen, Group as GroupIcon } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
 	import { m } from "$lib/i18n/messages";
+	import { chipLabel } from "$lib/i18n/vocabulary";
 	import { locale } from "$lib/i18n/locale.svelte";
 
 	interface Props {
@@ -61,12 +62,10 @@
 		active: () => visible && page.url.pathname === "/devices",
 	});
 
-	const deviceTypeOptions = $derived([
-		{ value: "light", label: m.device_type_light({}, locale.messageOptions()) },
-		{ value: "sensor", label: m.device_type_sensor({}, locale.messageOptions()) },
-		{ value: "switch", label: m.device_type_switch({}, locale.messageOptions()) },
-		{ value: "hub", label: m.device_type_hub({}, locale.messageOptions()) },
-	]);
+	const deviceTypeOptions = $derived(deviceTypeFilterOptions(filterDevices(Object.values($deviceStore), {
+    freeText: "",
+    chips: searchController.value.chips.filter(chip => chip.keyword === "deleted"),
+  })));
 
 	const enabledOptions = $derived([
 		{ value: "yes", label: m.common_yes({}, locale.messageOptions()) },
@@ -79,6 +78,7 @@
 			keyword: "type",
 			label: m.field_type({}, locale.messageOptions()),
 			variant: "secondary",
+			resolveLabel: chipLabel,
 			options: (input) => {
 				const q = input.toLowerCase();
 				if (!q) return deviceTypeOptions;
@@ -387,6 +387,7 @@
 
 	const mountTimer = measureMount("devices", { ready: () => $devicesHydrated, items: () => filteredDevices.length });
 	$effect(() => mountTimer.tick());
+  watchErrorToast(() => visible ? (operationError) : null);
 </script>
 
 	{#snippet deviceCard(device: Device)}
@@ -407,9 +408,7 @@
 
 {#if $devicesHydrated}
 	<div>
-		{#if operationError}
-			<ErrorBanner class="mb-4" message={operationError} ondismiss={() => (operationError = null)} />
-		{/if}
+
 
 		<div class="mb-6 flex items-stretch gap-2">
 			<div class="min-w-0 flex-1">
@@ -452,9 +451,6 @@
 				<p class="text-muted-foreground">
 					{m.devices_none({}, locale.messageOptions())}
 				</p>
-				<p class="mt-2 text-sm text-muted-foreground">
-					{m.devices_none_help({}, locale.messageOptions())}
-				</p>
 			</div>
 		{:else if filteredDevices.length === 0}
 			<div class="rounded-lg shadow-card bg-card p-12 text-center">
@@ -493,7 +489,6 @@
 					<DeviceTable
 						rows={tableRows}
 						{selection}
-						onrename={handleRename}
 						oniconchange={handleIconChange}
 						onAddTo={handleAddTo}
 						ontoggleenabled={handleToggleEnabled}

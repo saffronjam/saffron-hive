@@ -1,6 +1,7 @@
 import type { Component } from "svelte";
 import { PlugZap } from "@lucide/svelte";
 import ClaudeIcon from "$lib/components/icons/claude-icon.svelte";
+import DreameIcon from "$lib/components/icons/dreame-icon.svelte";
 import TuyaIcon from "$lib/components/icons/tuya-icon.svelte";
 import Zigbee2MqttIcon from "$lib/components/icons/zigbee2mqtt-icon.svelte";
 import { m } from "$lib/i18n/messages";
@@ -19,6 +20,13 @@ export interface IntegrationMeta {
 }
 
 const META: Record<string, IntegrationMeta> = {
+  dreame: {
+    icon: DreameIcon,
+    get description() {
+      return integrationDescription("dreame");
+    },
+    keepsDevices: true,
+  },
   claude: {
     icon: ClaudeIcon,
     get description() {
@@ -63,6 +71,8 @@ export function integrationDescription(provider: string): string {
       return m.assistant_description({}, options);
     case "zigbee2mqtt":
       return m.integrations_description_zigbee2mqtt({}, options);
+    case "dreame":
+      return m.integrations_description_dreame({}, options);
     case "tuya":
       return m.integrations_description_tuya({}, options);
     default:

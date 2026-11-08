@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { graphqlErrorMessage } from "$lib/graphql-error";
+  import { toast } from "svelte-sonner";
  import { createEditorRefresh } from "$lib/editor-refresh.svelte";
  import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
 	import { onMount } from "svelte";
@@ -6,6 +8,7 @@
 	import { graphql } from "$lib/gql";
 	import NumberInput from "$lib/components/number-input.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import FieldError from "$lib/components/field-error.svelte";
 	import { Checkbox } from "$lib/components/ui/checkbox/index.js";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
 	import HiveSelectAutocomplete from "$lib/components/hive-select-autocomplete.svelte";
@@ -132,8 +135,10 @@
   return result.data.settings;
  }
  const refreshGuard=createEditorRefresh({read:readSettings,apply:applySettings,dirty:()=>isDirty,busy:()=>saving||!loaded});
- async function loadData(){try{const values=await readSettings();applySettings(values);refreshGuard.accept(values);}catch{}}
+ async function loadData(){try{const values=await readSettings();applySettings(values);refreshGuard.accept(values);}catch(error){toast.error(graphqlErrorMessage(error,m.common_error_load_data({},locale.messageOptions())));}}
 
+	let retentionError = $state<string | null>(null);
+	$effect(() => { if (historyRetentionDays != null && Number.isFinite(historyRetentionDays) && historyRetentionDays > 0) retentionError = null; });
 	async function save() {
  if(refreshGuard.conflict)return;
 		saving = true;
@@ -144,15 +149,14 @@
  expectedRevision:revisions["log_level"]??0, value: logLevel })
 					.toPromise();
 				if (result.error) {
-					console.error("Failed to update setting:", result.error);
-					return;
+					throw result.error;
 				}
 				origLogLevel = logLevel;
 			}
 			if (historyRetentionDays !== origHistoryRetentionDays) {
 				const parsed = historyRetentionDays;
 				if (parsed === null || !Number.isFinite(parsed) || parsed <= 0) {
-					console.error("Invalid retention value");
+					retentionError = m.settings_retention_invalid({}, locale.messageOptions());
 					return;
 				}
 				const result = await client
@@ -163,15 +167,14 @@
 					})
 					.toPromise();
 				if (result.error) {
-					console.error("Failed to update retention:", result.error);
-					return;
+					throw result.error;
 				}
 				origHistoryRetentionDays = parsed;
 			}
 			if (defaultContentLanguage !== origDefaultContentLanguage) {
 				const result = await client.mutation(UPDATE_SETTING, { key: "i18n.default_content_language",
  expectedRevision:revisions["i18n.default_content_language"]??0, value: defaultContentLanguage }).toPromise();
-				if (result.error) { console.error(result.error); return; }
+				if (result.error) throw result.error;
 				origDefaultContentLanguage = defaultContentLanguage;
 				localizedNamesStore.setDefaultContentLanguage(defaultContentLanguage);
 			}
@@ -181,17 +184,19 @@
  expectedRevision:revisions["i18n.translate_standard_room_names"]??0,
 					value: String(translateStandardRoomNames),
 				}).toPromise();
-				if (result.error) { console.error(result.error); return; }
+				if (result.error) throw result.error;
 				origTranslateStandardRoomNames = translateStandardRoomNames;
 				localizedNamesStore.setTranslateStandardRoomNames(translateStandardRoomNames);
 			}
 			if (timeZone !== origTimeZone) {
 				const result = await client.mutation(UPDATE_SETTING, { key: "timezone",
  expectedRevision:revisions["timezone"]??0, value: timeZone }).toPromise();
-				if (result.error) { console.error(result.error); return; }
+				if (result.error) throw result.error;
 				origTimeZone = timeZone;
 			}
  await loadData();
+		} catch (error) {
+			toast.error(graphqlErrorMessage(error, m.settings_save_failed({}, locale.messageOptions())));
 		} finally {
 			saving = false;
 		}
@@ -230,7 +235,9 @@
 					min={1}
 					bind:value={historyRetentionDays}
 					ariaLabel={m.settings_retention_aria({}, locale.messageOptions())}
+					ariaInvalid={retentionError ? "true" : undefined}
 				/>
+				<FieldError message={retentionError} />
 				<p class="text-xs text-muted-foreground">
 					{m.settings_retention_help({}, locale.messageOptions())}
 				</p>

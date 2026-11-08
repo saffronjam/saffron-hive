@@ -113,11 +113,13 @@ type mockStore struct {
 	activityCounter     int64
 	devices             map[device.DeviceID]device.Device
 	zigbeeMetadata      map[device.DeviceID]zigbeemetadata.Metadata
+	imageSources        map[device.DeviceID][]string
 	zigbeeMetadataReads int
 	users               map[string]store.User // keyed by id
 	guests              map[string]store.Guest
 	zigbee2mqttCfg      *store.Zigbee2MQTTConfig
 	tuyaConfig          *store.TuyaConfig
+	dreameConfig        *store.DreameConfig
 	topologies          []device.NetworkTopology
 	effects             map[string]store.Effect
 	activeEffects       map[string]effect.ActiveEffectRecord
@@ -1909,4 +1911,38 @@ func (m *mockStore) UpdateSetting(ctx context.Context, key, value string, expect
 		return store.Setting{}, err
 	}
 	return store.Setting{Key: key, Value: value, Revision: expectedRevision + 1}, nil
+}
+
+func (m *mockStore) GetDreameConfig(context.Context) (*store.DreameConfig, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.dreameConfig == nil {
+		return nil, nil
+	}
+	cfg := *m.dreameConfig
+	return &cfg, nil
+}
+func (m *mockStore) UpsertDreameConfig(_ context.Context, cfg store.DreameConfig) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if (m.dreameConfig == nil && cfg.Revision != 0) || (m.dreameConfig != nil && m.dreameConfig.Revision != cfg.Revision) {
+		return store.ErrRevisionConflict
+	}
+	cfg.Revision++
+	m.dreameConfig = &cfg
+	return nil
+}
+
+func (m *mockStore) DeviceImageSources(ctx context.Context, id device.DeviceID) ([]string, error) {
+	m.mu.RLock()
+	sources, ok := m.imageSources[id]
+	m.mu.RUnlock()
+	if ok {
+		return append([]string(nil), sources...), nil
+	}
+	metadata, err := m.GetZigbeeDeviceMetadata(ctx, id)
+	if metadata == nil || err != nil {
+		return nil, err
+	}
+	return zigbeemetadata.ImageSources(*metadata), nil
 }

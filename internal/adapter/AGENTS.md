@@ -17,6 +17,8 @@ Each adapter is a self-contained package that:
 
 An adapter must never leak its protocol-specific types beyond its own package. Everything published to the event bus uses domain types from `device/`.
 
+Product/model display names and other vendor metadata must come from provider responses or externally maintained catalogs, never a hand-written model-name dictionary. Keep device nicknames separate from product identity, and preserve the technical identifier when the provider supplies no display name. Inspect actual metadata responses before adding another lookup source.
+
 ## Current adapters
 
 - `zigbee/` — connects to zigbee2mqtt via MQTT. Discovers devices from `bridge/devices`, subscribes to state updates, publishes commands to `<friendly_name>/set` topics.

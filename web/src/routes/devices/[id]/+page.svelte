@@ -1,10 +1,12 @@
 <script lang="ts">
+  import { watchErrorToast } from "$lib/error-toast.svelte";
  import { graphqlErrorMessage } from "$lib/graphql-error";
  import {createEditorRefresh} from "$lib/editor-refresh.svelte";
  import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
 	import { page } from "$app/stores";
 	import { onDestroy, untrack } from "svelte";
-	import { fly } from "svelte/transition";
+	import { fly, slide } from "svelte/transition";
+	import { prefersReducedMotion } from "svelte/motion";
 	import type { Device, DeviceState } from "$lib/stores/devices";
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
 	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
@@ -18,24 +20,28 @@
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import LightControls from "$lib/components/light-controls.svelte";
 	import ClimateControls from "$lib/components/climate-controls.svelte";
+	import CleaningDeviceDetails from "$lib/components/cleaning-device-details.svelte";
+	import { cleaningStore } from "$lib/stores/cleaning.svelte";
 	import SensorDisplay from "$lib/components/sensor-display.svelte";
 	import ButtonDisplay from "$lib/components/button-display.svelte";
+	import CleaningTaskControls from "$lib/components/cleaning-task-controls.svelte";
+	import DeviceControlCard from "$lib/components/device-control-card.svelte";
 	import DeviceConfigurationEditor from "$lib/components/device-configuration-editor.svelte";
 	import DeviceCommands from "$lib/components/device-commands.svelte";
 	import DeviceDiagnosticsCard from "$lib/components/device-diagnostics-card.svelte";
 	import StateHistoryChart from "$lib/components/state-history-chart.svelte";
 	import BucketResolutionSelect from "$lib/components/bucket-resolution-select.svelte";
 	import DateRangePicker from "$lib/components/date-range-picker.svelte";
-	import PlugDisplay from "$lib/components/plug-display.svelte";
+	import DeviceBatteryCard from "$lib/components/device-battery-card.svelte";
+	import DevicePowerCard from "$lib/components/device-power-card.svelte";
 	import MemberTable from "$lib/components/member-table.svelte";
 	import DeviceRolesEditor from "$lib/components/device-roles-editor.svelte";
 	import type { ContactRole, ControlledLoadRole, DeviceRoles } from "$lib/gql/graphql";
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
 	import { membershipRowsForDevice } from "$lib/memberships";
-	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
-	import ZigbeeDeviceInfoCard from "$lib/components/zigbee-device-info-card.svelte";
+	import DeviceInfoCard from "$lib/components/device-info-card.svelte";
 	import ZigbeeDetailsCard from "$lib/components/zigbee-details-card.svelte";
 	import {
 		configurationContains,
@@ -44,7 +50,7 @@
 		deviceCommandCapabilities,
 		writableConfigurationCapabilities,
 	} from "$lib/device-configuration";
-	import { ArrowLeft, DoorOpen, ExternalLink, Group as GroupIcon, Trash2, Undo2 } from "@lucide/svelte";
+	import { Loader2, ArrowLeft, DoorOpen, ExternalLink, Group as GroupIcon, Trash2, Undo2 } from "@lucide/svelte";
 
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { getContextClient } from "@urql/svelte";
@@ -57,33 +63,35 @@
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
 
-	interface ZigbeeDetailSnapshot {
+	interface DeviceDetailSnapshot {
+		image: { version: string } | null;
 		metadata: Zigbee2MqttDeviceMetadata | null;
 		frontendUrl: string | null;
 		documentation: Zigbee2MqttDeviceDocumentation | null;
 	}
 
-	const ZIGBEE_DETAIL_CACHE_VERSION = 3;
-	const zigbeeDetailCacheName = (id: string) => `device-zigbee-detail:${id}`;
-	const loadZigbeeDetailSnapshot = (id: string) =>
-		loadSessionSnapshot<ZigbeeDetailSnapshot>(
+	const DEVICE_DETAIL_CACHE_VERSION = 1;
+	const deviceDetailCacheName = (id: string) => `device-detail:${id}`;
+	const loadDeviceDetailSnapshot = (id: string) =>
+		loadSessionSnapshot<DeviceDetailSnapshot>(
 			typeof window === "undefined" ? null : window.sessionStorage,
-			zigbeeDetailCacheName(id),
-			ZIGBEE_DETAIL_CACHE_VERSION,
+			deviceDetailCacheName(id),
+			DEVICE_DETAIL_CACHE_VERSION,
 		);
 	const initialDeviceId = $page.params.id ?? "";
-	const initialZigbeeDetail = loadZigbeeDetailSnapshot(initialDeviceId);
+	const initialDeviceDetail = loadDeviceDetailSnapshot(initialDeviceId);
+	let deviceImage = $state<{ version: string } | null | undefined>(initialDeviceDetail?.image);
 	const deviceId = $derived($page.params.id ?? "");
 
 	// Generic device state remains live in the shared store. Zigbee-specific
 	// detail is loaded only on this route.
 	const device = $derived($deviceStore[deviceId] ?? null);
 	let zigbeeMetadata = $state<Zigbee2MqttDeviceMetadata | null | undefined>(
-		initialZigbeeDetail?.metadata,
+		initialDeviceDetail?.metadata,
 	);
-	let zigbeeFrontendUrl = $state<string | null>(initialZigbeeDetail?.frontendUrl ?? null);
+	let zigbeeFrontendUrl = $state<string | null>(initialDeviceDetail?.frontendUrl ?? null);
 	let zigbeeDocumentation = $state<Zigbee2MqttDeviceDocumentation | null>(
-		initialZigbeeDetail?.documentation ?? null,
+		initialDeviceDetail?.documentation ?? null,
 	);
 	let metadataDeviceId = $state("");
 	let documentationRequestKey = $state("");
@@ -246,8 +254,8 @@
 		}
 	`);
 
-	const DEVICE_ZIGBEE_DETAIL = graphql(`
-		query DeviceZigbeeDetail($id: ID!) {
+	const DEVICE_DETAIL = graphql(`
+		query DeviceDetail($id: ID!) {
 			zigbee2MqttConfig {
 				frontendUrl
 			}
@@ -255,9 +263,8 @@
  revision
  id
 				source
+				image { version }
 				zigbee2Mqtt {
-					imageCandidate
-					imageVersion
 					networkType
 					ieeeAddress
 					addressVendor
@@ -323,26 +330,27 @@
 
 	const clientRef = getContextClient();
 
-	function saveZigbeeDetailSnapshot(id: string) {
-		const snapshot: ZigbeeDetailSnapshot = {
+	function saveDeviceDetailSnapshot(id: string) {
+		const snapshot: DeviceDetailSnapshot = {
+			image: deviceImage ?? null,
 			metadata: zigbeeMetadata ?? null,
 			frontendUrl: zigbeeFrontendUrl,
 			documentation: zigbeeDocumentation,
 		};
 		saveSessionSnapshot(
 			window.sessionStorage,
-			zigbeeDetailCacheName(id),
-			ZIGBEE_DETAIL_CACHE_VERSION,
+			deviceDetailCacheName(id),
+			DEVICE_DETAIL_CACHE_VERSION,
 			snapshot,
 			256_000,
 		);
 	}
 
-	async function loadZigbeeMetadata(id: string) {
+	async function loadDeviceDetails(id: string) {
 		let failed = false;
 		for (let attempt = 0; attempt < 6; attempt++) {
 			const result = await clientRef
-				.query(DEVICE_ZIGBEE_DETAIL, { id }, { requestPolicy: "network-only" })
+				.query(DEVICE_DETAIL, { id }, { requestPolicy: "network-only" })
 				.toPromise();
 			if (metadataDeviceId !== id) return;
 			if (result.error) {
@@ -350,6 +358,7 @@
 				failed = true;
 			} else {
 				const metadata = result.data?.device?.zigbee2Mqtt ?? null;
+				deviceImage = result.data?.device?.image ?? null;
 				if (
 					metadata ||
 					(result.data?.device && result.data.device.source !== "zigbee2mqtt") ||
@@ -357,25 +366,26 @@
 				) {
 					zigbeeMetadata = metadata;
 					zigbeeFrontendUrl = result.data?.zigbee2MqttConfig?.frontendUrl ?? null;
-					saveZigbeeDetailSnapshot(id);
+					saveDeviceDetailSnapshot(id);
 					return;
 				}
 			}
 			await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
 		}
-		if (failed) error = m.common_error_generic({}, locale.messageOptions());
+		if (failed) { deviceImage = null; error = m.common_error_generic({}, locale.messageOptions()); }
 	}
 
 	$effect(() => {
 		const id = deviceId;
 		if (!id || metadataDeviceId === id) return;
 		metadataDeviceId = id;
-		const snapshot = loadZigbeeDetailSnapshot(id);
+		const snapshot = loadDeviceDetailSnapshot(id);
+		deviceImage = snapshot?.image;
 		zigbeeMetadata = snapshot?.metadata;
 		zigbeeFrontendUrl = snapshot?.frontendUrl ?? null;
 		zigbeeDocumentation = snapshot?.documentation ?? null;
 		documentationRequestKey = "";
-		void loadZigbeeMetadata(id);
+		void loadDeviceDetails(id);
 	});
 
 	async function loadZigbeeDocumentation(id: string, requestKey: string) {
@@ -384,7 +394,7 @@
 			.toPromise();
 		if (documentationRequestKey !== requestKey || result.error) return;
 		zigbeeDocumentation = result.data?.device?.zigbee2Mqtt?.documentation ?? null;
-		saveZigbeeDetailSnapshot(id);
+		saveDeviceDetailSnapshot(id);
 	}
 
 	$effect(() => {
@@ -399,15 +409,21 @@
 
 	const light = $derived(device?.type === "light" ? device.state : null);
 	const plug = $derived(device?.type === "plug" ? device.state : null);
+	const hasPowerControl = $derived(device?.capabilities.some(capability => capability.name === "on_off" && capability.canSet) ?? false);
 	const sensor = $derived(device?.type === "sensor" ? device.state : null);
 	const climate = $derived(device?.type === "climate" ? device.state : null);
 	const isButton = $derived(device?.type === "button");
+	const isVacuum = $derived(device?.type === "vacuum");
+	const vacuum = $derived(cleaningStore.byId.get(deviceId));
 	const actionValues = $derived(
 		device?.capabilities.find((capability) => capability.name === "action")?.values ?? [],
 	);
 	const commandCapabilities = $derived(deviceCommandCapabilities(device?.capabilities ?? []));
 	const configurationCapabilities = $derived(
 		writableConfigurationCapabilities(device?.capabilities ?? []),
+	);
+	const hasEditableRoles = $derived(
+		metadataRoles.controlledLoad != null || metadataRoles.contact != null,
 	);
 	let configurationDeviceId = $state("");
 	let configurationBaseline = $state<Device["attributes"]>([]);
@@ -710,13 +726,14 @@
 	let historyBucketSeconds = $state<number>(0);
 
 	onDestroy(clearConfigurationTimer);
+  watchErrorToast(() => error);
 </script>
 
 <div>
 
 	{#if error}
 		{#if refreshGuard.conflict}<ExternalChangeBanner onreload={()=>refreshGuard.refresh(true)} />{/if}
-		<ErrorBanner class="mb-4" message={error} />
+
 	{/if}
 
 	{#if !$devicesHydrated}
@@ -726,57 +743,110 @@
 		</div>
 	{:else if device}
 		<div class="space-y-6" in:fly={{ y: -4, duration: 150 }}>
-			<div class="rounded-lg shadow-card bg-card p-4">
-				<label class="mb-2 block text-sm font-medium text-foreground" for="device-name">
-					{m.device_name({}, locale.messageOptions())}
-				</label>
-				<div class="flex items-center gap-3">
-					<IconCell
-						value={metadataIcon}
-						onselect={(icon) => (metadataIcon = icon)}
-						fallback={deviceIcon(device.type, metadataRoles.contact)}
-						size="lg"
-						iconClass="size-5 text-muted-foreground"
-					/>
-					<Input
-						id="device-name"
-						bind:value={metadataName}
-						placeholder={fallbackName}
-						onkeydown={(event) => {
-							if (event.key === "Enter" && metadataDirty && !savingMetadata) {
-								void saveMetadata();
-							}
-						}}
-					/>
-				</div>
-				{#if metadataRoles.controlledLoad != null || metadataRoles.contact != null}
-					<div class="mt-4 flex items-start gap-3">
-						<span class="w-16 pt-2 text-sm font-medium text-foreground">
-							{m.device_roles({}, locale.messageOptions())}
-						</span>
-						<DeviceRolesEditor
-							value={metadataRoles}
-							onchange={(next) => (metadataRoles = next)}
-							{contactMapped}
+			<div class="grid grid-cols-1 gap-6 {hasEditableRoles ? 'lg:grid-cols-2' : ''}">
+				<div class="rounded-lg shadow-card bg-card p-4">
+					<label class="mb-2 block text-sm font-medium text-foreground" for="device-name">
+						{m.device_name({}, locale.messageOptions())}
+					</label>
+					<div class="flex items-center gap-3">
+						<IconCell
+							value={metadataIcon}
+							onselect={(icon) => (metadataIcon = icon)}
+							fallback={deviceIcon(device.type, metadataRoles.contact)}
+							size="lg"
+							iconClass="size-5 text-muted-foreground"
+						/>
+						<Input
+							id="device-name"
+							bind:value={metadataName}
+							placeholder={fallbackName}
+							onkeydown={(event) => {
+								if (event.key === "Enter" && metadataDirty && !savingMetadata) {
+									void saveMetadata();
+								}
+							}}
 						/>
 					</div>
-				{/if}
-				<div class="mt-4 flex items-center gap-3">
-					<label class="w-16 text-sm font-medium text-foreground" for="device-enabled">
-						{m.field_enabled({}, locale.messageOptions())}
-					</label>
-					<Switch
-						id="device-enabled"
-						checked={!metadataDisabled}
-						disabled={device.deleted}
-						onCheckedChange={(v) => (metadataDisabled = !v)}
-					/>
+					<div class="mt-4 flex items-center gap-3">
+						<label class="w-16 text-sm font-medium text-foreground" for="device-enabled">
+							{m.field_enabled({}, locale.messageOptions())}
+						</label>
+						<Switch
+							id="device-enabled"
+							checked={!metadataDisabled}
+							disabled={device.deleted}
+							onCheckedChange={(v) => (metadataDisabled = !v)}
+						/>
+					</div>
 				</div>
+				{#if hasEditableRoles}
+					<Card class="gap-4 p-4">
+						<CardHeader class="p-0">
+							<CardTitle>{m.device_roles({}, locale.messageOptions())}</CardTitle>
+						</CardHeader>
+						<CardContent class="p-0">
+							<DeviceRolesEditor
+								value={metadataRoles}
+								onchange={(next) => (metadataRoles = next)}
+								{contactMapped}
+							/>
+						</CardContent>
+					</Card>
+				{/if}
 			</div>
+
+			{#snippet deviceControls()}
+				{#if vacuum?.controls.length || commandCapabilities.length > 0}
+					<DeviceControlCard>
+						{#if vacuum?.controls.length}<CleaningTaskControls robot={vacuum} full />{/if}
+						{#if commandCapabilities.length > 0}<DeviceCommands deviceId={device.id} commands={commandCapabilities} disabled={device.disabled || !device.available} />{/if}
+					</DeviceControlCard>
+				{/if}
+			{/snippet}
+
+			{#snippet deviceBattery()}
+				<DeviceBatteryCard value={vacuum?.battery ?? device.state?.battery} />
+			{/snippet}
+
+			{#snippet deviceSettings()}
+				{#if configurationCapabilities.length > 0}
+					<Card>
+						<CardHeader>
+							<div class="flex items-center justify-between gap-4">
+								<CardTitle>{m.device_settings({}, locale.messageOptions())}</CardTitle>
+								{#if configurationCapabilities.length > 0}
+									<Button
+										size="sm"
+										onclick={applyConfiguration}
+										aria-busy={configurationSaving || configurationPending !== null}
+										disabled={!configurationDirty || configurationSaving || configurationPending !== null || device.disabled}
+									>
+										{#if configurationSaving || configurationPending !== null}
+											<span class="inline-flex overflow-hidden" transition:slide={{ axis: "x", duration: prefersReducedMotion.current ? 0 : 150 }}><Loader2 class="size-4 animate-spin" /></span>
+										{/if}
+										{m.device_apply({}, locale.messageOptions())}
+									</Button>
+								{/if}
+							</div>
+						</CardHeader>
+						<CardContent class="space-y-6">
+							{#if configurationCapabilities.length > 0}
+								<DeviceConfigurationEditor
+									capabilities={device.capabilities}
+									values={configurationDraft}
+									onchange={(values) => (configurationDraft = values)}
+									disabled={device.disabled || configurationSaving || configurationPending !== null}
+								/>
+							{/if}
+
+						</CardContent>
+					</Card>
+				{/if}
+			{/snippet}
 
 			<div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1fr]">
 				<div class="space-y-6">
-					<ZigbeeDeviceInfoCard {device} metadata={zigbeeMetadata} />
+					<DeviceInfoCard {device} image={deviceImage} model={vacuum?.model} modelId={vacuum?.modelId} manufacturer={vacuum?.manufacturer} />
 
 					{#if zigbeeMetadata}
 						<ZigbeeDetailsCard
@@ -803,8 +873,11 @@
 					</Card>
 				</div>
 
-				<div class="flex flex-col gap-4">
-				{#if device.disabled && (light || climate || plug)}
+				<div class="flex flex-col gap-4 {isVacuum ? 'order-first lg:order-last' : ''}">
+				{#if hasPowerControl}<DevicePowerCard checked={device.state?.on === true} onchange={(on) => handleDeviceCommand({ on })} disabled={device.disabled || device.deleted || !device.available} />{/if}
+				{#if isVacuum}
+					<CleaningDeviceDetails {device} robot={vacuum} controls={deviceControls} battery={deviceBattery} settings={deviceSettings} />
+				{:else if device.disabled && (light || climate || plug)}
 					<Card>
 						<CardContent class="py-8 text-center">
 							<p class="text-muted-foreground">
@@ -815,12 +888,11 @@
 							</p>
 						</CardContent>
 					</Card>
+
 				{:else if light}
 					<LightControls lightState={light} oncommand={handleDeviceCommand} />
 				{:else if climate}
 					<ClimateControls deviceState={climate} capabilities={device.capabilities} oncommand={handleDeviceCommand} />
-				{:else if plug}
-					<PlugDisplay state={plug} oncommand={handleDeviceCommand} />
 				{:else if sensor}
 					<SensorDisplay state={sensor} contactRole={device.roles.contact} />
 				{:else if isButton}
@@ -831,7 +903,7 @@
 						actions={actionValues}
 						disabled={device.disabled}
 					/>
-				{:else}
+				{:else if !plug && !hasPowerControl}
 					<Card>
 						<CardContent class="py-8 text-center">
 							<p class="text-muted-foreground">
@@ -841,45 +913,8 @@
 					</Card>
 				{/if}
 
-				{#if configurationCapabilities.length > 0 || commandCapabilities.length > 0}
-					<Card>
-						<CardHeader>
-							<div class="flex items-center justify-between gap-4">
-								<CardTitle>{m.device_settings({}, locale.messageOptions())}</CardTitle>
-								{#if configurationCapabilities.length > 0}
-									<Button
-										size="sm"
-										onclick={applyConfiguration}
-										disabled={!configurationDirty || configurationSaving || configurationPending !== null || device.disabled}
-									>
-										{configurationSaving
-											? m.device_applying({}, locale.messageOptions())
-											: configurationPending
-												? m.device_waiting({}, locale.messageOptions())
-												: m.device_apply({}, locale.messageOptions())}
-									</Button>
-								{/if}
-							</div>
-						</CardHeader>
-						<CardContent class="space-y-6">
-							{#if configurationCapabilities.length > 0}
-								<DeviceConfigurationEditor
-									capabilities={device.capabilities}
-									values={configurationDraft}
-									onchange={(values) => (configurationDraft = values)}
-									disabled={device.disabled || configurationSaving || configurationPending !== null}
-								/>
-							{/if}
-							{#if commandCapabilities.length > 0}
-								<DeviceCommands
-									deviceId={device.id}
-									commands={commandCapabilities}
-									disabled={device.disabled}
-								/>
-							{/if}
-						</CardContent>
-					</Card>
-				{/if}
+				{#if !isVacuum}{@render deviceControls()}{/if}
+				{#if !isVacuum}{@render deviceBattery()}{@render deviceSettings()}{/if}
 
 				<DeviceDiagnosticsCard
 					capabilities={device.capabilities}
@@ -887,7 +922,7 @@
 					state={device.state}
 				/>
 
-				{#if !isButton}
+				{#if !isButton && !isVacuum}
 					<Card>
 						<CardHeader>
 							<div class="flex flex-wrap items-center justify-between gap-2">

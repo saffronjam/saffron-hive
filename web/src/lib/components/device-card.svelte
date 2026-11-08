@@ -34,6 +34,7 @@
 		EllipsisVertical,
 		Pencil,
 		Plus,
+		TextCursorInput,
 		Trash2,
 		Undo2,
 	} from "@lucide/svelte";
@@ -73,6 +74,7 @@
 		isNew = false,
 	}: Props = $props();
 
+	let nameEditor: InlineEditName | undefined = $state();
 	let localBrightness = $state<number | undefined>(undefined);
 	let interacting = $state(false);
 	let interactingTimer: ReturnType<typeof setTimeout> | null = null;
@@ -165,7 +167,7 @@
 					tintBackground={iconGradient}
 					tintVisible={tintDevice.state?.on !== true}
 				/>
-				<InlineEditName name={deviceDisplayName(device)} entityType="device" entityId={device.id} onsave={(newName) => onrename(device.id, newName)} />
+				<InlineEditName bind:this={nameEditor} href={`/devices/${device.id}`} name={deviceDisplayName(device)} entityType="device" entityId={device.id} onsave={(newName) => onrename(device.id, newName)} />
 				{#if device.deleted}
 					<Trash2
 						class="size-3.5 shrink-0 text-muted-foreground"
@@ -208,6 +210,10 @@
 								</a>
 							{/snippet}
 						</DropdownMenuItem>
+                        <DropdownMenuItem onclick={() => nameEditor?.startEditing()}>
+                            <TextCursorInput class="size-4" />
+                            {m.common_rename({}, locale.messageOptions())}
+                        </DropdownMenuItem>
 						<DropdownMenuSeparator />
 						{#if device.deleted}
 							<DropdownMenuItem onclick={() => onrestore(device)}>

@@ -2,6 +2,8 @@ package maintenance
 
 import (
 	"context"
+	"errors"
+	"github.com/saffronjam/saffron-hive/internal/cleaning"
 	"sync"
 	"testing"
 	"time"
@@ -75,7 +77,7 @@ func TestBatteryEscalationAndRechargeCycle(t *testing.T) {
 	reader := device.NewMemoryStore()
 	reader.Register(device.Device{ID: "sensor-1", FriendlyName: "Sensor", Source: device.SourceZigbee2MQTT, Type: device.Sensor})
 	free := 0.5
-	service := NewService(db, reader, NewBuffer(), "/data", func(string) (float64, error) { return free, nil })
+	service := NewService(db, reader, NewBuffer(), "/data", func(string) (float64, error) { return free, nil }, nil)
 
 	setBattery := func(value float64) {
 		reader.UpdateDeviceState("sensor-1", device.DeviceState{Battery: &value})
@@ -134,7 +136,7 @@ func TestFirmwarePostureAndStorageRecurrence(t *testing.T) {
 	posture := "abnormal"
 	reader.UpdateDeviceState("sensor-1", device.DeviceState{DevicePosture: &posture})
 	free := 0.09
-	service := NewService(db, reader, NewBuffer(), "/data", func(string) (float64, error) { return free, nil })
+	service := NewService(db, reader, NewBuffer(), "/data", func(string) (float64, error) { return free, nil }, nil)
 	service.now = func() time.Time { return time.Unix(1_700_000_000, 0) }
 	if err := service.Evaluate(ctx); err != nil {
 		t.Fatal(err)
@@ -182,5 +184,82 @@ func TestFirmwarePostureAndStorageRecurrence(t *testing.T) {
 	}
 	if !foundPosture {
 		t.Fatal("posture task did not return for a new abnormal cycle")
+	}
+}
+
+type cleaningFixture struct {
+	snapshots []cleaning.Snapshot
+	fail      bool
+	calls     int
+}
+
+func (f *cleaningFixture) Snapshots(context.Context) ([]cleaning.Snapshot, error) {
+	return f.snapshots, nil
+}
+func (f *cleaningFixture) ResetConsumable(_ context.Context, id, name, origin string) error {
+	f.calls++
+	if f.fail {
+		return errors.New("reset failed")
+	}
+	for i := range f.snapshots {
+		for j := range f.snapshots[i].Consumables {
+			if f.snapshots[i].DeviceID == id && f.snapshots[i].Consumables[j].Name == name {
+				f.snapshots[i].Consumables[j].Percent = 100
+			}
+		}
+	}
+	return nil
+}
+func TestCleaningMaintenanceRequiresConfirmedReset(t *testing.T) {
+	db := &memoryMaintenanceStore{}
+	reader := device.NewMemoryStore()
+	reader.Register(device.Device{ID: "robot", Available: true})
+	provider := &cleaningFixture{snapshots: []cleaning.Snapshot{{DeviceID: "robot", Consumables: []cleaning.Consumable{{Name: "sensors", Percent: 0, Resettable: true}}}}}
+	svc := NewService(db, reader, NewBuffer(), "", nil, provider)
+	if err := svc.Evaluate(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	tasks := svc.Snapshot()
+	if len(tasks) != 1 || tasks[0].Kind != KindCleaning || !tasks[0].CanComplete {
+		t.Fatalf("tasks=%+v", tasks)
+	}
+	provider.fail = true
+	if _, err := svc.Complete(t.Context(), []string{tasks[0].ID}, "user"); err == nil {
+		t.Fatal("failed reset was accepted")
+	}
+	if len(svc.Snapshot()) != 1 || len(db.acks) != 0 {
+		t.Fatal("failed reset hid the task")
+	}
+	provider.fail = false
+	if accepted, err := svc.Complete(t.Context(), []string{tasks[0].ID}, "user"); err != nil || len(accepted) != 1 {
+		t.Fatalf("completion=%v %v", accepted, err)
+	}
+	if len(svc.Snapshot()) != 0 || len(db.acks) != 0 {
+		t.Fatal("reported reset did not remove derived task")
+	}
+}
+
+func TestCleaningMaintenanceRetainsMissingCounterUntilReportedRecovery(t *testing.T) {
+	reader := device.NewMemoryStore()
+	reader.Register(device.Device{ID: "robot", Available: true})
+	provider := &cleaningFixture{snapshots: []cleaning.Snapshot{{DeviceID: "robot", Consumables: []cleaning.Consumable{{Name: "sensors", Percent: 0, Resettable: true}}}}}
+	svc := NewService(&memoryMaintenanceStore{}, reader, NewBuffer(), "", nil, provider)
+	if err := svc.Evaluate(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	provider.snapshots[0].Consumables = nil
+	if err := svc.Evaluate(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	tasks := svc.Snapshot()
+	if len(tasks) != 1 || tasks[0].CanComplete {
+		t.Fatal("missing counter erased the task or allowed a reset")
+	}
+	provider.snapshots[0].Consumables = []cleaning.Consumable{{Name: "sensors", Percent: 100, Resettable: true}}
+	if err := svc.Evaluate(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if len(svc.Snapshot()) != 0 {
+		t.Fatal("confirmed recovery left a stale task")
 	}
 }

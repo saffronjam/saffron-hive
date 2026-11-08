@@ -76,6 +76,9 @@ func MergeDeviceState(current, update DeviceState) DeviceState {
 	if update.FanMode != nil {
 		current.FanMode = update.FanMode
 	}
+	if update.CleaningStatus != nil {
+		current.CleaningStatus = update.CleaningStatus
+	}
 	if update.Swing != nil {
 		current.Swing = update.Swing
 	}

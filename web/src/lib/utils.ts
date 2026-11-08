@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { Component } from "svelte";
+import RobotVacuumIcon from "$lib/components/icons/robot-vacuum-icon.svelte";
 import {
   Activity,
   AirVent,
@@ -114,6 +115,8 @@ export function deviceIcon(type: string, contactRole?: ContactRole | null): Comp
       return Plug;
     case "climate":
       return AirVent;
+    case "vacuum":
+      return RobotVacuumIcon;
     case "hub":
       return Router;
     default:
@@ -135,6 +138,8 @@ export function semanticIcon(type: string, contactRole?: ContactRole | null): Co
       return Plug;
     case "speaker":
       return Speaker;
+    case "vacuum":
+      return RobotVacuumIcon;
     case "hub":
       return Router;
     case "room":
@@ -143,6 +148,9 @@ export function semanticIcon(type: string, contactRole?: ContactRole | null): Co
       return GroupIcon;
     case "device":
       return Package;
+    case "cleaning":
+    case "cleaningStatus":
+      return RobotVacuumIcon;
     case "temperature":
       return Thermometer;
     case "humidity":

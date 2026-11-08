@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
+import { toast } from "svelte-sonner";
 import VibeGuided from "$lib/components/vibe-guided.svelte";
 import { createMockClient } from "../helpers/mock-client";
+
+vi.mock("svelte-sonner", () => ({ toast: { error: vi.fn() } }));
 
 let instance: ReturnType<typeof mount> | null = null;
 let host: HTMLDivElement;
@@ -62,6 +65,7 @@ afterEach(() => {
   instance = null;
   host.remove();
   vi.restoreAllMocks();
+  vi.clearAllMocks();
 });
 
 describe("VibeGuided", () => {
@@ -201,7 +205,8 @@ describe("VibeGuided", () => {
       context: new Map([["$$_urql", mock.client]]),
     });
 
-    await vi.waitFor(() => expect(host.textContent).toContain("Could not load the next choices."));
+    await vi.waitFor(() => expect(toast.error).toHaveBeenCalledWith("Could not load the next choices.", expect.any(Object)));
+    expect(host.textContent).not.toContain("Could not load the next choices.");
     expect(host.textContent).not.toContain("Choice 4 of 3–5");
     expect(host.textContent).toContain("Use this vibe");
   });

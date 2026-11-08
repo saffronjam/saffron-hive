@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { watchErrorToast } from "$lib/error-toast.svelte";
 	import { onMount } from "svelte";
 	import FieldError from "$lib/components/field-error.svelte";
 	import { goto } from "$app/navigation";
@@ -44,6 +45,7 @@
 	let submittingUser = $state(false);
 
 	async function determinePhase() {
+		error = null;
 		const result = await client.query(SETUP_STATUS_QUERY, {}).toPromise();
 		const s = result.data?.setupStatus;
 		if (!s) {
@@ -94,14 +96,13 @@
 	$effect(() => {
 		pageHeader.breadcrumbs = [{ label: m.auth_setup({}, locale.messageOptions()) }];
 	});
+  watchErrorToast(() => error, determinePhase);
 </script>
 
 <div class="flex min-h-screen items-center justify-center bg-background p-6">
 	<div class="w-full max-w-lg rounded-lg shadow-card bg-card p-8">
 		{#if phase === "loading"}
-			{#if error}
-				<p class="text-sm text-red-600 dark:text-red-400">{error}</p>
-			{:else if loader.visible}
+			{#if loader.visible}
 				<div class="flex items-center gap-2 text-muted-foreground">
 					<Loader2 class="size-4 animate-spin" />
 					{m.common_loading({}, locale.messageOptions())}
@@ -171,9 +172,7 @@
 						)}
 					</p>
 				</div>
-				{#if error}
-					<p class="text-sm text-red-600 dark:text-red-400">{error}</p>
-				{/if}
+
 				<Button type="submit" disabled={submittingUser}>
 					{#if submittingUser}
 						<Loader2 class="mr-1.5 size-4 animate-spin" />

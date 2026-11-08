@@ -46,7 +46,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	er := newMockEffectRunner(st)
 	sceneRunner := &mockSceneRunner{store: st}
 	maintenanceBuffer := maintenance.NewBuffer()
-	maintenanceService := maintenance.NewService(st, sr, maintenanceBuffer, ".", func(string) (float64, error) { return 1, nil })
+	maintenanceService := maintenance.NewService(st, sr, maintenanceBuffer, ".", func(string) (float64, error) { return 1, nil }, nil)
 
 	levelVar := &slog.LevelVar{}
 	levelVar.Set(slog.LevelInfo)

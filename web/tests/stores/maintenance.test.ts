@@ -6,6 +6,7 @@ import { createMaintenanceStore } from "$lib/stores/maintenance.svelte";
 const task = {
   id: "task-1",
   kind: "BATTERY",
+  canComplete: true,
   title: "Replace battery",
   detail: "Sensor battery is 20%",
   action: "Replace or recharge the battery",
@@ -41,14 +42,14 @@ describe("maintenanceStore", () => {
   });
 
   it("treats a cached empty snapshot as hydrated", async () => {
-    saveSessionSnapshot(sessionStorage, "maintenance", 3, []);
+    saveSessionSnapshot(sessionStorage, "maintenance", 4, []);
     const fresh = bootStore();
     expect(fresh.maintenanceStore.items).toEqual([]);
     expect(fresh.maintenanceStore.hydrated).toBe(true);
   });
 
   it("hydrates synchronously and reconciles in the background", async () => {
-    saveSessionSnapshot(sessionStorage, "maintenance", 3, [task]);
+    saveSessionSnapshot(sessionStorage, "maintenance", 4, [task]);
     const fresh = bootStore();
     expect(fresh.maintenanceStore.items.map((item) => item.id)).toEqual(["task-1"]);
     expect(fresh.maintenanceStore.hydrated).toBe(true);
@@ -106,4 +107,22 @@ describe("maintenanceStore", () => {
     expect(sessionStorage.length).toBe(0);
     fresh.maintenanceStore.stop();
   });
+});
+
+it("keeps cleaning maintenance visible until the device confirms a reset", async () => {
+  const store = createMaintenanceStore();
+  const mock = createMockClient();
+  const cleaningTask = { ...task, kind: "CLEANING", context: "sensors", value: 0 };
+  mock.queueResult({ data: { maintenanceTasks: [cleaningTask] } });
+  await store.start(mock.client);
+  await vi.waitFor(() => expect(store.items).toHaveLength(1));
+  mock.queueMutationResult({ error: { message: "Reset failed" } });
+  expect(await store.completeOne(task.id)).toBe(false);
+  expect(store.items).toHaveLength(1);
+  expect(store.isPending(task.id)).toBe(false);
+  mock.queueMutationResult({ data: { completeMaintenanceTasks: [task.id] } });
+  mock.queueResult({ data: { maintenanceTasks: [] } });
+  expect(await store.completeOne(task.id)).toBe(true);
+  expect(store.items).toHaveLength(0);
+  store.stop();
 });

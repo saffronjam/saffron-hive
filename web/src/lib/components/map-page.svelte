@@ -1,8 +1,13 @@
 <script lang="ts">
+  import { toast } from "svelte-sonner";
+ import CleaningMapLayer from "$lib/components/floorplan/cleaning-map-layer.svelte";
+ import { cleaningStore, type CleaningRobot } from "$lib/stores/cleaning.svelte";
+ import { auth } from "$lib/stores/auth.svelte";
  import { createEditorRefresh } from "$lib/editor-refresh.svelte";
  import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
 	import { onDestroy, onMount, tick } from "svelte";
 	import { fly } from "svelte/transition";
+	import { prefersReducedMotion } from "svelte/motion";
 	import { formatRelative } from "$lib/time-format";
 	import { me } from "$lib/stores/me.svelte";
 	import { nowStore } from "$lib/stores/now.svelte";
@@ -24,6 +29,8 @@
 		LockOpen,
 		Map as MapIcon,
 		MousePointer2,
+		Minus,
+		Plus,
 		Palette,
 		Pencil,
 		PenLine,
@@ -41,7 +48,6 @@
 		DropdownMenuSeparator,
 		DropdownMenuTrigger,
 	} from "$lib/components/ui/dropdown-menu";
-	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import NumberInput from "$lib/components/number-input.svelte";
@@ -97,7 +103,6 @@
 		furnitureContainsPoint,
 		furnitureGroups,
 	} from "$lib/floorplan/furniture";
-	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { HistoryStack } from "$lib/stores/history.svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import {
@@ -213,14 +218,18 @@
 		 * recomputes) gate on this.
 		 */
 		visible: boolean;
+		/** Embeds a read-only cleaning view with only this vacuum and its path. */
+		cleaningRobot?: CleaningRobot;
 	}
 
-	let { visible }: Props = $props();
+	let { visible, cleaningRobot }: Props = $props();
+	const embedded = $derived(cleaningRobot !== undefined);
+	const mapRobots = $derived(cleaningRobot ? [cleaningRobot] : cleaningStore.items);
+	let cleaningPositionStatus = $state<"loading" | "available" | "unavailable">("loading");
 
 
 
 	const client = getContextClient();
-	const errors = new BannerError();
 
 	const isMobile = new IsMobile();
 
@@ -305,6 +314,7 @@
 	let topologies = $state<TopologyView[]>([]);
 	/** Page-local: whether the connectivity view also draws neighbour links. */
 	let showNeighbours = $state(false);
+	let showTrails = $state(false);
 	/** Providers the user has switched off; every mesh draws until hidden. */
 	let hiddenMeshSources = $state<Set<string>>(new Set());
 
@@ -331,7 +341,7 @@
 	}
 
 	onGraphQLRecovered(() => {
-		void loadTopologies();
+		if (!embedded) void loadTopologies();
 	});
 
 	let armedBrush = $state<ArmedBrush | null>(null);
@@ -533,7 +543,7 @@
 		}),
 	);
 	const visibleDoorSensors = $derived(
-		doorSensors.filter(({ device }) => device.id !== draggedDoorDeviceId),
+		embedded ? [] : doorSensors.filter(({ device }) => device.id !== draggedDoorDeviceId),
 	);
 	const draftDoorSensor = $derived.by(() => {
 		if (!draftDoorBinding) return null;
@@ -657,16 +667,23 @@
 		topologyProviders: new Set(topologies.map((t) => t.provider)),
 	});
 	/** Offered views come from the unfiltered pool, or there is no way back. */
-	const availableViews = $derived(availableMapViews(placedDevices, viewCtx));
+	const availableViews = $derived.by(() => {
+        const views=availableMapViews(placedDevices, viewCtx);
+        if(!auth.isGuest()&&cleaningStore.items.length){
+            if(!views.includes("light"))views.unshift("light");
+            views.push("cleaning");
+        }
+        return views;
+    });
 	/**
 	 * The rendered view: the stored preference while its devices exist, light
 	 * otherwise. The fallback is derived, never written back, so a sensor
 	 * going offline does not erase the choice.
 	 */
-	const mapView = $derived(resolveMapView(mapViewPref, availableViews));
+	const mapView = $derived(embedded ? "cleaning" : resolveMapView(mapViewPref, availableViews));
 	/** Live mode shows only the view's devices; edit mode manages them all. */
 	const visiblePlacements = $derived(
-		editMode
+		embedded ? [] : editMode
 			? placementViews
 			: placementViews.filter((pl) =>
 					placementVisibleInView(mapView, placementDeviceList(pl), viewCtx),
@@ -826,7 +843,7 @@
 	const combined = $derived.by(() => {
 		if (editMode) return null;
 		// Connectivity draws markers and link lines, no light field at all.
-		if (mapView === "connectivity") return null;
+		if (mapView === "connectivity" || mapView === "cleaning") return null;
 		const grid = lightGrid;
 		if (!grid) return null;
 		const sources: LightSource[] = [];
@@ -1666,7 +1683,7 @@
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
-		if (!visible) return;
+		if (!visible || embedded) return;
 		if (!editMode) {
 			if (e.key === "Escape" && armedBrush && !isEditableTarget(e.target)) {
 				disarmBrush();
@@ -1719,12 +1736,12 @@
 				const savedPlan=await floorplanStore.save(client, {...input,expectedRevision:savedRevision});
  savedRevision=savedPlan.revision;refreshGuard.accept(savedPlan);
 			} catch (e) {
-				errors.setWithAutoDismiss(graphqlErrorMessage(e, m.map_error_save()));
+				toast.error(graphqlErrorMessage(e, m.map_error_save()));
 				return;
 			}
 			const displayError = await saveDisplayEdits();
 			if (displayError) {
-				errors.setWithAutoDismiss(displayError);
+				toast.error(displayError);
 				return;
 			}
 			savedCursor = history.cursor;
@@ -2028,6 +2045,7 @@
 		if (!face) return;
 		const row = roomByFace.get(faceKey(face));
 		if (!row?.roomId) return;
+        if (mapView === "cleaning") return;
 		pushState("", { ...page.state, mapRoomId: row.roomId });
 	}
 
@@ -2099,6 +2117,7 @@
 	 * click and move the plan's menu to it.
 	 */
 	async function handlePlanContextMenu(e: MouseEvent) {
+		if (embedded) return;
 		if (!faceMenuOpen && !markerMenuOpen && !openingMenuOpen) return;
 		e.preventDefault();
 		const { clientX, clientY } = e;
@@ -2119,7 +2138,7 @@
 	}
 
 	const openRoomId = $derived<string | null>(
-		(page.state as { mapRoomId?: string }).mapRoomId ?? null,
+		embedded ? null : (page.state as { mapRoomId?: string }).mapRoomId ?? null,
 	);
 	const openRoom = $derived(
 		openRoomId ? (hiveRooms.find((r) => r.id === openRoomId) ?? null) : null,
@@ -2133,7 +2152,7 @@
 		try {
 			await scenesStore.apply(client, scene.id);
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.map_error_apply_scene()));
+			toast.error(graphqlErrorMessage(e, m.map_error_apply_scene()));
 		}
 	}
 
@@ -2141,7 +2160,7 @@
 		try {
 			await scenesStore.deactivate(client, scene.id);
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.map_error_stop_scene()));
+			toast.error(graphqlErrorMessage(e, m.map_error_stop_scene()));
 		}
 	}
 
@@ -2170,12 +2189,17 @@
   apply:applyPlan,dirty:()=>isDirty,busy:()=>saving||loading,
  });
  onMount(async () => {
-  if(floorplanStore.error)errors.setWithAutoDismiss(floorplanStore.error);
+  if (!floorplanStore.hydrated) await floorplanStore.refresh(client);
+  if(floorplanStore.error)toast.error(floorplanStore.error);
   applyPlan(floorplanStore.current);refreshGuard.accept(floorplanStore.current);
 
 		// The map's day-to-day job is being looked at, not edited: a plan with
 		// anything on it opens Live; only a blank plan opens in Edit.
-		editMode = graph.walls.length === 0 && rooms.length === 0;
+		editMode = !embedded && graph.walls.length === 0 && rooms.length === 0;
+		if (embedded) {
+			loading = false;
+			return;
+		}
 		void loadTopologies();
 		topologySubHandle = client.subscription(TOPOLOGY_UPDATED_SUB, {}).subscribe((r) => {
 			// The event fires only after the merged snapshot is persisted, so
@@ -2242,7 +2266,7 @@
 	});
 
 	$effect(() => {
-		if (!visible) return;
+		if (!visible || embedded) return;
 		void locale.currentLanguage;
 		pageHeader.breadcrumbs = [{ label: m.map_title() }];
 		if (loading) {
@@ -2404,21 +2428,19 @@
 	onpointerup={externalDrag ? endExternalDrag : undefined}
 />
 {#if refreshGuard.conflict}<ExternalChangeBanner onreload={() => { void refreshGuard.refresh(true); }} />{/if}
-<UnsavedGuard dirty={isDirty} blockNavigation={false} />
+<UnsavedGuard dirty={!embedded && isDirty} blockNavigation={false} />
 
-<div class="flex h-[calc(100vh-6rem)] flex-col">
-	{#if errors.message}
-		<ErrorBanner class="mb-2" message={errors.message} ondismiss={() => errors.clear()} />
-	{/if}
+<div data-map-panel data-embedded-map={embedded || undefined} class={embedded ? "flex h-80 flex-col overflow-hidden rounded-lg sm:h-96" : "flex h-[calc(100dvh-8.75rem)] flex-col overflow-hidden rounded-lg bg-background shadow-card md:h-[calc(100vh-6rem)] md:overflow-visible md:rounded-none md:bg-transparent md:shadow-none"}>
 
-	<div class="relative mt-2 flex-1 overflow-hidden rounded-lg shadow-card">
-		<div class="dark absolute inset-0 bg-background">
+
+	<div class="@container relative min-h-0 flex-1 {embedded ? '' : `mt-2 rounded-t-lg md:rounded-lg md:shadow-card ${editMode && (tool === 'opening' || tool === 'measure' || (selection.furnitureId && tool === 'select')) ? 'mb-36' : 'mb-20'} md:mb-0`}">
+		<div class="dark absolute inset-0 overflow-hidden rounded-t-lg bg-background md:rounded-lg">
 			{#if loading}
 				<div class="h-full w-full animate-pulse bg-muted/30"></div>
 			{:else}
 				<div
-					in:fly={{ y: -4, duration: 150 }}
-					class="h-full w-full {framedForVisit ? 'visible' : 'invisible'}"
+					in:fly={{ y: embedded ? 0 : -4, duration: prefersReducedMotion.current ? 0 : 150 }}
+					class="h-full w-full {framedForVisit && (!embedded || cleaningPositionStatus !== 'loading') ? 'visible' : 'invisible'}"
 				>
 					<FloorplanEditor
 						{graph}
@@ -2426,6 +2448,7 @@
 						{tool}
 						{selection}
 						live={!editMode}
+						fitOnResize={embedded}
 						unlockedKeys={unlockedFaceKeys}
 						freeCornerKeys={freeCornerFaceKeys}
 						brush={armedBrush && brushCss ? { kind: armedBrush.kind, css: brushCss } : null}
@@ -2439,7 +2462,7 @@
 						outsideGlows={glowData.outside}
 						{meshLinks}
 						txPulses={meshPulses}
-						hideReadings={mapView === "connectivity"}
+						hideReadings={mapView === "connectivity" || mapView === "cleaning"}
 						placements={visiblePlacements}
 						doorSensors={visibleDoorSensors}
 						{draftDoorSensor}
@@ -2484,12 +2507,31 @@
 						onmarkerpreview={handleMarkerPreview}
 						onviewportchange={() => viewportVersion++}
 						onready={(api) => (editorApi = api)}
-					/>
+                    >
+                     {#snippet worldOverlay(pxPerM)}
+                      {#if visible && !editMode && !auth.isGuest() && floorplanStore.current}{#each mapRobots as robot(robot.id)}<CleaningMapLayer {robot} floorplanId={floorplanStore.current.id} floorplanRevision={floorplanStore.current.revision} {pxPerM} showTrails={embedded || (mapView === "cleaning" && showTrails)} onstatuschange={embedded ? (status) => cleaningPositionStatus = status : undefined}/>{/each}{/if}
+                     {/snippet}
+                    </FloorplanEditor>
 				</div>
 			{/if}
 		</div>
 
 		{#if !loading}
+			{#if embedded}
+				{#if cleaningPositionStatus === "loading" || !framedForVisit}
+					<div class="pointer-events-none absolute inset-0 animate-pulse bg-muted/30"></div>
+				{/if}
+				<div class="absolute right-2 top-2 flex items-center rounded-lg bg-card">
+					<Button variant="ghost" size="icon-sm" aria-label={m.cleaning_map_zoom_out()} onclick={() => editorApi?.zoomBy(1 / 1.5)}><Minus class="size-4" /></Button>
+					<Button variant="ghost" size="icon-sm" aria-label={m.cleaning_map_zoom_in()} onclick={() => editorApi?.zoomBy(1.5)}><Plus class="size-4" /></Button>
+					<Button variant="ghost" size="icon-sm" aria-label={m.map_frame_plan()} onclick={() => editorApi?.fitToContent()}><Frame class="size-4" /></Button>
+				</div>
+				{#if !graph.walls.length}
+					<p class="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">{m.map_empty()}</p>
+				{:else if cleaningPositionStatus === "unavailable"}
+					<p class="pointer-events-none absolute bottom-3 inset-x-3 text-center text-xs text-muted-foreground">{m.cleaning_position_unavailable()}</p>
+				{/if}
+			{:else}
 			<MapToolbar
 				{editMode}
 				{tool}
@@ -2527,11 +2569,14 @@
 				viewOptions={availableViews}
 				onviewchange={setMapView}
 				onfit={() => editorApi?.fitToContent()}
+				{showTrails}
+				ontrailstoggle={() => (showTrails = !showTrails)}
 				{showNeighbours}
 				onneighbourstoggle={() => (showNeighbours = !showNeighbours)}
 				{meshSources}
 				onsourcetoggle={toggleMeshSource}
 			/>
+			{/if}
 
 			<div
 				class="absolute bottom-3 left-3 z-10 rounded-lg bg-card/90 shadow-card px-3 py-2 text-xs backdrop-blur-sm transition-opacity duration-200 {editMode &&

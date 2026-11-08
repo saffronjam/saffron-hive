@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import { Lightbulb } from "@lucide/svelte";
 import EntityCard from "$lib/components/entity-card.svelte";
@@ -81,4 +81,28 @@ describe("EntityCard", () => {
     const card = host.firstElementChild as HTMLElement;
     expect(card.style.getPropertyValue("--tint-transition-duration")).toBe("1.8s");
   });
+  it("opens a resource name without activating its card action", () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    const activate = vi.fn();
+    instance = mount(EntityCard, {
+      target: host,
+      props: {
+        entity: { id: "scene-1", name: "Evening" },
+        fallbackIcon: Lightbulb,
+        nameHref: "/scenes/scene-1",
+        readOnly: true,
+        onclick: activate,
+      },
+    });
+    flushSync();
+    const name = host.querySelector('a[href="/scenes/scene-1"]')!;
+    name.addEventListener("click", (event) => event.preventDefault());
+    name.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    name.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    expect(activate).not.toHaveBeenCalled();
+    (host.firstElementChild as HTMLElement).click();
+    expect(activate).toHaveBeenCalledOnce();
+  });
+
 });

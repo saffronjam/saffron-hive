@@ -8,13 +8,11 @@ import (
 	"strings"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
-	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 )
 
 // Store is the data required to resolve a device image request.
 type Store interface {
-	GetDevice(ctx context.Context, id device.DeviceID) (device.Device, error)
-	GetZigbeeDeviceMetadata(ctx context.Context, id device.DeviceID) (*zigbeemetadata.Metadata, error)
+	DeviceImageSources(ctx context.Context, id device.DeviceID) ([]string, error)
 }
 
 // NewHandler serves authenticated, validated images from the cache.
@@ -29,17 +27,12 @@ func NewHandler(cache *Cache, store Store) http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		found, err := store.GetDevice(r.Context(), device.DeviceID(id))
-		if err != nil || found.Source != device.SourceZigbee2MQTT {
+		sources, err := store.DeviceImageSources(r.Context(), device.DeviceID(id))
+		if err != nil {
 			http.NotFound(w, r)
 			return
 		}
-		metadata, err := store.GetZigbeeDeviceMetadata(r.Context(), found.ID)
-		if err != nil || metadata == nil {
-			http.NotFound(w, r)
-			return
-		}
-		result, err := cache.Get(r.Context(), id, ResolveSource(*metadata))
+		result, err := cache.Get(r.Context(), id, ResolveSource(sources))
 		if errors.Is(err, ErrNotFound) {
 			http.NotFound(w, r)
 			return

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { Device } from "$lib/stores/devices";
-	import type { Zigbee2MqttDeviceMetadata } from "$lib/gql/graphql";
 	import { deviceDisplayName } from "$lib/utils";
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
 	import { Badge } from "$lib/components/ui/badge/index.js";
@@ -21,16 +20,17 @@
 
 	interface Props {
 		device: Device;
-		metadata?: Zigbee2MqttDeviceMetadata | null;
+		image?: { version: string } | null;
+		model?: string | null;
+		modelId?: string | null;
+		manufacturer?: string | null;
 	}
 
-	let { device, metadata }: Props = $props();
+	let { device, image, model, modelId, manufacturer }: Props = $props();
 	let copied = $state(false);
-	const imageVersion = $derived(metadata?.imageVersion ?? "");
-	const showImageColumn = $derived(
-		(device.source === "zigbee2mqtt" && metadata === undefined) ||
-			metadata?.imageCandidate === true,
-	);
+	const imageVersion = $derived(image?.version ?? "");
+	let unavailableImageVersion = $state("");
+	const showImageColumn = $derived(image !== null && (!imageVersion || unavailableImageVersion !== imageVersion));
 
 	const formattedLastSeen = $derived.by(() => {
 		if (!device.lastSeen) return m.state_unknown({}, locale.messageOptions());
@@ -149,8 +149,11 @@
 						</div>
 						<div class="flex items-center justify-between gap-4">
 							<dt class="text-sm text-muted-foreground">{m.field_source({}, locale.messageOptions())}</dt>
-							<dd><Badge variant="outline">{device.source}</Badge></dd>
+							<dd><Badge variant="outline">{device.source === "zigbee2mqtt" ? "Zigbee2MQTT" : device.source.charAt(0).toUpperCase() + device.source.slice(1)}</Badge></dd>
 						</div>
+						{#if manufacturer}<div class="flex items-center justify-between gap-4"><dt class="text-sm text-muted-foreground">{m.cleaning_manufacturer({},locale.messageOptions())}</dt><dd class="text-sm">{manufacturer}</dd></div>{/if}
+						{#if modelId}<div class="flex items-center justify-between gap-4"><dt class="text-sm text-muted-foreground">{m.cleaning_model_id({},locale.messageOptions())}</dt><dd class="min-w-0 break-all text-right"><code class="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">{modelId}</code></dd></div>{/if}
+						{#if model}<div class="flex items-center justify-between gap-4"><dt class="text-sm text-muted-foreground">{m.cleaning_model({},locale.messageOptions())}</dt><dd class="min-w-0 break-all text-right text-sm">{model}</dd></div>{/if}
 						<Separator />
 						<div class="flex items-center justify-between gap-4">
 							<dt class="text-sm text-muted-foreground">{m.field_last_seen({}, locale.messageOptions())}</dt>
@@ -160,10 +163,11 @@
 				</div>
 				{#if showImageColumn}
 					<div class="flex items-center justify-center">
-						{#if metadata?.imageCandidate && imageVersion}
+						{#if imageVersion}
 							<DeviceImage
 								deviceId={device.id}
 								version={imageVersion}
+								onavailability={(available) => { if (!available) unavailableImageVersion = imageVersion; }}
 								alt={m.device_image_alt(
 									{ name: deviceDisplayName(device) },
 									locale.messageOptions(),

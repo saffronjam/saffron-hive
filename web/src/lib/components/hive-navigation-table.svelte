@@ -1,5 +1,8 @@
 <script lang="ts" generics="Row">
 	import type { Snippet } from "svelte";
+	import { onDestroy } from "svelte";
+	import { prefersReducedMotion } from "svelte/motion";
+	import { slide } from "svelte/transition";
 	import { get } from "svelte/store";
 	import { createVirtualizer } from "@tanstack/svelte-virtual";
 	import ColumnVisibilityMenu from "./column-visibility-menu.svelte";
@@ -71,6 +74,9 @@
 	);
 
 	let expanded = $state<Set<string>>(new Set());
+	let animatingExpansion = $state(false);
+	let expansionTimer: ReturnType<typeof setTimeout> | undefined;
+	onDestroy(() => clearTimeout(expansionTimer));
 
 	const virtualizer = createVirtualizer<HTMLDivElement, HTMLDivElement>({
 		count: 0,
@@ -116,6 +122,9 @@
 
 	function toggleExpand(id: string) {
 		if (!expandedContent) return;
+		clearTimeout(expansionTimer);
+		animatingExpansion = !prefersReducedMotion.current;
+		if (animatingExpansion) expansionTimer = setTimeout(() => (animatingExpansion = false), 220);
 		const next = new Set(expanded);
 		if (next.has(id)) next.delete(id);
 		else next.add(id);
@@ -195,6 +204,7 @@
     class="min-h-0 flex-1 overflow-auto overscroll-contain"
   >
 		<div
+			class={animatingExpansion ? "transition-[height] duration-200 ease-out" : undefined}
 			style="height: {$virtualizer.getTotalSize()}px; position: relative; width: 100%;"
 		>
 			{#each $virtualizer.getVirtualItems() as item (item.key)}
@@ -207,6 +217,8 @@
 					<div
 						class={cn(
 							"absolute left-0 w-full",
+							expandedContent && "overflow-hidden",
+							animatingExpansion && "transition-[top,height] duration-200 ease-out",
 							item.index % 2 === 1 && "bg-muted/40",
 							extraClass,
 						)}
@@ -216,6 +228,7 @@
 						{#if expandedContent}
 							<div
 								role="button"
+								aria-expanded={isOpen}
 								tabindex="0"
 								onclick={() => toggleExpand(id)}
 								onkeydown={(e) => onRowKeydown(e, id)}
@@ -235,6 +248,7 @@
 								<div
 									class="bg-muted/30 px-2 py-2"
 									style="height: {expandedHeight - collapsedHeight}px;"
+									transition:slide={{ duration: animatingExpansion ? 200 : 0 }}
 								>
 									{@render expandedContent(row)}
 								</div>

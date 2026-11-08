@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { watchErrorToast } from "$lib/error-toast.svelte";
 	import { getContextClient } from "@urql/svelte";
 	import type { AssistantConversationFieldsFragment } from "$lib/gql/graphql";
 	import { CHAT_RESPOND, ACTION_PRIVATE_RESULT } from "$lib/assistant";
@@ -86,6 +87,7 @@
 	$effect(() => {
 		if (!pending) values = {};
 	});
+  watchErrorToast(() => error);
 </script>
 
 <div
@@ -158,5 +160,5 @@
 			>{m.assistant_reveal({}, options)}</Button
 		>{#if privateResult}<pre
 				class="bg-muted overflow-x-auto whitespace-pre-wrap break-all rounded-lg p-3 text-xs">{privateResult}</pre>{/if}{/if}
-	{#if error}<p class="text-destructive text-sm" role="alert">{error}</p>{/if}
+
 </div>

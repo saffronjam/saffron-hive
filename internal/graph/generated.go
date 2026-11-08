@@ -33,11 +33,13 @@ func NewExecutableSchema(cfg Config) graphql.ExecutableSchema {
 type Config = graphql.Config[ResolverRoot, DirectiveRoot, ComplexityRoot]
 
 type ResolverRoot interface {
+	AutomationActionPayload() AutomationActionPayloadResolver
 	Device() DeviceResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
 	Subscription() SubscriptionResolver
 	Zigbee2MqttDeviceMetadata() Zigbee2MqttDeviceMetadataResolver
+	AutomationActionPayloadInput() AutomationActionPayloadInputResolver
 }
 
 type DirectiveRoot struct {
@@ -270,6 +272,7 @@ type ComplexityRoot struct {
 	}
 
 	AutomationActionPayload struct {
+		Action            func(childComplexity int) int
 		AlarmID           func(childComplexity int) int
 		Brightness        func(childComplexity int) int
 		Color             func(childComplexity int) int
@@ -284,6 +287,8 @@ type ComplexityRoot struct {
 		Mode              func(childComplexity int) int
 		NativeName        func(childComplexity int) int
 		On                func(childComplexity int) int
+		Options           func(childComplexity int) int
+		RoomIDs           func(childComplexity int) int
 		SceneID           func(childComplexity int) int
 		Scenes            func(childComplexity int) int
 		Settings          func(childComplexity int) int
@@ -435,6 +440,162 @@ type ComplexityRoot struct {
 		Token    func(childComplexity int) int
 	}
 
+	CleaningAnchor struct {
+		Hive  func(childComplexity int) int
+		Robot func(childComplexity int) int
+	}
+
+	CleaningCalibration struct {
+		Anchors           func(childComplexity int) int
+		DeviceID          func(childComplexity int) int
+		Enabled           func(childComplexity int) int
+		FloorplanID       func(childComplexity int) int
+		FloorplanRevision func(childComplexity int) int
+		MapID             func(childComplexity int) int
+		MapRevision       func(childComplexity int) int
+		MapRotation       func(childComplexity int) int
+		Revision          func(childComplexity int) int
+		Transform         func(childComplexity int) int
+		Valid             func(childComplexity int) int
+	}
+
+	CleaningConsumable struct {
+		Name       func(childComplexity int) int
+		Percent    func(childComplexity int) int
+		Resettable func(childComplexity int) int
+	}
+
+	CleaningControl struct {
+		Action  func(childComplexity int) int
+		Enabled func(childComplexity int) int
+	}
+
+	CleaningDevice struct {
+		ActiveMapID       func(childComplexity int) int
+		ActiveTask        func(childComplexity int) int
+		Battery           func(childComplexity int) int
+		CleanedArea       func(childComplexity int) int
+		Consumables       func(childComplexity int) int
+		Controls          func(childComplexity int) int
+		DeviceID          func(childComplexity int) int
+		ElapsedMinutes    func(childComplexity int) int
+		Error             func(childComplexity int) int
+		EstimatedProgress func(childComplexity int) int
+		LiveAt            func(childComplexity int) int
+		LiveMap           func(childComplexity int) int
+		Manufacturer      func(childComplexity int) int
+		MapError          func(childComplexity int) int
+		Maps              func(childComplexity int) int
+		Model             func(childComplexity int) int
+		ModelID           func(childComplexity int) int
+		Progress          func(childComplexity int) int
+		RoomLinks         func(childComplexity int) int
+		Status            func(childComplexity int) int
+		Suction           func(childComplexity int) int
+		Supported         func(childComplexity int) int
+		UpdatedAt         func(childComplexity int) int
+		Water             func(childComplexity int) int
+	}
+
+	CleaningMap struct {
+		Areas          func(childComplexity int) int
+		Dock           func(childComplexity int) int
+		Height         func(childComplexity int) int
+		ID             func(childComplexity int) int
+		Layers         func(childComplexity int) int
+		MetersPerPixel func(childComplexity int) int
+		Name           func(childComplexity int) int
+		Origin         func(childComplexity int) int
+		Path           func(childComplexity int) int
+		Revision       func(childComplexity int) int
+		Robot          func(childComplexity int) int
+		Rooms          func(childComplexity int) int
+		Rotation       func(childComplexity int) int
+		Walls          func(childComplexity int) int
+		Width          func(childComplexity int) int
+	}
+
+	CleaningMapArea struct {
+		Kind   func(childComplexity int) int
+		Points func(childComplexity int) int
+	}
+
+	CleaningMapLayer struct {
+		Kind   func(childComplexity int) int
+		Path   func(childComplexity int) int
+		RoomID func(childComplexity int) int
+	}
+
+	CleaningMapPoint struct {
+		X func(childComplexity int) int
+		Y func(childComplexity int) int
+	}
+
+	CleaningMapPosition struct {
+		Angle func(childComplexity int) int
+		X     func(childComplexity int) int
+		Y     func(childComplexity int) int
+	}
+
+	CleaningMapRoom struct {
+		Area func(childComplexity int) int
+		ID   func(childComplexity int) int
+		Name func(childComplexity int) int
+		X    func(childComplexity int) int
+		Y    func(childComplexity int) int
+	}
+
+	CleaningOptions struct {
+		Repeats func(childComplexity int) int
+		Suction func(childComplexity int) int
+		Water   func(childComplexity int) int
+	}
+
+	CleaningPlan struct {
+		AreaIds  func(childComplexity int) int
+		DeviceID func(childComplexity int) int
+		MapID    func(childComplexity int) int
+		Options  func(childComplexity int) int
+		Revision func(childComplexity int) int
+		RoomIds  func(childComplexity int) int
+		Scope    func(childComplexity int) int
+	}
+
+	CleaningRoomLink struct {
+		AreaID func(childComplexity int) int
+		RoomID func(childComplexity int) int
+	}
+
+	CleaningRoomLinks struct {
+		Links       func(childComplexity int) int
+		MapID       func(childComplexity int) int
+		MapRevision func(childComplexity int) int
+		Revision    func(childComplexity int) int
+	}
+
+	CleaningTask struct {
+		CleanedArea    func(childComplexity int) int
+		CompletedAt    func(childComplexity int) int
+		CreatedAt      func(childComplexity int) int
+		DeviceID       func(childComplexity int) int
+		ElapsedMinutes func(childComplexity int) int
+		Error          func(childComplexity int) int
+		ID             func(childComplexity int) int
+		MapID          func(childComplexity int) int
+		Origin         func(childComplexity int) int
+		RoomIds        func(childComplexity int) int
+		Scope          func(childComplexity int) int
+		State          func(childComplexity int) int
+		UpdatedAt      func(childComplexity int) int
+	}
+
+	CleaningTransform struct {
+		A func(childComplexity int) int
+		B func(childComplexity int) int
+		X func(childComplexity int) int
+		Y func(childComplexity int) int
+	}
+
 	Color struct {
 		B func(childComplexity int) int
 		G func(childComplexity int) int
@@ -491,6 +652,7 @@ type ComplexityRoot struct {
 		FriendlyName      func(childComplexity int) int
 		ID                func(childComplexity int) int
 		Icon              func(childComplexity int) int
+		Image             func(childComplexity int) int
 		LastSeen          func(childComplexity int) int
 		Name              func(childComplexity int) int
 		Revision          func(childComplexity int) int
@@ -525,6 +687,10 @@ type ComplexityRoot struct {
 		DeviceID  func(childComplexity int) int
 	}
 
+	DeviceImage struct {
+		Version func(childComplexity int) int
+	}
+
 	DeviceRoles struct {
 		Contact        func(childComplexity int) int
 		ControlledLoad func(childComplexity int) int
@@ -533,6 +699,7 @@ type ComplexityRoot struct {
 	DeviceState struct {
 		Battery           func(childComplexity int) int
 		Brightness        func(childComplexity int) int
+		CleaningStatus    func(childComplexity int) int
 		Color             func(childComplexity int) int
 		ColorTemp         func(childComplexity int) int
 		Contact           func(childComplexity int) int
@@ -560,6 +727,49 @@ type ComplexityRoot struct {
 	DeviceStateEvent struct {
 		DeviceID func(childComplexity int) int
 		State    func(childComplexity int) int
+	}
+
+	DreameConfig struct {
+		Email    func(childComplexity int) int
+		Enabled  func(childComplexity int) int
+		Password func(childComplexity int) int
+		Region   func(childComplexity int) int
+		Revision func(childComplexity int) int
+	}
+
+	DreameConfigResult struct {
+		Application func(childComplexity int) int
+		Config      func(childComplexity int) int
+	}
+
+	DreameDeviceReport struct {
+		ID         func(childComplexity int) int
+		Maps       func(childComplexity int) int
+		Model      func(childComplexity int) int
+		Name       func(childComplexity int) int
+		Properties func(childComplexity int) int
+		Reads      func(childComplexity int) int
+	}
+
+	DreameDiagnosticProperty struct {
+		Code  func(childComplexity int) int
+		Name  func(childComplexity int) int
+		Piid  func(childComplexity int) int
+		Siid  func(childComplexity int) int
+		Value func(childComplexity int) int
+	}
+
+	DreameDiagnosticRead struct {
+		Error func(childComplexity int) int
+		JSON  func(childComplexity int) int
+		Name  func(childComplexity int) int
+	}
+
+	DreameDiagnosticsReport struct {
+		Authenticated func(childComplexity int) int
+		CompletedAt   func(childComplexity int) int
+		Devices       func(childComplexity int) int
+		Reads         func(childComplexity int) int
 	}
 
 	DynamicSceneSource struct {
@@ -807,6 +1017,7 @@ type ComplexityRoot struct {
 
 	MaintenanceTask struct {
 		ActionURL    func(childComplexity int) int
+		CanComplete  func(childComplexity int) int
 		Context      func(childComplexity int) int
 		CurrentValue func(childComplexity int) int
 		Device       func(childComplexity int) int
@@ -836,6 +1047,7 @@ type ComplexityRoot struct {
 		ChangePassword              func(childComplexity int, input model.ChangePasswordInput) int
 		CompleteFirstPasswordChange func(childComplexity int, newPassword string) int
 		CompleteMaintenanceTasks    func(childComplexity int, ids []string) int
+		ControlCleaning             func(childComplexity int, deviceID string, action model.CleaningAction) int
 		CreateAssistantConversation func(childComplexity int) int
 		CreateAutomation            func(childComplexity int, input model.CreateAutomationInput) int
 		CreateEffect                func(childComplexity int, input model.CreateEffectInput) int
@@ -866,7 +1078,9 @@ type ComplexityRoot struct {
 		GuestLogin                  func(childComplexity int, name string) int
 		Login                       func(childComplexity int, input model.LoginInput) int
 		MarkDevicesSeen             func(childComplexity int, ids []string) int
+		PrepareCleaning             func(childComplexity int, input model.CleaningSelectionInput) int
 		RaiseAlarm                  func(childComplexity int, input model.RaiseAlarmInput) int
+		ReadDreameDiagnostics       func(childComplexity int) int
 		RemoveGroupMember           func(childComplexity int, id string) int
 		RemoveRoomMember            func(childComplexity int, id string) int
 		RenameAssistantConversation func(childComplexity int, id string, title string) int
@@ -882,19 +1096,24 @@ type ComplexityRoot struct {
 		SetDeviceConfiguration      func(childComplexity int, deviceID string, settings []*model.DeviceAttributeValueInput) int
 		SetTargetState              func(childComplexity int, target model.CommandTargetInput, state model.DeviceStateInput) int
 		SimulateDeviceAction        func(childComplexity int, deviceID string, action string) int
+		StartCleaning               func(childComplexity int, input model.StartCleaningInput) int
 		StopAssistantRun            func(childComplexity int, conversationID string) int
 		StopEffect                  func(childComplexity int, targetType string, targetID string) int
 		SyncTuyaDevices             func(childComplexity int) int
 		TestClaudeConnection        func(childComplexity int, input model.ClaudeConfigInput) int
+		TestDreameConnection        func(childComplexity int, input model.DreameConfigInput) int
 		TestTuyaConnection          func(childComplexity int, input model.TuyaConfigInput) int
 		TestZigbee2MqttConnection   func(childComplexity int, input model.Zigbee2MqttConfigInput) int
 		ToggleAutomation            func(childComplexity int, id string, enabled bool, expectedRevision int) int
 		UpdateAssistantField        func(childComplexity int, input model.AssistantFieldUpdateInput) int
 		UpdateAutomation            func(childComplexity int, id string, input model.UpdateAutomationInput) int
 		UpdateClaudeConfig          func(childComplexity int, input model.ClaudeConfigInput, expectedRevision int) int
+		UpdateCleaningCalibration   func(childComplexity int, input model.CleaningCalibrationInput) int
+		UpdateCleaningRoomLinks     func(childComplexity int, input model.CleaningRoomLinksInput) int
 		UpdateCurrentGuestLanguage  func(childComplexity int, language model.Language) int
 		UpdateCurrentUser           func(childComplexity int, input model.UpdateCurrentUserInput) int
 		UpdateDevice                func(childComplexity int, id string, input model.UpdateDeviceInput) int
+		UpdateDreameConfig          func(childComplexity int, input model.DreameConfigInput, expectedRevision int) int
 		UpdateEffect                func(childComplexity int, input model.UpdateEffectInput) int
 		UpdateFloorplan             func(childComplexity int, input model.UpdateFloorplanInput) int
 		UpdateGroup                 func(childComplexity int, id string, input model.UpdateGroupInput) int
@@ -984,10 +1203,15 @@ type ComplexityRoot struct {
 		AutomationNodePreview        func(childComplexity int, typeArg string, config automation.AuthoringConfig) int
 		Automations                  func(childComplexity int) int
 		ClaudeConfig                 func(childComplexity int) int
+		CleaningCalibration          func(childComplexity int, deviceID string, mapID string, floorplanID string) int
+		CleaningDevice               func(childComplexity int, deviceID string) int
+		CleaningDevices              func(childComplexity int) int
+		CleaningHistory              func(childComplexity int, deviceID string, before *string, limit *int) int
 		CurrentGuest                 func(childComplexity int) int
 		DashboardLocalization        func(childComplexity int) int
 		Device                       func(childComplexity int, id string) int
 		Devices                      func(childComplexity int) int
+		DreameConfig                 func(childComplexity int) int
 		Effect                       func(childComplexity int, id string) int
 		Effects                      func(childComplexity int) int
 		Floorplan                    func(childComplexity int) int
@@ -1132,6 +1356,7 @@ type ComplexityRoot struct {
 		AssistantConversationChanged func(childComplexity int, id string) int
 		AuditStream                  func(childComplexity int, filter *model.AuditFilter, after string) int
 		AutomationNodeActivated      func(childComplexity int, automationID *string) int
+		CleaningChanged              func(childComplexity int) int
 		DeviceActionFired            func(childComplexity int, deviceID *string) int
 		DeviceAdded                  func(childComplexity int) int
 		DeviceAttributesChanged      func(childComplexity int, deviceID *string) int
@@ -1334,8 +1559,6 @@ type ComplexityRoot struct {
 		Description        func(childComplexity int) int
 		Documentation      func(childComplexity int) int
 		IeeeAddress        func(childComplexity int) int
-		ImageCandidate     func(childComplexity int) int
-		ImageVersion       func(childComplexity int) int
 		InterviewCompleted func(childComplexity int) int
 		InterviewState     func(childComplexity int) int
 		Interviewing       func(childComplexity int) int
@@ -1357,10 +1580,22 @@ type ComplexityRoot struct {
 	}
 }
 
+type AutomationActionPayloadResolver interface {
+	Options(ctx context.Context, obj *automation.AuthoringActionPayload) (*model.CleaningOptions, error)
+}
 type DeviceResolver interface {
 	Zigbee2Mqtt(ctx context.Context, obj *model.Device) (*model.Zigbee2MqttDeviceMetadata, error)
+	Image(ctx context.Context, obj *model.Device) (*model.DeviceImage, error)
 }
 type MutationResolver interface {
+	UpdateDreameConfig(ctx context.Context, input model.DreameConfigInput, expectedRevision int) (*model.DreameConfigResult, error)
+	TestDreameConnection(ctx context.Context, input model.DreameConfigInput) (*model.ConnectionTestResult, error)
+	PrepareCleaning(ctx context.Context, input model.CleaningSelectionInput) (*model.CleaningPlan, error)
+	StartCleaning(ctx context.Context, input model.StartCleaningInput) (*model.CleaningTask, error)
+	ControlCleaning(ctx context.Context, deviceID string, action model.CleaningAction) (bool, error)
+	UpdateCleaningRoomLinks(ctx context.Context, input model.CleaningRoomLinksInput) ([]*model.CleaningRoomLinks, error)
+	UpdateCleaningCalibration(ctx context.Context, input model.CleaningCalibrationInput) (*model.CleaningCalibration, error)
+	ReadDreameDiagnostics(ctx context.Context) (*model.DreameDiagnosticsReport, error)
 	UpdateLocalizedNameSet(ctx context.Context, input model.LocalizedNameSetInput) (*model.LocalizedNameSet, error)
 	UpdateDevice(ctx context.Context, id string, input model.UpdateDeviceInput) (*model.Device, error)
 	DeleteDevice(ctx context.Context, id string) (*model.Device, error)
@@ -1451,6 +1686,11 @@ type MutationResolver interface {
 	RespondToAssistantAction(ctx context.Context, input model.AssistantActionResponseInput) (*model.AssistantConversation, error)
 }
 type QueryResolver interface {
+	DreameConfig(ctx context.Context) (*model.DreameConfig, error)
+	CleaningDevices(ctx context.Context) ([]*model.CleaningDevice, error)
+	CleaningDevice(ctx context.Context, deviceID string) (*model.CleaningDevice, error)
+	CleaningHistory(ctx context.Context, deviceID string, before *string, limit *int) ([]*model.CleaningTask, error)
+	CleaningCalibration(ctx context.Context, deviceID string, mapID string, floorplanID string) (*model.CleaningCalibration, error)
 	LocalizedNameSets(ctx context.Context) ([]*model.LocalizedNameSet, error)
 	Devices(ctx context.Context) ([]*model.Device, error)
 	Device(ctx context.Context, id string) (*model.Device, error)
@@ -1503,6 +1743,7 @@ type QueryResolver interface {
 	SceneAuthoring(ctx context.Context, input model.SceneAuthoringInput) ([]*model.SceneAuthoredState, error)
 }
 type SubscriptionResolver interface {
+	CleaningChanged(ctx context.Context) (<-chan string, error)
 	DeviceStateChanged(ctx context.Context, deviceID *string) (<-chan *model.DeviceStateEvent, error)
 	DeviceAttributesChanged(ctx context.Context, deviceID *string) (<-chan *model.DeviceAttributesEvent, error)
 	DeviceActionFired(ctx context.Context, deviceID *string) (<-chan *model.DeviceActionEvent, error)
@@ -1528,6 +1769,10 @@ type SubscriptionResolver interface {
 }
 type Zigbee2MqttDeviceMetadataResolver interface {
 	Documentation(ctx context.Context, obj *model.Zigbee2MqttDeviceMetadata) (*model.Zigbee2MqttDeviceDocumentation, error)
+}
+
+type AutomationActionPayloadInputResolver interface {
+	Options(ctx context.Context, obj *automation.AuthoringActionPayload, data *model.CleaningOptionsInput) error
 }
 
 type executableSchema graphql.ExecutableSchemaState[ResolverRoot, DirectiveRoot, ComplexityRoot]
@@ -2463,6 +2708,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.AutomationAction.TargetType(childComplexity), true
 
+	case "AutomationActionPayload.action":
+		if e.ComplexityRoot.AutomationActionPayload.Action == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.Action(childComplexity), true
 	case "AutomationActionPayload.alarmId":
 		if e.ComplexityRoot.AutomationActionPayload.AlarmID == nil {
 			break
@@ -2547,6 +2798,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AutomationActionPayload.On(childComplexity), true
+	case "AutomationActionPayload.options":
+		if e.ComplexityRoot.AutomationActionPayload.Options == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.Options(childComplexity), true
+	case "AutomationActionPayload.roomIds":
+		if e.ComplexityRoot.AutomationActionPayload.RoomIDs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AutomationActionPayload.RoomIDs(childComplexity), true
 	case "AutomationActionPayload.sceneId":
 		if e.ComplexityRoot.AutomationActionPayload.SceneID == nil {
 			break
@@ -3187,6 +3450,653 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ClaudeConfig.Token(childComplexity), true
 
+	case "CleaningAnchor.hive":
+		if e.ComplexityRoot.CleaningAnchor.Hive == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningAnchor.Hive(childComplexity), true
+	case "CleaningAnchor.robot":
+		if e.ComplexityRoot.CleaningAnchor.Robot == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningAnchor.Robot(childComplexity), true
+
+	case "CleaningCalibration.anchors":
+		if e.ComplexityRoot.CleaningCalibration.Anchors == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningCalibration.Anchors(childComplexity), true
+	case "CleaningCalibration.deviceId":
+		if e.ComplexityRoot.CleaningCalibration.DeviceID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningCalibration.DeviceID(childComplexity), true
+	case "CleaningCalibration.enabled":
+		if e.ComplexityRoot.CleaningCalibration.Enabled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningCalibration.Enabled(childComplexity), true
+	case "CleaningCalibration.floorplanId":
+		if e.ComplexityRoot.CleaningCalibration.FloorplanID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningCalibration.FloorplanID(childComplexity), true
+	case "CleaningCalibration.floorplanRevision":
+		if e.ComplexityRoot.CleaningCalibration.FloorplanRevision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningCalibration.FloorplanRevision(childComplexity), true
+	case "CleaningCalibration.mapId":
+		if e.ComplexityRoot.CleaningCalibration.MapID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningCalibration.MapID(childComplexity), true
+	case "CleaningCalibration.mapRevision":
+		if e.ComplexityRoot.CleaningCalibration.MapRevision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningCalibration.MapRevision(childComplexity), true
+	case "CleaningCalibration.mapRotation":
+		if e.ComplexityRoot.CleaningCalibration.MapRotation == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningCalibration.MapRotation(childComplexity), true
+	case "CleaningCalibration.revision":
+		if e.ComplexityRoot.CleaningCalibration.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningCalibration.Revision(childComplexity), true
+	case "CleaningCalibration.transform":
+		if e.ComplexityRoot.CleaningCalibration.Transform == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningCalibration.Transform(childComplexity), true
+	case "CleaningCalibration.valid":
+		if e.ComplexityRoot.CleaningCalibration.Valid == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningCalibration.Valid(childComplexity), true
+
+	case "CleaningConsumable.name":
+		if e.ComplexityRoot.CleaningConsumable.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningConsumable.Name(childComplexity), true
+	case "CleaningConsumable.percent":
+		if e.ComplexityRoot.CleaningConsumable.Percent == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningConsumable.Percent(childComplexity), true
+	case "CleaningConsumable.resettable":
+		if e.ComplexityRoot.CleaningConsumable.Resettable == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningConsumable.Resettable(childComplexity), true
+
+	case "CleaningControl.action":
+		if e.ComplexityRoot.CleaningControl.Action == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningControl.Action(childComplexity), true
+	case "CleaningControl.enabled":
+		if e.ComplexityRoot.CleaningControl.Enabled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningControl.Enabled(childComplexity), true
+
+	case "CleaningDevice.activeMapId":
+		if e.ComplexityRoot.CleaningDevice.ActiveMapID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.ActiveMapID(childComplexity), true
+	case "CleaningDevice.activeTask":
+		if e.ComplexityRoot.CleaningDevice.ActiveTask == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.ActiveTask(childComplexity), true
+	case "CleaningDevice.battery":
+		if e.ComplexityRoot.CleaningDevice.Battery == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.Battery(childComplexity), true
+	case "CleaningDevice.cleanedArea":
+		if e.ComplexityRoot.CleaningDevice.CleanedArea == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.CleanedArea(childComplexity), true
+	case "CleaningDevice.consumables":
+		if e.ComplexityRoot.CleaningDevice.Consumables == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.Consumables(childComplexity), true
+	case "CleaningDevice.controls":
+		if e.ComplexityRoot.CleaningDevice.Controls == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.Controls(childComplexity), true
+	case "CleaningDevice.deviceId":
+		if e.ComplexityRoot.CleaningDevice.DeviceID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.DeviceID(childComplexity), true
+	case "CleaningDevice.elapsedMinutes":
+		if e.ComplexityRoot.CleaningDevice.ElapsedMinutes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.ElapsedMinutes(childComplexity), true
+	case "CleaningDevice.error":
+		if e.ComplexityRoot.CleaningDevice.Error == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.Error(childComplexity), true
+	case "CleaningDevice.estimatedProgress":
+		if e.ComplexityRoot.CleaningDevice.EstimatedProgress == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.EstimatedProgress(childComplexity), true
+	case "CleaningDevice.liveAt":
+		if e.ComplexityRoot.CleaningDevice.LiveAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.LiveAt(childComplexity), true
+	case "CleaningDevice.liveMap":
+		if e.ComplexityRoot.CleaningDevice.LiveMap == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.LiveMap(childComplexity), true
+	case "CleaningDevice.manufacturer":
+		if e.ComplexityRoot.CleaningDevice.Manufacturer == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.Manufacturer(childComplexity), true
+	case "CleaningDevice.mapError":
+		if e.ComplexityRoot.CleaningDevice.MapError == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.MapError(childComplexity), true
+	case "CleaningDevice.maps":
+		if e.ComplexityRoot.CleaningDevice.Maps == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.Maps(childComplexity), true
+	case "CleaningDevice.model":
+		if e.ComplexityRoot.CleaningDevice.Model == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.Model(childComplexity), true
+	case "CleaningDevice.modelId":
+		if e.ComplexityRoot.CleaningDevice.ModelID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.ModelID(childComplexity), true
+	case "CleaningDevice.progress":
+		if e.ComplexityRoot.CleaningDevice.Progress == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.Progress(childComplexity), true
+	case "CleaningDevice.roomLinks":
+		if e.ComplexityRoot.CleaningDevice.RoomLinks == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.RoomLinks(childComplexity), true
+	case "CleaningDevice.status":
+		if e.ComplexityRoot.CleaningDevice.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.Status(childComplexity), true
+	case "CleaningDevice.suction":
+		if e.ComplexityRoot.CleaningDevice.Suction == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.Suction(childComplexity), true
+	case "CleaningDevice.supported":
+		if e.ComplexityRoot.CleaningDevice.Supported == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.Supported(childComplexity), true
+	case "CleaningDevice.updatedAt":
+		if e.ComplexityRoot.CleaningDevice.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.UpdatedAt(childComplexity), true
+	case "CleaningDevice.water":
+		if e.ComplexityRoot.CleaningDevice.Water == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningDevice.Water(childComplexity), true
+
+	case "CleaningMap.areas":
+		if e.ComplexityRoot.CleaningMap.Areas == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMap.Areas(childComplexity), true
+	case "CleaningMap.dock":
+		if e.ComplexityRoot.CleaningMap.Dock == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMap.Dock(childComplexity), true
+	case "CleaningMap.height":
+		if e.ComplexityRoot.CleaningMap.Height == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMap.Height(childComplexity), true
+	case "CleaningMap.id":
+		if e.ComplexityRoot.CleaningMap.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMap.ID(childComplexity), true
+	case "CleaningMap.layers":
+		if e.ComplexityRoot.CleaningMap.Layers == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMap.Layers(childComplexity), true
+	case "CleaningMap.metersPerPixel":
+		if e.ComplexityRoot.CleaningMap.MetersPerPixel == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMap.MetersPerPixel(childComplexity), true
+	case "CleaningMap.name":
+		if e.ComplexityRoot.CleaningMap.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMap.Name(childComplexity), true
+	case "CleaningMap.origin":
+		if e.ComplexityRoot.CleaningMap.Origin == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMap.Origin(childComplexity), true
+	case "CleaningMap.path":
+		if e.ComplexityRoot.CleaningMap.Path == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMap.Path(childComplexity), true
+	case "CleaningMap.revision":
+		if e.ComplexityRoot.CleaningMap.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMap.Revision(childComplexity), true
+	case "CleaningMap.robot":
+		if e.ComplexityRoot.CleaningMap.Robot == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMap.Robot(childComplexity), true
+	case "CleaningMap.rooms":
+		if e.ComplexityRoot.CleaningMap.Rooms == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMap.Rooms(childComplexity), true
+	case "CleaningMap.rotation":
+		if e.ComplexityRoot.CleaningMap.Rotation == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMap.Rotation(childComplexity), true
+	case "CleaningMap.walls":
+		if e.ComplexityRoot.CleaningMap.Walls == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMap.Walls(childComplexity), true
+	case "CleaningMap.width":
+		if e.ComplexityRoot.CleaningMap.Width == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMap.Width(childComplexity), true
+
+	case "CleaningMapArea.kind":
+		if e.ComplexityRoot.CleaningMapArea.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMapArea.Kind(childComplexity), true
+	case "CleaningMapArea.points":
+		if e.ComplexityRoot.CleaningMapArea.Points == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMapArea.Points(childComplexity), true
+
+	case "CleaningMapLayer.kind":
+		if e.ComplexityRoot.CleaningMapLayer.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMapLayer.Kind(childComplexity), true
+	case "CleaningMapLayer.path":
+		if e.ComplexityRoot.CleaningMapLayer.Path == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMapLayer.Path(childComplexity), true
+	case "CleaningMapLayer.roomId":
+		if e.ComplexityRoot.CleaningMapLayer.RoomID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMapLayer.RoomID(childComplexity), true
+
+	case "CleaningMapPoint.x":
+		if e.ComplexityRoot.CleaningMapPoint.X == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMapPoint.X(childComplexity), true
+	case "CleaningMapPoint.y":
+		if e.ComplexityRoot.CleaningMapPoint.Y == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMapPoint.Y(childComplexity), true
+
+	case "CleaningMapPosition.angle":
+		if e.ComplexityRoot.CleaningMapPosition.Angle == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMapPosition.Angle(childComplexity), true
+	case "CleaningMapPosition.x":
+		if e.ComplexityRoot.CleaningMapPosition.X == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMapPosition.X(childComplexity), true
+	case "CleaningMapPosition.y":
+		if e.ComplexityRoot.CleaningMapPosition.Y == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMapPosition.Y(childComplexity), true
+
+	case "CleaningMapRoom.area":
+		if e.ComplexityRoot.CleaningMapRoom.Area == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMapRoom.Area(childComplexity), true
+	case "CleaningMapRoom.id":
+		if e.ComplexityRoot.CleaningMapRoom.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMapRoom.ID(childComplexity), true
+	case "CleaningMapRoom.name":
+		if e.ComplexityRoot.CleaningMapRoom.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMapRoom.Name(childComplexity), true
+	case "CleaningMapRoom.x":
+		if e.ComplexityRoot.CleaningMapRoom.X == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMapRoom.X(childComplexity), true
+	case "CleaningMapRoom.y":
+		if e.ComplexityRoot.CleaningMapRoom.Y == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningMapRoom.Y(childComplexity), true
+
+	case "CleaningOptions.repeats":
+		if e.ComplexityRoot.CleaningOptions.Repeats == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningOptions.Repeats(childComplexity), true
+	case "CleaningOptions.suction":
+		if e.ComplexityRoot.CleaningOptions.Suction == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningOptions.Suction(childComplexity), true
+	case "CleaningOptions.water":
+		if e.ComplexityRoot.CleaningOptions.Water == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningOptions.Water(childComplexity), true
+
+	case "CleaningPlan.areaIds":
+		if e.ComplexityRoot.CleaningPlan.AreaIds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningPlan.AreaIds(childComplexity), true
+	case "CleaningPlan.deviceId":
+		if e.ComplexityRoot.CleaningPlan.DeviceID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningPlan.DeviceID(childComplexity), true
+	case "CleaningPlan.mapId":
+		if e.ComplexityRoot.CleaningPlan.MapID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningPlan.MapID(childComplexity), true
+	case "CleaningPlan.options":
+		if e.ComplexityRoot.CleaningPlan.Options == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningPlan.Options(childComplexity), true
+	case "CleaningPlan.revision":
+		if e.ComplexityRoot.CleaningPlan.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningPlan.Revision(childComplexity), true
+	case "CleaningPlan.roomIds":
+		if e.ComplexityRoot.CleaningPlan.RoomIds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningPlan.RoomIds(childComplexity), true
+	case "CleaningPlan.scope":
+		if e.ComplexityRoot.CleaningPlan.Scope == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningPlan.Scope(childComplexity), true
+
+	case "CleaningRoomLink.areaId":
+		if e.ComplexityRoot.CleaningRoomLink.AreaID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningRoomLink.AreaID(childComplexity), true
+	case "CleaningRoomLink.roomId":
+		if e.ComplexityRoot.CleaningRoomLink.RoomID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningRoomLink.RoomID(childComplexity), true
+
+	case "CleaningRoomLinks.links":
+		if e.ComplexityRoot.CleaningRoomLinks.Links == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningRoomLinks.Links(childComplexity), true
+	case "CleaningRoomLinks.mapId":
+		if e.ComplexityRoot.CleaningRoomLinks.MapID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningRoomLinks.MapID(childComplexity), true
+	case "CleaningRoomLinks.mapRevision":
+		if e.ComplexityRoot.CleaningRoomLinks.MapRevision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningRoomLinks.MapRevision(childComplexity), true
+	case "CleaningRoomLinks.revision":
+		if e.ComplexityRoot.CleaningRoomLinks.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningRoomLinks.Revision(childComplexity), true
+
+	case "CleaningTask.cleanedArea":
+		if e.ComplexityRoot.CleaningTask.CleanedArea == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTask.CleanedArea(childComplexity), true
+	case "CleaningTask.completedAt":
+		if e.ComplexityRoot.CleaningTask.CompletedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTask.CompletedAt(childComplexity), true
+	case "CleaningTask.createdAt":
+		if e.ComplexityRoot.CleaningTask.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTask.CreatedAt(childComplexity), true
+	case "CleaningTask.deviceId":
+		if e.ComplexityRoot.CleaningTask.DeviceID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTask.DeviceID(childComplexity), true
+	case "CleaningTask.elapsedMinutes":
+		if e.ComplexityRoot.CleaningTask.ElapsedMinutes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTask.ElapsedMinutes(childComplexity), true
+	case "CleaningTask.error":
+		if e.ComplexityRoot.CleaningTask.Error == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTask.Error(childComplexity), true
+	case "CleaningTask.id":
+		if e.ComplexityRoot.CleaningTask.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTask.ID(childComplexity), true
+	case "CleaningTask.mapId":
+		if e.ComplexityRoot.CleaningTask.MapID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTask.MapID(childComplexity), true
+	case "CleaningTask.origin":
+		if e.ComplexityRoot.CleaningTask.Origin == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTask.Origin(childComplexity), true
+	case "CleaningTask.roomIds":
+		if e.ComplexityRoot.CleaningTask.RoomIds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTask.RoomIds(childComplexity), true
+	case "CleaningTask.scope":
+		if e.ComplexityRoot.CleaningTask.Scope == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTask.Scope(childComplexity), true
+	case "CleaningTask.state":
+		if e.ComplexityRoot.CleaningTask.State == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTask.State(childComplexity), true
+	case "CleaningTask.updatedAt":
+		if e.ComplexityRoot.CleaningTask.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTask.UpdatedAt(childComplexity), true
+
+	case "CleaningTransform.a":
+		if e.ComplexityRoot.CleaningTransform.A == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTransform.A(childComplexity), true
+	case "CleaningTransform.b":
+		if e.ComplexityRoot.CleaningTransform.B == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTransform.B(childComplexity), true
+	case "CleaningTransform.x":
+		if e.ComplexityRoot.CleaningTransform.X == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTransform.X(childComplexity), true
+	case "CleaningTransform.y":
+		if e.ComplexityRoot.CleaningTransform.Y == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CleaningTransform.Y(childComplexity), true
+
 	case "Color.b":
 		if e.ComplexityRoot.Color.B == nil {
 			break
@@ -3415,6 +4325,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Device.Icon(childComplexity), true
+	case "Device.image":
+		if e.ComplexityRoot.Device.Image == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Device.Image(childComplexity), true
 	case "Device.lastSeen":
 		if e.ComplexityRoot.Device.LastSeen == nil {
 			break
@@ -3540,6 +4456,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.DeviceAvailabilityEvent.DeviceID(childComplexity), true
 
+	case "DeviceImage.version":
+		if e.ComplexityRoot.DeviceImage.Version == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceImage.Version(childComplexity), true
+
 	case "DeviceRoles.contact":
 		if e.ComplexityRoot.DeviceRoles.Contact == nil {
 			break
@@ -3565,6 +4488,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DeviceState.Brightness(childComplexity), true
+	case "DeviceState.cleaningStatus":
+		if e.ComplexityRoot.DeviceState.CleaningStatus == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeviceState.CleaningStatus(childComplexity), true
 	case "DeviceState.color":
 		if e.ComplexityRoot.DeviceState.Color == nil {
 			break
@@ -3710,6 +4639,162 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DeviceStateEvent.State(childComplexity), true
+
+	case "DreameConfig.email":
+		if e.ComplexityRoot.DreameConfig.Email == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameConfig.Email(childComplexity), true
+	case "DreameConfig.enabled":
+		if e.ComplexityRoot.DreameConfig.Enabled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameConfig.Enabled(childComplexity), true
+	case "DreameConfig.password":
+		if e.ComplexityRoot.DreameConfig.Password == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameConfig.Password(childComplexity), true
+	case "DreameConfig.region":
+		if e.ComplexityRoot.DreameConfig.Region == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameConfig.Region(childComplexity), true
+	case "DreameConfig.revision":
+		if e.ComplexityRoot.DreameConfig.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameConfig.Revision(childComplexity), true
+
+	case "DreameConfigResult.application":
+		if e.ComplexityRoot.DreameConfigResult.Application == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameConfigResult.Application(childComplexity), true
+	case "DreameConfigResult.config":
+		if e.ComplexityRoot.DreameConfigResult.Config == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameConfigResult.Config(childComplexity), true
+
+	case "DreameDeviceReport.id":
+		if e.ComplexityRoot.DreameDeviceReport.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDeviceReport.ID(childComplexity), true
+	case "DreameDeviceReport.maps":
+		if e.ComplexityRoot.DreameDeviceReport.Maps == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDeviceReport.Maps(childComplexity), true
+	case "DreameDeviceReport.model":
+		if e.ComplexityRoot.DreameDeviceReport.Model == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDeviceReport.Model(childComplexity), true
+	case "DreameDeviceReport.name":
+		if e.ComplexityRoot.DreameDeviceReport.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDeviceReport.Name(childComplexity), true
+	case "DreameDeviceReport.properties":
+		if e.ComplexityRoot.DreameDeviceReport.Properties == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDeviceReport.Properties(childComplexity), true
+	case "DreameDeviceReport.reads":
+		if e.ComplexityRoot.DreameDeviceReport.Reads == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDeviceReport.Reads(childComplexity), true
+
+	case "DreameDiagnosticProperty.code":
+		if e.ComplexityRoot.DreameDiagnosticProperty.Code == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDiagnosticProperty.Code(childComplexity), true
+	case "DreameDiagnosticProperty.name":
+		if e.ComplexityRoot.DreameDiagnosticProperty.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDiagnosticProperty.Name(childComplexity), true
+	case "DreameDiagnosticProperty.piid":
+		if e.ComplexityRoot.DreameDiagnosticProperty.Piid == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDiagnosticProperty.Piid(childComplexity), true
+	case "DreameDiagnosticProperty.siid":
+		if e.ComplexityRoot.DreameDiagnosticProperty.Siid == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDiagnosticProperty.Siid(childComplexity), true
+	case "DreameDiagnosticProperty.value":
+		if e.ComplexityRoot.DreameDiagnosticProperty.Value == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDiagnosticProperty.Value(childComplexity), true
+
+	case "DreameDiagnosticRead.error":
+		if e.ComplexityRoot.DreameDiagnosticRead.Error == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDiagnosticRead.Error(childComplexity), true
+	case "DreameDiagnosticRead.json":
+		if e.ComplexityRoot.DreameDiagnosticRead.JSON == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDiagnosticRead.JSON(childComplexity), true
+	case "DreameDiagnosticRead.name":
+		if e.ComplexityRoot.DreameDiagnosticRead.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDiagnosticRead.Name(childComplexity), true
+
+	case "DreameDiagnosticsReport.authenticated":
+		if e.ComplexityRoot.DreameDiagnosticsReport.Authenticated == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDiagnosticsReport.Authenticated(childComplexity), true
+	case "DreameDiagnosticsReport.completedAt":
+		if e.ComplexityRoot.DreameDiagnosticsReport.CompletedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDiagnosticsReport.CompletedAt(childComplexity), true
+	case "DreameDiagnosticsReport.devices":
+		if e.ComplexityRoot.DreameDiagnosticsReport.Devices == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDiagnosticsReport.Devices(childComplexity), true
+	case "DreameDiagnosticsReport.reads":
+		if e.ComplexityRoot.DreameDiagnosticsReport.Reads == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DreameDiagnosticsReport.Reads(childComplexity), true
 
 	case "DynamicSceneSource.brightness":
 		if e.ComplexityRoot.DynamicSceneSource.Brightness == nil {
@@ -4648,6 +5733,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.MaintenanceTask.ActionURL(childComplexity), true
+	case "MaintenanceTask.canComplete":
+		if e.ComplexityRoot.MaintenanceTask.CanComplete == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MaintenanceTask.CanComplete(childComplexity), true
 	case "MaintenanceTask.context":
 		if e.ComplexityRoot.MaintenanceTask.Context == nil {
 			break
@@ -4900,6 +5991,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CompleteMaintenanceTasks(childComplexity, args["ids"].([]string)), true
+	case "Mutation.controlCleaning":
+		if e.ComplexityRoot.Mutation.ControlCleaning == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_controlCleaning_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ControlCleaning(childComplexity, args["deviceId"].(string), args["action"].(model.CleaningAction)), true
 	case "Mutation.createAssistantConversation":
 		if e.ComplexityRoot.Mutation.CreateAssistantConversation == nil {
 			break
@@ -5225,6 +6327,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.MarkDevicesSeen(childComplexity, args["ids"].([]string)), true
+	case "Mutation.prepareCleaning":
+		if e.ComplexityRoot.Mutation.PrepareCleaning == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_prepareCleaning_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.PrepareCleaning(childComplexity, args["input"].(model.CleaningSelectionInput)), true
 	case "Mutation.raiseAlarm":
 		if e.ComplexityRoot.Mutation.RaiseAlarm == nil {
 			break
@@ -5236,6 +6349,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.RaiseAlarm(childComplexity, args["input"].(model.RaiseAlarmInput)), true
+	case "Mutation.readDreameDiagnostics":
+		if e.ComplexityRoot.Mutation.ReadDreameDiagnostics == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Mutation.ReadDreameDiagnostics(childComplexity), true
 	case "Mutation.removeGroupMember":
 		if e.ComplexityRoot.Mutation.RemoveGroupMember == nil {
 			break
@@ -5396,6 +6515,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SimulateDeviceAction(childComplexity, args["deviceId"].(string), args["action"].(string)), true
+	case "Mutation.startCleaning":
+		if e.ComplexityRoot.Mutation.StartCleaning == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_startCleaning_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.StartCleaning(childComplexity, args["input"].(model.StartCleaningInput)), true
 	case "Mutation.stopAssistantRun":
 		if e.ComplexityRoot.Mutation.StopAssistantRun == nil {
 			break
@@ -5435,6 +6565,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.TestClaudeConnection(childComplexity, args["input"].(model.ClaudeConfigInput)), true
+	case "Mutation.testDreameConnection":
+		if e.ComplexityRoot.Mutation.TestDreameConnection == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_testDreameConnection_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.TestDreameConnection(childComplexity, args["input"].(model.DreameConfigInput)), true
 	case "Mutation.testTuyaConnection":
 		if e.ComplexityRoot.Mutation.TestTuyaConnection == nil {
 			break
@@ -5501,6 +6642,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateClaudeConfig(childComplexity, args["input"].(model.ClaudeConfigInput), args["expectedRevision"].(int)), true
+	case "Mutation.updateCleaningCalibration":
+		if e.ComplexityRoot.Mutation.UpdateCleaningCalibration == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateCleaningCalibration_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateCleaningCalibration(childComplexity, args["input"].(model.CleaningCalibrationInput)), true
+	case "Mutation.updateCleaningRoomLinks":
+		if e.ComplexityRoot.Mutation.UpdateCleaningRoomLinks == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateCleaningRoomLinks_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateCleaningRoomLinks(childComplexity, args["input"].(model.CleaningRoomLinksInput)), true
 	case "Mutation.updateCurrentGuestLanguage":
 		if e.ComplexityRoot.Mutation.UpdateCurrentGuestLanguage == nil {
 			break
@@ -5534,6 +6697,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateDevice(childComplexity, args["id"].(string), args["input"].(model.UpdateDeviceInput)), true
+	case "Mutation.updateDreameConfig":
+		if e.ComplexityRoot.Mutation.UpdateDreameConfig == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateDreameConfig_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateDreameConfig(childComplexity, args["input"].(model.DreameConfigInput), args["expectedRevision"].(int)), true
 	case "Mutation.updateEffect":
 		if e.ComplexityRoot.Mutation.UpdateEffect == nil {
 			break
@@ -5971,6 +7145,45 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.ClaudeConfig(childComplexity), true
+	case "Query.cleaningCalibration":
+		if e.ComplexityRoot.Query.CleaningCalibration == nil {
+			break
+		}
+
+		args, err := ec.field_Query_cleaningCalibration_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.CleaningCalibration(childComplexity, args["deviceId"].(string), args["mapId"].(string), args["floorplanId"].(string)), true
+	case "Query.cleaningDevice":
+		if e.ComplexityRoot.Query.CleaningDevice == nil {
+			break
+		}
+
+		args, err := ec.field_Query_cleaningDevice_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.CleaningDevice(childComplexity, args["deviceId"].(string)), true
+	case "Query.cleaningDevices":
+		if e.ComplexityRoot.Query.CleaningDevices == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.CleaningDevices(childComplexity), true
+	case "Query.cleaningHistory":
+		if e.ComplexityRoot.Query.CleaningHistory == nil {
+			break
+		}
+
+		args, err := ec.field_Query_cleaningHistory_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.CleaningHistory(childComplexity, args["deviceId"].(string), args["before"].(*string), args["limit"].(*int)), true
 	case "Query.currentGuest":
 		if e.ComplexityRoot.Query.CurrentGuest == nil {
 			break
@@ -6000,6 +7213,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Devices(childComplexity), true
+	case "Query.dreameConfig":
+		if e.ComplexityRoot.Query.DreameConfig == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.DreameConfig(childComplexity), true
 	case "Query.effect":
 		if e.ComplexityRoot.Query.Effect == nil {
 			break
@@ -6700,6 +7919,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Subscription.AutomationNodeActivated(childComplexity, args["automationId"].(*string)), true
+	case "Subscription.cleaningChanged":
+		if e.ComplexityRoot.Subscription.CleaningChanged == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Subscription.CleaningChanged(childComplexity), true
 	case "Subscription.deviceActionFired":
 		if e.ComplexityRoot.Subscription.DeviceActionFired == nil {
 			break
@@ -7619,18 +8844,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Zigbee2MqttDeviceMetadata.IeeeAddress(childComplexity), true
-	case "Zigbee2MqttDeviceMetadata.imageCandidate":
-		if e.ComplexityRoot.Zigbee2MqttDeviceMetadata.ImageCandidate == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttDeviceMetadata.ImageCandidate(childComplexity), true
-	case "Zigbee2MqttDeviceMetadata.imageVersion":
-		if e.ComplexityRoot.Zigbee2MqttDeviceMetadata.ImageVersion == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Zigbee2MqttDeviceMetadata.ImageVersion(childComplexity), true
 	case "Zigbee2MqttDeviceMetadata.interviewCompleted":
 		if e.ComplexityRoot.Zigbee2MqttDeviceMetadata.InterviewCompleted == nil {
 			break
@@ -7759,6 +8972,13 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputAutomationWebhookFilterInput,
 		ec.unmarshalInputChangePasswordInput,
 		ec.unmarshalInputClaudeConfigInput,
+		ec.unmarshalInputCleaningAnchorInput,
+		ec.unmarshalInputCleaningCalibrationInput,
+		ec.unmarshalInputCleaningOptionsInput,
+		ec.unmarshalInputCleaningPointInput,
+		ec.unmarshalInputCleaningRoomLinkInput,
+		ec.unmarshalInputCleaningRoomLinksInput,
+		ec.unmarshalInputCleaningSelectionInput,
 		ec.unmarshalInputColorInput,
 		ec.unmarshalInputCommandTargetInput,
 		ec.unmarshalInputCreateAutomationInput,
@@ -7773,6 +8993,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputDesiredSceneStateInput,
 		ec.unmarshalInputDeviceAttributeValueInput,
 		ec.unmarshalInputDeviceStateInput,
+		ec.unmarshalInputDreameConfigInput,
 		ec.unmarshalInputDynamicSceneSourceInput,
 		ec.unmarshalInputEffectClipConfigInput,
 		ec.unmarshalInputEffectClipInput,
@@ -7807,6 +9028,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputSceneLightingInput,
 		ec.unmarshalInputSceneSupportingStateInput,
 		ec.unmarshalInputSceneTargetInput,
+		ec.unmarshalInputStartCleaningInput,
 		ec.unmarshalInputStateHistoryFilter,
 		ec.unmarshalInputTargetClauseInput,
 		ec.unmarshalInputTuyaConfigInput,
@@ -8013,11 +9235,15 @@ type Device {
   attributes: [DeviceAttributeValue!]!
   """Zigbee2MQTT detail, available only for Zigbee2MQTT devices."""
   zigbee2Mqtt: Zigbee2MqttDeviceMetadata
+  """Optional product artwork served by Hive."""
+  image: DeviceImage
+}
+
+type DeviceImage {
+  version: String!
 }
 
 type Zigbee2MqttDeviceMetadata {
-  imageCandidate: Boolean!
-  imageVersion: String
   networkType: String
   ieeeAddress: String
   addressVendor: String
@@ -8100,6 +9326,7 @@ value. Clients typically branch on Device.type to decide which fields to
 display, but any field may be present on any device.
 """
 type DeviceState {
+  cleaningStatus: String
   on: Boolean
   brightness: Int
   colorTemp: Int
@@ -9274,6 +10501,7 @@ enum MaintenanceKind {
   FIRMWARE
   POSTURE
   STORAGE
+  CLEANING
 }
 
 type MaintenanceTask {
@@ -9285,6 +10513,7 @@ type MaintenanceTask {
   value: Float
   context: String
   actionUrl: String
+  canComplete: Boolean!
 }
 
 input AlarmFilter {
@@ -9652,6 +10881,12 @@ input UpdateAutomationInput {
 }
 
 type Query {
+  dreameConfig: DreameConfig @auth
+  cleaningDevices: [CleaningDevice!]! @auth
+  cleaningDevice(deviceId: ID!): CleaningDevice @auth
+  cleaningHistory(deviceId: ID!, before: String, limit: Int = 20): [CleaningTask!]! @auth
+  cleaningCalibration(deviceId: ID!, mapId: ID!, floorplanId: ID!): CleaningCalibration @auth
+
   localizedNameSets: [LocalizedNameSet!]! @auth
   devices: [Device!]! @auth(allowGuest: true)
   device(id: ID!): Device @auth
@@ -9699,6 +10934,16 @@ type Query {
 }
 
 type Mutation {
+  updateDreameConfig(input: DreameConfigInput!, expectedRevision: Int!): DreameConfigResult! @auth
+  testDreameConnection(input: DreameConfigInput!): ConnectionTestResult! @auth
+  prepareCleaning(input: CleaningSelectionInput!): CleaningPlan! @auth
+  startCleaning(input: StartCleaningInput!): CleaningTask! @auth
+  controlCleaning(deviceId: ID!, action: CleaningAction!): Boolean! @auth
+  updateCleaningRoomLinks(input: CleaningRoomLinksInput!): [CleaningRoomLinks!]! @auth
+  updateCleaningCalibration(input: CleaningCalibrationInput!): CleaningCalibration! @auth
+
+  "Read-only Dreamehome diagnostics. Credentials are used for this request only."
+  readDreameDiagnostics: DreameDiagnosticsReport! @auth
   updateLocalizedNameSet(input: LocalizedNameSetInput!): LocalizedNameSet! @auth
   updateDevice(id: ID!, input: UpdateDeviceInput!): Device! @auth
   deleteDevice(id: ID!): Device! @auth
@@ -9851,7 +11096,87 @@ type Mutation {
   stopEffect(targetType: String!, targetId: ID!): Boolean! @auth
 }
 
+type DreameDiagnosticRead {
+  name: String!
+  json: String!
+  error: String
+}
+
+type DreameDiagnosticProperty {
+  name: String!
+  siid: Int!
+  piid: Int!
+  value: String!
+  code: Int!
+}
+
+type DreameDeviceReport {
+  id: ID!
+  name: String!
+  model: String!
+  reads: [DreameDiagnosticRead!]!
+  properties: [DreameDiagnosticProperty!]!
+  maps: [CleaningMap!]!
+}
+
+type CleaningMapPoint {
+  x: Float!
+  y: Float!
+}
+
+type CleaningMapPosition {
+  x: Float!
+  y: Float!
+  angle: Float!
+}
+
+type CleaningMapLayer {
+  kind: String!
+  roomId: Int!
+  path: String!
+}
+
+type CleaningMapRoom {
+  id: Int!
+  name: String!
+  x: Float!
+  y: Float!
+  area: Float!
+}
+
+type CleaningMapArea {
+  kind: String!
+  points: [CleaningMapPoint!]!
+}
+
+type CleaningMap {
+  revision: String!
+  id: Int!
+  name: String!
+  width: Int!
+  height: Int!
+  metersPerPixel: Float!
+  origin: CleaningMapPoint!
+  rotation: Float!
+  robot: CleaningMapPosition
+  dock: CleaningMapPosition
+  layers: [CleaningMapLayer!]!
+  rooms: [CleaningMapRoom!]!
+  areas: [CleaningMapArea!]!
+  walls: [[CleaningMapPoint!]!]!
+  path: [CleaningMapPoint!]!
+}
+
+type DreameDiagnosticsReport {
+  completedAt: DateTime!
+  authenticated: Boolean!
+  reads: [DreameDiagnosticRead!]!
+  devices: [DreameDeviceReport!]!
+}
+
 type Subscription {
+ cleaningChanged: ID! @auth
+
   deviceStateChanged(deviceId: ID): DeviceStateEvent! @auth(allowGuest: true)
   deviceAttributesChanged(deviceId: ID): DeviceAttributesEvent! @auth(allowGuest: true)
   deviceActionFired(deviceId: ID): DeviceActionEvent! @auth
@@ -9958,6 +11283,132 @@ type ObservationResult {
 }
 extend type Query {
  observeEvents(stream: ObservationStream!, after: String, auditFilter: AuditFilter, activityFilter: ActivityFilter, search: String, waitSeconds: Int = 15, limit: Int = 20): ObservationResult! @auth
+}
+
+
+type DreameConfig {
+  revision: Int!
+  email: String!
+  password: String!
+  region: String!
+  enabled: Boolean!
+}
+input DreameConfigInput {
+  email: String!
+  password: String!
+  region: String!
+  enabled: Boolean!
+}
+type DreameConfigResult {
+  config: DreameConfig!
+  application: ConnectionTestResult!
+}
+type CleaningOptions { suction: Int water: Int repeats: Int! }
+input CleaningOptionsInput { suction: Int water: Int repeats: Int = 1 }
+enum CleaningScope { APARTMENT ROOMS }
+type CleaningPlan {
+  scope: CleaningScope!
+  deviceId: ID!
+  mapId: ID!
+  roomIds: [ID!]!
+  areaIds: [ID!]!
+  options: CleaningOptions!
+  revision: String!
+}
+input CleaningSelectionInput {
+  scope: CleaningScope! = ROOMS
+  deviceId: ID!
+  mapId: ID!
+  roomIds: [ID!]!
+  options: CleaningOptionsInput!
+}
+input StartCleaningInput {
+  selection: CleaningSelectionInput!
+  expectedRevision: String!
+  requestId: ID!
+  replaceTaskId: ID
+}
+enum CleaningAction { PAUSE RESUME STOP DOCK LOCATE EMPTY_BIN }
+type CleaningControl {
+  action: CleaningAction!
+  enabled: Boolean!
+}
+type CleaningTask {
+  scope: CleaningScope!
+  id: ID!
+  deviceId: ID!
+  mapId: ID!
+  roomIds: [ID!]!
+  state: String!
+  origin: String!
+  elapsedMinutes: Float
+  cleanedArea: Float
+  error: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  completedAt: DateTime
+}
+type CleaningRoomLink { roomId: ID! areaId: ID! }
+input CleaningRoomLinkInput { roomId: ID! areaId: ID! }
+type CleaningRoomLinks { mapId: ID! mapRevision: String! revision: Int! links: [CleaningRoomLink!]! }
+input CleaningRoomLinksInput { deviceId: ID! mapId: ID! mapRevision: String! expectedRevision: Int! links: [CleaningRoomLinkInput!]! }
+type CleaningAnchor { robot: CleaningMapPoint! hive: CleaningMapPoint! }
+input CleaningPointInput { x: Float! y: Float! }
+input CleaningAnchorInput { robot: CleaningPointInput! hive: CleaningPointInput! }
+type CleaningTransform { a: Float! b: Float! x: Float! y: Float! }
+type CleaningCalibration {
+  mapRotation: Float!
+  enabled: Boolean!
+  deviceId: ID!
+  mapId: ID!
+  floorplanId: ID!
+  revision: Int!
+  mapRevision: String!
+  floorplanRevision: Int!
+  anchors: [CleaningAnchor!]!
+  transform: CleaningTransform!
+  valid: Boolean!
+}
+input CleaningCalibrationInput {
+  mapRotation: Float! = 0
+  enabled: Boolean! = false
+  deviceId: ID!
+  mapId: ID!
+  floorplanId: ID!
+  expectedRevision: Int!
+  mapRevision: String!
+  floorplanRevision: Int!
+  anchors: [CleaningAnchorInput!]!
+}
+type CleaningConsumable { name: String! percent: Float! resettable: Boolean! }
+type CleaningDevice {
+  deviceId: ID!
+  supported: Boolean!
+  """Optional controls advertised by this vacuum's adapter."""
+  controls: [CleaningControl!]!
+  model: String
+  modelId: String
+  manufacturer: String
+  status: String!
+  battery: Float
+  suction: Int
+  water: Int
+  elapsedMinutes: Float
+  cleanedArea: Float
+  """Reported cleaning completion from 0 to 100; null when unavailable."""
+  progress: Float
+  """Area-based completion estimate when no robot percentage is available."""
+  estimatedProgress: Float
+  consumables: [CleaningConsumable!]!
+  error: String
+  updatedAt: DateTime!
+  activeMapId: ID
+  maps: [CleaningMap!]!
+  liveMap: CleaningMap
+  liveAt: DateTime
+  mapError: String
+  activeTask: CleaningTask
+  roomLinks: [CleaningRoomLinks!]!
 }
 `, BuiltIn: false},
 	{Name: "../../api/assistant.graphql", Input: `enum IntegrationKind { DEVICE_PROVIDER ASSISTANT }
@@ -10209,6 +11660,9 @@ input AutomationActionInput {
 }
 
 type AutomationActionPayload {
+ roomIds: [String!]
+ options: CleaningOptions
+ action: String
   on: Boolean
   brightness: Int
   colorTemp: Int
@@ -10233,6 +11687,9 @@ type AutomationActionPayload {
 }
 
 input AutomationActionPayloadInput {
+ roomIds: [String!]
+ options: CleaningOptionsInput
+ action: String
   on: Boolean
   brightness: Int
   colorTemp: Int
@@ -10641,6 +12098,22 @@ func (ec *executionContext) field_Mutation_completeMaintenanceTasks_args(ctx con
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_controlCleaning_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "deviceId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["deviceId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "action", ec.unmarshalNCleaningAction2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningAction)
+	if err != nil {
+		return nil, err
+	}
+	args["action"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_createAutomation_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -10970,6 +12443,17 @@ func (ec *executionContext) field_Mutation_markDevicesSeen_args(ctx context.Cont
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_prepareCleaning_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCleaningSelectionInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningSelectionInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_raiseAlarm_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -11190,6 +12674,17 @@ func (ec *executionContext) field_Mutation_simulateDeviceAction_args(ctx context
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_startCleaning_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNStartCleaningInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStartCleaningInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_stopAssistantRun_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -11221,6 +12716,17 @@ func (ec *executionContext) field_Mutation_testClaudeConnection_args(ctx context
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNClaudeConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐClaudeConfigInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_testDreameConnection_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDreameConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameConfigInput)
 	if err != nil {
 		return nil, err
 	}
@@ -11314,6 +12820,28 @@ func (ec *executionContext) field_Mutation_updateClaudeConfig_args(ctx context.C
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_updateCleaningCalibration_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCleaningCalibrationInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningCalibrationInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateCleaningRoomLinks_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCleaningRoomLinksInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningRoomLinksInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_updateCurrentGuestLanguage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -11349,6 +12877,22 @@ func (ec *executionContext) field_Mutation_updateDevice_args(ctx context.Context
 		return nil, err
 	}
 	args["input"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateDreameConfig_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDreameConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameConfigInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision", ec.unmarshalNInt2int)
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg1
 	return args, nil
 }
 
@@ -11618,6 +13162,59 @@ func (ec *executionContext) field_Query_automation_args(ctx context.Context, raw
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_cleaningCalibration_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "deviceId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["deviceId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "mapId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["mapId"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "floorplanId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["floorplanId"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_cleaningDevice_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "deviceId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["deviceId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_cleaningHistory_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "deviceId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["deviceId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "before", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["before"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg2
 	return args, nil
 }
 
@@ -16602,6 +18199,12 @@ func (ec *executionContext) fieldContext_AutomationAction_payload(_ context.Cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "roomIds":
+				return ec.fieldContext_AutomationActionPayload_roomIds(ctx, field)
+			case "options":
+				return ec.fieldContext_AutomationActionPayload_options(ctx, field)
+			case "action":
+				return ec.fieldContext_AutomationActionPayload_action(ctx, field)
 			case "on":
 				return ec.fieldContext_AutomationActionPayload_on(ctx, field)
 			case "brightness":
@@ -16646,6 +18249,101 @@ func (ec *executionContext) fieldContext_AutomationAction_payload(_ context.Cont
 				return ec.fieldContext_AutomationActionPayload_message(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AutomationActionPayload", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_roomIds(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_roomIds,
+		func(ctx context.Context) (any, error) {
+			return obj.RoomIDs, nil
+		},
+		nil,
+		ec.marshalOString2ᚕstringᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_roomIds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_options(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_options,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.AutomationActionPayload().Options(ctx, obj)
+		},
+		nil,
+		ec.marshalOCleaningOptions2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningOptions,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_options(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "suction":
+				return ec.fieldContext_CleaningOptions_suction(ctx, field)
+			case "water":
+				return ec.fieldContext_CleaningOptions_water(ctx, field)
+			case "repeats":
+				return ec.fieldContext_CleaningOptions_repeats(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningOptions", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutomationActionPayload_action(ctx context.Context, field graphql.CollectedField, obj *automation.AuthoringActionPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutomationActionPayload_action,
+		func(ctx context.Context) (any, error) {
+			return obj.Action, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutomationActionPayload_action(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutomationActionPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -20279,6 +21977,3275 @@ func (ec *executionContext) fieldContext_ClaudeConfig_ready(_ context.Context, f
 	return fc, nil
 }
 
+func (ec *executionContext) _CleaningAnchor_robot(ctx context.Context, field graphql.CollectedField, obj *model.CleaningAnchor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningAnchor_robot,
+		func(ctx context.Context) (any, error) {
+			return obj.Robot, nil
+		},
+		nil,
+		ec.marshalNCleaningMapPoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapPoint,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningAnchor_robot(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningAnchor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "x":
+				return ec.fieldContext_CleaningMapPoint_x(ctx, field)
+			case "y":
+				return ec.fieldContext_CleaningMapPoint_y(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningMapPoint", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningAnchor_hive(ctx context.Context, field graphql.CollectedField, obj *model.CleaningAnchor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningAnchor_hive,
+		func(ctx context.Context) (any, error) {
+			return obj.Hive, nil
+		},
+		nil,
+		ec.marshalNCleaningMapPoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapPoint,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningAnchor_hive(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningAnchor",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "x":
+				return ec.fieldContext_CleaningMapPoint_x(ctx, field)
+			case "y":
+				return ec.fieldContext_CleaningMapPoint_y(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningMapPoint", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningCalibration_mapRotation(ctx context.Context, field graphql.CollectedField, obj *model.CleaningCalibration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningCalibration_mapRotation,
+		func(ctx context.Context) (any, error) {
+			return obj.MapRotation, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningCalibration_mapRotation(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningCalibration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningCalibration_enabled(ctx context.Context, field graphql.CollectedField, obj *model.CleaningCalibration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningCalibration_enabled,
+		func(ctx context.Context) (any, error) {
+			return obj.Enabled, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningCalibration_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningCalibration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningCalibration_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.CleaningCalibration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningCalibration_deviceId,
+		func(ctx context.Context) (any, error) {
+			return obj.DeviceID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningCalibration_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningCalibration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningCalibration_mapId(ctx context.Context, field graphql.CollectedField, obj *model.CleaningCalibration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningCalibration_mapId,
+		func(ctx context.Context) (any, error) {
+			return obj.MapID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningCalibration_mapId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningCalibration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningCalibration_floorplanId(ctx context.Context, field graphql.CollectedField, obj *model.CleaningCalibration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningCalibration_floorplanId,
+		func(ctx context.Context) (any, error) {
+			return obj.FloorplanID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningCalibration_floorplanId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningCalibration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningCalibration_revision(ctx context.Context, field graphql.CollectedField, obj *model.CleaningCalibration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningCalibration_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningCalibration_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningCalibration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningCalibration_mapRevision(ctx context.Context, field graphql.CollectedField, obj *model.CleaningCalibration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningCalibration_mapRevision,
+		func(ctx context.Context) (any, error) {
+			return obj.MapRevision, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningCalibration_mapRevision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningCalibration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningCalibration_floorplanRevision(ctx context.Context, field graphql.CollectedField, obj *model.CleaningCalibration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningCalibration_floorplanRevision,
+		func(ctx context.Context) (any, error) {
+			return obj.FloorplanRevision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningCalibration_floorplanRevision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningCalibration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningCalibration_anchors(ctx context.Context, field graphql.CollectedField, obj *model.CleaningCalibration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningCalibration_anchors,
+		func(ctx context.Context) (any, error) {
+			return obj.Anchors, nil
+		},
+		nil,
+		ec.marshalNCleaningAnchor2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningAnchorᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningCalibration_anchors(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningCalibration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "robot":
+				return ec.fieldContext_CleaningAnchor_robot(ctx, field)
+			case "hive":
+				return ec.fieldContext_CleaningAnchor_hive(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningAnchor", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningCalibration_transform(ctx context.Context, field graphql.CollectedField, obj *model.CleaningCalibration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningCalibration_transform,
+		func(ctx context.Context) (any, error) {
+			return obj.Transform, nil
+		},
+		nil,
+		ec.marshalNCleaningTransform2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningTransform,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningCalibration_transform(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningCalibration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "a":
+				return ec.fieldContext_CleaningTransform_a(ctx, field)
+			case "b":
+				return ec.fieldContext_CleaningTransform_b(ctx, field)
+			case "x":
+				return ec.fieldContext_CleaningTransform_x(ctx, field)
+			case "y":
+				return ec.fieldContext_CleaningTransform_y(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningTransform", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningCalibration_valid(ctx context.Context, field graphql.CollectedField, obj *model.CleaningCalibration) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningCalibration_valid,
+		func(ctx context.Context) (any, error) {
+			return obj.Valid, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningCalibration_valid(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningCalibration",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningConsumable_name(ctx context.Context, field graphql.CollectedField, obj *model.CleaningConsumable) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningConsumable_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningConsumable_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningConsumable",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningConsumable_percent(ctx context.Context, field graphql.CollectedField, obj *model.CleaningConsumable) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningConsumable_percent,
+		func(ctx context.Context) (any, error) {
+			return obj.Percent, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningConsumable_percent(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningConsumable",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningConsumable_resettable(ctx context.Context, field graphql.CollectedField, obj *model.CleaningConsumable) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningConsumable_resettable,
+		func(ctx context.Context) (any, error) {
+			return obj.Resettable, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningConsumable_resettable(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningConsumable",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningControl_action(ctx context.Context, field graphql.CollectedField, obj *model.CleaningControl) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningControl_action,
+		func(ctx context.Context) (any, error) {
+			return obj.Action, nil
+		},
+		nil,
+		ec.marshalNCleaningAction2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningAction,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningControl_action(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningControl",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type CleaningAction does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningControl_enabled(ctx context.Context, field graphql.CollectedField, obj *model.CleaningControl) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningControl_enabled,
+		func(ctx context.Context) (any, error) {
+			return obj.Enabled, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningControl_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningControl",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_deviceId,
+		func(ctx context.Context) (any, error) {
+			return obj.DeviceID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_supported(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_supported,
+		func(ctx context.Context) (any, error) {
+			return obj.Supported, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_supported(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_controls(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_controls,
+		func(ctx context.Context) (any, error) {
+			return obj.Controls, nil
+		},
+		nil,
+		ec.marshalNCleaningControl2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningControlᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_controls(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "action":
+				return ec.fieldContext_CleaningControl_action(ctx, field)
+			case "enabled":
+				return ec.fieldContext_CleaningControl_enabled(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningControl", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_model(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_model,
+		func(ctx context.Context) (any, error) {
+			return obj.Model, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_modelId(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_modelId,
+		func(ctx context.Context) (any, error) {
+			return obj.ModelID, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_modelId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_manufacturer(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_manufacturer,
+		func(ctx context.Context) (any, error) {
+			return obj.Manufacturer, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_manufacturer(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_status(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_status,
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_battery(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_battery,
+		func(ctx context.Context) (any, error) {
+			return obj.Battery, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_battery(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_suction(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_suction,
+		func(ctx context.Context) (any, error) {
+			return obj.Suction, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_suction(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_water(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_water,
+		func(ctx context.Context) (any, error) {
+			return obj.Water, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_water(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_elapsedMinutes(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_elapsedMinutes,
+		func(ctx context.Context) (any, error) {
+			return obj.ElapsedMinutes, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_elapsedMinutes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_cleanedArea(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_cleanedArea,
+		func(ctx context.Context) (any, error) {
+			return obj.CleanedArea, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_cleanedArea(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_progress(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_progress,
+		func(ctx context.Context) (any, error) {
+			return obj.Progress, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_progress(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_estimatedProgress(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_estimatedProgress,
+		func(ctx context.Context) (any, error) {
+			return obj.EstimatedProgress, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_estimatedProgress(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_consumables(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_consumables,
+		func(ctx context.Context) (any, error) {
+			return obj.Consumables, nil
+		},
+		nil,
+		ec.marshalNCleaningConsumable2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningConsumableᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_consumables(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_CleaningConsumable_name(ctx, field)
+			case "percent":
+				return ec.fieldContext_CleaningConsumable_percent(ctx, field)
+			case "resettable":
+				return ec.fieldContext_CleaningConsumable_resettable(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningConsumable", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_error(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_error,
+		func(ctx context.Context) (any, error) {
+			return obj.Error, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_updatedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_activeMapId(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_activeMapId,
+		func(ctx context.Context) (any, error) {
+			return obj.ActiveMapID, nil
+		},
+		nil,
+		ec.marshalOID2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_activeMapId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_maps(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_maps,
+		func(ctx context.Context) (any, error) {
+			return obj.Maps, nil
+		},
+		nil,
+		ec.marshalNCleaningMap2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_maps(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "revision":
+				return ec.fieldContext_CleaningMap_revision(ctx, field)
+			case "id":
+				return ec.fieldContext_CleaningMap_id(ctx, field)
+			case "name":
+				return ec.fieldContext_CleaningMap_name(ctx, field)
+			case "width":
+				return ec.fieldContext_CleaningMap_width(ctx, field)
+			case "height":
+				return ec.fieldContext_CleaningMap_height(ctx, field)
+			case "metersPerPixel":
+				return ec.fieldContext_CleaningMap_metersPerPixel(ctx, field)
+			case "origin":
+				return ec.fieldContext_CleaningMap_origin(ctx, field)
+			case "rotation":
+				return ec.fieldContext_CleaningMap_rotation(ctx, field)
+			case "robot":
+				return ec.fieldContext_CleaningMap_robot(ctx, field)
+			case "dock":
+				return ec.fieldContext_CleaningMap_dock(ctx, field)
+			case "layers":
+				return ec.fieldContext_CleaningMap_layers(ctx, field)
+			case "rooms":
+				return ec.fieldContext_CleaningMap_rooms(ctx, field)
+			case "areas":
+				return ec.fieldContext_CleaningMap_areas(ctx, field)
+			case "walls":
+				return ec.fieldContext_CleaningMap_walls(ctx, field)
+			case "path":
+				return ec.fieldContext_CleaningMap_path(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningMap", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_liveMap(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_liveMap,
+		func(ctx context.Context) (any, error) {
+			return obj.LiveMap, nil
+		},
+		nil,
+		ec.marshalOCleaningMap2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMap,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_liveMap(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "revision":
+				return ec.fieldContext_CleaningMap_revision(ctx, field)
+			case "id":
+				return ec.fieldContext_CleaningMap_id(ctx, field)
+			case "name":
+				return ec.fieldContext_CleaningMap_name(ctx, field)
+			case "width":
+				return ec.fieldContext_CleaningMap_width(ctx, field)
+			case "height":
+				return ec.fieldContext_CleaningMap_height(ctx, field)
+			case "metersPerPixel":
+				return ec.fieldContext_CleaningMap_metersPerPixel(ctx, field)
+			case "origin":
+				return ec.fieldContext_CleaningMap_origin(ctx, field)
+			case "rotation":
+				return ec.fieldContext_CleaningMap_rotation(ctx, field)
+			case "robot":
+				return ec.fieldContext_CleaningMap_robot(ctx, field)
+			case "dock":
+				return ec.fieldContext_CleaningMap_dock(ctx, field)
+			case "layers":
+				return ec.fieldContext_CleaningMap_layers(ctx, field)
+			case "rooms":
+				return ec.fieldContext_CleaningMap_rooms(ctx, field)
+			case "areas":
+				return ec.fieldContext_CleaningMap_areas(ctx, field)
+			case "walls":
+				return ec.fieldContext_CleaningMap_walls(ctx, field)
+			case "path":
+				return ec.fieldContext_CleaningMap_path(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningMap", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_liveAt(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_liveAt,
+		func(ctx context.Context) (any, error) {
+			return obj.LiveAt, nil
+		},
+		nil,
+		ec.marshalODateTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_liveAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_mapError(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_mapError,
+		func(ctx context.Context) (any, error) {
+			return obj.MapError, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_mapError(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_activeTask(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_activeTask,
+		func(ctx context.Context) (any, error) {
+			return obj.ActiveTask, nil
+		},
+		nil,
+		ec.marshalOCleaningTask2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningTask,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_activeTask(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "scope":
+				return ec.fieldContext_CleaningTask_scope(ctx, field)
+			case "id":
+				return ec.fieldContext_CleaningTask_id(ctx, field)
+			case "deviceId":
+				return ec.fieldContext_CleaningTask_deviceId(ctx, field)
+			case "mapId":
+				return ec.fieldContext_CleaningTask_mapId(ctx, field)
+			case "roomIds":
+				return ec.fieldContext_CleaningTask_roomIds(ctx, field)
+			case "state":
+				return ec.fieldContext_CleaningTask_state(ctx, field)
+			case "origin":
+				return ec.fieldContext_CleaningTask_origin(ctx, field)
+			case "elapsedMinutes":
+				return ec.fieldContext_CleaningTask_elapsedMinutes(ctx, field)
+			case "cleanedArea":
+				return ec.fieldContext_CleaningTask_cleanedArea(ctx, field)
+			case "error":
+				return ec.fieldContext_CleaningTask_error(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_CleaningTask_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_CleaningTask_updatedAt(ctx, field)
+			case "completedAt":
+				return ec.fieldContext_CleaningTask_completedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningTask", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningDevice_roomLinks(ctx context.Context, field graphql.CollectedField, obj *model.CleaningDevice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningDevice_roomLinks,
+		func(ctx context.Context) (any, error) {
+			return obj.RoomLinks, nil
+		},
+		nil,
+		ec.marshalNCleaningRoomLinks2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningRoomLinksᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningDevice_roomLinks(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningDevice",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "mapId":
+				return ec.fieldContext_CleaningRoomLinks_mapId(ctx, field)
+			case "mapRevision":
+				return ec.fieldContext_CleaningRoomLinks_mapRevision(ctx, field)
+			case "revision":
+				return ec.fieldContext_CleaningRoomLinks_revision(ctx, field)
+			case "links":
+				return ec.fieldContext_CleaningRoomLinks_links(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningRoomLinks", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMap_revision(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMap) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMap_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMap_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMap_id(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMap) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMap_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMap_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMap_name(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMap) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMap_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMap_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMap_width(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMap) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMap_width,
+		func(ctx context.Context) (any, error) {
+			return obj.Width, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMap_width(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMap_height(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMap) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMap_height,
+		func(ctx context.Context) (any, error) {
+			return obj.Height, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMap_height(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMap_metersPerPixel(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMap) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMap_metersPerPixel,
+		func(ctx context.Context) (any, error) {
+			return obj.MetersPerPixel, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMap_metersPerPixel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMap_origin(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMap) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMap_origin,
+		func(ctx context.Context) (any, error) {
+			return obj.Origin, nil
+		},
+		nil,
+		ec.marshalNCleaningMapPoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapPoint,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMap_origin(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "x":
+				return ec.fieldContext_CleaningMapPoint_x(ctx, field)
+			case "y":
+				return ec.fieldContext_CleaningMapPoint_y(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningMapPoint", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMap_rotation(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMap) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMap_rotation,
+		func(ctx context.Context) (any, error) {
+			return obj.Rotation, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMap_rotation(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMap_robot(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMap) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMap_robot,
+		func(ctx context.Context) (any, error) {
+			return obj.Robot, nil
+		},
+		nil,
+		ec.marshalOCleaningMapPosition2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapPosition,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMap_robot(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "x":
+				return ec.fieldContext_CleaningMapPosition_x(ctx, field)
+			case "y":
+				return ec.fieldContext_CleaningMapPosition_y(ctx, field)
+			case "angle":
+				return ec.fieldContext_CleaningMapPosition_angle(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningMapPosition", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMap_dock(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMap) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMap_dock,
+		func(ctx context.Context) (any, error) {
+			return obj.Dock, nil
+		},
+		nil,
+		ec.marshalOCleaningMapPosition2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapPosition,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMap_dock(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "x":
+				return ec.fieldContext_CleaningMapPosition_x(ctx, field)
+			case "y":
+				return ec.fieldContext_CleaningMapPosition_y(ctx, field)
+			case "angle":
+				return ec.fieldContext_CleaningMapPosition_angle(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningMapPosition", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMap_layers(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMap) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMap_layers,
+		func(ctx context.Context) (any, error) {
+			return obj.Layers, nil
+		},
+		nil,
+		ec.marshalNCleaningMapLayer2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapLayerᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMap_layers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "kind":
+				return ec.fieldContext_CleaningMapLayer_kind(ctx, field)
+			case "roomId":
+				return ec.fieldContext_CleaningMapLayer_roomId(ctx, field)
+			case "path":
+				return ec.fieldContext_CleaningMapLayer_path(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningMapLayer", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMap_rooms(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMap) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMap_rooms,
+		func(ctx context.Context) (any, error) {
+			return obj.Rooms, nil
+		},
+		nil,
+		ec.marshalNCleaningMapRoom2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapRoomᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMap_rooms(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_CleaningMapRoom_id(ctx, field)
+			case "name":
+				return ec.fieldContext_CleaningMapRoom_name(ctx, field)
+			case "x":
+				return ec.fieldContext_CleaningMapRoom_x(ctx, field)
+			case "y":
+				return ec.fieldContext_CleaningMapRoom_y(ctx, field)
+			case "area":
+				return ec.fieldContext_CleaningMapRoom_area(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningMapRoom", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMap_areas(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMap) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMap_areas,
+		func(ctx context.Context) (any, error) {
+			return obj.Areas, nil
+		},
+		nil,
+		ec.marshalNCleaningMapArea2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapAreaᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMap_areas(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "kind":
+				return ec.fieldContext_CleaningMapArea_kind(ctx, field)
+			case "points":
+				return ec.fieldContext_CleaningMapArea_points(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningMapArea", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMap_walls(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMap) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMap_walls,
+		func(ctx context.Context) (any, error) {
+			return obj.Walls, nil
+		},
+		nil,
+		ec.marshalNCleaningMapPoint2ᚕᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapPointᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMap_walls(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "x":
+				return ec.fieldContext_CleaningMapPoint_x(ctx, field)
+			case "y":
+				return ec.fieldContext_CleaningMapPoint_y(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningMapPoint", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMap_path(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMap) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMap_path,
+		func(ctx context.Context) (any, error) {
+			return obj.Path, nil
+		},
+		nil,
+		ec.marshalNCleaningMapPoint2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapPointᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMap_path(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMap",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "x":
+				return ec.fieldContext_CleaningMapPoint_x(ctx, field)
+			case "y":
+				return ec.fieldContext_CleaningMapPoint_y(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningMapPoint", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMapArea_kind(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMapArea) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMapArea_kind,
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMapArea_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMapArea",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMapArea_points(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMapArea) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMapArea_points,
+		func(ctx context.Context) (any, error) {
+			return obj.Points, nil
+		},
+		nil,
+		ec.marshalNCleaningMapPoint2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapPointᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMapArea_points(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMapArea",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "x":
+				return ec.fieldContext_CleaningMapPoint_x(ctx, field)
+			case "y":
+				return ec.fieldContext_CleaningMapPoint_y(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningMapPoint", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMapLayer_kind(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMapLayer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMapLayer_kind,
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMapLayer_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMapLayer",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMapLayer_roomId(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMapLayer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMapLayer_roomId,
+		func(ctx context.Context) (any, error) {
+			return obj.RoomID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMapLayer_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMapLayer",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMapLayer_path(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMapLayer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMapLayer_path,
+		func(ctx context.Context) (any, error) {
+			return obj.Path, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMapLayer_path(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMapLayer",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMapPoint_x(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMapPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMapPoint_x,
+		func(ctx context.Context) (any, error) {
+			return obj.X, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMapPoint_x(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMapPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMapPoint_y(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMapPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMapPoint_y,
+		func(ctx context.Context) (any, error) {
+			return obj.Y, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMapPoint_y(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMapPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMapPosition_x(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMapPosition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMapPosition_x,
+		func(ctx context.Context) (any, error) {
+			return obj.X, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMapPosition_x(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMapPosition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMapPosition_y(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMapPosition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMapPosition_y,
+		func(ctx context.Context) (any, error) {
+			return obj.Y, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMapPosition_y(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMapPosition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMapPosition_angle(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMapPosition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMapPosition_angle,
+		func(ctx context.Context) (any, error) {
+			return obj.Angle, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMapPosition_angle(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMapPosition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMapRoom_id(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMapRoom) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMapRoom_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMapRoom_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMapRoom",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMapRoom_name(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMapRoom) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMapRoom_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMapRoom_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMapRoom",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMapRoom_x(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMapRoom) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMapRoom_x,
+		func(ctx context.Context) (any, error) {
+			return obj.X, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMapRoom_x(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMapRoom",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMapRoom_y(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMapRoom) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMapRoom_y,
+		func(ctx context.Context) (any, error) {
+			return obj.Y, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMapRoom_y(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMapRoom",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningMapRoom_area(ctx context.Context, field graphql.CollectedField, obj *model.CleaningMapRoom) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningMapRoom_area,
+		func(ctx context.Context) (any, error) {
+			return obj.Area, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningMapRoom_area(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningMapRoom",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningOptions_suction(ctx context.Context, field graphql.CollectedField, obj *model.CleaningOptions) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningOptions_suction,
+		func(ctx context.Context) (any, error) {
+			return obj.Suction, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningOptions_suction(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningOptions",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningOptions_water(ctx context.Context, field graphql.CollectedField, obj *model.CleaningOptions) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningOptions_water,
+		func(ctx context.Context) (any, error) {
+			return obj.Water, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningOptions_water(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningOptions",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningOptions_repeats(ctx context.Context, field graphql.CollectedField, obj *model.CleaningOptions) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningOptions_repeats,
+		func(ctx context.Context) (any, error) {
+			return obj.Repeats, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningOptions_repeats(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningOptions",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningPlan_scope(ctx context.Context, field graphql.CollectedField, obj *model.CleaningPlan) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningPlan_scope,
+		func(ctx context.Context) (any, error) {
+			return obj.Scope, nil
+		},
+		nil,
+		ec.marshalNCleaningScope2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningScope,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningPlan_scope(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningPlan",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type CleaningScope does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningPlan_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.CleaningPlan) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningPlan_deviceId,
+		func(ctx context.Context) (any, error) {
+			return obj.DeviceID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningPlan_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningPlan",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningPlan_mapId(ctx context.Context, field graphql.CollectedField, obj *model.CleaningPlan) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningPlan_mapId,
+		func(ctx context.Context) (any, error) {
+			return obj.MapID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningPlan_mapId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningPlan",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningPlan_roomIds(ctx context.Context, field graphql.CollectedField, obj *model.CleaningPlan) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningPlan_roomIds,
+		func(ctx context.Context) (any, error) {
+			return obj.RoomIds, nil
+		},
+		nil,
+		ec.marshalNID2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningPlan_roomIds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningPlan",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningPlan_areaIds(ctx context.Context, field graphql.CollectedField, obj *model.CleaningPlan) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningPlan_areaIds,
+		func(ctx context.Context) (any, error) {
+			return obj.AreaIds, nil
+		},
+		nil,
+		ec.marshalNID2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningPlan_areaIds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningPlan",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningPlan_options(ctx context.Context, field graphql.CollectedField, obj *model.CleaningPlan) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningPlan_options,
+		func(ctx context.Context) (any, error) {
+			return obj.Options, nil
+		},
+		nil,
+		ec.marshalNCleaningOptions2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningOptions,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningPlan_options(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningPlan",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "suction":
+				return ec.fieldContext_CleaningOptions_suction(ctx, field)
+			case "water":
+				return ec.fieldContext_CleaningOptions_water(ctx, field)
+			case "repeats":
+				return ec.fieldContext_CleaningOptions_repeats(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningOptions", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningPlan_revision(ctx context.Context, field graphql.CollectedField, obj *model.CleaningPlan) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningPlan_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningPlan_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningPlan",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningRoomLink_roomId(ctx context.Context, field graphql.CollectedField, obj *model.CleaningRoomLink) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningRoomLink_roomId,
+		func(ctx context.Context) (any, error) {
+			return obj.RoomID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningRoomLink_roomId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningRoomLink",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningRoomLink_areaId(ctx context.Context, field graphql.CollectedField, obj *model.CleaningRoomLink) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningRoomLink_areaId,
+		func(ctx context.Context) (any, error) {
+			return obj.AreaID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningRoomLink_areaId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningRoomLink",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningRoomLinks_mapId(ctx context.Context, field graphql.CollectedField, obj *model.CleaningRoomLinks) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningRoomLinks_mapId,
+		func(ctx context.Context) (any, error) {
+			return obj.MapID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningRoomLinks_mapId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningRoomLinks",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningRoomLinks_mapRevision(ctx context.Context, field graphql.CollectedField, obj *model.CleaningRoomLinks) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningRoomLinks_mapRevision,
+		func(ctx context.Context) (any, error) {
+			return obj.MapRevision, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningRoomLinks_mapRevision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningRoomLinks",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningRoomLinks_revision(ctx context.Context, field graphql.CollectedField, obj *model.CleaningRoomLinks) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningRoomLinks_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningRoomLinks_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningRoomLinks",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningRoomLinks_links(ctx context.Context, field graphql.CollectedField, obj *model.CleaningRoomLinks) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningRoomLinks_links,
+		func(ctx context.Context) (any, error) {
+			return obj.Links, nil
+		},
+		nil,
+		ec.marshalNCleaningRoomLink2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningRoomLinkᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningRoomLinks_links(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningRoomLinks",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "roomId":
+				return ec.fieldContext_CleaningRoomLink_roomId(ctx, field)
+			case "areaId":
+				return ec.fieldContext_CleaningRoomLink_areaId(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningRoomLink", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTask_scope(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTask_scope,
+		func(ctx context.Context) (any, error) {
+			return obj.Scope, nil
+		},
+		nil,
+		ec.marshalNCleaningScope2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningScope,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTask_scope(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type CleaningScope does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTask_id(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTask_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTask_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTask_deviceId(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTask_deviceId,
+		func(ctx context.Context) (any, error) {
+			return obj.DeviceID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTask_deviceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTask_mapId(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTask_mapId,
+		func(ctx context.Context) (any, error) {
+			return obj.MapID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTask_mapId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTask_roomIds(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTask_roomIds,
+		func(ctx context.Context) (any, error) {
+			return obj.RoomIds, nil
+		},
+		nil,
+		ec.marshalNID2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTask_roomIds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTask_state(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTask_state,
+		func(ctx context.Context) (any, error) {
+			return obj.State, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTask_state(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTask_origin(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTask_origin,
+		func(ctx context.Context) (any, error) {
+			return obj.Origin, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTask_origin(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTask_elapsedMinutes(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTask_elapsedMinutes,
+		func(ctx context.Context) (any, error) {
+			return obj.ElapsedMinutes, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTask_elapsedMinutes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTask_cleanedArea(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTask_cleanedArea,
+		func(ctx context.Context) (any, error) {
+			return obj.CleanedArea, nil
+		},
+		nil,
+		ec.marshalOFloat2ᚖfloat64,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTask_cleanedArea(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTask_error(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTask_error,
+		func(ctx context.Context) (any, error) {
+			return obj.Error, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTask_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTask_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTask_createdAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTask_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTask_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTask_updatedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTask_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTask_completedAt(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTask_completedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CompletedAt, nil
+		},
+		nil,
+		ec.marshalODateTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTask_completedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTransform_a(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTransform) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTransform_a,
+		func(ctx context.Context) (any, error) {
+			return obj.A, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTransform_a(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTransform",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTransform_b(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTransform) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTransform_b,
+		func(ctx context.Context) (any, error) {
+			return obj.B, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTransform_b(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTransform",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTransform_x(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTransform) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTransform_x,
+		func(ctx context.Context) (any, error) {
+			return obj.X, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTransform_x(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTransform",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CleaningTransform_y(ctx context.Context, field graphql.CollectedField, obj *model.CleaningTransform) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CleaningTransform_y,
+		func(ctx context.Context) (any, error) {
+			return obj.Y, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CleaningTransform_y(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CleaningTransform",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Color_r(ctx context.Context, field graphql.CollectedField, obj *model.Color) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -21618,6 +26585,8 @@ func (ec *executionContext) fieldContext_Device_state(_ context.Context, field g
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "cleaningStatus":
+				return ec.fieldContext_DeviceState_cleaningStatus(ctx, field)
 			case "on":
 				return ec.fieldContext_DeviceState_on(ctx, field)
 			case "brightness":
@@ -21736,10 +26705,6 @@ func (ec *executionContext) fieldContext_Device_zigbee2Mqtt(_ context.Context, f
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "imageCandidate":
-				return ec.fieldContext_Zigbee2MqttDeviceMetadata_imageCandidate(ctx, field)
-			case "imageVersion":
-				return ec.fieldContext_Zigbee2MqttDeviceMetadata_imageVersion(ctx, field)
 			case "networkType":
 				return ec.fieldContext_Zigbee2MqttDeviceMetadata_networkType(ctx, field)
 			case "ieeeAddress":
@@ -21780,6 +26745,39 @@ func (ec *executionContext) fieldContext_Device_zigbee2Mqtt(_ context.Context, f
 				return ec.fieldContext_Zigbee2MqttDeviceMetadata_bridgeInfo(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Zigbee2MqttDeviceMetadata", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Device_image(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Device_image,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Device().Image(ctx, obj)
+		},
+		nil,
+		ec.marshalODeviceImage2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceImage,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Device_image(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Device",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "version":
+				return ec.fieldContext_DeviceImage_version(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DeviceImage", field.Name)
 		},
 	}
 	return fc, nil
@@ -22114,6 +27112,35 @@ func (ec *executionContext) fieldContext_DeviceAvailabilityEvent_available(_ con
 	return fc, nil
 }
 
+func (ec *executionContext) _DeviceImage_version(ctx context.Context, field graphql.CollectedField, obj *model.DeviceImage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceImage_version,
+		func(ctx context.Context) (any, error) {
+			return obj.Version, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceImage_version(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceImage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _DeviceRoles_controlledLoad(ctx context.Context, field graphql.CollectedField, obj *model.DeviceRoles) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -22167,6 +27194,35 @@ func (ec *executionContext) fieldContext_DeviceRoles_contact(_ context.Context, 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ContactRole does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeviceState_cleaningStatus(ctx context.Context, field graphql.CollectedField, obj *model.DeviceState) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeviceState_cleaningStatus,
+		func(ctx context.Context) (any, error) {
+			return obj.CleaningStatus, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeviceState_cleaningStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeviceState",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -22933,6 +27989,8 @@ func (ec *executionContext) fieldContext_DeviceStateEvent_state(_ context.Contex
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "cleaningStatus":
+				return ec.fieldContext_DeviceState_cleaningStatus(ctx, field)
 			case "on":
 				return ec.fieldContext_DeviceState_on(ctx, field)
 			case "brightness":
@@ -22983,6 +28041,825 @@ func (ec *executionContext) fieldContext_DeviceStateEvent_state(_ context.Contex
 				return ec.fieldContext_DeviceState_swing(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DeviceState", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameConfig_revision(ctx context.Context, field graphql.CollectedField, obj *model.DreameConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameConfig_revision,
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameConfig_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameConfig_email(ctx context.Context, field graphql.CollectedField, obj *model.DreameConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameConfig_email,
+		func(ctx context.Context) (any, error) {
+			return obj.Email, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameConfig_email(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameConfig_password(ctx context.Context, field graphql.CollectedField, obj *model.DreameConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameConfig_password,
+		func(ctx context.Context) (any, error) {
+			return obj.Password, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameConfig_password(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameConfig_region(ctx context.Context, field graphql.CollectedField, obj *model.DreameConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameConfig_region,
+		func(ctx context.Context) (any, error) {
+			return obj.Region, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameConfig_region(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameConfig_enabled(ctx context.Context, field graphql.CollectedField, obj *model.DreameConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameConfig_enabled,
+		func(ctx context.Context) (any, error) {
+			return obj.Enabled, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameConfig_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameConfigResult_config(ctx context.Context, field graphql.CollectedField, obj *model.DreameConfigResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameConfigResult_config,
+		func(ctx context.Context) (any, error) {
+			return obj.Config, nil
+		},
+		nil,
+		ec.marshalNDreameConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameConfig,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameConfigResult_config(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameConfigResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "revision":
+				return ec.fieldContext_DreameConfig_revision(ctx, field)
+			case "email":
+				return ec.fieldContext_DreameConfig_email(ctx, field)
+			case "password":
+				return ec.fieldContext_DreameConfig_password(ctx, field)
+			case "region":
+				return ec.fieldContext_DreameConfig_region(ctx, field)
+			case "enabled":
+				return ec.fieldContext_DreameConfig_enabled(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DreameConfig", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameConfigResult_application(ctx context.Context, field graphql.CollectedField, obj *model.DreameConfigResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameConfigResult_application,
+		func(ctx context.Context) (any, error) {
+			return obj.Application, nil
+		},
+		nil,
+		ec.marshalNConnectionTestResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConnectionTestResult,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameConfigResult_application(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameConfigResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_ConnectionTestResult_success(ctx, field)
+			case "code":
+				return ec.fieldContext_ConnectionTestResult_code(ctx, field)
+			case "diagnostic":
+				return ec.fieldContext_ConnectionTestResult_diagnostic(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConnectionTestResult", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDeviceReport_id(ctx context.Context, field graphql.CollectedField, obj *model.DreameDeviceReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDeviceReport_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDeviceReport_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDeviceReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDeviceReport_name(ctx context.Context, field graphql.CollectedField, obj *model.DreameDeviceReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDeviceReport_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDeviceReport_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDeviceReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDeviceReport_model(ctx context.Context, field graphql.CollectedField, obj *model.DreameDeviceReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDeviceReport_model,
+		func(ctx context.Context) (any, error) {
+			return obj.Model, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDeviceReport_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDeviceReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDeviceReport_reads(ctx context.Context, field graphql.CollectedField, obj *model.DreameDeviceReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDeviceReport_reads,
+		func(ctx context.Context) (any, error) {
+			return obj.Reads, nil
+		},
+		nil,
+		ec.marshalNDreameDiagnosticRead2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameDiagnosticReadᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDeviceReport_reads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDeviceReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_DreameDiagnosticRead_name(ctx, field)
+			case "json":
+				return ec.fieldContext_DreameDiagnosticRead_json(ctx, field)
+			case "error":
+				return ec.fieldContext_DreameDiagnosticRead_error(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DreameDiagnosticRead", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDeviceReport_properties(ctx context.Context, field graphql.CollectedField, obj *model.DreameDeviceReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDeviceReport_properties,
+		func(ctx context.Context) (any, error) {
+			return obj.Properties, nil
+		},
+		nil,
+		ec.marshalNDreameDiagnosticProperty2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameDiagnosticPropertyᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDeviceReport_properties(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDeviceReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_DreameDiagnosticProperty_name(ctx, field)
+			case "siid":
+				return ec.fieldContext_DreameDiagnosticProperty_siid(ctx, field)
+			case "piid":
+				return ec.fieldContext_DreameDiagnosticProperty_piid(ctx, field)
+			case "value":
+				return ec.fieldContext_DreameDiagnosticProperty_value(ctx, field)
+			case "code":
+				return ec.fieldContext_DreameDiagnosticProperty_code(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DreameDiagnosticProperty", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDeviceReport_maps(ctx context.Context, field graphql.CollectedField, obj *model.DreameDeviceReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDeviceReport_maps,
+		func(ctx context.Context) (any, error) {
+			return obj.Maps, nil
+		},
+		nil,
+		ec.marshalNCleaningMap2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDeviceReport_maps(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDeviceReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "revision":
+				return ec.fieldContext_CleaningMap_revision(ctx, field)
+			case "id":
+				return ec.fieldContext_CleaningMap_id(ctx, field)
+			case "name":
+				return ec.fieldContext_CleaningMap_name(ctx, field)
+			case "width":
+				return ec.fieldContext_CleaningMap_width(ctx, field)
+			case "height":
+				return ec.fieldContext_CleaningMap_height(ctx, field)
+			case "metersPerPixel":
+				return ec.fieldContext_CleaningMap_metersPerPixel(ctx, field)
+			case "origin":
+				return ec.fieldContext_CleaningMap_origin(ctx, field)
+			case "rotation":
+				return ec.fieldContext_CleaningMap_rotation(ctx, field)
+			case "robot":
+				return ec.fieldContext_CleaningMap_robot(ctx, field)
+			case "dock":
+				return ec.fieldContext_CleaningMap_dock(ctx, field)
+			case "layers":
+				return ec.fieldContext_CleaningMap_layers(ctx, field)
+			case "rooms":
+				return ec.fieldContext_CleaningMap_rooms(ctx, field)
+			case "areas":
+				return ec.fieldContext_CleaningMap_areas(ctx, field)
+			case "walls":
+				return ec.fieldContext_CleaningMap_walls(ctx, field)
+			case "path":
+				return ec.fieldContext_CleaningMap_path(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningMap", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDiagnosticProperty_name(ctx context.Context, field graphql.CollectedField, obj *model.DreameDiagnosticProperty) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDiagnosticProperty_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDiagnosticProperty_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDiagnosticProperty",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDiagnosticProperty_siid(ctx context.Context, field graphql.CollectedField, obj *model.DreameDiagnosticProperty) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDiagnosticProperty_siid,
+		func(ctx context.Context) (any, error) {
+			return obj.Siid, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDiagnosticProperty_siid(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDiagnosticProperty",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDiagnosticProperty_piid(ctx context.Context, field graphql.CollectedField, obj *model.DreameDiagnosticProperty) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDiagnosticProperty_piid,
+		func(ctx context.Context) (any, error) {
+			return obj.Piid, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDiagnosticProperty_piid(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDiagnosticProperty",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDiagnosticProperty_value(ctx context.Context, field graphql.CollectedField, obj *model.DreameDiagnosticProperty) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDiagnosticProperty_value,
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDiagnosticProperty_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDiagnosticProperty",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDiagnosticProperty_code(ctx context.Context, field graphql.CollectedField, obj *model.DreameDiagnosticProperty) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDiagnosticProperty_code,
+		func(ctx context.Context) (any, error) {
+			return obj.Code, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDiagnosticProperty_code(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDiagnosticProperty",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDiagnosticRead_name(ctx context.Context, field graphql.CollectedField, obj *model.DreameDiagnosticRead) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDiagnosticRead_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDiagnosticRead_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDiagnosticRead",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDiagnosticRead_json(ctx context.Context, field graphql.CollectedField, obj *model.DreameDiagnosticRead) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDiagnosticRead_json,
+		func(ctx context.Context) (any, error) {
+			return obj.JSON, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDiagnosticRead_json(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDiagnosticRead",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDiagnosticRead_error(ctx context.Context, field graphql.CollectedField, obj *model.DreameDiagnosticRead) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDiagnosticRead_error,
+		func(ctx context.Context) (any, error) {
+			return obj.Error, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDiagnosticRead_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDiagnosticRead",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDiagnosticsReport_completedAt(ctx context.Context, field graphql.CollectedField, obj *model.DreameDiagnosticsReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDiagnosticsReport_completedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CompletedAt, nil
+		},
+		nil,
+		ec.marshalNDateTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDiagnosticsReport_completedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDiagnosticsReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDiagnosticsReport_authenticated(ctx context.Context, field graphql.CollectedField, obj *model.DreameDiagnosticsReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDiagnosticsReport_authenticated,
+		func(ctx context.Context) (any, error) {
+			return obj.Authenticated, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDiagnosticsReport_authenticated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDiagnosticsReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDiagnosticsReport_reads(ctx context.Context, field graphql.CollectedField, obj *model.DreameDiagnosticsReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDiagnosticsReport_reads,
+		func(ctx context.Context) (any, error) {
+			return obj.Reads, nil
+		},
+		nil,
+		ec.marshalNDreameDiagnosticRead2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameDiagnosticReadᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDiagnosticsReport_reads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDiagnosticsReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_DreameDiagnosticRead_name(ctx, field)
+			case "json":
+				return ec.fieldContext_DreameDiagnosticRead_json(ctx, field)
+			case "error":
+				return ec.fieldContext_DreameDiagnosticRead_error(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DreameDiagnosticRead", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DreameDiagnosticsReport_devices(ctx context.Context, field graphql.CollectedField, obj *model.DreameDiagnosticsReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DreameDiagnosticsReport_devices,
+		func(ctx context.Context) (any, error) {
+			return obj.Devices, nil
+		},
+		nil,
+		ec.marshalNDreameDeviceReport2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameDeviceReportᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DreameDiagnosticsReport_devices(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DreameDiagnosticsReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_DreameDeviceReport_id(ctx, field)
+			case "name":
+				return ec.fieldContext_DreameDeviceReport_name(ctx, field)
+			case "model":
+				return ec.fieldContext_DreameDeviceReport_model(ctx, field)
+			case "reads":
+				return ec.fieldContext_DreameDeviceReport_reads(ctx, field)
+			case "properties":
+				return ec.fieldContext_DreameDeviceReport_properties(ctx, field)
+			case "maps":
+				return ec.fieldContext_DreameDeviceReport_maps(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DreameDeviceReport", field.Name)
 		},
 	}
 	return fc, nil
@@ -26306,6 +32183,8 @@ func (ec *executionContext) fieldContext_Group_resolvedDevices(_ context.Context
 				return ec.fieldContext_Device_attributes(ctx, field)
 			case "zigbee2Mqtt":
 				return ec.fieldContext_Device_zigbee2Mqtt(ctx, field)
+			case "image":
+				return ec.fieldContext_Device_image(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -26499,6 +32378,8 @@ func (ec *executionContext) fieldContext_GroupMember_device(_ context.Context, f
 				return ec.fieldContext_Device_attributes(ctx, field)
 			case "zigbee2Mqtt":
 				return ec.fieldContext_Device_zigbee2Mqtt(ctx, field)
+			case "image":
+				return ec.fieldContext_Device_image(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -27816,6 +33697,8 @@ func (ec *executionContext) fieldContext_MaintenanceTask_device(_ context.Contex
 				return ec.fieldContext_Device_attributes(ctx, field)
 			case "zigbee2Mqtt":
 				return ec.fieldContext_Device_zigbee2Mqtt(ctx, field)
+			case "image":
+				return ec.fieldContext_Device_image(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -27963,6 +33846,597 @@ func (ec *executionContext) fieldContext_MaintenanceTask_actionUrl(_ context.Con
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MaintenanceTask_canComplete(ctx context.Context, field graphql.CollectedField, obj *model.MaintenanceTask) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MaintenanceTask_canComplete,
+		func(ctx context.Context) (any, error) {
+			return obj.CanComplete, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MaintenanceTask_canComplete(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MaintenanceTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateDreameConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateDreameConfig,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateDreameConfig(ctx, fc.Args["input"].(model.DreameConfigInput), fc.Args["expectedRevision"].(int))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.DreameConfigResult
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.DreameConfigResult
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNDreameConfigResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameConfigResult,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateDreameConfig(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "config":
+				return ec.fieldContext_DreameConfigResult_config(ctx, field)
+			case "application":
+				return ec.fieldContext_DreameConfigResult_application(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DreameConfigResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateDreameConfig_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_testDreameConnection(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_testDreameConnection,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().TestDreameConnection(ctx, fc.Args["input"].(model.DreameConfigInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.ConnectionTestResult
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.ConnectionTestResult
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNConnectionTestResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐConnectionTestResult,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_testDreameConnection(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "success":
+				return ec.fieldContext_ConnectionTestResult_success(ctx, field)
+			case "code":
+				return ec.fieldContext_ConnectionTestResult_code(ctx, field)
+			case "diagnostic":
+				return ec.fieldContext_ConnectionTestResult_diagnostic(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConnectionTestResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_testDreameConnection_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_prepareCleaning(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_prepareCleaning,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().PrepareCleaning(ctx, fc.Args["input"].(model.CleaningSelectionInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.CleaningPlan
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.CleaningPlan
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNCleaningPlan2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningPlan,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_prepareCleaning(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "scope":
+				return ec.fieldContext_CleaningPlan_scope(ctx, field)
+			case "deviceId":
+				return ec.fieldContext_CleaningPlan_deviceId(ctx, field)
+			case "mapId":
+				return ec.fieldContext_CleaningPlan_mapId(ctx, field)
+			case "roomIds":
+				return ec.fieldContext_CleaningPlan_roomIds(ctx, field)
+			case "areaIds":
+				return ec.fieldContext_CleaningPlan_areaIds(ctx, field)
+			case "options":
+				return ec.fieldContext_CleaningPlan_options(ctx, field)
+			case "revision":
+				return ec.fieldContext_CleaningPlan_revision(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningPlan", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_prepareCleaning_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_startCleaning(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_startCleaning,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().StartCleaning(ctx, fc.Args["input"].(model.StartCleaningInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.CleaningTask
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.CleaningTask
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNCleaningTask2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningTask,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_startCleaning(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "scope":
+				return ec.fieldContext_CleaningTask_scope(ctx, field)
+			case "id":
+				return ec.fieldContext_CleaningTask_id(ctx, field)
+			case "deviceId":
+				return ec.fieldContext_CleaningTask_deviceId(ctx, field)
+			case "mapId":
+				return ec.fieldContext_CleaningTask_mapId(ctx, field)
+			case "roomIds":
+				return ec.fieldContext_CleaningTask_roomIds(ctx, field)
+			case "state":
+				return ec.fieldContext_CleaningTask_state(ctx, field)
+			case "origin":
+				return ec.fieldContext_CleaningTask_origin(ctx, field)
+			case "elapsedMinutes":
+				return ec.fieldContext_CleaningTask_elapsedMinutes(ctx, field)
+			case "cleanedArea":
+				return ec.fieldContext_CleaningTask_cleanedArea(ctx, field)
+			case "error":
+				return ec.fieldContext_CleaningTask_error(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_CleaningTask_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_CleaningTask_updatedAt(ctx, field)
+			case "completedAt":
+				return ec.fieldContext_CleaningTask_completedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningTask", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_startCleaning_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_controlCleaning(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_controlCleaning,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().ControlCleaning(ctx, fc.Args["deviceId"].(string), fc.Args["action"].(model.CleaningAction))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_controlCleaning(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_controlCleaning_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateCleaningRoomLinks(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateCleaningRoomLinks,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateCleaningRoomLinks(ctx, fc.Args["input"].(model.CleaningRoomLinksInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.CleaningRoomLinks
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.CleaningRoomLinks
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNCleaningRoomLinks2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningRoomLinksᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateCleaningRoomLinks(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "mapId":
+				return ec.fieldContext_CleaningRoomLinks_mapId(ctx, field)
+			case "mapRevision":
+				return ec.fieldContext_CleaningRoomLinks_mapRevision(ctx, field)
+			case "revision":
+				return ec.fieldContext_CleaningRoomLinks_revision(ctx, field)
+			case "links":
+				return ec.fieldContext_CleaningRoomLinks_links(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningRoomLinks", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateCleaningRoomLinks_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateCleaningCalibration(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateCleaningCalibration,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateCleaningCalibration(ctx, fc.Args["input"].(model.CleaningCalibrationInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.CleaningCalibration
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.CleaningCalibration
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNCleaningCalibration2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningCalibration,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateCleaningCalibration(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "mapRotation":
+				return ec.fieldContext_CleaningCalibration_mapRotation(ctx, field)
+			case "enabled":
+				return ec.fieldContext_CleaningCalibration_enabled(ctx, field)
+			case "deviceId":
+				return ec.fieldContext_CleaningCalibration_deviceId(ctx, field)
+			case "mapId":
+				return ec.fieldContext_CleaningCalibration_mapId(ctx, field)
+			case "floorplanId":
+				return ec.fieldContext_CleaningCalibration_floorplanId(ctx, field)
+			case "revision":
+				return ec.fieldContext_CleaningCalibration_revision(ctx, field)
+			case "mapRevision":
+				return ec.fieldContext_CleaningCalibration_mapRevision(ctx, field)
+			case "floorplanRevision":
+				return ec.fieldContext_CleaningCalibration_floorplanRevision(ctx, field)
+			case "anchors":
+				return ec.fieldContext_CleaningCalibration_anchors(ctx, field)
+			case "transform":
+				return ec.fieldContext_CleaningCalibration_transform(ctx, field)
+			case "valid":
+				return ec.fieldContext_CleaningCalibration_valid(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningCalibration", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateCleaningCalibration_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_readDreameDiagnostics(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_readDreameDiagnostics,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Mutation().ReadDreameDiagnostics(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.DreameDiagnosticsReport
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.DreameDiagnosticsReport
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNDreameDiagnosticsReport2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameDiagnosticsReport,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_readDreameDiagnostics(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "completedAt":
+				return ec.fieldContext_DreameDiagnosticsReport_completedAt(ctx, field)
+			case "authenticated":
+				return ec.fieldContext_DreameDiagnosticsReport_authenticated(ctx, field)
+			case "reads":
+				return ec.fieldContext_DreameDiagnosticsReport_reads(ctx, field)
+			case "devices":
+				return ec.fieldContext_DreameDiagnosticsReport_devices(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DreameDiagnosticsReport", field.Name)
 		},
 	}
 	return fc, nil
@@ -28120,6 +34594,8 @@ func (ec *executionContext) fieldContext_Mutation_updateDevice(ctx context.Conte
 				return ec.fieldContext_Device_attributes(ctx, field)
 			case "zigbee2Mqtt":
 				return ec.fieldContext_Device_zigbee2Mqtt(ctx, field)
+			case "image":
+				return ec.fieldContext_Device_image(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -28219,6 +34695,8 @@ func (ec *executionContext) fieldContext_Mutation_deleteDevice(ctx context.Conte
 				return ec.fieldContext_Device_attributes(ctx, field)
 			case "zigbee2Mqtt":
 				return ec.fieldContext_Device_zigbee2Mqtt(ctx, field)
+			case "image":
+				return ec.fieldContext_Device_image(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -28318,6 +34796,8 @@ func (ec *executionContext) fieldContext_Mutation_restoreDevice(ctx context.Cont
 				return ec.fieldContext_Device_attributes(ctx, field)
 			case "zigbee2Mqtt":
 				return ec.fieldContext_Device_zigbee2Mqtt(ctx, field)
+			case "image":
+				return ec.fieldContext_Device_image(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -30999,6 +37479,8 @@ func (ec *executionContext) fieldContext_Mutation_syncTuyaDevices(_ context.Cont
 				return ec.fieldContext_Device_attributes(ctx, field)
 			case "zigbee2Mqtt":
 				return ec.fieldContext_Device_zigbee2Mqtt(ctx, field)
+			case "image":
+				return ec.fieldContext_Device_image(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -35130,6 +41612,441 @@ func (ec *executionContext) fieldContext_PreviewSwatch_color(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_dreameConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_dreameConfig,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().DreameConfig(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.DreameConfig
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.DreameConfig
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalODreameConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameConfig,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_dreameConfig(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "revision":
+				return ec.fieldContext_DreameConfig_revision(ctx, field)
+			case "email":
+				return ec.fieldContext_DreameConfig_email(ctx, field)
+			case "password":
+				return ec.fieldContext_DreameConfig_password(ctx, field)
+			case "region":
+				return ec.fieldContext_DreameConfig_region(ctx, field)
+			case "enabled":
+				return ec.fieldContext_DreameConfig_enabled(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DreameConfig", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_cleaningDevices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_cleaningDevices,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().CleaningDevices(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.CleaningDevice
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.CleaningDevice
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNCleaningDevice2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningDeviceᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_cleaningDevices(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "deviceId":
+				return ec.fieldContext_CleaningDevice_deviceId(ctx, field)
+			case "supported":
+				return ec.fieldContext_CleaningDevice_supported(ctx, field)
+			case "controls":
+				return ec.fieldContext_CleaningDevice_controls(ctx, field)
+			case "model":
+				return ec.fieldContext_CleaningDevice_model(ctx, field)
+			case "modelId":
+				return ec.fieldContext_CleaningDevice_modelId(ctx, field)
+			case "manufacturer":
+				return ec.fieldContext_CleaningDevice_manufacturer(ctx, field)
+			case "status":
+				return ec.fieldContext_CleaningDevice_status(ctx, field)
+			case "battery":
+				return ec.fieldContext_CleaningDevice_battery(ctx, field)
+			case "suction":
+				return ec.fieldContext_CleaningDevice_suction(ctx, field)
+			case "water":
+				return ec.fieldContext_CleaningDevice_water(ctx, field)
+			case "elapsedMinutes":
+				return ec.fieldContext_CleaningDevice_elapsedMinutes(ctx, field)
+			case "cleanedArea":
+				return ec.fieldContext_CleaningDevice_cleanedArea(ctx, field)
+			case "progress":
+				return ec.fieldContext_CleaningDevice_progress(ctx, field)
+			case "estimatedProgress":
+				return ec.fieldContext_CleaningDevice_estimatedProgress(ctx, field)
+			case "consumables":
+				return ec.fieldContext_CleaningDevice_consumables(ctx, field)
+			case "error":
+				return ec.fieldContext_CleaningDevice_error(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_CleaningDevice_updatedAt(ctx, field)
+			case "activeMapId":
+				return ec.fieldContext_CleaningDevice_activeMapId(ctx, field)
+			case "maps":
+				return ec.fieldContext_CleaningDevice_maps(ctx, field)
+			case "liveMap":
+				return ec.fieldContext_CleaningDevice_liveMap(ctx, field)
+			case "liveAt":
+				return ec.fieldContext_CleaningDevice_liveAt(ctx, field)
+			case "mapError":
+				return ec.fieldContext_CleaningDevice_mapError(ctx, field)
+			case "activeTask":
+				return ec.fieldContext_CleaningDevice_activeTask(ctx, field)
+			case "roomLinks":
+				return ec.fieldContext_CleaningDevice_roomLinks(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningDevice", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_cleaningDevice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_cleaningDevice,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().CleaningDevice(ctx, fc.Args["deviceId"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.CleaningDevice
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.CleaningDevice
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalOCleaningDevice2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningDevice,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_cleaningDevice(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "deviceId":
+				return ec.fieldContext_CleaningDevice_deviceId(ctx, field)
+			case "supported":
+				return ec.fieldContext_CleaningDevice_supported(ctx, field)
+			case "controls":
+				return ec.fieldContext_CleaningDevice_controls(ctx, field)
+			case "model":
+				return ec.fieldContext_CleaningDevice_model(ctx, field)
+			case "modelId":
+				return ec.fieldContext_CleaningDevice_modelId(ctx, field)
+			case "manufacturer":
+				return ec.fieldContext_CleaningDevice_manufacturer(ctx, field)
+			case "status":
+				return ec.fieldContext_CleaningDevice_status(ctx, field)
+			case "battery":
+				return ec.fieldContext_CleaningDevice_battery(ctx, field)
+			case "suction":
+				return ec.fieldContext_CleaningDevice_suction(ctx, field)
+			case "water":
+				return ec.fieldContext_CleaningDevice_water(ctx, field)
+			case "elapsedMinutes":
+				return ec.fieldContext_CleaningDevice_elapsedMinutes(ctx, field)
+			case "cleanedArea":
+				return ec.fieldContext_CleaningDevice_cleanedArea(ctx, field)
+			case "progress":
+				return ec.fieldContext_CleaningDevice_progress(ctx, field)
+			case "estimatedProgress":
+				return ec.fieldContext_CleaningDevice_estimatedProgress(ctx, field)
+			case "consumables":
+				return ec.fieldContext_CleaningDevice_consumables(ctx, field)
+			case "error":
+				return ec.fieldContext_CleaningDevice_error(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_CleaningDevice_updatedAt(ctx, field)
+			case "activeMapId":
+				return ec.fieldContext_CleaningDevice_activeMapId(ctx, field)
+			case "maps":
+				return ec.fieldContext_CleaningDevice_maps(ctx, field)
+			case "liveMap":
+				return ec.fieldContext_CleaningDevice_liveMap(ctx, field)
+			case "liveAt":
+				return ec.fieldContext_CleaningDevice_liveAt(ctx, field)
+			case "mapError":
+				return ec.fieldContext_CleaningDevice_mapError(ctx, field)
+			case "activeTask":
+				return ec.fieldContext_CleaningDevice_activeTask(ctx, field)
+			case "roomLinks":
+				return ec.fieldContext_CleaningDevice_roomLinks(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningDevice", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_cleaningDevice_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_cleaningHistory(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_cleaningHistory,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().CleaningHistory(ctx, fc.Args["deviceId"].(string), fc.Args["before"].(*string), fc.Args["limit"].(*int))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal []*model.CleaningTask
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal []*model.CleaningTask
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNCleaningTask2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningTaskᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_cleaningHistory(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "scope":
+				return ec.fieldContext_CleaningTask_scope(ctx, field)
+			case "id":
+				return ec.fieldContext_CleaningTask_id(ctx, field)
+			case "deviceId":
+				return ec.fieldContext_CleaningTask_deviceId(ctx, field)
+			case "mapId":
+				return ec.fieldContext_CleaningTask_mapId(ctx, field)
+			case "roomIds":
+				return ec.fieldContext_CleaningTask_roomIds(ctx, field)
+			case "state":
+				return ec.fieldContext_CleaningTask_state(ctx, field)
+			case "origin":
+				return ec.fieldContext_CleaningTask_origin(ctx, field)
+			case "elapsedMinutes":
+				return ec.fieldContext_CleaningTask_elapsedMinutes(ctx, field)
+			case "cleanedArea":
+				return ec.fieldContext_CleaningTask_cleanedArea(ctx, field)
+			case "error":
+				return ec.fieldContext_CleaningTask_error(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_CleaningTask_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_CleaningTask_updatedAt(ctx, field)
+			case "completedAt":
+				return ec.fieldContext_CleaningTask_completedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningTask", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_cleaningHistory_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_cleaningCalibration(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_cleaningCalibration,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().CleaningCalibration(ctx, fc.Args["deviceId"].(string), fc.Args["mapId"].(string), fc.Args["floorplanId"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal *model.CleaningCalibration
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal *model.CleaningCalibration
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalOCleaningCalibration2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningCalibration,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_cleaningCalibration(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "mapRotation":
+				return ec.fieldContext_CleaningCalibration_mapRotation(ctx, field)
+			case "enabled":
+				return ec.fieldContext_CleaningCalibration_enabled(ctx, field)
+			case "deviceId":
+				return ec.fieldContext_CleaningCalibration_deviceId(ctx, field)
+			case "mapId":
+				return ec.fieldContext_CleaningCalibration_mapId(ctx, field)
+			case "floorplanId":
+				return ec.fieldContext_CleaningCalibration_floorplanId(ctx, field)
+			case "revision":
+				return ec.fieldContext_CleaningCalibration_revision(ctx, field)
+			case "mapRevision":
+				return ec.fieldContext_CleaningCalibration_mapRevision(ctx, field)
+			case "floorplanRevision":
+				return ec.fieldContext_CleaningCalibration_floorplanRevision(ctx, field)
+			case "anchors":
+				return ec.fieldContext_CleaningCalibration_anchors(ctx, field)
+			case "transform":
+				return ec.fieldContext_CleaningCalibration_transform(ctx, field)
+			case "valid":
+				return ec.fieldContext_CleaningCalibration_valid(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CleaningCalibration", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_cleaningCalibration_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_localizedNameSets(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -35269,6 +42186,8 @@ func (ec *executionContext) fieldContext_Query_devices(_ context.Context, field 
 				return ec.fieldContext_Device_attributes(ctx, field)
 			case "zigbee2Mqtt":
 				return ec.fieldContext_Device_zigbee2Mqtt(ctx, field)
+			case "image":
+				return ec.fieldContext_Device_image(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -35357,6 +42276,8 @@ func (ec *executionContext) fieldContext_Query_device(ctx context.Context, field
 				return ec.fieldContext_Device_attributes(ctx, field)
 			case "zigbee2Mqtt":
 				return ec.fieldContext_Device_zigbee2Mqtt(ctx, field)
+			case "image":
+				return ec.fieldContext_Device_image(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -37334,6 +44255,8 @@ func (ec *executionContext) fieldContext_Query_maintenanceTasks(_ context.Contex
 				return ec.fieldContext_MaintenanceTask_context(ctx, field)
 			case "actionUrl":
 				return ec.fieldContext_MaintenanceTask_actionUrl(ctx, field)
+			case "canComplete":
+				return ec.fieldContext_MaintenanceTask_canComplete(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type MaintenanceTask", field.Name)
 		},
@@ -38885,6 +45808,8 @@ func (ec *executionContext) fieldContext_Room_resolvedDevices(_ context.Context,
 				return ec.fieldContext_Device_attributes(ctx, field)
 			case "zigbee2Mqtt":
 				return ec.fieldContext_Device_zigbee2Mqtt(ctx, field)
+			case "image":
+				return ec.fieldContext_Device_image(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -39078,6 +46003,8 @@ func (ec *executionContext) fieldContext_RoomMember_device(_ context.Context, fi
 				return ec.fieldContext_Device_attributes(ctx, field)
 			case "zigbee2Mqtt":
 				return ec.fieldContext_Device_zigbee2Mqtt(ctx, field)
+			case "image":
+				return ec.fieldContext_Device_image(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -40693,6 +47620,53 @@ func (ec *executionContext) fieldContext_StateSeriesPoint_textValue(_ context.Co
 	return fc, nil
 }
 
+func (ec *executionContext) _Subscription_cleaningChanged(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Subscription_cleaningChanged,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Subscription().CleaningChanged(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				allowGuest, err := ec.unmarshalNBoolean2bool(ctx, false)
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Auth == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive auth is not implemented")
+				}
+				return ec.Directives.Auth(ctx, nil, directive0, allowGuest)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Subscription_cleaningChanged(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Subscription_deviceStateChanged(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
 	return graphql.ResolveFieldStream(
 		ctx,
@@ -41023,6 +47997,8 @@ func (ec *executionContext) fieldContext_Subscription_deviceAdded(_ context.Cont
 				return ec.fieldContext_Device_attributes(ctx, field)
 			case "zigbee2Mqtt":
 				return ec.fieldContext_Device_zigbee2Mqtt(ctx, field)
+			case "image":
+				return ec.fieldContext_Device_image(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -41110,6 +48086,8 @@ func (ec *executionContext) fieldContext_Subscription_deviceUpdated(_ context.Co
 				return ec.fieldContext_Device_attributes(ctx, field)
 			case "zigbee2Mqtt":
 				return ec.fieldContext_Device_zigbee2Mqtt(ctx, field)
+			case "image":
+				return ec.fieldContext_Device_image(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Device", field.Name)
 		},
@@ -45704,64 +52682,6 @@ func (ec *executionContext) fieldContext_Zigbee2MqttDeviceDocumentation_batteryT
 	return fc, nil
 }
 
-func (ec *executionContext) _Zigbee2MqttDeviceMetadata_imageCandidate(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceMetadata) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttDeviceMetadata_imageCandidate,
-		func(ctx context.Context) (any, error) {
-			return obj.ImageCandidate, nil
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttDeviceMetadata_imageCandidate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttDeviceMetadata",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Zigbee2MqttDeviceMetadata_imageVersion(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceMetadata) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Zigbee2MqttDeviceMetadata_imageVersion,
-		func(ctx context.Context) (any, error) {
-			return obj.ImageVersion, nil
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Zigbee2MqttDeviceMetadata_imageVersion(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Zigbee2MqttDeviceMetadata",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Zigbee2MqttDeviceMetadata_networkType(ctx context.Context, field graphql.CollectedField, obj *model.Zigbee2MqttDeviceMetadata) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -48811,13 +55731,36 @@ func (ec *executionContext) unmarshalInputAutomationActionPayloadInput(ctx conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"on", "brightness", "colorTemp", "color", "transition", "targetTemperature", "hvacMode", "fanMode", "swing", "sceneId", "scenes", "effectId", "nativeName", "field", "delta", "mode", "settings", "alarmId", "severity", "kind", "message"}
+	fieldsInOrder := [...]string{"roomIds", "options", "action", "on", "brightness", "colorTemp", "color", "transition", "targetTemperature", "hvacMode", "fanMode", "swing", "sceneId", "scenes", "effectId", "nativeName", "field", "delta", "mode", "settings", "alarmId", "severity", "kind", "message"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "roomIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roomIds"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RoomIDs = data
+		case "options":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("options"))
+			data, err := ec.unmarshalOCleaningOptionsInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningOptionsInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			if err = ec.Resolvers.AutomationActionPayloadInput().Options(ctx, &it, data); err != nil {
+				return it, err
+			}
+		case "action":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("action"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Action = data
 		case "on":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("on"))
 			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
@@ -49675,6 +56618,378 @@ func (ec *executionContext) unmarshalInputClaudeConfigInput(ctx context.Context,
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputCleaningAnchorInput(ctx context.Context, obj any) (model.CleaningAnchorInput, error) {
+	var it model.CleaningAnchorInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"robot", "hive"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "robot":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("robot"))
+			data, err := ec.unmarshalNCleaningPointInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningPointInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Robot = data
+		case "hive":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hive"))
+			data, err := ec.unmarshalNCleaningPointInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningPointInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Hive = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputCleaningCalibrationInput(ctx context.Context, obj any) (model.CleaningCalibrationInput, error) {
+	var it model.CleaningCalibrationInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["mapRotation"]; !present {
+		asMap["mapRotation"] = 0
+	}
+	if _, present := asMap["enabled"]; !present {
+		asMap["enabled"] = false
+	}
+
+	fieldsInOrder := [...]string{"mapRotation", "enabled", "deviceId", "mapId", "floorplanId", "expectedRevision", "mapRevision", "floorplanRevision", "anchors"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "mapRotation":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mapRotation"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MapRotation = data
+		case "enabled":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("enabled"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Enabled = data
+		case "deviceId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deviceId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DeviceID = data
+		case "mapId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mapId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MapID = data
+		case "floorplanId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("floorplanId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FloorplanID = data
+		case "expectedRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedRevision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedRevision = data
+		case "mapRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mapRevision"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MapRevision = data
+		case "floorplanRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("floorplanRevision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FloorplanRevision = data
+		case "anchors":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("anchors"))
+			data, err := ec.unmarshalNCleaningAnchorInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningAnchorInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Anchors = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputCleaningOptionsInput(ctx context.Context, obj any) (model.CleaningOptionsInput, error) {
+	var it model.CleaningOptionsInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["repeats"]; !present {
+		asMap["repeats"] = 1
+	}
+
+	fieldsInOrder := [...]string{"suction", "water", "repeats"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "suction":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("suction"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Suction = graphql.OmittableOf(data)
+		case "water":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("water"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Water = graphql.OmittableOf(data)
+		case "repeats":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("repeats"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Repeats = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputCleaningPointInput(ctx context.Context, obj any) (model.CleaningPointInput, error) {
+	var it model.CleaningPointInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"x", "y"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "x":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("x"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.X = data
+		case "y":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("y"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Y = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputCleaningRoomLinkInput(ctx context.Context, obj any) (model.CleaningRoomLinkInput, error) {
+	var it model.CleaningRoomLinkInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"roomId", "areaId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "roomId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roomId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RoomID = data
+		case "areaId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("areaId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AreaID = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputCleaningRoomLinksInput(ctx context.Context, obj any) (model.CleaningRoomLinksInput, error) {
+	var it model.CleaningRoomLinksInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"deviceId", "mapId", "mapRevision", "expectedRevision", "links"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "deviceId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deviceId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DeviceID = data
+		case "mapId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mapId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MapID = data
+		case "mapRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mapRevision"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MapRevision = data
+		case "expectedRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedRevision"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedRevision = data
+		case "links":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("links"))
+			data, err := ec.unmarshalNCleaningRoomLinkInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningRoomLinkInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Links = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputCleaningSelectionInput(ctx context.Context, obj any) (model.CleaningSelectionInput, error) {
+	var it model.CleaningSelectionInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["scope"]; !present {
+		asMap["scope"] = "ROOMS"
+	}
+
+	fieldsInOrder := [...]string{"scope", "deviceId", "mapId", "roomIds", "options"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "scope":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scope"))
+			data, err := ec.unmarshalNCleaningScope2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningScope(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Scope = data
+		case "deviceId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deviceId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DeviceID = data
+		case "mapId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mapId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MapID = data
+		case "roomIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roomIds"))
+			data, err := ec.unmarshalNID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RoomIds = data
+		case "options":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("options"))
+			data, err := ec.unmarshalNCleaningOptionsInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningOptionsInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Options = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputColorInput(ctx context.Context, obj any) (model.ColorInput, error) {
 	var it model.ColorInput
 	if obj == nil {
@@ -50429,6 +57744,57 @@ func (ec *executionContext) unmarshalInputDeviceStateInput(ctx context.Context, 
 				return it, err
 			}
 			it.Swing = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputDreameConfigInput(ctx context.Context, obj any) (model.DreameConfigInput, error) {
+	var it model.DreameConfigInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"email", "password", "region", "enabled"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "email":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Email = data
+		case "password":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Password = data
+		case "region":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("region"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Region = data
+		case "enabled":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("enabled"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Enabled = data
 		}
 	}
 	return it, nil
@@ -52044,6 +59410,57 @@ func (ec *executionContext) unmarshalInputSceneTargetInput(ctx context.Context, 
 				return it, err
 			}
 			it.Name = graphql.OmittableOf(data)
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputStartCleaningInput(ctx context.Context, obj any) (model.StartCleaningInput, error) {
+	var it model.StartCleaningInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"selection", "expectedRevision", "requestId", "replaceTaskId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "selection":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("selection"))
+			data, err := ec.unmarshalNCleaningSelectionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningSelectionInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Selection = data
+		case "expectedRevision":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedRevision"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedRevision = data
+		case "requestId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("requestId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RequestID = data
+		case "replaceTaskId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replaceTaskId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReplaceTaskID = graphql.OmittableOf(data)
 		}
 	}
 	return it, nil
@@ -54576,6 +61993,43 @@ func (ec *executionContext) _AutomationActionPayload(ctx context.Context, sel as
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("AutomationActionPayload")
+		case "roomIds":
+			out.Values[i] = ec._AutomationActionPayload_roomIds(ctx, field, obj)
+		case "options":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._AutomationActionPayload_options(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "action":
+			out.Values[i] = ec._AutomationActionPayload_action(ctx, field, obj)
 		case "on":
 			out.Values[i] = ec._AutomationActionPayload_on(ctx, field, obj)
 		case "brightness":
@@ -54599,7 +62053,7 @@ func (ec *executionContext) _AutomationActionPayload(ctx context.Context, sel as
 		case "scenes":
 			out.Values[i] = ec._AutomationActionPayload_scenes(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "effectId":
 			out.Values[i] = ec._AutomationActionPayload_effectId(ctx, field, obj)
@@ -54614,7 +62068,7 @@ func (ec *executionContext) _AutomationActionPayload(ctx context.Context, sel as
 		case "settings":
 			out.Values[i] = ec._AutomationActionPayload_settings(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "alarmId":
 			out.Values[i] = ec._AutomationActionPayload_alarmId(ctx, field, obj)
@@ -55561,6 +63015,1037 @@ func (ec *executionContext) _ClaudeConfig(ctx context.Context, sel ast.Selection
 	return out
 }
 
+var cleaningAnchorImplementors = []string{"CleaningAnchor"}
+
+func (ec *executionContext) _CleaningAnchor(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningAnchor) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningAnchorImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningAnchor")
+		case "robot":
+			out.Values[i] = ec._CleaningAnchor_robot(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hive":
+			out.Values[i] = ec._CleaningAnchor_hive(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleaningCalibrationImplementors = []string{"CleaningCalibration"}
+
+func (ec *executionContext) _CleaningCalibration(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningCalibration) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningCalibrationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningCalibration")
+		case "mapRotation":
+			out.Values[i] = ec._CleaningCalibration_mapRotation(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "enabled":
+			out.Values[i] = ec._CleaningCalibration_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deviceId":
+			out.Values[i] = ec._CleaningCalibration_deviceId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "mapId":
+			out.Values[i] = ec._CleaningCalibration_mapId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "floorplanId":
+			out.Values[i] = ec._CleaningCalibration_floorplanId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revision":
+			out.Values[i] = ec._CleaningCalibration_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "mapRevision":
+			out.Values[i] = ec._CleaningCalibration_mapRevision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "floorplanRevision":
+			out.Values[i] = ec._CleaningCalibration_floorplanRevision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "anchors":
+			out.Values[i] = ec._CleaningCalibration_anchors(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "transform":
+			out.Values[i] = ec._CleaningCalibration_transform(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "valid":
+			out.Values[i] = ec._CleaningCalibration_valid(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleaningConsumableImplementors = []string{"CleaningConsumable"}
+
+func (ec *executionContext) _CleaningConsumable(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningConsumable) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningConsumableImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningConsumable")
+		case "name":
+			out.Values[i] = ec._CleaningConsumable_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "percent":
+			out.Values[i] = ec._CleaningConsumable_percent(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resettable":
+			out.Values[i] = ec._CleaningConsumable_resettable(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleaningControlImplementors = []string{"CleaningControl"}
+
+func (ec *executionContext) _CleaningControl(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningControl) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningControlImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningControl")
+		case "action":
+			out.Values[i] = ec._CleaningControl_action(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "enabled":
+			out.Values[i] = ec._CleaningControl_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleaningDeviceImplementors = []string{"CleaningDevice"}
+
+func (ec *executionContext) _CleaningDevice(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningDevice) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningDeviceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningDevice")
+		case "deviceId":
+			out.Values[i] = ec._CleaningDevice_deviceId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "supported":
+			out.Values[i] = ec._CleaningDevice_supported(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "controls":
+			out.Values[i] = ec._CleaningDevice_controls(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "model":
+			out.Values[i] = ec._CleaningDevice_model(ctx, field, obj)
+		case "modelId":
+			out.Values[i] = ec._CleaningDevice_modelId(ctx, field, obj)
+		case "manufacturer":
+			out.Values[i] = ec._CleaningDevice_manufacturer(ctx, field, obj)
+		case "status":
+			out.Values[i] = ec._CleaningDevice_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "battery":
+			out.Values[i] = ec._CleaningDevice_battery(ctx, field, obj)
+		case "suction":
+			out.Values[i] = ec._CleaningDevice_suction(ctx, field, obj)
+		case "water":
+			out.Values[i] = ec._CleaningDevice_water(ctx, field, obj)
+		case "elapsedMinutes":
+			out.Values[i] = ec._CleaningDevice_elapsedMinutes(ctx, field, obj)
+		case "cleanedArea":
+			out.Values[i] = ec._CleaningDevice_cleanedArea(ctx, field, obj)
+		case "progress":
+			out.Values[i] = ec._CleaningDevice_progress(ctx, field, obj)
+		case "estimatedProgress":
+			out.Values[i] = ec._CleaningDevice_estimatedProgress(ctx, field, obj)
+		case "consumables":
+			out.Values[i] = ec._CleaningDevice_consumables(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "error":
+			out.Values[i] = ec._CleaningDevice_error(ctx, field, obj)
+		case "updatedAt":
+			out.Values[i] = ec._CleaningDevice_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "activeMapId":
+			out.Values[i] = ec._CleaningDevice_activeMapId(ctx, field, obj)
+		case "maps":
+			out.Values[i] = ec._CleaningDevice_maps(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "liveMap":
+			out.Values[i] = ec._CleaningDevice_liveMap(ctx, field, obj)
+		case "liveAt":
+			out.Values[i] = ec._CleaningDevice_liveAt(ctx, field, obj)
+		case "mapError":
+			out.Values[i] = ec._CleaningDevice_mapError(ctx, field, obj)
+		case "activeTask":
+			out.Values[i] = ec._CleaningDevice_activeTask(ctx, field, obj)
+		case "roomLinks":
+			out.Values[i] = ec._CleaningDevice_roomLinks(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleaningMapImplementors = []string{"CleaningMap"}
+
+func (ec *executionContext) _CleaningMap(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningMap) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningMapImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningMap")
+		case "revision":
+			out.Values[i] = ec._CleaningMap_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "id":
+			out.Values[i] = ec._CleaningMap_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._CleaningMap_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "width":
+			out.Values[i] = ec._CleaningMap_width(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "height":
+			out.Values[i] = ec._CleaningMap_height(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "metersPerPixel":
+			out.Values[i] = ec._CleaningMap_metersPerPixel(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "origin":
+			out.Values[i] = ec._CleaningMap_origin(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rotation":
+			out.Values[i] = ec._CleaningMap_rotation(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "robot":
+			out.Values[i] = ec._CleaningMap_robot(ctx, field, obj)
+		case "dock":
+			out.Values[i] = ec._CleaningMap_dock(ctx, field, obj)
+		case "layers":
+			out.Values[i] = ec._CleaningMap_layers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rooms":
+			out.Values[i] = ec._CleaningMap_rooms(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "areas":
+			out.Values[i] = ec._CleaningMap_areas(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "walls":
+			out.Values[i] = ec._CleaningMap_walls(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "path":
+			out.Values[i] = ec._CleaningMap_path(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleaningMapAreaImplementors = []string{"CleaningMapArea"}
+
+func (ec *executionContext) _CleaningMapArea(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningMapArea) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningMapAreaImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningMapArea")
+		case "kind":
+			out.Values[i] = ec._CleaningMapArea_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "points":
+			out.Values[i] = ec._CleaningMapArea_points(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleaningMapLayerImplementors = []string{"CleaningMapLayer"}
+
+func (ec *executionContext) _CleaningMapLayer(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningMapLayer) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningMapLayerImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningMapLayer")
+		case "kind":
+			out.Values[i] = ec._CleaningMapLayer_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "roomId":
+			out.Values[i] = ec._CleaningMapLayer_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "path":
+			out.Values[i] = ec._CleaningMapLayer_path(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleaningMapPointImplementors = []string{"CleaningMapPoint"}
+
+func (ec *executionContext) _CleaningMapPoint(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningMapPoint) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningMapPointImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningMapPoint")
+		case "x":
+			out.Values[i] = ec._CleaningMapPoint_x(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "y":
+			out.Values[i] = ec._CleaningMapPoint_y(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleaningMapPositionImplementors = []string{"CleaningMapPosition"}
+
+func (ec *executionContext) _CleaningMapPosition(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningMapPosition) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningMapPositionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningMapPosition")
+		case "x":
+			out.Values[i] = ec._CleaningMapPosition_x(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "y":
+			out.Values[i] = ec._CleaningMapPosition_y(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "angle":
+			out.Values[i] = ec._CleaningMapPosition_angle(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleaningMapRoomImplementors = []string{"CleaningMapRoom"}
+
+func (ec *executionContext) _CleaningMapRoom(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningMapRoom) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningMapRoomImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningMapRoom")
+		case "id":
+			out.Values[i] = ec._CleaningMapRoom_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._CleaningMapRoom_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "x":
+			out.Values[i] = ec._CleaningMapRoom_x(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "y":
+			out.Values[i] = ec._CleaningMapRoom_y(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "area":
+			out.Values[i] = ec._CleaningMapRoom_area(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleaningOptionsImplementors = []string{"CleaningOptions"}
+
+func (ec *executionContext) _CleaningOptions(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningOptions) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningOptionsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningOptions")
+		case "suction":
+			out.Values[i] = ec._CleaningOptions_suction(ctx, field, obj)
+		case "water":
+			out.Values[i] = ec._CleaningOptions_water(ctx, field, obj)
+		case "repeats":
+			out.Values[i] = ec._CleaningOptions_repeats(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleaningPlanImplementors = []string{"CleaningPlan"}
+
+func (ec *executionContext) _CleaningPlan(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningPlan) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningPlanImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningPlan")
+		case "scope":
+			out.Values[i] = ec._CleaningPlan_scope(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deviceId":
+			out.Values[i] = ec._CleaningPlan_deviceId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "mapId":
+			out.Values[i] = ec._CleaningPlan_mapId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "roomIds":
+			out.Values[i] = ec._CleaningPlan_roomIds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "areaIds":
+			out.Values[i] = ec._CleaningPlan_areaIds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "options":
+			out.Values[i] = ec._CleaningPlan_options(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revision":
+			out.Values[i] = ec._CleaningPlan_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleaningRoomLinkImplementors = []string{"CleaningRoomLink"}
+
+func (ec *executionContext) _CleaningRoomLink(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningRoomLink) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningRoomLinkImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningRoomLink")
+		case "roomId":
+			out.Values[i] = ec._CleaningRoomLink_roomId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "areaId":
+			out.Values[i] = ec._CleaningRoomLink_areaId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleaningRoomLinksImplementors = []string{"CleaningRoomLinks"}
+
+func (ec *executionContext) _CleaningRoomLinks(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningRoomLinks) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningRoomLinksImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningRoomLinks")
+		case "mapId":
+			out.Values[i] = ec._CleaningRoomLinks_mapId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "mapRevision":
+			out.Values[i] = ec._CleaningRoomLinks_mapRevision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "revision":
+			out.Values[i] = ec._CleaningRoomLinks_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "links":
+			out.Values[i] = ec._CleaningRoomLinks_links(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleaningTaskImplementors = []string{"CleaningTask"}
+
+func (ec *executionContext) _CleaningTask(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningTask) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningTaskImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningTask")
+		case "scope":
+			out.Values[i] = ec._CleaningTask_scope(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "id":
+			out.Values[i] = ec._CleaningTask_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deviceId":
+			out.Values[i] = ec._CleaningTask_deviceId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "mapId":
+			out.Values[i] = ec._CleaningTask_mapId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "roomIds":
+			out.Values[i] = ec._CleaningTask_roomIds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "state":
+			out.Values[i] = ec._CleaningTask_state(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "origin":
+			out.Values[i] = ec._CleaningTask_origin(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "elapsedMinutes":
+			out.Values[i] = ec._CleaningTask_elapsedMinutes(ctx, field, obj)
+		case "cleanedArea":
+			out.Values[i] = ec._CleaningTask_cleanedArea(ctx, field, obj)
+		case "error":
+			out.Values[i] = ec._CleaningTask_error(ctx, field, obj)
+		case "createdAt":
+			out.Values[i] = ec._CleaningTask_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._CleaningTask_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "completedAt":
+			out.Values[i] = ec._CleaningTask_completedAt(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var cleaningTransformImplementors = []string{"CleaningTransform"}
+
+func (ec *executionContext) _CleaningTransform(ctx context.Context, sel ast.SelectionSet, obj *model.CleaningTransform) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cleaningTransformImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CleaningTransform")
+		case "a":
+			out.Values[i] = ec._CleaningTransform_a(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "b":
+			out.Values[i] = ec._CleaningTransform_b(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "x":
+			out.Values[i] = ec._CleaningTransform_x(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "y":
+			out.Values[i] = ec._CleaningTransform_y(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var colorImplementors = []string{"Color"}
 
 func (ec *executionContext) _Color(ctx context.Context, sel ast.SelectionSet, obj *model.Color) graphql.Marshaler {
@@ -55983,6 +64468,39 @@ func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, o
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "image":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Device_image(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -56188,6 +64706,45 @@ func (ec *executionContext) _DeviceAvailabilityEvent(ctx context.Context, sel as
 	return out
 }
 
+var deviceImageImplementors = []string{"DeviceImage"}
+
+func (ec *executionContext) _DeviceImage(ctx context.Context, sel ast.SelectionSet, obj *model.DeviceImage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, deviceImageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DeviceImage")
+		case "version":
+			out.Values[i] = ec._DeviceImage_version(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var deviceRolesImplementors = []string{"DeviceRoles"}
 
 func (ec *executionContext) _DeviceRoles(ctx context.Context, sel ast.SelectionSet, obj *model.DeviceRoles) graphql.Marshaler {
@@ -56237,6 +64794,8 @@ func (ec *executionContext) _DeviceState(ctx context.Context, sel ast.SelectionS
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("DeviceState")
+		case "cleaningStatus":
+			out.Values[i] = ec._DeviceState_cleaningStatus(ctx, field, obj)
 		case "on":
 			out.Values[i] = ec._DeviceState_on(ctx, field, obj)
 		case "brightness":
@@ -56326,6 +64885,332 @@ func (ec *executionContext) _DeviceStateEvent(ctx context.Context, sel ast.Selec
 			}
 		case "state":
 			out.Values[i] = ec._DeviceStateEvent_state(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var dreameConfigImplementors = []string{"DreameConfig"}
+
+func (ec *executionContext) _DreameConfig(ctx context.Context, sel ast.SelectionSet, obj *model.DreameConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, dreameConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DreameConfig")
+		case "revision":
+			out.Values[i] = ec._DreameConfig_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "email":
+			out.Values[i] = ec._DreameConfig_email(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "password":
+			out.Values[i] = ec._DreameConfig_password(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "region":
+			out.Values[i] = ec._DreameConfig_region(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "enabled":
+			out.Values[i] = ec._DreameConfig_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var dreameConfigResultImplementors = []string{"DreameConfigResult"}
+
+func (ec *executionContext) _DreameConfigResult(ctx context.Context, sel ast.SelectionSet, obj *model.DreameConfigResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, dreameConfigResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DreameConfigResult")
+		case "config":
+			out.Values[i] = ec._DreameConfigResult_config(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "application":
+			out.Values[i] = ec._DreameConfigResult_application(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var dreameDeviceReportImplementors = []string{"DreameDeviceReport"}
+
+func (ec *executionContext) _DreameDeviceReport(ctx context.Context, sel ast.SelectionSet, obj *model.DreameDeviceReport) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, dreameDeviceReportImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DreameDeviceReport")
+		case "id":
+			out.Values[i] = ec._DreameDeviceReport_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._DreameDeviceReport_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "model":
+			out.Values[i] = ec._DreameDeviceReport_model(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reads":
+			out.Values[i] = ec._DreameDeviceReport_reads(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "properties":
+			out.Values[i] = ec._DreameDeviceReport_properties(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maps":
+			out.Values[i] = ec._DreameDeviceReport_maps(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var dreameDiagnosticPropertyImplementors = []string{"DreameDiagnosticProperty"}
+
+func (ec *executionContext) _DreameDiagnosticProperty(ctx context.Context, sel ast.SelectionSet, obj *model.DreameDiagnosticProperty) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, dreameDiagnosticPropertyImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DreameDiagnosticProperty")
+		case "name":
+			out.Values[i] = ec._DreameDiagnosticProperty_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "siid":
+			out.Values[i] = ec._DreameDiagnosticProperty_siid(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "piid":
+			out.Values[i] = ec._DreameDiagnosticProperty_piid(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._DreameDiagnosticProperty_value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "code":
+			out.Values[i] = ec._DreameDiagnosticProperty_code(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var dreameDiagnosticReadImplementors = []string{"DreameDiagnosticRead"}
+
+func (ec *executionContext) _DreameDiagnosticRead(ctx context.Context, sel ast.SelectionSet, obj *model.DreameDiagnosticRead) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, dreameDiagnosticReadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DreameDiagnosticRead")
+		case "name":
+			out.Values[i] = ec._DreameDiagnosticRead_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "json":
+			out.Values[i] = ec._DreameDiagnosticRead_json(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "error":
+			out.Values[i] = ec._DreameDiagnosticRead_error(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var dreameDiagnosticsReportImplementors = []string{"DreameDiagnosticsReport"}
+
+func (ec *executionContext) _DreameDiagnosticsReport(ctx context.Context, sel ast.SelectionSet, obj *model.DreameDiagnosticsReport) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, dreameDiagnosticsReportImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DreameDiagnosticsReport")
+		case "completedAt":
+			out.Values[i] = ec._DreameDiagnosticsReport_completedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "authenticated":
+			out.Values[i] = ec._DreameDiagnosticsReport_authenticated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reads":
+			out.Values[i] = ec._DreameDiagnosticsReport_reads(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "devices":
+			out.Values[i] = ec._DreameDiagnosticsReport_devices(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -58123,6 +67008,11 @@ func (ec *executionContext) _MaintenanceTask(ctx context.Context, sel ast.Select
 			out.Values[i] = ec._MaintenanceTask_context(ctx, field, obj)
 		case "actionUrl":
 			out.Values[i] = ec._MaintenanceTask_actionUrl(ctx, field, obj)
+		case "canComplete":
+			out.Values[i] = ec._MaintenanceTask_canComplete(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -58165,6 +67055,62 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
+		case "updateDreameConfig":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateDreameConfig(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "testDreameConnection":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_testDreameConnection(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "prepareCleaning":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_prepareCleaning(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "startCleaning":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_startCleaning(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "controlCleaning":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_controlCleaning(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateCleaningRoomLinks":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateCleaningRoomLinks(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateCleaningCalibration":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateCleaningCalibration(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "readDreameDiagnostics":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_readDreameDiagnostics(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "updateLocalizedNameSet":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateLocalizedNameSet(ctx, field)
@@ -59333,6 +68279,107 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Query")
+		case "dreameConfig":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_dreameConfig(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "cleaningDevices":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_cleaningDevices(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "cleaningDevice":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_cleaningDevice(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "cleaningHistory":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_cleaningHistory(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "cleaningCalibration":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_cleaningCalibration(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "localizedNameSets":
 			field := field
 
@@ -61161,6 +70208,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	}
 
 	switch fields[0].Name {
+	case "cleaningChanged":
+		return ec._Subscription_cleaningChanged(ctx, fields[0])
 	case "deviceStateChanged":
 		return ec._Subscription_deviceStateChanged(ctx, fields[0])
 	case "deviceAttributesChanged":
@@ -62312,13 +71361,6 @@ func (ec *executionContext) _Zigbee2MqttDeviceMetadata(ctx context.Context, sel 
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Zigbee2MqttDeviceMetadata")
-		case "imageCandidate":
-			out.Values[i] = ec._Zigbee2MqttDeviceMetadata_imageCandidate(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "imageVersion":
-			out.Values[i] = ec._Zigbee2MqttDeviceMetadata_imageVersion(ctx, field, obj)
 		case "networkType":
 			out.Values[i] = ec._Zigbee2MqttDeviceMetadata_networkType(ctx, field, obj)
 		case "ieeeAddress":
@@ -63797,6 +72839,476 @@ func (ec *executionContext) unmarshalNClaudeConfigInput2githubᚗcomᚋsaffronja
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNCleaningAction2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningAction(ctx context.Context, v any) (model.CleaningAction, error) {
+	var res model.CleaningAction
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCleaningAction2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningAction(ctx context.Context, sel ast.SelectionSet, v model.CleaningAction) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNCleaningAnchor2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningAnchorᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CleaningAnchor) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNCleaningAnchor2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningAnchor(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCleaningAnchor2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningAnchor(ctx context.Context, sel ast.SelectionSet, v *model.CleaningAnchor) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleaningAnchor(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNCleaningAnchorInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningAnchorInputᚄ(ctx context.Context, v any) ([]*model.CleaningAnchorInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.CleaningAnchorInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNCleaningAnchorInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningAnchorInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNCleaningAnchorInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningAnchorInput(ctx context.Context, v any) (*model.CleaningAnchorInput, error) {
+	res, err := ec.unmarshalInputCleaningAnchorInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCleaningCalibration2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningCalibration(ctx context.Context, sel ast.SelectionSet, v model.CleaningCalibration) graphql.Marshaler {
+	return ec._CleaningCalibration(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNCleaningCalibration2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningCalibration(ctx context.Context, sel ast.SelectionSet, v *model.CleaningCalibration) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleaningCalibration(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNCleaningCalibrationInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningCalibrationInput(ctx context.Context, v any) (model.CleaningCalibrationInput, error) {
+	res, err := ec.unmarshalInputCleaningCalibrationInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCleaningConsumable2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningConsumableᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CleaningConsumable) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNCleaningConsumable2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningConsumable(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCleaningConsumable2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningConsumable(ctx context.Context, sel ast.SelectionSet, v *model.CleaningConsumable) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleaningConsumable(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCleaningControl2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningControlᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CleaningControl) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNCleaningControl2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningControl(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCleaningControl2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningControl(ctx context.Context, sel ast.SelectionSet, v *model.CleaningControl) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleaningControl(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCleaningDevice2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningDeviceᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CleaningDevice) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNCleaningDevice2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningDevice(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCleaningDevice2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningDevice(ctx context.Context, sel ast.SelectionSet, v *model.CleaningDevice) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleaningDevice(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCleaningMap2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CleaningMap) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNCleaningMap2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMap(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCleaningMap2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMap(ctx context.Context, sel ast.SelectionSet, v *model.CleaningMap) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleaningMap(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCleaningMapArea2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapAreaᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CleaningMapArea) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNCleaningMapArea2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapArea(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCleaningMapArea2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapArea(ctx context.Context, sel ast.SelectionSet, v *model.CleaningMapArea) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleaningMapArea(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCleaningMapLayer2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapLayerᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CleaningMapLayer) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNCleaningMapLayer2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapLayer(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCleaningMapLayer2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapLayer(ctx context.Context, sel ast.SelectionSet, v *model.CleaningMapLayer) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleaningMapLayer(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCleaningMapPoint2ᚕᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapPointᚄ(ctx context.Context, sel ast.SelectionSet, v [][]*model.CleaningMapPoint) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNCleaningMapPoint2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapPointᚄ(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCleaningMapPoint2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapPointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CleaningMapPoint) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNCleaningMapPoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapPoint(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCleaningMapPoint2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapPoint(ctx context.Context, sel ast.SelectionSet, v *model.CleaningMapPoint) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleaningMapPoint(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCleaningMapRoom2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapRoomᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CleaningMapRoom) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNCleaningMapRoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapRoom(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCleaningMapRoom2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapRoom(ctx context.Context, sel ast.SelectionSet, v *model.CleaningMapRoom) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleaningMapRoom(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCleaningOptions2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningOptions(ctx context.Context, sel ast.SelectionSet, v *model.CleaningOptions) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleaningOptions(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNCleaningOptionsInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningOptionsInput(ctx context.Context, v any) (*model.CleaningOptionsInput, error) {
+	res, err := ec.unmarshalInputCleaningOptionsInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCleaningPlan2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningPlan(ctx context.Context, sel ast.SelectionSet, v model.CleaningPlan) graphql.Marshaler {
+	return ec._CleaningPlan(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNCleaningPlan2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningPlan(ctx context.Context, sel ast.SelectionSet, v *model.CleaningPlan) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleaningPlan(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNCleaningPointInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningPointInput(ctx context.Context, v any) (*model.CleaningPointInput, error) {
+	res, err := ec.unmarshalInputCleaningPointInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCleaningRoomLink2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningRoomLinkᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CleaningRoomLink) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNCleaningRoomLink2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningRoomLink(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCleaningRoomLink2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningRoomLink(ctx context.Context, sel ast.SelectionSet, v *model.CleaningRoomLink) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleaningRoomLink(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNCleaningRoomLinkInput2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningRoomLinkInputᚄ(ctx context.Context, v any) ([]*model.CleaningRoomLinkInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.CleaningRoomLinkInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNCleaningRoomLinkInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningRoomLinkInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNCleaningRoomLinkInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningRoomLinkInput(ctx context.Context, v any) (*model.CleaningRoomLinkInput, error) {
+	res, err := ec.unmarshalInputCleaningRoomLinkInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCleaningRoomLinks2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningRoomLinksᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CleaningRoomLinks) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNCleaningRoomLinks2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningRoomLinks(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCleaningRoomLinks2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningRoomLinks(ctx context.Context, sel ast.SelectionSet, v *model.CleaningRoomLinks) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleaningRoomLinks(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNCleaningRoomLinksInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningRoomLinksInput(ctx context.Context, v any) (model.CleaningRoomLinksInput, error) {
+	res, err := ec.unmarshalInputCleaningRoomLinksInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNCleaningScope2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningScope(ctx context.Context, v any) (model.CleaningScope, error) {
+	var res model.CleaningScope
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCleaningScope2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningScope(ctx context.Context, sel ast.SelectionSet, v model.CleaningScope) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNCleaningSelectionInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningSelectionInput(ctx context.Context, v any) (model.CleaningSelectionInput, error) {
+	res, err := ec.unmarshalInputCleaningSelectionInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNCleaningSelectionInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningSelectionInput(ctx context.Context, v any) (*model.CleaningSelectionInput, error) {
+	res, err := ec.unmarshalInputCleaningSelectionInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCleaningTask2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningTask(ctx context.Context, sel ast.SelectionSet, v model.CleaningTask) graphql.Marshaler {
+	return ec._CleaningTask(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNCleaningTask2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningTaskᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CleaningTask) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNCleaningTask2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningTask(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCleaningTask2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningTask(ctx context.Context, sel ast.SelectionSet, v *model.CleaningTask) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleaningTask(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCleaningTransform2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningTransform(ctx context.Context, sel ast.SelectionSet, v *model.CleaningTransform) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CleaningTransform(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNCommandTargetInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCommandTargetInput(ctx context.Context, v any) (model.CommandTargetInput, error) {
 	res, err := ec.unmarshalInputCommandTargetInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -64143,6 +73655,127 @@ func (ec *executionContext) marshalNDeviceStateEvent2ᚖgithubᚗcomᚋsaffronja
 func (ec *executionContext) unmarshalNDeviceStateInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceStateInput(ctx context.Context, v any) (model.DeviceStateInput, error) {
 	res, err := ec.unmarshalInputDeviceStateInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDreameConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameConfig(ctx context.Context, sel ast.SelectionSet, v *model.DreameConfig) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DreameConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNDreameConfigInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameConfigInput(ctx context.Context, v any) (model.DreameConfigInput, error) {
+	res, err := ec.unmarshalInputDreameConfigInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDreameConfigResult2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameConfigResult(ctx context.Context, sel ast.SelectionSet, v model.DreameConfigResult) graphql.Marshaler {
+	return ec._DreameConfigResult(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDreameConfigResult2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameConfigResult(ctx context.Context, sel ast.SelectionSet, v *model.DreameConfigResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DreameConfigResult(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDreameDeviceReport2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameDeviceReportᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DreameDeviceReport) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDreameDeviceReport2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameDeviceReport(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDreameDeviceReport2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameDeviceReport(ctx context.Context, sel ast.SelectionSet, v *model.DreameDeviceReport) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DreameDeviceReport(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDreameDiagnosticProperty2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameDiagnosticPropertyᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DreameDiagnosticProperty) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDreameDiagnosticProperty2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameDiagnosticProperty(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDreameDiagnosticProperty2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameDiagnosticProperty(ctx context.Context, sel ast.SelectionSet, v *model.DreameDiagnosticProperty) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DreameDiagnosticProperty(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDreameDiagnosticRead2ᚕᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameDiagnosticReadᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DreameDiagnosticRead) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDreameDiagnosticRead2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameDiagnosticRead(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDreameDiagnosticRead2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameDiagnosticRead(ctx context.Context, sel ast.SelectionSet, v *model.DreameDiagnosticRead) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DreameDiagnosticRead(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDreameDiagnosticsReport2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameDiagnosticsReport(ctx context.Context, sel ast.SelectionSet, v model.DreameDiagnosticsReport) graphql.Marshaler {
+	return ec._DreameDiagnosticsReport(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDreameDiagnosticsReport2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameDiagnosticsReport(ctx context.Context, sel ast.SelectionSet, v *model.DreameDiagnosticsReport) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DreameDiagnosticsReport(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNEffect2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐEffect(ctx context.Context, sel ast.SelectionSet, v model.Effect) graphql.Marshaler {
@@ -65915,6 +75548,11 @@ func (ec *executionContext) marshalNSetupStatus2ᚖgithubᚗcomᚋsaffronjamᚋs
 	return ec._SetupStatus(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNStartCleaningInput2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStartCleaningInput(ctx context.Context, v any) (model.StartCleaningInput, error) {
+	res, err := ec.unmarshalInputStartCleaningInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNStateHistoryFilter2githubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐStateHistoryFilter(ctx context.Context, v any) (model.StateHistoryFilter, error) {
 	res, err := ec.unmarshalInputStateHistoryFilter(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -66952,6 +76590,56 @@ func (ec *executionContext) marshalOClaudeConfig2ᚖgithubᚗcomᚋsaffronjamᚋ
 	return ec._ClaudeConfig(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalOCleaningCalibration2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningCalibration(ctx context.Context, sel ast.SelectionSet, v *model.CleaningCalibration) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CleaningCalibration(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOCleaningDevice2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningDevice(ctx context.Context, sel ast.SelectionSet, v *model.CleaningDevice) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CleaningDevice(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOCleaningMap2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMap(ctx context.Context, sel ast.SelectionSet, v *model.CleaningMap) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CleaningMap(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOCleaningMapPosition2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningMapPosition(ctx context.Context, sel ast.SelectionSet, v *model.CleaningMapPosition) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CleaningMapPosition(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOCleaningOptions2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningOptions(ctx context.Context, sel ast.SelectionSet, v *model.CleaningOptions) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CleaningOptions(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOCleaningOptionsInput2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningOptionsInput(ctx context.Context, v any) (*model.CleaningOptionsInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputCleaningOptionsInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOCleaningTask2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐCleaningTask(ctx context.Context, sel ast.SelectionSet, v *model.CleaningTask) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CleaningTask(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalOColor2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐColor(ctx context.Context, sel ast.SelectionSet, v *model.Color) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -67039,11 +76727,25 @@ func (ec *executionContext) marshalODevice2ᚖgithubᚗcomᚋsaffronjamᚋsaffro
 	return ec._Device(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalODeviceImage2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceImage(ctx context.Context, sel ast.SelectionSet, v *model.DeviceImage) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._DeviceImage(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalODeviceState2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDeviceState(ctx context.Context, sel ast.SelectionSet, v *model.DeviceState) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._DeviceState(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalODreameConfig2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDreameConfig(ctx context.Context, sel ast.SelectionSet, v *model.DreameConfig) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._DreameConfig(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalODynamicSceneSource2ᚖgithubᚗcomᚋsaffronjamᚋsaffronᚑhiveᚋinternalᚋgraphᚋmodelᚐDynamicSceneSource(ctx context.Context, sel ast.SelectionSet, v *model.DynamicSceneSource) graphql.Marshaler {

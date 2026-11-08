@@ -17,7 +17,8 @@ const (
 	// SourceZigbee2MQTT covers Zigbee devices bridged onto MQTT by zigbee2mqtt.
 	SourceZigbee2MQTT Source = "zigbee2mqtt"
 	// SourceTuya covers devices reached through the Tuya cloud API.
-	SourceTuya Source = "tuya"
+	SourceTuya   Source = "tuya"
+	SourceDreame Source = "dreame"
 )
 
 // DeviceType classifies a device by its primary function.
@@ -45,6 +46,7 @@ const (
 	Hub DeviceType = "hub"
 	// Unknown represents a device whose type could not be determined.
 	Unknown DeviceType = "unknown"
+	Vacuum  DeviceType = "vacuum"
 )
 
 // ControlledLoadRole describes what a switchable plug powers.
@@ -73,6 +75,7 @@ type DeviceRoles struct {
 
 // Capability constants for known device capabilities.
 const (
+	CapCleaning          = "cleaning"
 	CapOnOff             = "on_off"
 	CapBrightness        = "brightness"
 	CapColorTemp         = "color_temp"

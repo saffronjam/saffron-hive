@@ -6,6 +6,8 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{ name: NonNullable<unknown> }} Activity_Automation_FiredInputs */
 /** @typedef {{}} Activity_Automation_Fired_GenericInputs */
 /** @typedef {{ id: NonNullable<unknown> }} Activity_Automation_IdInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Activity_Command_ConfirmedInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Activity_Command_FailedInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Activity_Command_SentInputs */
 /** @typedef {{ name: NonNullable<unknown>, action: NonNullable<unknown> }} Activity_Device_ActionInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Activity_Device_Action_GenericInputs */
@@ -17,10 +19,12 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Activity_Device_Removed_GenericInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Activity_Device_State_ChangedInputs */
 /** @typedef {{}} Activity_EmptyInputs */
-/** @typedef {{}} Activity_Empty_HelpInputs */
 /** @typedef {{}} Activity_Event_Automation_FiredInputs */
 /** @typedef {{}} Activity_Event_AvailabilityInputs */
+/** @typedef {{}} Activity_Event_Command_ConfirmedInputs */
+/** @typedef {{}} Activity_Event_Command_FailedInputs */
 /** @typedef {{}} Activity_Event_Command_SentInputs */
+/** @typedef {{}} Activity_Event_Device_ActionInputs */
 /** @typedef {{}} Activity_Event_Device_AddedInputs */
 /** @typedef {{}} Activity_Event_Device_RemovedInputs */
 /** @typedef {{}} Activity_Event_Node_ActivatedInputs */
@@ -65,6 +69,8 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Activity_Webhook_Received_GenericInputs */
 /** @typedef {{ name: NonNullable<unknown>, value: NonNullable<unknown> }} Alarm_Battery_LowInputs */
 /** @typedef {{}} Alarm_Broker_DisconnectedInputs */
+/** @typedef {{ name: NonNullable<unknown>, task: NonNullable<unknown> }} Alarm_Cleaning_DueInputs */
+/** @typedef {{ name: NonNullable<unknown>, task: NonNullable<unknown> }} Alarm_Cleaning_SoonInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Alarm_Device_UnavailableInputs */
 /** @typedef {{ value: NonNullable<unknown>, threshold: NonNullable<unknown> }} Alarm_Disk_LowInputs */
 /** @typedef {{ value: NonNullable<unknown>, threshold: NonNullable<unknown> }} Alarm_Memory_HighInputs */
@@ -82,7 +88,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{ count: NonNullable<unknown> }} Alarms_Delete_Many_TitleInputs */
 /** @typedef {{}} Alarms_Delete_TitleInputs */
 /** @typedef {{}} Alarms_EmptyInputs */
-/** @typedef {{}} Alarms_Empty_HelpInputs */
 /** @typedef {{}} Alarms_Filter_KindInputs */
 /** @typedef {{}} Alarms_Filter_SeverityInputs */
 /** @typedef {{}} Alarms_Filter_SinceInputs */
@@ -610,7 +615,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{ name: NonNullable<unknown> }} Automations_DisableInputs */
 /** @typedef {{}} Automations_EditInputs */
 /** @typedef {{}} Automations_EmptyInputs */
-/** @typedef {{}} Automations_Empty_HelpInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Automations_EnableInputs */
 /** @typedef {{}} Automations_Error_CreateInputs */
 /** @typedef {{}} Automations_Error_DeleteInputs */
@@ -640,7 +644,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Button_Last_ActionInputs */
 /** @typedef {{ time: NonNullable<unknown> }} Button_Last_SeenInputs */
 /** @typedef {{}} Button_No_ActionInputs */
-/** @typedef {{}} Button_StatusInputs */
 /** @typedef {{}} Claude_Choose_ModelInputs */
 /** @typedef {{}} Claude_Connect_ModelInputs */
 /** @typedef {{}} Claude_Connect_SaveInputs */
@@ -652,8 +655,111 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Claude_TestInputs */
 /** @typedef {{}} Claude_TokenInputs */
 /** @typedef {{}} Claude_Token_KeepInputs */
+/** @typedef {{}} Cleaning_Add_LandmarkInputs */
+/** @typedef {{}} Cleaning_AlignInputs */
+/** @typedef {{}} Cleaning_Align_FirstInputs */
+/** @typedef {{}} Cleaning_Alignment_Load_FailedInputs */
+/** @typedef {{}} Cleaning_Alignment_Save_FailedInputs */
+/** @typedef {{}} Cleaning_Area_CleanedInputs */
+/** @typedef {{}} Cleaning_CleanInputs */
+/** @typedef {{}} Cleaning_Clean_SensorsInputs */
+/** @typedef {{}} Cleaning_ControlInputs */
+/** @typedef {{}} Cleaning_Create_FloorplanInputs */
+/** @typedef {{}} Cleaning_Current_TaskInputs */
+/** @typedef {{}} Cleaning_DiagnosticsInputs */
+/** @typedef {{}} Cleaning_DockInputs */
+/** @typedef {{}} Cleaning_Dreame_RoomsInputs */
+/** @typedef {{}} Cleaning_Due_SoonInputs */
+/** @typedef {{}} Cleaning_ElapsedInputs */
+/** @typedef {{}} Cleaning_Empty_BinInputs */
+/** @typedef {{}} Cleaning_Estimated_ProgressInputs */
+/** @typedef {{}} Cleaning_ExternalInputs */
+/** @typedef {{}} Cleaning_External_OriginInputs */
+/** @typedef {{}} Cleaning_FailedInputs */
+/** @typedef {{}} Cleaning_FilterInputs */
+/** @typedef {{}} Cleaning_HighInputs */
+/** @typedef {{}} Cleaning_HistoryInputs */
+/** @typedef {{}} Cleaning_Hive_RoomsInputs */
+/** @typedef {{ number: NonNullable<unknown> }} Cleaning_Landmark_NumberInputs */
+/** @typedef {{ number: NonNullable<unknown>, map: NonNullable<unknown> }} Cleaning_Landmark_PartnerInputs */
+/** @typedef {{ time: NonNullable<unknown> }} Cleaning_Last_SeenInputs */
+/** @typedef {{}} Cleaning_Link_RoomsInputs */
+/** @typedef {{}} Cleaning_Load_MoreInputs */
+/** @typedef {{}} Cleaning_LocateInputs */
+/** @typedef {{}} Cleaning_LowInputs */
+/** @typedef {{}} Cleaning_Main_BrushInputs */
+/** @typedef {{}} Cleaning_MaintenanceInputs */
+/** @typedef {{}} Cleaning_ManufacturerInputs */
+/** @typedef {{}} Cleaning_MapInputs */
+/** @typedef {{}} Cleaning_Map_DockInputs */
+/** @typedef {{ id: NonNullable<unknown> }} Cleaning_Map_NameInputs */
+/** @typedef {{ id: NonNullable<unknown> }} Cleaning_Map_RoomInputs */
+/** @typedef {{}} Cleaning_Map_SelectInputs */
+/** @typedef {{}} Cleaning_Map_TitleInputs */
+/** @typedef {{}} Cleaning_Map_Zoom_InInputs */
+/** @typedef {{}} Cleaning_Map_Zoom_OutInputs */
+/** @typedef {{}} Cleaning_Mark_CleanedInputs */
+/** @typedef {{}} Cleaning_Mark_ReplacedInputs */
+/** @typedef {{}} Cleaning_MediumInputs */
+/** @typedef {{}} Cleaning_Missing_RoomInputs */
+/** @typedef {{}} Cleaning_ModelInputs */
+/** @typedef {{}} Cleaning_Model_IdInputs */
+/** @typedef {{}} Cleaning_No_AvailableInputs */
+/** @typedef {{}} Cleaning_No_HistoryInputs */
+/** @typedef {{}} Cleaning_OptionsInputs */
+/** @typedef {{}} Cleaning_OverlayInputs */
+/** @typedef {{}} Cleaning_PauseInputs */
+/** @typedef {{ number: NonNullable<unknown> }} Cleaning_Place_LandmarkInputs */
+/** @typedef {{}} Cleaning_Position_UnavailableInputs */
+/** @typedef {{}} Cleaning_ProgressInputs */
+/** @typedef {{}} Cleaning_QuietInputs */
+/** @typedef {{}} Cleaning_RemainingInputs */
+/** @typedef {{}} Cleaning_RepeatsInputs */
+/** @typedef {{}} Cleaning_ReplaceInputs */
+/** @typedef {{}} Cleaning_Replace_FilterInputs */
+/** @typedef {{}} Cleaning_Replace_Main_BrushInputs */
+/** @typedef {{}} Cleaning_Replace_Side_BrushInputs */
+/** @typedef {{}} Cleaning_Replace_TitleInputs */
+/** @typedef {{}} Cleaning_ResumeInputs */
+/** @typedef {{}} Cleaning_RobotInputs */
+/** @typedef {{}} Cleaning_Robot_SettingsInputs */
+/** @typedef {{}} Cleaning_RoomsInputs */
+/** @typedef {{}} Cleaning_Rotate_LeftInputs */
+/** @typedef {{}} Cleaning_Rotate_RightInputs */
+/** @typedef {{}} Cleaning_Select_RobotInputs */
+/** @typedef {{}} Cleaning_Selection_ChangedInputs */
+/** @typedef {{}} Cleaning_SensorsInputs */
+/** @typedef {{}} Cleaning_Shared_RoomsInputs */
+/** @typedef {{}} Cleaning_Show_On_MapInputs */
+/** @typedef {{}} Cleaning_Side_BrushInputs */
+/** @typedef {{}} Cleaning_StandardInputs */
+/** @typedef {{}} Cleaning_StartInputs */
+/** @typedef {{}} Cleaning_Start_NewInputs */
+/** @typedef {{}} Cleaning_Status_AttentionInputs */
+/** @typedef {{}} Cleaning_Status_CancelledInputs */
+/** @typedef {{}} Cleaning_Status_CleaningInputs */
+/** @typedef {{}} Cleaning_Status_CompletedInputs */
+/** @typedef {{}} Cleaning_Status_DockedInputs */
+/** @typedef {{}} Cleaning_Status_EndedInputs */
+/** @typedef {{}} Cleaning_Status_FailedInputs */
+/** @typedef {{}} Cleaning_Status_IdleInputs */
+/** @typedef {{}} Cleaning_Status_OfflineInputs */
+/** @typedef {{}} Cleaning_Status_PausedInputs */
+/** @typedef {{}} Cleaning_Status_ReturningInputs */
+/** @typedef {{}} Cleaning_Status_StartingInputs */
+/** @typedef {{}} Cleaning_Status_StoppingInputs */
+/** @typedef {{}} Cleaning_Status_UnknownInputs */
+/** @typedef {{}} Cleaning_StopInputs */
+/** @typedef {{}} Cleaning_StrongInputs */
+/** @typedef {{}} Cleaning_SuctionInputs */
+/** @typedef {{}} Cleaning_TestInputs */
+/** @typedef {{}} Cleaning_TitleInputs */
+/** @typedef {{}} Cleaning_TurboInputs */
+/** @typedef {{}} Cleaning_WaterInputs */
+/** @typedef {{}} Cleaning_Whole_ApartmentInputs */
 /** @typedef {{}} Color_Picker_AriaInputs */
 /** @typedef {{}} Common_Add_ToInputs */
+/** @typedef {{}} Common_BackInputs */
 /** @typedef {{}} Common_Brand_NameInputs */
 /** @typedef {{}} Common_CancelInputs */
 /** @typedef {{}} Common_ClearInputs */
@@ -678,6 +784,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Common_NoInputs */
 /** @typedef {{}} Common_PasteInputs */
 /** @typedef {{}} Common_RemoveInputs */
+/** @typedef {{}} Common_RenameInputs */
 /** @typedef {{}} Common_SaveInputs */
 /** @typedef {{}} Common_SavingInputs */
 /** @typedef {{}} Common_SearchInputs */
@@ -729,13 +836,12 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Data_Viewer_RoomsInputs */
 /** @typedef {{}} Data_Viewer_SourcesInputs */
 /** @typedef {{}} Data_Viewer_TitleInputs */
-/** @typedef {{}} Device_ActionsInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Device_Adjust_Climate_NamedInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Device_Adjust_NamedInputs */
 /** @typedef {{}} Device_ApplyInputs */
-/** @typedef {{}} Device_ApplyingInputs */
 /** @typedef {{}} Device_Back_To_DevicesInputs */
 /** @typedef {{}} Device_BrightnessInputs */
+/** @typedef {{}} Device_ChargingInputs */
 /** @typedef {{}} Device_ColorInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Device_Command_FailedInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Device_Command_SentInputs */
@@ -750,6 +856,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Device_Config_Section_PresenceInputs */
 /** @typedef {{}} Device_Configuration_FailedInputs */
 /** @typedef {{}} Device_Configuration_TimeoutInputs */
+/** @typedef {{}} Device_ControlInputs */
 /** @typedef {{}} Device_Controls_DisabledInputs */
 /** @typedef {{}} Device_Controls_Enable_HelpInputs */
 /** @typedef {{}} Device_Copy_IdInputs */
@@ -758,6 +865,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Device_Flags_AllInputs */
 /** @typedef {{}} Device_Flags_NoneInputs */
 /** @typedef {{ count: NonNullable<unknown>, total: NonNullable<unknown> }} Device_Flags_SummaryInputs */
+/** @typedef {{}} Device_Fully_ChargedInputs */
 /** @typedef {{}} Device_GenericInputs */
 /** @typedef {{}} Device_HistoryInputs */
 /** @typedef {{}} Device_IdInputs */
@@ -783,6 +891,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Device_Select_SpeedInputs */
 /** @typedef {{}} Device_Select_SwingInputs */
 /** @typedef {{}} Device_SettingsInputs */
+/** @typedef {{}} Device_StatusInputs */
 /** @typedef {{}} Device_SwingInputs */
 /** @typedef {{}} Device_TargetInputs */
 /** @typedef {{}} Device_Target_TemperatureInputs */
@@ -799,7 +908,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Device_Type_SwitchInputs */
 /** @typedef {{}} Device_Type_UnknownInputs */
 /** @typedef {{}} Device_UpdateInputs */
-/** @typedef {{}} Device_WaitingInputs */
 /** @typedef {{}} Device_WhiteInputs */
 /** @typedef {{}} Devices_ActionsInputs */
 /** @typedef {{}} Devices_Add_To_ActionInputs */
@@ -819,7 +927,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Devices_NewInputs */
 /** @typedef {{}} Devices_No_MatchInputs */
 /** @typedef {{}} Devices_NoneInputs */
-/** @typedef {{}} Devices_None_HelpInputs */
 /** @typedef {{}} Devices_OfflineInputs */
 /** @typedef {{}} Devices_OnlineInputs */
 /** @typedef {{}} Devices_RestoreInputs */
@@ -827,6 +934,22 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{ name: NonNullable<unknown> }} Devices_Restore_NamedInputs */
 /** @typedef {{}} Devices_SearchInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Devices_Trigger_EventInputs */
+/** @typedef {{}} Dreame_Connect_AccountInputs */
+/** @typedef {{}} Dreame_Connect_RegionInputs */
+/** @typedef {{}} Dreame_Connect_SaveInputs */
+/** @typedef {{}} Dreame_ConnectingInputs */
+/** @typedef {{}} Dreame_EmailInputs */
+/** @typedef {{}} Dreame_EnabledInputs */
+/** @typedef {{}} Dreame_PasswordInputs */
+/** @typedef {{}} Dreame_ReadInputs */
+/** @typedef {{}} Dreame_RegionInputs */
+/** @typedef {{}} Dreame_Region_CnInputs */
+/** @typedef {{}} Dreame_Region_EuInputs */
+/** @typedef {{}} Dreame_Region_InInputs */
+/** @typedef {{}} Dreame_Region_KrInputs */
+/** @typedef {{}} Dreame_Region_RuInputs */
+/** @typedef {{}} Dreame_Region_SgInputs */
+/** @typedef {{}} Dreame_Region_UsInputs */
 /** @typedef {{}} Editor_Changed_ElsewhereInputs */
 /** @typedef {{}} Editor_Reload_SavedInputs */
 /** @typedef {{}} Effect_Action_RunInputs */
@@ -915,7 +1038,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Effects_Delete_TitleInputs */
 /** @typedef {{}} Effects_EditInputs */
 /** @typedef {{}} Effects_EmptyInputs */
-/** @typedef {{}} Effects_Empty_HelpInputs */
 /** @typedef {{}} Effects_Error_CreateInputs */
 /** @typedef {{}} Effects_Error_DeleteInputs */
 /** @typedef {{}} Effects_Error_Delete_ManyInputs */
@@ -1047,7 +1169,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Group_NameInputs */
 /** @typedef {{}} Group_No_MatchInputs */
 /** @typedef {{}} Group_NoneInputs */
-/** @typedef {{}} Group_None_HelpInputs */
 /** @typedef {{}} Group_Rename_FailedInputs */
 /** @typedef {{}} Group_Save_FailedInputs */
 /** @typedef {{}} Group_SearchInputs */
@@ -1113,13 +1234,13 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Integrations_Delete_Keep_DescriptionInputs */
 /** @typedef {{}} Integrations_Delete_Purge_DescriptionInputs */
 /** @typedef {{}} Integrations_Delete_TitleInputs */
+/** @typedef {{}} Integrations_Description_DreameInputs */
 /** @typedef {{}} Integrations_Description_GenericInputs */
 /** @typedef {{}} Integrations_Description_TuyaInputs */
 /** @typedef {{}} Integrations_Description_Zigbee2mqttInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Integrations_Devices_DeletedInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Integrations_Devices_KeptInputs */
 /** @typedef {{}} Integrations_EmptyInputs */
-/** @typedef {{}} Integrations_Empty_HelpInputs */
 /** @typedef {{}} Integrations_No_MatchInputs */
 /** @typedef {{}} Integrations_None_AvailableInputs */
 /** @typedef {{}} Integrations_SearchInputs */
@@ -1134,6 +1255,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Logs_SearchInputs */
 /** @typedef {{}} Maintenance_Battery_ActionInputs */
 /** @typedef {{ name: NonNullable<unknown>, value: NonNullable<unknown> }} Maintenance_Battery_DetailInputs */
+/** @typedef {{ name: NonNullable<unknown>, value: NonNullable<unknown> }} Maintenance_Cleaning_DetailInputs */
 /** @typedef {{}} Maintenance_Correct_PostureInputs */
 /** @typedef {{}} Maintenance_EmptyInputs */
 /** @typedef {{}} Maintenance_Filter_DeviceInputs */
@@ -1144,6 +1266,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{ version: NonNullable<unknown>, name: NonNullable<unknown> }} Maintenance_Firmware_DetailInputs */
 /** @typedef {{}} Maintenance_Free_StorageInputs */
 /** @typedef {{}} Maintenance_Group_BatteriesInputs */
+/** @typedef {{}} Maintenance_Group_CleaningInputs */
 /** @typedef {{}} Maintenance_Group_PostureInputs */
 /** @typedef {{}} Maintenance_Group_SystemInputs */
 /** @typedef {{}} Maintenance_Group_UpdatesInputs */
@@ -1230,6 +1353,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Map_Furniture_ToiletInputs */
 /** @typedef {{}} Map_Go_To_DeviceInputs */
 /** @typedef {{}} Map_Go_To_GroupInputs */
+/** @typedef {{}} Map_Hide_Cleaning_TrailsInputs */
 /** @typedef {{}} Map_Hide_Neighbour_LinksInputs */
 /** @typedef {{ provider: NonNullable<unknown> }} Map_Hide_Provider_MeshInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Map_Inside_PieceInputs */
@@ -1267,6 +1391,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Map_Select_Walls_To_CopyInputs */
 /** @typedef {{}} Map_Sensor_Conflict_DescriptionInputs */
 /** @typedef {{}} Map_Set_Display_ColorInputs */
+/** @typedef {{}} Map_Show_Cleaning_TrailsInputs */
 /** @typedef {{}} Map_Show_Neighbour_LinksInputs */
 /** @typedef {{ provider: NonNullable<unknown> }} Map_Show_Provider_MeshInputs */
 /** @typedef {{}} Map_Snap_LabelInputs */
@@ -1328,11 +1453,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Nav_ThingsInputs */
 /** @typedef {{}} Nav_UsersInputs */
 /** @typedef {{}} Nav_WebhooksInputs */
-/** @typedef {{}} Plug_CurrentInputs */
-/** @typedef {{}} Plug_EnergyInputs */
-/** @typedef {{}} Plug_StatusInputs */
-/** @typedef {{}} Plug_ToggleInputs */
-/** @typedef {{}} Plug_VoltageInputs */
 /** @typedef {{}} Profile_AccountInputs */
 /** @typedef {{}} Profile_Avatar_Clear_FailedInputs */
 /** @typedef {{ size: NonNullable<unknown> }} Profile_Avatar_HelpInputs */
@@ -1412,7 +1532,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Room_NameInputs */
 /** @typedef {{}} Room_No_MatchInputs */
 /** @typedef {{}} Room_NoneInputs */
-/** @typedef {{}} Room_None_HelpInputs */
 /** @typedef {{}} Room_Rename_FailedInputs */
 /** @typedef {{}} Room_Save_FailedInputs */
 /** @typedef {{}} Room_SearchInputs */
@@ -1422,25 +1541,19 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Scene_BackInputs */
 /** @typedef {{}} Scene_Choose_IconInputs */
 /** @typedef {{}} Scene_Create_Add_SelectorInputs */
-/** @typedef {{}} Scene_Create_Adjust_LightingInputs */
-/** @typedef {{}} Scene_Create_BackInputs */
 /** @typedef {{}} Scene_Create_BreadcrumbInputs */
 /** @typedef {{}} Scene_Create_BuildingInputs */
-/** @typedef {{}} Scene_Create_Choose_LocationInputs */
-/** @typedef {{}} Scene_Create_Choose_LookInputs */
 /** @typedef {{}} Scene_Create_CreatingInputs */
 /** @typedef {{}} Scene_Create_Error_Choose_VibeInputs */
 /** @typedef {{}} Scene_Create_Error_CreateInputs */
 /** @typedef {{}} Scene_Create_Full_ColorInputs */
 /** @typedef {{}} Scene_Create_Loading_GalleryInputs */
 /** @typedef {{}} Scene_Create_Name_PlaceholderInputs */
-/** @typedef {{}} Scene_Create_Name_TitleInputs */
 /** @typedef {{}} Scene_Create_No_GalleryInputs */
 /** @typedef {{}} Scene_Create_Photo_AtmosphereInputs */
 /** @typedef {{}} Scene_Create_Photo_FormatsInputs */
 /** @typedef {{}} Scene_Create_Photo_PrivacyInputs */
 /** @typedef {{}} Scene_Create_Supporting_DescriptionInputs */
-/** @typedef {{}} Scene_Create_TitleInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Scene_Create_Turn_OnInputs */
 /** @typedef {{}} Scene_Create_Vibe_Preview_EmptyInputs */
 /** @typedef {{}} Scene_Create_Whites_OnlyInputs */
@@ -1522,7 +1635,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Scenes_DevicesInputs */
 /** @typedef {{}} Scenes_EditInputs */
 /** @typedef {{}} Scenes_EmptyInputs */
-/** @typedef {{}} Scenes_Empty_HelpInputs */
 /** @typedef {{}} Scenes_Error_ApplyInputs */
 /** @typedef {{}} Scenes_Error_DeleteInputs */
 /** @typedef {{}} Scenes_Error_Delete_ManyInputs */
@@ -1532,7 +1644,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Scenes_Error_UpdateInputs */
 /** @typedef {{}} Scenes_Filter_DeviceInputs */
 /** @typedef {{}} Scenes_Filter_EmptyInputs */
-/** @typedef {{}} Scenes_Filter_GroupInputs */
 /** @typedef {{}} Scenes_Filter_RoomInputs */
 /** @typedef {{}} Scenes_Filter_TargetInputs */
 /** @typedef {{}} Scenes_GroupsInputs */
@@ -1547,7 +1658,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{ count: NonNullable<unknown> }} Scenes_Target_CountInputs */
 /** @typedef {{}} Scenes_TitleInputs */
 /** @typedef {{}} Sensor_ContactInputs */
-/** @typedef {{}} Sensor_Current_ReadingsInputs */
 /** @typedef {{}} Sensor_DetailsInputs */
 /** @typedef {{}} Sensor_Device_PostureInputs */
 /** @typedef {{}} Sensor_DoorInputs */
@@ -1570,6 +1680,7 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Settings_Retention_AriaInputs */
 /** @typedef {{}} Settings_Retention_DaysInputs */
 /** @typedef {{}} Settings_Retention_HelpInputs */
+/** @typedef {{}} Settings_Retention_InvalidInputs */
 /** @typedef {{}} Settings_Save_FailedInputs */
 /** @typedef {{}} Settings_Time_ZoneInputs */
 /** @typedef {{ zone: NonNullable<unknown> }} Settings_Time_Zone_BrowserInputs */
@@ -1932,7 +2043,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Webhooks_DurationInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Webhooks_Edit_NamedInputs */
 /** @typedef {{}} Webhooks_EmptyInputs */
-/** @typedef {{}} Webhooks_Empty_HelpInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Webhooks_Enable_NamedInputs */
 /** @typedef {{}} Webhooks_EnabledInputs */
 /** @typedef {{}} Webhooks_Filter_StatusInputs */
@@ -1955,7 +2065,6 @@ import { getLocale, experimentalStaticLocale } from "../runtime.js"
 /** @typedef {{}} Webhooks_Query_KeysInputs */
 /** @typedef {{}} Webhooks_ReceivedInputs */
 /** @typedef {{}} Webhooks_Recent_RequestsInputs */
-/** @typedef {{}} Webhooks_Rename_FailedInputs */
 /** @typedef {{}} Webhooks_Request_BodyInputs */
 /** @typedef {{}} Webhooks_Request_IdInputs */
 /** @typedef {{}} Webhooks_RequestsInputs */
@@ -2125,6 +2234,36 @@ export const activity_automation_id = /** @type {((inputs: Activity_Automation_I
 /**
 * | output |
 * | --- |
+* | "{name}: command confirmed" |
+*
+* @param {Activity_Command_ConfirmedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const activity_command_confirmed = /** @type {((inputs: Activity_Command_ConfirmedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Activity_Command_ConfirmedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.activity_command_confirmed(inputs)
+	if (locale === "ru") return __ru.activity_command_confirmed(inputs)
+	return __en.activity_command_confirmed(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "{name}: command failed" |
+*
+* @param {Activity_Command_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const activity_command_failed = /** @type {((inputs: Activity_Command_FailedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Activity_Command_FailedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.activity_command_failed(inputs)
+	if (locale === "ru") return __ru.activity_command_failed(inputs)
+	return __en.activity_command_failed(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Command sent to {name}" |
 *
 * @param {Activity_Command_SentInputs} inputs
@@ -2275,7 +2414,7 @@ export const activity_device_state_changed = /** @type {((inputs: Activity_Devic
 /**
 * | output |
 * | --- |
-* | "No activity yet." |
+* | "No activity" |
 *
 * @param {Activity_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -2286,21 +2425,6 @@ export const activity_empty = /** @type {((inputs?: Activity_EmptyInputs, option
 	if (locale === "sv") return __sv.activity_empty(inputs)
 	if (locale === "ru") return __ru.activity_empty(inputs)
 	return __en.activity_empty(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Device state changes, scene activations, and automation runs will appear here as they happen." |
-*
-* @param {Activity_Empty_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const activity_empty_help = /** @type {((inputs?: Activity_Empty_HelpInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Activity_Empty_HelpInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.activity_empty_help(inputs)
-	if (locale === "ru") return __ru.activity_empty_help(inputs)
-	return __en.activity_empty_help(inputs)
 });
 /**
 * | output |
@@ -2335,6 +2459,36 @@ export const activity_event_availability = /** @type {((inputs?: Activity_Event_
 /**
 * | output |
 * | --- |
+* | "Command confirmed" |
+*
+* @param {Activity_Event_Command_ConfirmedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const activity_event_command_confirmed = /** @type {((inputs?: Activity_Event_Command_ConfirmedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Activity_Event_Command_ConfirmedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.activity_event_command_confirmed(inputs)
+	if (locale === "ru") return __ru.activity_event_command_confirmed(inputs)
+	return __en.activity_event_command_confirmed(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Command failed" |
+*
+* @param {Activity_Event_Command_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const activity_event_command_failed = /** @type {((inputs?: Activity_Event_Command_FailedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Activity_Event_Command_FailedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.activity_event_command_failed(inputs)
+	if (locale === "ru") return __ru.activity_event_command_failed(inputs)
+	return __en.activity_event_command_failed(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Command sent" |
 *
 * @param {Activity_Event_Command_SentInputs} inputs
@@ -2346,6 +2500,21 @@ export const activity_event_command_sent = /** @type {((inputs?: Activity_Event_
 	if (locale === "sv") return __sv.activity_event_command_sent(inputs)
 	if (locale === "ru") return __ru.activity_event_command_sent(inputs)
 	return __en.activity_event_command_sent(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Device action" |
+*
+* @param {Activity_Event_Device_ActionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const activity_event_device_action = /** @type {((inputs?: Activity_Event_Device_ActionInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Activity_Event_Device_ActionInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.activity_event_device_action(inputs)
+	if (locale === "ru") return __ru.activity_event_device_action(inputs)
+	return __en.activity_event_device_action(inputs)
 });
 /**
 * | output |
@@ -3010,6 +3179,36 @@ export const alarm_broker_disconnected = /** @type {((inputs?: Alarm_Broker_Disc
 /**
 * | output |
 * | --- |
+* | "{name}: {task}." |
+*
+* @param {Alarm_Cleaning_DueInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const alarm_cleaning_due = /** @type {((inputs: Alarm_Cleaning_DueInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Alarm_Cleaning_DueInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.alarm_cleaning_due(inputs)
+	if (locale === "ru") return __ru.alarm_cleaning_due(inputs)
+	return __en.alarm_cleaning_due(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "{name}: {task} soon." |
+*
+* @param {Alarm_Cleaning_SoonInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const alarm_cleaning_soon = /** @type {((inputs: Alarm_Cleaning_SoonInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Alarm_Cleaning_SoonInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.alarm_cleaning_soon(inputs)
+	if (locale === "ru") return __ru.alarm_cleaning_soon(inputs)
+	return __en.alarm_cleaning_soon(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Device “{name}” has not reported recently" |
 *
 * @param {Alarm_Device_UnavailableInputs} inputs
@@ -3252,7 +3451,7 @@ export const alarms_delete_title = /** @type {((inputs?: Alarms_Delete_TitleInpu
 /**
 * | output |
 * | --- |
-* | "No active alarms — the system looks healthy." |
+* | "No active alarms" |
 *
 * @param {Alarms_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -3263,21 +3462,6 @@ export const alarms_empty = /** @type {((inputs?: Alarms_EmptyInputs, options?: 
 	if (locale === "sv") return __sv.alarms_empty(inputs)
 	if (locale === "ru") return __ru.alarms_empty(inputs)
 	return __en.alarms_empty(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Alarms raised by the system monitor or your automations will appear here." |
-*
-* @param {Alarms_Empty_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const alarms_empty_help = /** @type {((inputs?: Alarms_Empty_HelpInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Alarms_Empty_HelpInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.alarms_empty_help(inputs)
-	if (locale === "ru") return __ru.alarms_empty_help(inputs)
-	return __en.alarms_empty_help(inputs)
 });
 /**
 * | output |
@@ -11178,7 +11362,7 @@ export const automations_edit = /** @type {((inputs?: Automations_EditInputs, op
 /**
 * | output |
 * | --- |
-* | "No automations yet." |
+* | "No automations" |
 *
 * @param {Automations_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -11189,21 +11373,6 @@ export const automations_empty = /** @type {((inputs?: Automations_EmptyInputs, 
 	if (locale === "sv") return __sv.automations_empty(inputs)
 	if (locale === "ru") return __ru.automations_empty(inputs)
 	return __en.automations_empty(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Create event-driven rules with triggers, conditions, and actions." |
-*
-* @param {Automations_Empty_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const automations_empty_help = /** @type {((inputs?: Automations_Empty_HelpInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Automations_Empty_HelpInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.automations_empty_help(inputs)
-	if (locale === "ru") return __ru.automations_empty_help(inputs)
-	return __en.automations_empty_help(inputs)
 });
 /**
 * | output |
@@ -11646,21 +11815,6 @@ export const button_no_action = /** @type {((inputs?: Button_No_ActionInputs, op
 /**
 * | output |
 * | --- |
-* | "Button status" |
-*
-* @param {Button_StatusInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const button_status = /** @type {((inputs?: Button_StatusInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Button_StatusInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.button_status(inputs)
-	if (locale === "ru") return __ru.button_status(inputs)
-	return __en.button_status(inputs)
-});
-/**
-* | output |
-* | --- |
 * | "Choose a model" |
 *
 * @param {Claude_Choose_ModelInputs} inputs
@@ -11826,6 +11980,1536 @@ export const claude_token_keep = /** @type {((inputs?: Claude_Token_KeepInputs, 
 /**
 * | output |
 * | --- |
+* | "Add landmark" |
+*
+* @param {Cleaning_Add_LandmarkInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_add_landmark = /** @type {((inputs?: Cleaning_Add_LandmarkInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Add_LandmarkInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_add_landmark(inputs)
+	if (locale === "ru") return __ru.cleaning_add_landmark(inputs)
+	return __en.cleaning_add_landmark(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Align map" |
+*
+* @param {Cleaning_AlignInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_align = /** @type {((inputs?: Cleaning_AlignInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_AlignInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_align(inputs)
+	if (locale === "ru") return __ru.cleaning_align(inputs)
+	return __en.cleaning_align(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Align the maps to enable the overlay." |
+*
+* @param {Cleaning_Align_FirstInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_align_first = /** @type {((inputs?: Cleaning_Align_FirstInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Align_FirstInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_align_first(inputs)
+	if (locale === "ru") return __ru.cleaning_align_first(inputs)
+	return __en.cleaning_align_first(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Couldn't load map alignment." |
+*
+* @param {Cleaning_Alignment_Load_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_alignment_load_failed = /** @type {((inputs?: Cleaning_Alignment_Load_FailedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Alignment_Load_FailedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_alignment_load_failed(inputs)
+	if (locale === "ru") return __ru.cleaning_alignment_load_failed(inputs)
+	return __en.cleaning_alignment_load_failed(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Couldn't save map alignment." |
+*
+* @param {Cleaning_Alignment_Save_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_alignment_save_failed = /** @type {((inputs?: Cleaning_Alignment_Save_FailedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Alignment_Save_FailedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_alignment_save_failed(inputs)
+	if (locale === "ru") return __ru.cleaning_alignment_save_failed(inputs)
+	return __en.cleaning_alignment_save_failed(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Area cleaned" |
+*
+* @param {Cleaning_Area_CleanedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_area_cleaned = /** @type {((inputs?: Cleaning_Area_CleanedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Area_CleanedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_area_cleaned(inputs)
+	if (locale === "ru") return __ru.cleaning_area_cleaned(inputs)
+	return __en.cleaning_area_cleaned(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Clean…" |
+*
+* @param {Cleaning_CleanInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_clean = /** @type {((inputs?: Cleaning_CleanInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_CleanInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_clean(inputs)
+	if (locale === "ru") return __ru.cleaning_clean(inputs)
+	return __en.cleaning_clean(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Clean sensors" |
+*
+* @param {Cleaning_Clean_SensorsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_clean_sensors = /** @type {((inputs?: Cleaning_Clean_SensorsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Clean_SensorsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_clean_sensors(inputs)
+	if (locale === "ru") return __ru.cleaning_clean_sensors(inputs)
+	return __en.cleaning_clean_sensors(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Control cleaning" |
+*
+* @param {Cleaning_ControlInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_control = /** @type {((inputs?: Cleaning_ControlInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_ControlInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_control(inputs)
+	if (locale === "ru") return __ru.cleaning_control(inputs)
+	return __en.cleaning_control(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Create floor plan" |
+*
+* @param {Cleaning_Create_FloorplanInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_create_floorplan = /** @type {((inputs?: Cleaning_Create_FloorplanInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Create_FloorplanInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_create_floorplan(inputs)
+	if (locale === "ru") return __ru.cleaning_create_floorplan(inputs)
+	return __en.cleaning_create_floorplan(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Current cleaning task" |
+*
+* @param {Cleaning_Current_TaskInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_current_task = /** @type {((inputs?: Cleaning_Current_TaskInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Current_TaskInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_current_task(inputs)
+	if (locale === "ru") return __ru.cleaning_current_task(inputs)
+	return __en.cleaning_current_task(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Diagnostics" |
+*
+* @param {Cleaning_DiagnosticsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_diagnostics = /** @type {((inputs?: Cleaning_DiagnosticsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_DiagnosticsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_diagnostics(inputs)
+	if (locale === "ru") return __ru.cleaning_diagnostics(inputs)
+	return __en.cleaning_diagnostics(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Return to dock" |
+*
+* @param {Cleaning_DockInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_dock = /** @type {((inputs?: Cleaning_DockInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_DockInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_dock(inputs)
+	if (locale === "ru") return __ru.cleaning_dock(inputs)
+	return __en.cleaning_dock(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Dreame rooms" |
+*
+* @param {Cleaning_Dreame_RoomsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_dreame_rooms = /** @type {((inputs?: Cleaning_Dreame_RoomsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Dreame_RoomsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_dreame_rooms(inputs)
+	if (locale === "ru") return __ru.cleaning_dreame_rooms(inputs)
+	return __en.cleaning_dreame_rooms(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Due soon" |
+*
+* @param {Cleaning_Due_SoonInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_due_soon = /** @type {((inputs?: Cleaning_Due_SoonInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Due_SoonInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_due_soon(inputs)
+	if (locale === "ru") return __ru.cleaning_due_soon(inputs)
+	return __en.cleaning_due_soon(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Elapsed time" |
+*
+* @param {Cleaning_ElapsedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_elapsed = /** @type {((inputs?: Cleaning_ElapsedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_ElapsedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_elapsed(inputs)
+	if (locale === "ru") return __ru.cleaning_elapsed(inputs)
+	return __en.cleaning_elapsed(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Empty bin" |
+*
+* @param {Cleaning_Empty_BinInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_empty_bin = /** @type {((inputs?: Cleaning_Empty_BinInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Empty_BinInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_empty_bin(inputs)
+	if (locale === "ru") return __ru.cleaning_empty_bin(inputs)
+	return __en.cleaning_empty_bin(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Estimated cleaning progress" |
+*
+* @param {Cleaning_Estimated_ProgressInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_estimated_progress = /** @type {((inputs?: Cleaning_Estimated_ProgressInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Estimated_ProgressInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_estimated_progress(inputs)
+	if (locale === "ru") return __ru.cleaning_estimated_progress(inputs)
+	return __en.cleaning_estimated_progress(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Started outside Hive" |
+*
+* @param {Cleaning_ExternalInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_external = /** @type {((inputs?: Cleaning_ExternalInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_ExternalInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_external(inputs)
+	if (locale === "ru") return __ru.cleaning_external(inputs)
+	return __en.cleaning_external(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Outside Hive" |
+*
+* @param {Cleaning_External_OriginInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_external_origin = /** @type {((inputs?: Cleaning_External_OriginInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_External_OriginInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_external_origin(inputs)
+	if (locale === "ru") return __ru.cleaning_external_origin(inputs)
+	return __en.cleaning_external_origin(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Cleaning request failed." |
+*
+* @param {Cleaning_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_failed = /** @type {((inputs?: Cleaning_FailedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_FailedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_failed(inputs)
+	if (locale === "ru") return __ru.cleaning_failed(inputs)
+	return __en.cleaning_failed(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Filter" |
+*
+* @param {Cleaning_FilterInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_filter = /** @type {((inputs?: Cleaning_FilterInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_FilterInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_filter(inputs)
+	if (locale === "ru") return __ru.cleaning_filter(inputs)
+	return __en.cleaning_filter(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "High" |
+*
+* @param {Cleaning_HighInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_high = /** @type {((inputs?: Cleaning_HighInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_HighInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_high(inputs)
+	if (locale === "ru") return __ru.cleaning_high(inputs)
+	return __en.cleaning_high(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Recent cleaning" |
+*
+* @param {Cleaning_HistoryInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_history = /** @type {((inputs?: Cleaning_HistoryInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_HistoryInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_history(inputs)
+	if (locale === "ru") return __ru.cleaning_history(inputs)
+	return __en.cleaning_history(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Hive rooms" |
+*
+* @param {Cleaning_Hive_RoomsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_hive_rooms = /** @type {((inputs?: Cleaning_Hive_RoomsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Hive_RoomsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_hive_rooms(inputs)
+	if (locale === "ru") return __ru.cleaning_hive_rooms(inputs)
+	return __en.cleaning_hive_rooms(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Landmark {number}" |
+*
+* @param {Cleaning_Landmark_NumberInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_landmark_number = /** @type {((inputs: Cleaning_Landmark_NumberInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Landmark_NumberInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_landmark_number(inputs)
+	if (locale === "ru") return __ru.cleaning_landmark_number(inputs)
+	return __en.cleaning_landmark_number(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Place landmark {number} on {map}" |
+*
+* @param {Cleaning_Landmark_PartnerInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_landmark_partner = /** @type {((inputs: Cleaning_Landmark_PartnerInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Landmark_PartnerInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_landmark_partner(inputs)
+	if (locale === "ru") return __ru.cleaning_landmark_partner(inputs)
+	return __en.cleaning_landmark_partner(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Last seen {time}" |
+*
+* @param {Cleaning_Last_SeenInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_last_seen = /** @type {((inputs: Cleaning_Last_SeenInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Last_SeenInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_last_seen(inputs)
+	if (locale === "ru") return __ru.cleaning_last_seen(inputs)
+	return __en.cleaning_last_seen(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Link rooms" |
+*
+* @param {Cleaning_Link_RoomsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_link_rooms = /** @type {((inputs?: Cleaning_Link_RoomsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Link_RoomsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_link_rooms(inputs)
+	if (locale === "ru") return __ru.cleaning_link_rooms(inputs)
+	return __en.cleaning_link_rooms(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Load more" |
+*
+* @param {Cleaning_Load_MoreInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_load_more = /** @type {((inputs?: Cleaning_Load_MoreInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Load_MoreInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_load_more(inputs)
+	if (locale === "ru") return __ru.cleaning_load_more(inputs)
+	return __en.cleaning_load_more(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Locate" |
+*
+* @param {Cleaning_LocateInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_locate = /** @type {((inputs?: Cleaning_LocateInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_LocateInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_locate(inputs)
+	if (locale === "ru") return __ru.cleaning_locate(inputs)
+	return __en.cleaning_locate(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Low" |
+*
+* @param {Cleaning_LowInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_low = /** @type {((inputs?: Cleaning_LowInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_LowInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_low(inputs)
+	if (locale === "ru") return __ru.cleaning_low(inputs)
+	return __en.cleaning_low(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Main brush" |
+*
+* @param {Cleaning_Main_BrushInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_main_brush = /** @type {((inputs?: Cleaning_Main_BrushInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Main_BrushInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_main_brush(inputs)
+	if (locale === "ru") return __ru.cleaning_main_brush(inputs)
+	return __en.cleaning_main_brush(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Maintenance" |
+*
+* @param {Cleaning_MaintenanceInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_maintenance = /** @type {((inputs?: Cleaning_MaintenanceInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_MaintenanceInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_maintenance(inputs)
+	if (locale === "ru") return __ru.cleaning_maintenance(inputs)
+	return __en.cleaning_maintenance(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Manufacturer" |
+*
+* @param {Cleaning_ManufacturerInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_manufacturer = /** @type {((inputs?: Cleaning_ManufacturerInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_ManufacturerInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_manufacturer(inputs)
+	if (locale === "ru") return __ru.cleaning_manufacturer(inputs)
+	return __en.cleaning_manufacturer(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Robot map" |
+*
+* @param {Cleaning_MapInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_map = /** @type {((inputs?: Cleaning_MapInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_MapInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_map(inputs)
+	if (locale === "ru") return __ru.cleaning_map(inputs)
+	return __en.cleaning_map(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Dock" |
+*
+* @param {Cleaning_Map_DockInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_map_dock = /** @type {((inputs?: Cleaning_Map_DockInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Map_DockInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_map_dock(inputs)
+	if (locale === "ru") return __ru.cleaning_map_dock(inputs)
+	return __en.cleaning_map_dock(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Map {id}" |
+*
+* @param {Cleaning_Map_NameInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_map_name = /** @type {((inputs: Cleaning_Map_NameInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Map_NameInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_map_name(inputs)
+	if (locale === "ru") return __ru.cleaning_map_name(inputs)
+	return __en.cleaning_map_name(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Room {id}" |
+*
+* @param {Cleaning_Map_RoomInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_map_room = /** @type {((inputs: Cleaning_Map_RoomInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Map_RoomInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_map_room(inputs)
+	if (locale === "ru") return __ru.cleaning_map_room(inputs)
+	return __en.cleaning_map_room(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Choose saved map" |
+*
+* @param {Cleaning_Map_SelectInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_map_select = /** @type {((inputs?: Cleaning_Map_SelectInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Map_SelectInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_map_select(inputs)
+	if (locale === "ru") return __ru.cleaning_map_select(inputs)
+	return __en.cleaning_map_select(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Dreame map" |
+*
+* @param {Cleaning_Map_TitleInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_map_title = /** @type {((inputs?: Cleaning_Map_TitleInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Map_TitleInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_map_title(inputs)
+	if (locale === "ru") return __ru.cleaning_map_title(inputs)
+	return __en.cleaning_map_title(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Zoom in" |
+*
+* @param {Cleaning_Map_Zoom_InInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_map_zoom_in = /** @type {((inputs?: Cleaning_Map_Zoom_InInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Map_Zoom_InInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_map_zoom_in(inputs)
+	if (locale === "ru") return __ru.cleaning_map_zoom_in(inputs)
+	return __en.cleaning_map_zoom_in(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Zoom out" |
+*
+* @param {Cleaning_Map_Zoom_OutInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_map_zoom_out = /** @type {((inputs?: Cleaning_Map_Zoom_OutInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Map_Zoom_OutInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_map_zoom_out(inputs)
+	if (locale === "ru") return __ru.cleaning_map_zoom_out(inputs)
+	return __en.cleaning_map_zoom_out(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Mark cleaned" |
+*
+* @param {Cleaning_Mark_CleanedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_mark_cleaned = /** @type {((inputs?: Cleaning_Mark_CleanedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Mark_CleanedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_mark_cleaned(inputs)
+	if (locale === "ru") return __ru.cleaning_mark_cleaned(inputs)
+	return __en.cleaning_mark_cleaned(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Mark replaced" |
+*
+* @param {Cleaning_Mark_ReplacedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_mark_replaced = /** @type {((inputs?: Cleaning_Mark_ReplacedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Mark_ReplacedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_mark_replaced(inputs)
+	if (locale === "ru") return __ru.cleaning_mark_replaced(inputs)
+	return __en.cleaning_mark_replaced(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Medium" |
+*
+* @param {Cleaning_MediumInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_medium = /** @type {((inputs?: Cleaning_MediumInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_MediumInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_medium(inputs)
+	if (locale === "ru") return __ru.cleaning_medium(inputs)
+	return __en.cleaning_medium(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Missing room" |
+*
+* @param {Cleaning_Missing_RoomInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_missing_room = /** @type {((inputs?: Cleaning_Missing_RoomInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Missing_RoomInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_missing_room(inputs)
+	if (locale === "ru") return __ru.cleaning_missing_room(inputs)
+	return __en.cleaning_missing_room(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Model" |
+*
+* @param {Cleaning_ModelInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_model = /** @type {((inputs?: Cleaning_ModelInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_ModelInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_model(inputs)
+	if (locale === "ru") return __ru.cleaning_model(inputs)
+	return __en.cleaning_model(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Model ID" |
+*
+* @param {Cleaning_Model_IdInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_model_id = /** @type {((inputs?: Cleaning_Model_IdInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Model_IdInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_model_id(inputs)
+	if (locale === "ru") return __ru.cleaning_model_id(inputs)
+	return __en.cleaning_model_id(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "No vacuums available." |
+*
+* @param {Cleaning_No_AvailableInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_no_available = /** @type {((inputs?: Cleaning_No_AvailableInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_No_AvailableInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_no_available(inputs)
+	if (locale === "ru") return __ru.cleaning_no_available(inputs)
+	return __en.cleaning_no_available(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "No cleaning history." |
+*
+* @param {Cleaning_No_HistoryInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_no_history = /** @type {((inputs?: Cleaning_No_HistoryInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_No_HistoryInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_no_history(inputs)
+	if (locale === "ru") return __ru.cleaning_no_history(inputs)
+	return __en.cleaning_no_history(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Cleaning options" |
+*
+* @param {Cleaning_OptionsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_options = /** @type {((inputs?: Cleaning_OptionsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_OptionsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_options(inputs)
+	if (locale === "ru") return __ru.cleaning_options(inputs)
+	return __en.cleaning_options(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Overlay" |
+*
+* @param {Cleaning_OverlayInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_overlay = /** @type {((inputs?: Cleaning_OverlayInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_OverlayInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_overlay(inputs)
+	if (locale === "ru") return __ru.cleaning_overlay(inputs)
+	return __en.cleaning_overlay(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Pause" |
+*
+* @param {Cleaning_PauseInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_pause = /** @type {((inputs?: Cleaning_PauseInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_PauseInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_pause(inputs)
+	if (locale === "ru") return __ru.cleaning_pause(inputs)
+	return __en.cleaning_pause(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Place landmark {number}" |
+*
+* @param {Cleaning_Place_LandmarkInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_place_landmark = /** @type {((inputs: Cleaning_Place_LandmarkInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Place_LandmarkInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_place_landmark(inputs)
+	if (locale === "ru") return __ru.cleaning_place_landmark(inputs)
+	return __en.cleaning_place_landmark(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Position unavailable" |
+*
+* @param {Cleaning_Position_UnavailableInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_position_unavailable = /** @type {((inputs?: Cleaning_Position_UnavailableInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Position_UnavailableInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_position_unavailable(inputs)
+	if (locale === "ru") return __ru.cleaning_position_unavailable(inputs)
+	return __en.cleaning_position_unavailable(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Cleaning progress" |
+*
+* @param {Cleaning_ProgressInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_progress = /** @type {((inputs?: Cleaning_ProgressInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_ProgressInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_progress(inputs)
+	if (locale === "ru") return __ru.cleaning_progress(inputs)
+	return __en.cleaning_progress(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Quiet" |
+*
+* @param {Cleaning_QuietInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_quiet = /** @type {((inputs?: Cleaning_QuietInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_QuietInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_quiet(inputs)
+	if (locale === "ru") return __ru.cleaning_quiet(inputs)
+	return __en.cleaning_quiet(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Remaining" |
+*
+* @param {Cleaning_RemainingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_remaining = /** @type {((inputs?: Cleaning_RemainingInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_RemainingInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_remaining(inputs)
+	if (locale === "ru") return __ru.cleaning_remaining(inputs)
+	return __en.cleaning_remaining(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Passes" |
+*
+* @param {Cleaning_RepeatsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_repeats = /** @type {((inputs?: Cleaning_RepeatsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_RepeatsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_repeats(inputs)
+	if (locale === "ru") return __ru.cleaning_repeats(inputs)
+	return __en.cleaning_repeats(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Replace task" |
+*
+* @param {Cleaning_ReplaceInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_replace = /** @type {((inputs?: Cleaning_ReplaceInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_ReplaceInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_replace(inputs)
+	if (locale === "ru") return __ru.cleaning_replace(inputs)
+	return __en.cleaning_replace(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Replace filter" |
+*
+* @param {Cleaning_Replace_FilterInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_replace_filter = /** @type {((inputs?: Cleaning_Replace_FilterInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Replace_FilterInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_replace_filter(inputs)
+	if (locale === "ru") return __ru.cleaning_replace_filter(inputs)
+	return __en.cleaning_replace_filter(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Replace main brush" |
+*
+* @param {Cleaning_Replace_Main_BrushInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_replace_main_brush = /** @type {((inputs?: Cleaning_Replace_Main_BrushInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Replace_Main_BrushInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_replace_main_brush(inputs)
+	if (locale === "ru") return __ru.cleaning_replace_main_brush(inputs)
+	return __en.cleaning_replace_main_brush(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Replace side brush" |
+*
+* @param {Cleaning_Replace_Side_BrushInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_replace_side_brush = /** @type {((inputs?: Cleaning_Replace_Side_BrushInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Replace_Side_BrushInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_replace_side_brush(inputs)
+	if (locale === "ru") return __ru.cleaning_replace_side_brush(inputs)
+	return __en.cleaning_replace_side_brush(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Replace current task?" |
+*
+* @param {Cleaning_Replace_TitleInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_replace_title = /** @type {((inputs?: Cleaning_Replace_TitleInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Replace_TitleInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_replace_title(inputs)
+	if (locale === "ru") return __ru.cleaning_replace_title(inputs)
+	return __en.cleaning_replace_title(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Resume" |
+*
+* @param {Cleaning_ResumeInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_resume = /** @type {((inputs?: Cleaning_ResumeInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_ResumeInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_resume(inputs)
+	if (locale === "ru") return __ru.cleaning_resume(inputs)
+	return __en.cleaning_resume(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Vacuum" |
+*
+* @param {Cleaning_RobotInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_robot = /** @type {((inputs?: Cleaning_RobotInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_RobotInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_robot(inputs)
+	if (locale === "ru") return __ru.cleaning_robot(inputs)
+	return __en.cleaning_robot(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Robot settings" |
+*
+* @param {Cleaning_Robot_SettingsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_robot_settings = /** @type {((inputs?: Cleaning_Robot_SettingsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Robot_SettingsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_robot_settings(inputs)
+	if (locale === "ru") return __ru.cleaning_robot_settings(inputs)
+	return __en.cleaning_robot_settings(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Rooms" |
+*
+* @param {Cleaning_RoomsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_rooms = /** @type {((inputs?: Cleaning_RoomsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_RoomsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_rooms(inputs)
+	if (locale === "ru") return __ru.cleaning_rooms(inputs)
+	return __en.cleaning_rooms(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Rotate map left" |
+*
+* @param {Cleaning_Rotate_LeftInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_rotate_left = /** @type {((inputs?: Cleaning_Rotate_LeftInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Rotate_LeftInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_rotate_left(inputs)
+	if (locale === "ru") return __ru.cleaning_rotate_left(inputs)
+	return __en.cleaning_rotate_left(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Rotate map right" |
+*
+* @param {Cleaning_Rotate_RightInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_rotate_right = /** @type {((inputs?: Cleaning_Rotate_RightInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Rotate_RightInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_rotate_right(inputs)
+	if (locale === "ru") return __ru.cleaning_rotate_right(inputs)
+	return __en.cleaning_rotate_right(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Select vacuum" |
+*
+* @param {Cleaning_Select_RobotInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_select_robot = /** @type {((inputs?: Cleaning_Select_RobotInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Select_RobotInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_select_robot(inputs)
+	if (locale === "ru") return __ru.cleaning_select_robot(inputs)
+	return __en.cleaning_select_robot(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Rooms changed. Review your selection." |
+*
+* @param {Cleaning_Selection_ChangedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_selection_changed = /** @type {((inputs?: Cleaning_Selection_ChangedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Selection_ChangedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_selection_changed(inputs)
+	if (locale === "ru") return __ru.cleaning_selection_changed(inputs)
+	return __en.cleaning_selection_changed(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Sensors" |
+*
+* @param {Cleaning_SensorsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_sensors = /** @type {((inputs?: Cleaning_SensorsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_SensorsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_sensors(inputs)
+	if (locale === "ru") return __ru.cleaning_sensors(inputs)
+	return __en.cleaning_sensors(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "These rooms share a cleaning area." |
+*
+* @param {Cleaning_Shared_RoomsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_shared_rooms = /** @type {((inputs?: Cleaning_Shared_RoomsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Shared_RoomsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_shared_rooms(inputs)
+	if (locale === "ru") return __ru.cleaning_shared_rooms(inputs)
+	return __en.cleaning_shared_rooms(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Show vacuum on Hive map" |
+*
+* @param {Cleaning_Show_On_MapInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_show_on_map = /** @type {((inputs?: Cleaning_Show_On_MapInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Show_On_MapInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_show_on_map(inputs)
+	if (locale === "ru") return __ru.cleaning_show_on_map(inputs)
+	return __en.cleaning_show_on_map(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Side brush" |
+*
+* @param {Cleaning_Side_BrushInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_side_brush = /** @type {((inputs?: Cleaning_Side_BrushInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Side_BrushInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_side_brush(inputs)
+	if (locale === "ru") return __ru.cleaning_side_brush(inputs)
+	return __en.cleaning_side_brush(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Standard" |
+*
+* @param {Cleaning_StandardInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_standard = /** @type {((inputs?: Cleaning_StandardInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_StandardInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_standard(inputs)
+	if (locale === "ru") return __ru.cleaning_standard(inputs)
+	return __en.cleaning_standard(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Start cleaning" |
+*
+* @param {Cleaning_StartInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_start = /** @type {((inputs?: Cleaning_StartInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_StartInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_start(inputs)
+	if (locale === "ru") return __ru.cleaning_start(inputs)
+	return __en.cleaning_start(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Start new" |
+*
+* @param {Cleaning_Start_NewInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_start_new = /** @type {((inputs?: Cleaning_Start_NewInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Start_NewInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_start_new(inputs)
+	if (locale === "ru") return __ru.cleaning_start_new(inputs)
+	return __en.cleaning_start_new(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Needs attention" |
+*
+* @param {Cleaning_Status_AttentionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_attention = /** @type {((inputs?: Cleaning_Status_AttentionInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Status_AttentionInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_status_attention(inputs)
+	if (locale === "ru") return __ru.cleaning_status_attention(inputs)
+	return __en.cleaning_status_attention(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Stopped" |
+*
+* @param {Cleaning_Status_CancelledInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_cancelled = /** @type {((inputs?: Cleaning_Status_CancelledInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Status_CancelledInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_status_cancelled(inputs)
+	if (locale === "ru") return __ru.cleaning_status_cancelled(inputs)
+	return __en.cleaning_status_cancelled(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Cleaning" |
+*
+* @param {Cleaning_Status_CleaningInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_cleaning = /** @type {((inputs?: Cleaning_Status_CleaningInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Status_CleaningInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_status_cleaning(inputs)
+	if (locale === "ru") return __ru.cleaning_status_cleaning(inputs)
+	return __en.cleaning_status_cleaning(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Completed" |
+*
+* @param {Cleaning_Status_CompletedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_completed = /** @type {((inputs?: Cleaning_Status_CompletedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Status_CompletedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_status_completed(inputs)
+	if (locale === "ru") return __ru.cleaning_status_completed(inputs)
+	return __en.cleaning_status_completed(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Docked" |
+*
+* @param {Cleaning_Status_DockedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_docked = /** @type {((inputs?: Cleaning_Status_DockedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Status_DockedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_status_docked(inputs)
+	if (locale === "ru") return __ru.cleaning_status_docked(inputs)
+	return __en.cleaning_status_docked(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Finished · outcome unknown" |
+*
+* @param {Cleaning_Status_EndedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_ended = /** @type {((inputs?: Cleaning_Status_EndedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Status_EndedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_status_ended(inputs)
+	if (locale === "ru") return __ru.cleaning_status_ended(inputs)
+	return __en.cleaning_status_ended(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Failed" |
+*
+* @param {Cleaning_Status_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_failed = /** @type {((inputs?: Cleaning_Status_FailedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Status_FailedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_status_failed(inputs)
+	if (locale === "ru") return __ru.cleaning_status_failed(inputs)
+	return __en.cleaning_status_failed(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Idle" |
+*
+* @param {Cleaning_Status_IdleInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_idle = /** @type {((inputs?: Cleaning_Status_IdleInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Status_IdleInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_status_idle(inputs)
+	if (locale === "ru") return __ru.cleaning_status_idle(inputs)
+	return __en.cleaning_status_idle(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Offline" |
+*
+* @param {Cleaning_Status_OfflineInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_offline = /** @type {((inputs?: Cleaning_Status_OfflineInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Status_OfflineInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_status_offline(inputs)
+	if (locale === "ru") return __ru.cleaning_status_offline(inputs)
+	return __en.cleaning_status_offline(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Paused" |
+*
+* @param {Cleaning_Status_PausedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_paused = /** @type {((inputs?: Cleaning_Status_PausedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Status_PausedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_status_paused(inputs)
+	if (locale === "ru") return __ru.cleaning_status_paused(inputs)
+	return __en.cleaning_status_paused(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Returning" |
+*
+* @param {Cleaning_Status_ReturningInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_returning = /** @type {((inputs?: Cleaning_Status_ReturningInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Status_ReturningInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_status_returning(inputs)
+	if (locale === "ru") return __ru.cleaning_status_returning(inputs)
+	return __en.cleaning_status_returning(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Starting" |
+*
+* @param {Cleaning_Status_StartingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_starting = /** @type {((inputs?: Cleaning_Status_StartingInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Status_StartingInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_status_starting(inputs)
+	if (locale === "ru") return __ru.cleaning_status_starting(inputs)
+	return __en.cleaning_status_starting(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Stopping" |
+*
+* @param {Cleaning_Status_StoppingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_stopping = /** @type {((inputs?: Cleaning_Status_StoppingInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Status_StoppingInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_status_stopping(inputs)
+	if (locale === "ru") return __ru.cleaning_status_stopping(inputs)
+	return __en.cleaning_status_stopping(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Unknown" |
+*
+* @param {Cleaning_Status_UnknownInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_unknown = /** @type {((inputs?: Cleaning_Status_UnknownInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Status_UnknownInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_status_unknown(inputs)
+	if (locale === "ru") return __ru.cleaning_status_unknown(inputs)
+	return __en.cleaning_status_unknown(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Stop" |
+*
+* @param {Cleaning_StopInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_stop = /** @type {((inputs?: Cleaning_StopInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_StopInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_stop(inputs)
+	if (locale === "ru") return __ru.cleaning_stop(inputs)
+	return __en.cleaning_stop(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Strong" |
+*
+* @param {Cleaning_StrongInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_strong = /** @type {((inputs?: Cleaning_StrongInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_StrongInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_strong(inputs)
+	if (locale === "ru") return __ru.cleaning_strong(inputs)
+	return __en.cleaning_strong(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Suction" |
+*
+* @param {Cleaning_SuctionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_suction = /** @type {((inputs?: Cleaning_SuctionInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_SuctionInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_suction(inputs)
+	if (locale === "ru") return __ru.cleaning_suction(inputs)
+	return __en.cleaning_suction(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Test connection" |
+*
+* @param {Cleaning_TestInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_test = /** @type {((inputs?: Cleaning_TestInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_TestInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_test(inputs)
+	if (locale === "ru") return __ru.cleaning_test(inputs)
+	return __en.cleaning_test(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Cleaning" |
+*
+* @param {Cleaning_TitleInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_title = /** @type {((inputs?: Cleaning_TitleInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_TitleInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_title(inputs)
+	if (locale === "ru") return __ru.cleaning_title(inputs)
+	return __en.cleaning_title(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Turbo" |
+*
+* @param {Cleaning_TurboInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_turbo = /** @type {((inputs?: Cleaning_TurboInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_TurboInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_turbo(inputs)
+	if (locale === "ru") return __ru.cleaning_turbo(inputs)
+	return __en.cleaning_turbo(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Water" |
+*
+* @param {Cleaning_WaterInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_water = /** @type {((inputs?: Cleaning_WaterInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_WaterInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_water(inputs)
+	if (locale === "ru") return __ru.cleaning_water(inputs)
+	return __en.cleaning_water(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Whole apartment" |
+*
+* @param {Cleaning_Whole_ApartmentInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_whole_apartment = /** @type {((inputs?: Cleaning_Whole_ApartmentInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Cleaning_Whole_ApartmentInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.cleaning_whole_apartment(inputs)
+	if (locale === "ru") return __ru.cleaning_whole_apartment(inputs)
+	return __en.cleaning_whole_apartment(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Hue and saturation" |
 *
 * @param {Color_Picker_AriaInputs} inputs
@@ -11852,6 +13536,21 @@ export const common_add_to = /** @type {((inputs?: Common_Add_ToInputs, options?
 	if (locale === "sv") return __sv.common_add_to(inputs)
 	if (locale === "ru") return __ru.common_add_to(inputs)
 	return __en.common_add_to(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Back" |
+*
+* @param {Common_BackInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const common_back = /** @type {((inputs?: Common_BackInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Common_BackInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.common_back(inputs)
+	if (locale === "ru") return __ru.common_back(inputs)
+	return __en.common_back(inputs)
 });
 /**
 * | output |
@@ -12212,6 +13911,21 @@ export const common_remove = /** @type {((inputs?: Common_RemoveInputs, options?
 	if (locale === "sv") return __sv.common_remove(inputs)
 	if (locale === "ru") return __ru.common_remove(inputs)
 	return __en.common_remove(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Rename" |
+*
+* @param {Common_RenameInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const common_rename = /** @type {((inputs?: Common_RenameInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Common_RenameInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.common_rename(inputs)
+	if (locale === "ru") return __ru.common_rename(inputs)
+	return __en.common_rename(inputs)
 });
 /**
 * | output |
@@ -13008,21 +14722,6 @@ export const data_viewer_title = /** @type {((inputs?: Data_Viewer_TitleInputs, 
 /**
 * | output |
 * | --- |
-* | "Actions" |
-*
-* @param {Device_ActionsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const device_actions = /** @type {((inputs?: Device_ActionsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Device_ActionsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.device_actions(inputs)
-	if (locale === "ru") return __ru.device_actions(inputs)
-	return __en.device_actions(inputs)
-});
-/**
-* | output |
-* | --- |
 * | "Adjust {name} climate" |
 *
 * @param {Device_Adjust_Climate_NamedInputs} inputs
@@ -13068,21 +14767,6 @@ export const device_apply = /** @type {((inputs?: Device_ApplyInputs, options?: 
 /**
 * | output |
 * | --- |
-* | "Applying…" |
-*
-* @param {Device_ApplyingInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const device_applying = /** @type {((inputs?: Device_ApplyingInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Device_ApplyingInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.device_applying(inputs)
-	if (locale === "ru") return __ru.device_applying(inputs)
-	return __en.device_applying(inputs)
-});
-/**
-* | output |
-* | --- |
 * | "Back to devices" |
 *
 * @param {Device_Back_To_DevicesInputs} inputs
@@ -13109,6 +14793,21 @@ export const device_brightness = /** @type {((inputs?: Device_BrightnessInputs, 
 	if (locale === "sv") return __sv.device_brightness(inputs)
 	if (locale === "ru") return __ru.device_brightness(inputs)
 	return __en.device_brightness(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Charging" |
+*
+* @param {Device_ChargingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_charging = /** @type {((inputs?: Device_ChargingInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Device_ChargingInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.device_charging(inputs)
+	if (locale === "ru") return __ru.device_charging(inputs)
+	return __en.device_charging(inputs)
 });
 /**
 * | output |
@@ -13323,6 +15022,21 @@ export const device_configuration_timeout = /** @type {((inputs?: Device_Configu
 /**
 * | output |
 * | --- |
+* | "Control" |
+*
+* @param {Device_ControlInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_control = /** @type {((inputs?: Device_ControlInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Device_ControlInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.device_control(inputs)
+	if (locale === "ru") return __ru.device_control(inputs)
+	return __en.device_control(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Controls are unavailable while this device is disabled." |
 *
 * @param {Device_Controls_DisabledInputs} inputs
@@ -13439,6 +15153,21 @@ export const device_flags_summary = /** @type {((inputs: Device_Flags_SummaryInp
 	if (locale === "sv") return __sv.device_flags_summary(inputs)
 	if (locale === "ru") return __ru.device_flags_summary(inputs)
 	return __en.device_flags_summary(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Fully charged" |
+*
+* @param {Device_Fully_ChargedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_fully_charged = /** @type {((inputs?: Device_Fully_ChargedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Device_Fully_ChargedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.device_fully_charged(inputs)
+	if (locale === "ru") return __ru.device_fully_charged(inputs)
+	return __en.device_fully_charged(inputs)
 });
 /**
 * | output |
@@ -13818,6 +15547,21 @@ export const device_settings = /** @type {((inputs?: Device_SettingsInputs, opti
 /**
 * | output |
 * | --- |
+* | "Status" |
+*
+* @param {Device_StatusInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_status = /** @type {((inputs?: Device_StatusInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Device_StatusInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.device_status(inputs)
+	if (locale === "ru") return __ru.device_status(inputs)
+	return __en.device_status(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Swing" |
 *
 * @param {Device_SwingInputs} inputs
@@ -14054,21 +15798,6 @@ export const device_update = /** @type {((inputs?: Device_UpdateInputs, options?
 	if (locale === "sv") return __sv.device_update(inputs)
 	if (locale === "ru") return __ru.device_update(inputs)
 	return __en.device_update(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Waiting for device…" |
-*
-* @param {Device_WaitingInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const device_waiting = /** @type {((inputs?: Device_WaitingInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Device_WaitingInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.device_waiting(inputs)
-	if (locale === "ru") return __ru.device_waiting(inputs)
-	return __en.device_waiting(inputs)
 });
 /**
 * | output |
@@ -14344,7 +16073,7 @@ export const devices_no_match = /** @type {((inputs?: Devices_No_MatchInputs, op
 /**
 * | output |
 * | --- |
-* | "No devices discovered yet." |
+* | "No devices" |
 *
 * @param {Devices_NoneInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -14355,21 +16084,6 @@ export const devices_none = /** @type {((inputs?: Devices_NoneInputs, options?: 
 	if (locale === "sv") return __sv.devices_none(inputs)
 	if (locale === "ru") return __ru.devices_none(inputs)
 	return __en.devices_none(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Devices appear here once an integration is connected." |
-*
-* @param {Devices_None_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const devices_none_help = /** @type {((inputs?: Devices_None_HelpInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Devices_None_HelpInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.devices_none_help(inputs)
-	if (locale === "ru") return __ru.devices_none_help(inputs)
-	return __en.devices_none_help(inputs)
 });
 /**
 * | output |
@@ -14475,6 +16189,246 @@ export const devices_trigger_event = /** @type {((inputs: Devices_Trigger_EventI
 	if (locale === "sv") return __sv.devices_trigger_event(inputs)
 	if (locale === "ru") return __ru.devices_trigger_event(inputs)
 	return __en.devices_trigger_event(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "1. Enter your Dreamehome email and password." |
+*
+* @param {Dreame_Connect_AccountInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_connect_account = /** @type {((inputs?: Dreame_Connect_AccountInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Dreame_Connect_AccountInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.dreame_connect_account(inputs)
+	if (locale === "ru") return __ru.dreame_connect_account(inputs)
+	return __en.dreame_connect_account(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "2. Choose the same cloud server as the app." |
+*
+* @param {Dreame_Connect_RegionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_connect_region = /** @type {((inputs?: Dreame_Connect_RegionInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Dreame_Connect_RegionInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.dreame_connect_region(inputs)
+	if (locale === "ru") return __ru.dreame_connect_region(inputs)
+	return __en.dreame_connect_region(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "3. Enable and save to discover your vacuums." |
+*
+* @param {Dreame_Connect_SaveInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_connect_save = /** @type {((inputs?: Dreame_Connect_SaveInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Dreame_Connect_SaveInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.dreame_connect_save(inputs)
+	if (locale === "ru") return __ru.dreame_connect_save(inputs)
+	return __en.dreame_connect_save(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "How to connect" |
+*
+* @param {Dreame_ConnectingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_connecting = /** @type {((inputs?: Dreame_ConnectingInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Dreame_ConnectingInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.dreame_connecting(inputs)
+	if (locale === "ru") return __ru.dreame_connecting(inputs)
+	return __en.dreame_connecting(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Dreamehome email" |
+*
+* @param {Dreame_EmailInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_email = /** @type {((inputs?: Dreame_EmailInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Dreame_EmailInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.dreame_email(inputs)
+	if (locale === "ru") return __ru.dreame_email(inputs)
+	return __en.dreame_email(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Enable Dreame" |
+*
+* @param {Dreame_EnabledInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_enabled = /** @type {((inputs?: Dreame_EnabledInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Dreame_EnabledInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.dreame_enabled(inputs)
+	if (locale === "ru") return __ru.dreame_enabled(inputs)
+	return __en.dreame_enabled(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "App password" |
+*
+* @param {Dreame_PasswordInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_password = /** @type {((inputs?: Dreame_PasswordInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Dreame_PasswordInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.dreame_password(inputs)
+	if (locale === "ru") return __ru.dreame_password(inputs)
+	return __en.dreame_password(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Read diagnostics" |
+*
+* @param {Dreame_ReadInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_read = /** @type {((inputs?: Dreame_ReadInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Dreame_ReadInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.dreame_read(inputs)
+	if (locale === "ru") return __ru.dreame_read(inputs)
+	return __en.dreame_read(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Cloud server" |
+*
+* @param {Dreame_RegionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_region = /** @type {((inputs?: Dreame_RegionInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Dreame_RegionInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.dreame_region(inputs)
+	if (locale === "ru") return __ru.dreame_region(inputs)
+	return __en.dreame_region(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "China" |
+*
+* @param {Dreame_Region_CnInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_region_cn = /** @type {((inputs?: Dreame_Region_CnInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Dreame_Region_CnInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.dreame_region_cn(inputs)
+	if (locale === "ru") return __ru.dreame_region_cn(inputs)
+	return __en.dreame_region_cn(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Europe" |
+*
+* @param {Dreame_Region_EuInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_region_eu = /** @type {((inputs?: Dreame_Region_EuInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Dreame_Region_EuInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.dreame_region_eu(inputs)
+	if (locale === "ru") return __ru.dreame_region_eu(inputs)
+	return __en.dreame_region_eu(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "India" |
+*
+* @param {Dreame_Region_InInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_region_in = /** @type {((inputs?: Dreame_Region_InInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Dreame_Region_InInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.dreame_region_in(inputs)
+	if (locale === "ru") return __ru.dreame_region_in(inputs)
+	return __en.dreame_region_in(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "South Korea" |
+*
+* @param {Dreame_Region_KrInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_region_kr = /** @type {((inputs?: Dreame_Region_KrInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Dreame_Region_KrInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.dreame_region_kr(inputs)
+	if (locale === "ru") return __ru.dreame_region_kr(inputs)
+	return __en.dreame_region_kr(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Russia" |
+*
+* @param {Dreame_Region_RuInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_region_ru = /** @type {((inputs?: Dreame_Region_RuInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Dreame_Region_RuInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.dreame_region_ru(inputs)
+	if (locale === "ru") return __ru.dreame_region_ru(inputs)
+	return __en.dreame_region_ru(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Singapore" |
+*
+* @param {Dreame_Region_SgInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_region_sg = /** @type {((inputs?: Dreame_Region_SgInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Dreame_Region_SgInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.dreame_region_sg(inputs)
+	if (locale === "ru") return __ru.dreame_region_sg(inputs)
+	return __en.dreame_region_sg(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "North America" |
+*
+* @param {Dreame_Region_UsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_region_us = /** @type {((inputs?: Dreame_Region_UsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Dreame_Region_UsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.dreame_region_us(inputs)
+	if (locale === "ru") return __ru.dreame_region_us(inputs)
+	return __en.dreame_region_us(inputs)
 });
 /**
 * | output |
@@ -15787,7 +17741,7 @@ export const effects_edit = /** @type {((inputs?: Effects_EditInputs, options?: 
 /**
 * | output |
 * | --- |
-* | "No effects yet." |
+* | "No effects" |
 *
 * @param {Effects_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -15798,21 +17752,6 @@ export const effects_empty = /** @type {((inputs?: Effects_EmptyInputs, options?
 	if (locale === "sv") return __sv.effects_empty(inputs)
 	if (locale === "ru") return __ru.effects_empty(inputs)
 	return __en.effects_empty(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Create a Hive effect, or pair a device that exposes Zigbee effects." |
-*
-* @param {Effects_Empty_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const effects_empty_help = /** @type {((inputs?: Effects_Empty_HelpInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Effects_Empty_HelpInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.effects_empty_help(inputs)
-	if (locale === "ru") return __ru.effects_empty_help(inputs)
-	return __en.effects_empty_help(inputs)
 });
 /**
 * | output |
@@ -15967,7 +17906,7 @@ export const effects_name_placeholder = /** @type {((inputs?: Effects_Name_Place
 /**
 * | output |
 * | --- |
-* | "No devices report any Zigbee effects yet." |
+* | "No native effects" |
 *
 * @param {Effects_Native_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -17712,7 +19651,7 @@ export const group_member_add = /** @type {((inputs?: Group_Member_AddInputs, op
 /**
 * | output |
 * | --- |
-* | "No members yet. Add devices or groups to this group." |
+* | "No members" |
 *
 * @param {Group_Members_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -17727,7 +19666,7 @@ export const group_members_empty = /** @type {((inputs?: Group_Members_EmptyInpu
 /**
 * | output |
 * | --- |
-* | "No members." |
+* | "No members" |
 *
 * @param {Group_Members_NoneInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -17772,7 +19711,7 @@ export const group_no_match = /** @type {((inputs?: Group_No_MatchInputs, option
 /**
 * | output |
 * | --- |
-* | "No groups yet." |
+* | "No groups" |
 *
 * @param {Group_NoneInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -17783,21 +19722,6 @@ export const group_none = /** @type {((inputs?: Group_NoneInputs, options?: { lo
 	if (locale === "sv") return __sv.group_none(inputs)
 	if (locale === "ru") return __ru.group_none(inputs)
 	return __en.group_none(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Create a group to control devices together." |
-*
-* @param {Group_None_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const group_none_help = /** @type {((inputs?: Group_None_HelpInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Group_None_HelpInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.group_none_help(inputs)
-	if (locale === "ru") return __ru.group_none_help(inputs)
-	return __en.group_none_help(inputs)
 });
 /**
 * | output |
@@ -18780,6 +20704,21 @@ export const integrations_delete_title = /** @type {((inputs?: Integrations_Dele
 /**
 * | output |
 * | --- |
+* | "Robot vacuums via Dreamehome" |
+*
+* @param {Integrations_Description_DreameInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const integrations_description_dreame = /** @type {((inputs?: Integrations_Description_DreameInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Integrations_Description_DreameInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.integrations_description_dreame(inputs)
+	if (locale === "ru") return __ru.integrations_description_dreame(inputs)
+	return __en.integrations_description_dreame(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Device adapter" |
 *
 * @param {Integrations_Description_GenericInputs} inputs
@@ -18857,7 +20796,7 @@ export const integrations_devices_kept = /** @type {((inputs: Integrations_Devic
 /**
 * | output |
 * | --- |
-* | "No integrations yet." |
+* | "No integrations" |
 *
 * @param {Integrations_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -18868,21 +20807,6 @@ export const integrations_empty = /** @type {((inputs?: Integrations_EmptyInputs
 	if (locale === "sv") return __sv.integrations_empty(inputs)
 	if (locale === "ru") return __ru.integrations_empty(inputs)
 	return __en.integrations_empty(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Add an integration to bring external devices into Saffron Hive." |
-*
-* @param {Integrations_Empty_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const integrations_empty_help = /** @type {((inputs?: Integrations_Empty_HelpInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Integrations_Empty_HelpInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.integrations_empty_help(inputs)
-	if (locale === "ru") return __ru.integrations_empty_help(inputs)
-	return __en.integrations_empty_help(inputs)
 });
 /**
 * | output |
@@ -19097,6 +21021,21 @@ export const maintenance_battery_detail = /** @type {((inputs: Maintenance_Batte
 /**
 * | output |
 * | --- |
+* | "{name} · {value}% remaining" |
+*
+* @param {Maintenance_Cleaning_DetailInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const maintenance_cleaning_detail = /** @type {((inputs: Maintenance_Cleaning_DetailInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Maintenance_Cleaning_DetailInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.maintenance_cleaning_detail(inputs)
+	if (locale === "ru") return __ru.maintenance_cleaning_detail(inputs)
+	return __en.maintenance_cleaning_detail(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Correct sensor placement" |
 *
 * @param {Maintenance_Correct_PostureInputs} inputs
@@ -19112,7 +21051,7 @@ export const maintenance_correct_posture = /** @type {((inputs?: Maintenance_Cor
 /**
 * | output |
 * | --- |
-* | "Nothing needs maintenance." |
+* | "No maintenance needed" |
 *
 * @param {Maintenance_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -19243,6 +21182,21 @@ export const maintenance_group_batteries = /** @type {((inputs?: Maintenance_Gro
 	if (locale === "sv") return __sv.maintenance_group_batteries(inputs)
 	if (locale === "ru") return __ru.maintenance_group_batteries(inputs)
 	return __en.maintenance_group_batteries(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Vacuum maintenance" |
+*
+* @param {Maintenance_Group_CleaningInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const maintenance_group_cleaning = /** @type {((inputs?: Maintenance_Group_CleaningInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Maintenance_Group_CleaningInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.maintenance_group_cleaning(inputs)
+	if (locale === "ru") return __ru.maintenance_group_cleaning(inputs)
+	return __en.maintenance_group_cleaning(inputs)
 });
 /**
 * | output |
@@ -20538,6 +22492,21 @@ export const map_go_to_group = /** @type {((inputs?: Map_Go_To_GroupInputs, opti
 /**
 * | output |
 * | --- |
+* | "Hide cleaning trails" |
+*
+* @param {Map_Hide_Cleaning_TrailsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const map_hide_cleaning_trails = /** @type {((inputs?: Map_Hide_Cleaning_TrailsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Map_Hide_Cleaning_TrailsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.map_hide_cleaning_trails(inputs)
+	if (locale === "ru") return __ru.map_hide_cleaning_trails(inputs)
+	return __en.map_hide_cleaning_trails(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Hide neighbour links" |
 *
 * @param {Map_Hide_Neighbour_LinksInputs} inputs
@@ -21093,6 +23062,21 @@ export const map_set_display_color = /** @type {((inputs?: Map_Set_Display_Color
 /**
 * | output |
 * | --- |
+* | "Show cleaning trails" |
+*
+* @param {Map_Show_Cleaning_TrailsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const map_show_cleaning_trails = /** @type {((inputs?: Map_Show_Cleaning_TrailsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Map_Show_Cleaning_TrailsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.map_show_cleaning_trails(inputs)
+	if (locale === "ru") return __ru.map_show_cleaning_trails(inputs)
+	return __en.map_show_cleaning_trails(inputs)
+});
+/**
+* | output |
+* | --- |
 * | "Show neighbour links" |
 *
 * @param {Map_Show_Neighbour_LinksInputs} inputs
@@ -21528,7 +23512,7 @@ export const member_add_failed = /** @type {((inputs?: Member_Add_FailedInputs, 
 /**
 * | output |
 * | --- |
-* | "No members yet." |
+* | "No members" |
 *
 * @param {Member_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -22006,81 +23990,6 @@ export const nav_webhooks = /** @type {((inputs?: Nav_WebhooksInputs, options?: 
 	if (locale === "sv") return __sv.nav_webhooks(inputs)
 	if (locale === "ru") return __ru.nav_webhooks(inputs)
 	return __en.nav_webhooks(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Current" |
-*
-* @param {Plug_CurrentInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const plug_current = /** @type {((inputs?: Plug_CurrentInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Plug_CurrentInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.plug_current(inputs)
-	if (locale === "ru") return __ru.plug_current(inputs)
-	return __en.plug_current(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Energy" |
-*
-* @param {Plug_EnergyInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const plug_energy = /** @type {((inputs?: Plug_EnergyInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Plug_EnergyInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.plug_energy(inputs)
-	if (locale === "ru") return __ru.plug_energy(inputs)
-	return __en.plug_energy(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Plug status" |
-*
-* @param {Plug_StatusInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const plug_status = /** @type {((inputs?: Plug_StatusInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Plug_StatusInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.plug_status(inputs)
-	if (locale === "ru") return __ru.plug_status(inputs)
-	return __en.plug_status(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Toggle plug" |
-*
-* @param {Plug_ToggleInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const plug_toggle = /** @type {((inputs?: Plug_ToggleInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Plug_ToggleInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.plug_toggle(inputs)
-	if (locale === "ru") return __ru.plug_toggle(inputs)
-	return __en.plug_toggle(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Voltage" |
-*
-* @param {Plug_VoltageInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const plug_voltage = /** @type {((inputs?: Plug_VoltageInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Plug_VoltageInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.plug_voltage(inputs)
-	if (locale === "ru") return __ru.plug_voltage(inputs)
-	return __en.plug_voltage(inputs)
 });
 /**
 * | output |
@@ -23211,7 +25120,7 @@ export const room_lights = /** @type {((inputs?: Room_LightsInputs, options?: { 
 /**
 * | output |
 * | --- |
-* | "No members yet. Add devices or groups to this room." |
+* | "No members" |
 *
 * @param {Room_Members_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -23256,7 +25165,7 @@ export const room_no_match = /** @type {((inputs?: Room_No_MatchInputs, options?
 /**
 * | output |
 * | --- |
-* | "No rooms yet." |
+* | "No rooms" |
 *
 * @param {Room_NoneInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -23267,21 +25176,6 @@ export const room_none = /** @type {((inputs?: Room_NoneInputs, options?: { loca
 	if (locale === "sv") return __sv.room_none(inputs)
 	if (locale === "ru") return __ru.room_none(inputs)
 	return __en.room_none(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Create a room to organize your devices by location." |
-*
-* @param {Room_None_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const room_none_help = /** @type {((inputs?: Room_None_HelpInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Room_None_HelpInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.room_none_help(inputs)
-	if (locale === "ru") return __ru.room_none_help(inputs)
-	return __en.room_none_help(inputs)
 });
 /**
 * | output |
@@ -23421,36 +25315,6 @@ export const scene_create_add_selector = /** @type {((inputs?: Scene_Create_Add_
 /**
 * | output |
 * | --- |
-* | "Adjust the lighting" |
-*
-* @param {Scene_Create_Adjust_LightingInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scene_create_adjust_lighting = /** @type {((inputs?: Scene_Create_Adjust_LightingInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Scene_Create_Adjust_LightingInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.scene_create_adjust_lighting(inputs)
-	if (locale === "ru") return __ru.scene_create_adjust_lighting(inputs)
-	return __en.scene_create_adjust_lighting(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Back" |
-*
-* @param {Scene_Create_BackInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scene_create_back = /** @type {((inputs?: Scene_Create_BackInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Scene_Create_BackInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.scene_create_back(inputs)
-	if (locale === "ru") return __ru.scene_create_back(inputs)
-	return __en.scene_create_back(inputs)
-});
-/**
-* | output |
-* | --- |
 * | "Create" |
 *
 * @param {Scene_Create_BreadcrumbInputs} inputs
@@ -23477,36 +25341,6 @@ export const scene_create_building = /** @type {((inputs?: Scene_Create_Building
 	if (locale === "sv") return __sv.scene_create_building(inputs)
 	if (locale === "ru") return __ru.scene_create_building(inputs)
 	return __en.scene_create_building(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Choose where it lives" |
-*
-* @param {Scene_Create_Choose_LocationInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scene_create_choose_location = /** @type {((inputs?: Scene_Create_Choose_LocationInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Scene_Create_Choose_LocationInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.scene_create_choose_location(inputs)
-	if (locale === "ru") return __ru.scene_create_choose_location(inputs)
-	return __en.scene_create_choose_location(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Choose the look" |
-*
-* @param {Scene_Create_Choose_LookInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scene_create_choose_look = /** @type {((inputs?: Scene_Create_Choose_LookInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Scene_Create_Choose_LookInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.scene_create_choose_look(inputs)
-	if (locale === "ru") return __ru.scene_create_choose_look(inputs)
-	return __en.scene_create_choose_look(inputs)
 });
 /**
 * | output |
@@ -23601,21 +25435,6 @@ export const scene_create_name_placeholder = /** @type {((inputs?: Scene_Create_
 /**
 * | output |
 * | --- |
-* | "Name the scene" |
-*
-* @param {Scene_Create_Name_TitleInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scene_create_name_title = /** @type {((inputs?: Scene_Create_Name_TitleInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Scene_Create_Name_TitleInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.scene_create_name_title(inputs)
-	if (locale === "ru") return __ru.scene_create_name_title(inputs)
-	return __en.scene_create_name_title(inputs)
-});
-/**
-* | output |
-* | --- |
 * | "No gallery scenes are available." |
 *
 * @param {Scene_Create_No_GalleryInputs} inputs
@@ -23687,21 +25506,6 @@ export const scene_create_supporting_description = /** @type {((inputs?: Scene_C
 	if (locale === "sv") return __sv.scene_create_supporting_description(inputs)
 	if (locale === "ru") return __ru.scene_create_supporting_description(inputs)
 	return __en.scene_create_supporting_description(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Create a scene" |
-*
-* @param {Scene_Create_TitleInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scene_create_title = /** @type {((inputs?: Scene_Create_TitleInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Scene_Create_TitleInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.scene_create_title(inputs)
-	if (locale === "ru") return __ru.scene_create_title(inputs)
-	return __en.scene_create_title(inputs)
 });
 /**
 * | output |
@@ -24911,7 +26715,7 @@ export const scenes_edit = /** @type {((inputs?: Scenes_EditInputs, options?: { 
 /**
 * | output |
 * | --- |
-* | "No scenes yet." |
+* | "No scenes" |
 *
 * @param {Scenes_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -24922,21 +26726,6 @@ export const scenes_empty = /** @type {((inputs?: Scenes_EmptyInputs, options?: 
 	if (locale === "sv") return __sv.scenes_empty(inputs)
 	if (locale === "ru") return __ru.scenes_empty(inputs)
 	return __en.scenes_empty(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Create a scene to save device state presets and apply them with a single action." |
-*
-* @param {Scenes_Empty_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scenes_empty_help = /** @type {((inputs?: Scenes_Empty_HelpInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Scenes_Empty_HelpInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.scenes_empty_help(inputs)
-	if (locale === "ru") return __ru.scenes_empty_help(inputs)
-	return __en.scenes_empty_help(inputs)
 });
 /**
 * | output |
@@ -25072,21 +26861,6 @@ export const scenes_filter_empty = /** @type {((inputs?: Scenes_Filter_EmptyInpu
 	if (locale === "sv") return __sv.scenes_filter_empty(inputs)
 	if (locale === "ru") return __ru.scenes_filter_empty(inputs)
 	return __en.scenes_filter_empty(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Group" |
-*
-* @param {Scenes_Filter_GroupInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scenes_filter_group = /** @type {((inputs?: Scenes_Filter_GroupInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Scenes_Filter_GroupInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.scenes_filter_group(inputs)
-	if (locale === "ru") return __ru.scenes_filter_group(inputs)
-	return __en.scenes_filter_group(inputs)
 });
 /**
 * | output |
@@ -25299,21 +27073,6 @@ export const sensor_contact = /** @type {((inputs?: Sensor_ContactInputs, option
 	if (locale === "sv") return __sv.sensor_contact(inputs)
 	if (locale === "ru") return __ru.sensor_contact(inputs)
 	return __en.sensor_contact(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Current readings" |
-*
-* @param {Sensor_Current_ReadingsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const sensor_current_readings = /** @type {((inputs?: Sensor_Current_ReadingsInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Sensor_Current_ReadingsInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.sensor_current_readings(inputs)
-	if (locale === "ru") return __ru.sensor_current_readings(inputs)
-	return __en.sensor_current_readings(inputs)
 });
 /**
 * | output |
@@ -25644,6 +27403,21 @@ export const settings_retention_help = /** @type {((inputs?: Settings_Retention_
 	if (locale === "sv") return __sv.settings_retention_help(inputs)
 	if (locale === "ru") return __ru.settings_retention_help(inputs)
 	return __en.settings_retention_help(inputs)
+});
+/**
+* | output |
+* | --- |
+* | "Enter a number of days greater than zero." |
+*
+* @param {Settings_Retention_InvalidInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const settings_retention_invalid = /** @type {((inputs?: Settings_Retention_InvalidInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Settings_Retention_InvalidInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
+	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
+	if (locale === "sv") return __sv.settings_retention_invalid(inputs)
+	if (locale === "ru") return __ru.settings_retention_invalid(inputs)
+	return __en.settings_retention_invalid(inputs)
 });
 /**
 * | output |
@@ -31077,7 +32851,7 @@ export const webhooks_edit_named = /** @type {((inputs: Webhooks_Edit_NamedInput
 /**
 * | output |
 * | --- |
-* | "No incoming webhooks yet." |
+* | "No webhooks" |
 *
 * @param {Webhooks_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -31088,21 +32862,6 @@ export const webhooks_empty = /** @type {((inputs?: Webhooks_EmptyInputs, option
 	if (locale === "sv") return __sv.webhooks_empty(inputs)
 	if (locale === "ru") return __ru.webhooks_empty(inputs)
 	return __en.webhooks_empty(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Create an endpoint for another system to trigger Hive." |
-*
-* @param {Webhooks_Empty_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const webhooks_empty_help = /** @type {((inputs?: Webhooks_Empty_HelpInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Webhooks_Empty_HelpInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.webhooks_empty_help(inputs)
-	if (locale === "ru") return __ru.webhooks_empty_help(inputs)
-	return __en.webhooks_empty_help(inputs)
 });
 /**
 * | output |
@@ -31272,7 +33031,7 @@ export const webhooks_no_match = /** @type {((inputs?: Webhooks_No_MatchInputs, 
 /**
 * | output |
 * | --- |
-* | "No requests received yet." |
+* | "No requests" |
 *
 * @param {Webhooks_No_RequestsInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -31433,21 +33192,6 @@ export const webhooks_recent_requests = /** @type {((inputs?: Webhooks_Recent_Re
 	if (locale === "sv") return __sv.webhooks_recent_requests(inputs)
 	if (locale === "ru") return __ru.webhooks_recent_requests(inputs)
 	return __en.webhooks_recent_requests(inputs)
-});
-/**
-* | output |
-* | --- |
-* | "Could not rename the webhook." |
-*
-* @param {Webhooks_Rename_FailedInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const webhooks_rename_failed = /** @type {((inputs?: Webhooks_Rename_FailedInputs, options?: { locale?: "en" | "sv" | "ru" }) => LocalizedString) & import('../runtime.js').MessageMetadata<Webhooks_Rename_FailedInputs, { locale?: "en" | "sv" | "ru" }, {}>} */ ((inputs = {}, options = {}) => {
-	const locale = experimentalStaticLocale ?? options.locale ?? getLocale()
-	if (locale === "sv") return __sv.webhooks_rename_failed(inputs)
-	if (locale === "ru") return __ru.webhooks_rename_failed(inputs)
-	return __en.webhooks_rename_failed(inputs)
 });
 /**
 * | output |

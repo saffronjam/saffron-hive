@@ -454,6 +454,9 @@ func stateFields(st *device.DeviceState) map[string]any {
 	if st.FanMode != nil {
 		result["fanMode"] = *st.FanMode
 	}
+	if st.CleaningStatus != nil {
+		result["cleaningStatus"] = *st.CleaningStatus
+	}
 	if st.Swing != nil {
 		result["swing"] = *st.Swing
 	}

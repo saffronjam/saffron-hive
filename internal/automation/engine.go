@@ -107,13 +107,13 @@ func (e *Engine) Stats() Stats {
 // NewEngine creates a new automation Engine. alarmSvc may be nil in tests
 // that don't exercise alarm actions; runner may be nil in tests that don't
 // exercise run_effect or scene-payload effect dispatch.
-func NewEngine(bus eventbus.EventBus, reader device.StateReader, s automationStore, resolver device.TargetResolver, alarmSvc AlarmRaiser, runner EffectRunner, scenes SceneRunner) *Engine {
+func NewEngine(bus eventbus.EventBus, reader device.StateReader, s automationStore, resolver device.TargetResolver, alarmSvc AlarmRaiser, runner EffectRunner, scenes SceneRunner, cleaner CleaningRunner) *Engine {
 	engine := &Engine{
 		bus:              bus,
 		reader:           reader,
 		store:            s,
 		resolver:         resolver,
-		executor:         NewActionExecutor(bus, reader, s, resolver, alarmSvc, runner, scenes),
+		executor:         NewActionExecutor(bus, reader, s, resolver, alarmSvc, runner, scenes, cleaner),
 		scenes:           scenes,
 		changes:          newChangeTracker(time.Now()),
 		now:              time.Now,
@@ -595,7 +595,7 @@ func evaluateOperator(kind OperatorKind, incoming []NodeID, active map[NodeID]bo
 
 func actionUsesTargetResolver(actionType string) bool {
 	switch actionType {
-	case ActionActivateScene, ActionCycleScenes, ActionRaiseAlarm, ActionClearAlarm, ActionRunEffect:
+	case ActionActivateScene, ActionCycleScenes, ActionRaiseAlarm, ActionClearAlarm, ActionRunEffect, ActionStartCleaning, ActionControlCleaning:
 		return false
 	default:
 		return true

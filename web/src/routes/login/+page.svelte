@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { watchErrorToast } from "$lib/error-toast.svelte";
+  import { delayedLoading } from "$lib/delayed-loading.svelte";
 	import { goto } from "$app/navigation";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
@@ -59,6 +61,7 @@
 	let password = $state("");
 	let guestName = $state(page.url.searchParams.get("name")?.trim() ?? "");
 	let submitting = $state(false);
+	const submittingIndicator = delayedLoading(() => submitting, 300);
 	let error = $state<string | null>(null);
 	const unavailable = page.url.searchParams.get("reason") === "unavailable";
 	const title = $derived(
@@ -117,6 +120,7 @@
 	$effect(() => {
 		pageHeader.breadcrumbs = [{ label: title }];
 	});
+  watchErrorToast(() => error);
 </script>
 
 <div
@@ -188,15 +192,14 @@
 					/>
 				</div>
 			{/if}
-			{#if error}
-				<p class="text-sm text-red-600 dark:text-red-400">{error}</p>
-			{/if}
+
 			<Button
 				type="submit"
 				class="mt-1 h-12 text-base"
 				disabled={submitting || (mode === "guest" ? !guestName.trim() : !username || !password)}
+				aria-busy={submitting}
 			>
-				{#if submitting}
+				{#if submittingIndicator.visible}
 					<Loader2 class="mr-1.5 size-4 animate-spin" />
 				{/if}
 				{mode === "guest"

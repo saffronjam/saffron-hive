@@ -125,7 +125,7 @@
 	{#if readings.length > 0}
 		<Card>
 			<CardHeader>
-				<CardTitle>{m.sensor_current_readings({}, locale.messageOptions())}</CardTitle>
+				<CardTitle>{m.device_status({}, locale.messageOptions())}</CardTitle>
 			</CardHeader>
 			<CardContent>
 				<div class="grid grid-cols-1 gap-6 sm:grid-cols-2">

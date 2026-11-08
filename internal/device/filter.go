@@ -123,6 +123,9 @@ func FilterReportedState(state DeviceState, dev Device) DeviceState {
 	if !reports(CapFanMode) {
 		state.FanMode = nil
 	}
+	if !reports(CapCleaning) {
+		state.CleaningStatus = nil
+	}
 	if !reports(CapSwing) {
 		state.Swing = nil
 	}

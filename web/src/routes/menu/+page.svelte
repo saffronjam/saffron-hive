@@ -1,4 +1,5 @@
 <script lang="ts">
+ import { deviceStore } from "$lib/stores/devices";
 	import { goto } from "$app/navigation";
 	import { ChevronRight, LogOut } from "@lucide/svelte";
 	import { mobilePrimaryItems, navigationGroups, systemItems } from "$lib/app-navigation";
@@ -12,9 +13,9 @@
 	import { version } from "$lib/version";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
-	const primaryPaths = $derived(new Set(mobilePrimaryItems().map(item => item.href)));
+	const primaryPaths = $derived(new Set(mobilePrimaryItems($deviceStore).map(item => item.href)));
 	const groups = $derived([
-		...navigationGroups().map(group => ({ ...group, items: group.items.filter(item => !primaryPaths.has(item.href)) })),
+		...navigationGroups($deviceStore).map(group => ({ ...group, items: group.items.filter(item => !primaryPaths.has(item.href)) })),
 		{ label: m.nav_system({}, locale.messageOptions()), items: systemItems() },
 	]);
 	const user = $derived(me.user ?? (auth.user ? { ...auth.user, avatarPath: cachedAvatarPath() } : null));

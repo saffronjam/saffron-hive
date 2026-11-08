@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { toast } from "svelte-sonner";
 	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
 	import { measureMount } from "$lib/perf";
@@ -9,6 +10,7 @@
 	import { prefetchDetail } from "$lib/prefetch-detail";
 	import { effectsStore, type Effect as StoredEffect } from "$lib/stores/effects.svelte";
 	import { matchesEffectFilter } from "$lib/effect-search";
+	import { uniqueFilterOptions } from "$lib/list-helpers";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import EffectCapabilityChip from "$lib/components/effect-capability-chip.svelte";
@@ -33,11 +35,9 @@
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
 	import ListView from "$lib/components/list-view.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
-	import ErrorBanner from "$lib/components/error-banner.svelte";
-	import { Plus, Sparkles, Pencil, Play, Zap } from "@lucide/svelte";
+	import { Plus, Sparkles, Play, Zap } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
-	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { EffectKind, type Effect, type NativeEffectOption } from "$lib/gql/graphql";
 	import { nativeEffectSupportSummary } from "$lib/native-effect";
 	import { m } from "$lib/i18n/messages";
@@ -130,7 +130,6 @@
 		| { mode: "native"; nativeName: string; requiredCapabilities: readonly string[] }
 		| null
 	>(null);
-	const errors = new BannerError();
 
 	$effect(() => {
 		if (!visible) return;
@@ -150,33 +149,33 @@
 
 	async function handleRename(effect: EffectRow, newName: string) {
 		if (!clientRef) return;
-		errors.clear();
+
 		try {
 			await effectsStore.update(clientRef, { expectedRevision:effect.revision, id: effect.id, name: newName });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.effects_error_rename({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.effects_error_rename({}, locale.messageOptions())));
 		}
 	}
 
 	async function handleIconChange(effect: EffectRow, icon: string | null) {
 		if (!clientRef) return;
-		errors.clear();
+
 		try {
 			await effectsStore.update(clientRef, { expectedRevision:effect.revision, id: effect.id, icon });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.effects_error_icon({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.effects_error_icon({}, locale.messageOptions())));
 		}
 	}
 
 	async function handleDelete() {
 		if (!clientRef || !deleteConfirm) return;
 		deleteLoading = true;
-		errors.clear();
+
 		try {
 			await effectsStore.delete(clientRef, deleteConfirm.id);
 		} catch (e) {
 			deleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.effects_error_delete({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.effects_error_delete({}, locale.messageOptions())));
 			return;
 		}
 		deleteLoading = false;
@@ -191,12 +190,12 @@
 			return;
 		}
 		batchDeleteLoading = true;
-		errors.clear();
+
 		try {
 			await effectsStore.deleteMany(clientRef, ids);
 		} catch (e) {
 			batchDeleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.effects_error_delete_many({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.effects_error_delete_many({}, locale.messageOptions())));
 			return;
 		}
 		batchDeleteLoading = false;
@@ -207,7 +206,7 @@
 	async function handleCreate(options: { keepOpen?: boolean } = {}) {
 		if (!clientRef || !newEffectName.trim()) return;
 		createLoading = true;
-		errors.clear();
+
 		let created: StoredEffect;
 		try {
 			created = await effectsStore.create(clientRef, {
@@ -220,7 +219,7 @@
 			});
 		} catch (e) {
 			createLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.effects_error_create({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.effects_error_create({}, locale.messageOptions())));
 			return;
 		}
 
@@ -256,10 +255,7 @@
 		active: () => visible && page.url.pathname === "/effects",
 	});
 
-	const sourceOptions = $derived([
-		{ value: "hive", label: "Hive" },
-		{ value: "zigbee2mqtt", label: "Zigbee" },
-	]);
+	const sourceOptions = $derived(uniqueFilterOptions([...effects, ...nativeOptions].map(effect => effect.source)));
 	const kindOptions = $derived.by(() => [
 		{ value: "timeline", label: m.effects_timeline({}, locale.messageOptions()) },
 		{ value: "native", label: m.effects_zigbee_effect({}, locale.messageOptions()) },
@@ -341,9 +337,7 @@
 </script>
 
 <div>
-	{#if errors.message}
-		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
-	{/if}
+
 
 	{#if effectsStore.hydrated}
 		<div in:fly={{ y: -4, duration: 150 }}>
@@ -353,9 +347,6 @@
 						<Sparkles class="size-6 text-muted-foreground" />
 					</div>
 					<p class="text-muted-foreground">{m.effects_empty({}, locale.messageOptions())}</p>
-					<p class="mt-2 text-sm text-muted-foreground">
-						{m.effects_empty_help({}, locale.messageOptions())}
-					</p>
 					<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
 						<Plus class="size-4" />
 						<span>{m.effects_create_first({}, locale.messageOptions())}</span>
@@ -421,14 +412,6 @@
 											>
 												<Play class="size-4" />
 											</Button>
-											<Button
-												variant="ghost"
-												size="icon-sm"
-												href={`/effects/${effect.id}`}
-										aria-label={m.effects_edit({}, locale.messageOptions())}
-											>
-												<Pencil class="size-4" />
-											</Button>
 										{/snippet}
 										{#snippet footer()}
 											<div class="mt-3 flex flex-wrap items-center gap-1.5">
@@ -478,7 +461,6 @@
 								onrun={openTimelineRun}
 								onrunnative={openNativeRun}
 								ondelete={(effect) => (deleteConfirm = effect)}
-								onrename={handleRename}
 								oniconchange={handleIconChange}
 							/>
 						{/snippet}

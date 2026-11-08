@@ -1,3 +1,4 @@
+import { cleaningMaintenanceAction } from "$lib/cleaning-maintenance";
 import { m } from "$lib/i18n/messages";
 import { locale } from "$lib/i18n/locale.svelte";
 import { formatNumber } from "$lib/i18n/format";
@@ -14,6 +15,15 @@ export function maintenancePresentation(task: MaintenanceTask): MaintenancePrese
   const options = locale.messageOptions();
   const name = task.device ? deviceDisplayName(task.device) : "Saffron Hive";
   switch (task.kind) {
+    case "CLEANING":
+      return {
+        title: cleaningMaintenanceAction(task.context ?? ""),
+        detail: m.maintenance_cleaning_detail(
+          { name, value: formatNumber(task.value ?? 0, { maximumFractionDigits: 0 }) },
+          options,
+        ),
+        action: cleaningMaintenanceAction(task.context ?? ""),
+      };
     case "BATTERY":
       return {
         title: m.maintenance_replace_battery({}, options),

@@ -106,6 +106,9 @@ const lampOff = {
 };
 
 describe("automation language", () => {
+ it("round-trips cleaning actions with Hive room names and options",()=>{
+  roundTrip({name:"Clean rooms",definitions:"{}",nodes:[node("t1","trigger",motionOff),node("a1","action",{action_type:"start_cleaning",target_type:"device",target_id:"0xlamp",payload:JSON.stringify({roomIds:["r-kit","r-bed"],options:{repeats:2,suction:1}})}),node("a2","action",{action_type:"control_cleaning",target_type:"device",target_id:"0xlamp",payload:JSON.stringify({action:"dock"})})],edges:[{fromNodeId:"t1",toNodeId:"a1"},{fromNodeId:"a1",toNodeId:"a2"}]});
+ });
   it("prints a simple automation as a rule with names and no ids", () => {
     const doc = roundTrip({
       name: "Motion off",

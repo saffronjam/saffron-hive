@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { deviceTypeFilterOptions } from "$lib/list-helpers";
+  import FieldError from "$lib/components/field-error.svelte";
  import {getContextClient} from "@urql/svelte";
  import {AUTOMATION_NODE_PREVIEW} from "$lib/graphql/authoring";
  import {authoringInput} from "$lib/automation-authoring";
@@ -103,9 +105,15 @@
 		{ value: "device.removed", label: m.automation_node_event_device_removed({}, messageOptions) },
 	]);
 
-	const deviceTypeOptions = $derived.by(() =>
-		["light", "sensor", "switch"].map((value) => ({ value, label: chipLabel(value) })),
-	);
+	const devicesForMode = $derived.by((): Device[] => {
+		const devs = data.devices ?? [];
+		if (data.config.mode === "device_event") {
+			return devs.filter(supportsDeviceEvents);
+		}
+		return devs;
+	});
+
+	const deviceTypeOptions = $derived(deviceTypeFilterOptions(devicesForMode));
 
 	const deviceChipConfigs = $derived.by<ChipConfig[]>(() => [
 		{
@@ -194,13 +202,7 @@
 		return selectedDevice.capabilities.find((c) => c.name === "action");
 	});
 
-	const devicesForMode = $derived.by((): Device[] => {
-		const devs = data.devices ?? [];
-		if (data.config.mode === "device_event") {
-			return devs.filter(supportsDeviceEvents);
-		}
-		return devs;
-	});
+
 	const deviceRoomLabels = $derived(roomLabelsByDevice(data.rooms ?? []));
 
 	let generatedCron=$state("");
@@ -676,7 +678,7 @@
 			{/if}
 
 		{#if validationError && !data.readOnly}
-			<p class="text-xs text-destructive">{automationValidationMessage(validationError.code)}</p>
+			<FieldError message={automationValidationMessage(validationError.code)} />
 		{/if}
 		</fieldset>
 

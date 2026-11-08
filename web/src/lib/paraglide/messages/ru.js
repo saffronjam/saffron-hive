@@ -4,6 +4,8 @@
 /** @typedef {{ name: NonNullable<unknown> }} Activity_Automation_FiredInputs */
 /** @typedef {{}} Activity_Automation_Fired_GenericInputs */
 /** @typedef {{ id: NonNullable<unknown> }} Activity_Automation_IdInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Activity_Command_ConfirmedInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Activity_Command_FailedInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Activity_Command_SentInputs */
 /** @typedef {{ name: NonNullable<unknown>, action: NonNullable<unknown> }} Activity_Device_ActionInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Activity_Device_Action_GenericInputs */
@@ -15,10 +17,12 @@
 /** @typedef {{}} Activity_Device_Removed_GenericInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Activity_Device_State_ChangedInputs */
 /** @typedef {{}} Activity_EmptyInputs */
-/** @typedef {{}} Activity_Empty_HelpInputs */
 /** @typedef {{}} Activity_Event_Automation_FiredInputs */
 /** @typedef {{}} Activity_Event_AvailabilityInputs */
+/** @typedef {{}} Activity_Event_Command_ConfirmedInputs */
+/** @typedef {{}} Activity_Event_Command_FailedInputs */
 /** @typedef {{}} Activity_Event_Command_SentInputs */
+/** @typedef {{}} Activity_Event_Device_ActionInputs */
 /** @typedef {{}} Activity_Event_Device_AddedInputs */
 /** @typedef {{}} Activity_Event_Device_RemovedInputs */
 /** @typedef {{}} Activity_Event_Node_ActivatedInputs */
@@ -63,6 +67,8 @@
 /** @typedef {{}} Activity_Webhook_Received_GenericInputs */
 /** @typedef {{ name: NonNullable<unknown>, value: NonNullable<unknown> }} Alarm_Battery_LowInputs */
 /** @typedef {{}} Alarm_Broker_DisconnectedInputs */
+/** @typedef {{ name: NonNullable<unknown>, task: NonNullable<unknown> }} Alarm_Cleaning_DueInputs */
+/** @typedef {{ name: NonNullable<unknown>, task: NonNullable<unknown> }} Alarm_Cleaning_SoonInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Alarm_Device_UnavailableInputs */
 /** @typedef {{ value: NonNullable<unknown>, threshold: NonNullable<unknown> }} Alarm_Disk_LowInputs */
 /** @typedef {{ value: NonNullable<unknown>, threshold: NonNullable<unknown> }} Alarm_Memory_HighInputs */
@@ -80,7 +86,6 @@
 /** @typedef {{ count: NonNullable<unknown> }} Alarms_Delete_Many_TitleInputs */
 /** @typedef {{}} Alarms_Delete_TitleInputs */
 /** @typedef {{}} Alarms_EmptyInputs */
-/** @typedef {{}} Alarms_Empty_HelpInputs */
 /** @typedef {{}} Alarms_Filter_KindInputs */
 /** @typedef {{}} Alarms_Filter_SeverityInputs */
 /** @typedef {{}} Alarms_Filter_SinceInputs */
@@ -608,7 +613,6 @@
 /** @typedef {{ name: NonNullable<unknown> }} Automations_DisableInputs */
 /** @typedef {{}} Automations_EditInputs */
 /** @typedef {{}} Automations_EmptyInputs */
-/** @typedef {{}} Automations_Empty_HelpInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Automations_EnableInputs */
 /** @typedef {{}} Automations_Error_CreateInputs */
 /** @typedef {{}} Automations_Error_DeleteInputs */
@@ -638,7 +642,6 @@
 /** @typedef {{}} Button_Last_ActionInputs */
 /** @typedef {{ time: NonNullable<unknown> }} Button_Last_SeenInputs */
 /** @typedef {{}} Button_No_ActionInputs */
-/** @typedef {{}} Button_StatusInputs */
 /** @typedef {{}} Claude_Choose_ModelInputs */
 /** @typedef {{}} Claude_Connect_ModelInputs */
 /** @typedef {{}} Claude_Connect_SaveInputs */
@@ -650,8 +653,111 @@
 /** @typedef {{}} Claude_TestInputs */
 /** @typedef {{}} Claude_TokenInputs */
 /** @typedef {{}} Claude_Token_KeepInputs */
+/** @typedef {{}} Cleaning_Add_LandmarkInputs */
+/** @typedef {{}} Cleaning_AlignInputs */
+/** @typedef {{}} Cleaning_Align_FirstInputs */
+/** @typedef {{}} Cleaning_Alignment_Load_FailedInputs */
+/** @typedef {{}} Cleaning_Alignment_Save_FailedInputs */
+/** @typedef {{}} Cleaning_Area_CleanedInputs */
+/** @typedef {{}} Cleaning_CleanInputs */
+/** @typedef {{}} Cleaning_Clean_SensorsInputs */
+/** @typedef {{}} Cleaning_ControlInputs */
+/** @typedef {{}} Cleaning_Create_FloorplanInputs */
+/** @typedef {{}} Cleaning_Current_TaskInputs */
+/** @typedef {{}} Cleaning_DiagnosticsInputs */
+/** @typedef {{}} Cleaning_DockInputs */
+/** @typedef {{}} Cleaning_Dreame_RoomsInputs */
+/** @typedef {{}} Cleaning_Due_SoonInputs */
+/** @typedef {{}} Cleaning_ElapsedInputs */
+/** @typedef {{}} Cleaning_Empty_BinInputs */
+/** @typedef {{}} Cleaning_Estimated_ProgressInputs */
+/** @typedef {{}} Cleaning_ExternalInputs */
+/** @typedef {{}} Cleaning_External_OriginInputs */
+/** @typedef {{}} Cleaning_FailedInputs */
+/** @typedef {{}} Cleaning_FilterInputs */
+/** @typedef {{}} Cleaning_HighInputs */
+/** @typedef {{}} Cleaning_HistoryInputs */
+/** @typedef {{}} Cleaning_Hive_RoomsInputs */
+/** @typedef {{ number: NonNullable<unknown> }} Cleaning_Landmark_NumberInputs */
+/** @typedef {{ number: NonNullable<unknown>, map: NonNullable<unknown> }} Cleaning_Landmark_PartnerInputs */
+/** @typedef {{ time: NonNullable<unknown> }} Cleaning_Last_SeenInputs */
+/** @typedef {{}} Cleaning_Link_RoomsInputs */
+/** @typedef {{}} Cleaning_Load_MoreInputs */
+/** @typedef {{}} Cleaning_LocateInputs */
+/** @typedef {{}} Cleaning_LowInputs */
+/** @typedef {{}} Cleaning_Main_BrushInputs */
+/** @typedef {{}} Cleaning_MaintenanceInputs */
+/** @typedef {{}} Cleaning_ManufacturerInputs */
+/** @typedef {{}} Cleaning_MapInputs */
+/** @typedef {{}} Cleaning_Map_DockInputs */
+/** @typedef {{ id: NonNullable<unknown> }} Cleaning_Map_NameInputs */
+/** @typedef {{ id: NonNullable<unknown> }} Cleaning_Map_RoomInputs */
+/** @typedef {{}} Cleaning_Map_SelectInputs */
+/** @typedef {{}} Cleaning_Map_TitleInputs */
+/** @typedef {{}} Cleaning_Map_Zoom_InInputs */
+/** @typedef {{}} Cleaning_Map_Zoom_OutInputs */
+/** @typedef {{}} Cleaning_Mark_CleanedInputs */
+/** @typedef {{}} Cleaning_Mark_ReplacedInputs */
+/** @typedef {{}} Cleaning_MediumInputs */
+/** @typedef {{}} Cleaning_Missing_RoomInputs */
+/** @typedef {{}} Cleaning_ModelInputs */
+/** @typedef {{}} Cleaning_Model_IdInputs */
+/** @typedef {{}} Cleaning_No_AvailableInputs */
+/** @typedef {{}} Cleaning_No_HistoryInputs */
+/** @typedef {{}} Cleaning_OptionsInputs */
+/** @typedef {{}} Cleaning_OverlayInputs */
+/** @typedef {{}} Cleaning_PauseInputs */
+/** @typedef {{ number: NonNullable<unknown> }} Cleaning_Place_LandmarkInputs */
+/** @typedef {{}} Cleaning_Position_UnavailableInputs */
+/** @typedef {{}} Cleaning_ProgressInputs */
+/** @typedef {{}} Cleaning_QuietInputs */
+/** @typedef {{}} Cleaning_RemainingInputs */
+/** @typedef {{}} Cleaning_RepeatsInputs */
+/** @typedef {{}} Cleaning_ReplaceInputs */
+/** @typedef {{}} Cleaning_Replace_FilterInputs */
+/** @typedef {{}} Cleaning_Replace_Main_BrushInputs */
+/** @typedef {{}} Cleaning_Replace_Side_BrushInputs */
+/** @typedef {{}} Cleaning_Replace_TitleInputs */
+/** @typedef {{}} Cleaning_ResumeInputs */
+/** @typedef {{}} Cleaning_RobotInputs */
+/** @typedef {{}} Cleaning_Robot_SettingsInputs */
+/** @typedef {{}} Cleaning_RoomsInputs */
+/** @typedef {{}} Cleaning_Rotate_LeftInputs */
+/** @typedef {{}} Cleaning_Rotate_RightInputs */
+/** @typedef {{}} Cleaning_Select_RobotInputs */
+/** @typedef {{}} Cleaning_Selection_ChangedInputs */
+/** @typedef {{}} Cleaning_SensorsInputs */
+/** @typedef {{}} Cleaning_Shared_RoomsInputs */
+/** @typedef {{}} Cleaning_Show_On_MapInputs */
+/** @typedef {{}} Cleaning_Side_BrushInputs */
+/** @typedef {{}} Cleaning_StandardInputs */
+/** @typedef {{}} Cleaning_StartInputs */
+/** @typedef {{}} Cleaning_Start_NewInputs */
+/** @typedef {{}} Cleaning_Status_AttentionInputs */
+/** @typedef {{}} Cleaning_Status_CancelledInputs */
+/** @typedef {{}} Cleaning_Status_CleaningInputs */
+/** @typedef {{}} Cleaning_Status_CompletedInputs */
+/** @typedef {{}} Cleaning_Status_DockedInputs */
+/** @typedef {{}} Cleaning_Status_EndedInputs */
+/** @typedef {{}} Cleaning_Status_FailedInputs */
+/** @typedef {{}} Cleaning_Status_IdleInputs */
+/** @typedef {{}} Cleaning_Status_OfflineInputs */
+/** @typedef {{}} Cleaning_Status_PausedInputs */
+/** @typedef {{}} Cleaning_Status_ReturningInputs */
+/** @typedef {{}} Cleaning_Status_StartingInputs */
+/** @typedef {{}} Cleaning_Status_StoppingInputs */
+/** @typedef {{}} Cleaning_Status_UnknownInputs */
+/** @typedef {{}} Cleaning_StopInputs */
+/** @typedef {{}} Cleaning_StrongInputs */
+/** @typedef {{}} Cleaning_SuctionInputs */
+/** @typedef {{}} Cleaning_TestInputs */
+/** @typedef {{}} Cleaning_TitleInputs */
+/** @typedef {{}} Cleaning_TurboInputs */
+/** @typedef {{}} Cleaning_WaterInputs */
+/** @typedef {{}} Cleaning_Whole_ApartmentInputs */
 /** @typedef {{}} Color_Picker_AriaInputs */
 /** @typedef {{}} Common_Add_ToInputs */
+/** @typedef {{}} Common_BackInputs */
 /** @typedef {{}} Common_Brand_NameInputs */
 /** @typedef {{}} Common_CancelInputs */
 /** @typedef {{}} Common_ClearInputs */
@@ -676,6 +782,7 @@
 /** @typedef {{}} Common_NoInputs */
 /** @typedef {{}} Common_PasteInputs */
 /** @typedef {{}} Common_RemoveInputs */
+/** @typedef {{}} Common_RenameInputs */
 /** @typedef {{}} Common_SaveInputs */
 /** @typedef {{}} Common_SavingInputs */
 /** @typedef {{}} Common_SearchInputs */
@@ -727,13 +834,12 @@
 /** @typedef {{}} Data_Viewer_RoomsInputs */
 /** @typedef {{}} Data_Viewer_SourcesInputs */
 /** @typedef {{}} Data_Viewer_TitleInputs */
-/** @typedef {{}} Device_ActionsInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Device_Adjust_Climate_NamedInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Device_Adjust_NamedInputs */
 /** @typedef {{}} Device_ApplyInputs */
-/** @typedef {{}} Device_ApplyingInputs */
 /** @typedef {{}} Device_Back_To_DevicesInputs */
 /** @typedef {{}} Device_BrightnessInputs */
+/** @typedef {{}} Device_ChargingInputs */
 /** @typedef {{}} Device_ColorInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Device_Command_FailedInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Device_Command_SentInputs */
@@ -748,6 +854,7 @@
 /** @typedef {{}} Device_Config_Section_PresenceInputs */
 /** @typedef {{}} Device_Configuration_FailedInputs */
 /** @typedef {{}} Device_Configuration_TimeoutInputs */
+/** @typedef {{}} Device_ControlInputs */
 /** @typedef {{}} Device_Controls_DisabledInputs */
 /** @typedef {{}} Device_Controls_Enable_HelpInputs */
 /** @typedef {{}} Device_Copy_IdInputs */
@@ -756,6 +863,7 @@
 /** @typedef {{}} Device_Flags_AllInputs */
 /** @typedef {{}} Device_Flags_NoneInputs */
 /** @typedef {{ count: NonNullable<unknown>, total: NonNullable<unknown> }} Device_Flags_SummaryInputs */
+/** @typedef {{}} Device_Fully_ChargedInputs */
 /** @typedef {{}} Device_GenericInputs */
 /** @typedef {{}} Device_HistoryInputs */
 /** @typedef {{}} Device_IdInputs */
@@ -781,6 +889,7 @@
 /** @typedef {{}} Device_Select_SpeedInputs */
 /** @typedef {{}} Device_Select_SwingInputs */
 /** @typedef {{}} Device_SettingsInputs */
+/** @typedef {{}} Device_StatusInputs */
 /** @typedef {{}} Device_SwingInputs */
 /** @typedef {{}} Device_TargetInputs */
 /** @typedef {{}} Device_Target_TemperatureInputs */
@@ -797,7 +906,6 @@
 /** @typedef {{}} Device_Type_SwitchInputs */
 /** @typedef {{}} Device_Type_UnknownInputs */
 /** @typedef {{}} Device_UpdateInputs */
-/** @typedef {{}} Device_WaitingInputs */
 /** @typedef {{}} Device_WhiteInputs */
 /** @typedef {{}} Devices_ActionsInputs */
 /** @typedef {{}} Devices_Add_To_ActionInputs */
@@ -817,7 +925,6 @@
 /** @typedef {{}} Devices_NewInputs */
 /** @typedef {{}} Devices_No_MatchInputs */
 /** @typedef {{}} Devices_NoneInputs */
-/** @typedef {{}} Devices_None_HelpInputs */
 /** @typedef {{}} Devices_OfflineInputs */
 /** @typedef {{}} Devices_OnlineInputs */
 /** @typedef {{}} Devices_RestoreInputs */
@@ -825,6 +932,22 @@
 /** @typedef {{ name: NonNullable<unknown> }} Devices_Restore_NamedInputs */
 /** @typedef {{}} Devices_SearchInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Devices_Trigger_EventInputs */
+/** @typedef {{}} Dreame_Connect_AccountInputs */
+/** @typedef {{}} Dreame_Connect_RegionInputs */
+/** @typedef {{}} Dreame_Connect_SaveInputs */
+/** @typedef {{}} Dreame_ConnectingInputs */
+/** @typedef {{}} Dreame_EmailInputs */
+/** @typedef {{}} Dreame_EnabledInputs */
+/** @typedef {{}} Dreame_PasswordInputs */
+/** @typedef {{}} Dreame_ReadInputs */
+/** @typedef {{}} Dreame_RegionInputs */
+/** @typedef {{}} Dreame_Region_CnInputs */
+/** @typedef {{}} Dreame_Region_EuInputs */
+/** @typedef {{}} Dreame_Region_InInputs */
+/** @typedef {{}} Dreame_Region_KrInputs */
+/** @typedef {{}} Dreame_Region_RuInputs */
+/** @typedef {{}} Dreame_Region_SgInputs */
+/** @typedef {{}} Dreame_Region_UsInputs */
 /** @typedef {{}} Editor_Changed_ElsewhereInputs */
 /** @typedef {{}} Editor_Reload_SavedInputs */
 /** @typedef {{}} Effect_Action_RunInputs */
@@ -913,7 +1036,6 @@
 /** @typedef {{}} Effects_Delete_TitleInputs */
 /** @typedef {{}} Effects_EditInputs */
 /** @typedef {{}} Effects_EmptyInputs */
-/** @typedef {{}} Effects_Empty_HelpInputs */
 /** @typedef {{}} Effects_Error_CreateInputs */
 /** @typedef {{}} Effects_Error_DeleteInputs */
 /** @typedef {{}} Effects_Error_Delete_ManyInputs */
@@ -1045,7 +1167,6 @@
 /** @typedef {{}} Group_NameInputs */
 /** @typedef {{}} Group_No_MatchInputs */
 /** @typedef {{}} Group_NoneInputs */
-/** @typedef {{}} Group_None_HelpInputs */
 /** @typedef {{}} Group_Rename_FailedInputs */
 /** @typedef {{}} Group_Save_FailedInputs */
 /** @typedef {{}} Group_SearchInputs */
@@ -1111,13 +1232,13 @@
 /** @typedef {{}} Integrations_Delete_Keep_DescriptionInputs */
 /** @typedef {{}} Integrations_Delete_Purge_DescriptionInputs */
 /** @typedef {{}} Integrations_Delete_TitleInputs */
+/** @typedef {{}} Integrations_Description_DreameInputs */
 /** @typedef {{}} Integrations_Description_GenericInputs */
 /** @typedef {{}} Integrations_Description_TuyaInputs */
 /** @typedef {{}} Integrations_Description_Zigbee2mqttInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Integrations_Devices_DeletedInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Integrations_Devices_KeptInputs */
 /** @typedef {{}} Integrations_EmptyInputs */
-/** @typedef {{}} Integrations_Empty_HelpInputs */
 /** @typedef {{}} Integrations_No_MatchInputs */
 /** @typedef {{}} Integrations_None_AvailableInputs */
 /** @typedef {{}} Integrations_SearchInputs */
@@ -1132,6 +1253,7 @@
 /** @typedef {{}} Logs_SearchInputs */
 /** @typedef {{}} Maintenance_Battery_ActionInputs */
 /** @typedef {{ name: NonNullable<unknown>, value: NonNullable<unknown> }} Maintenance_Battery_DetailInputs */
+/** @typedef {{ name: NonNullable<unknown>, value: NonNullable<unknown> }} Maintenance_Cleaning_DetailInputs */
 /** @typedef {{}} Maintenance_Correct_PostureInputs */
 /** @typedef {{}} Maintenance_EmptyInputs */
 /** @typedef {{}} Maintenance_Filter_DeviceInputs */
@@ -1142,6 +1264,7 @@
 /** @typedef {{ version: NonNullable<unknown>, name: NonNullable<unknown> }} Maintenance_Firmware_DetailInputs */
 /** @typedef {{}} Maintenance_Free_StorageInputs */
 /** @typedef {{}} Maintenance_Group_BatteriesInputs */
+/** @typedef {{}} Maintenance_Group_CleaningInputs */
 /** @typedef {{}} Maintenance_Group_PostureInputs */
 /** @typedef {{}} Maintenance_Group_SystemInputs */
 /** @typedef {{}} Maintenance_Group_UpdatesInputs */
@@ -1228,6 +1351,7 @@
 /** @typedef {{}} Map_Furniture_ToiletInputs */
 /** @typedef {{}} Map_Go_To_DeviceInputs */
 /** @typedef {{}} Map_Go_To_GroupInputs */
+/** @typedef {{}} Map_Hide_Cleaning_TrailsInputs */
 /** @typedef {{}} Map_Hide_Neighbour_LinksInputs */
 /** @typedef {{ provider: NonNullable<unknown> }} Map_Hide_Provider_MeshInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Map_Inside_PieceInputs */
@@ -1265,6 +1389,7 @@
 /** @typedef {{}} Map_Select_Walls_To_CopyInputs */
 /** @typedef {{}} Map_Sensor_Conflict_DescriptionInputs */
 /** @typedef {{}} Map_Set_Display_ColorInputs */
+/** @typedef {{}} Map_Show_Cleaning_TrailsInputs */
 /** @typedef {{}} Map_Show_Neighbour_LinksInputs */
 /** @typedef {{ provider: NonNullable<unknown> }} Map_Show_Provider_MeshInputs */
 /** @typedef {{}} Map_Snap_LabelInputs */
@@ -1326,11 +1451,6 @@
 /** @typedef {{}} Nav_ThingsInputs */
 /** @typedef {{}} Nav_UsersInputs */
 /** @typedef {{}} Nav_WebhooksInputs */
-/** @typedef {{}} Plug_CurrentInputs */
-/** @typedef {{}} Plug_EnergyInputs */
-/** @typedef {{}} Plug_StatusInputs */
-/** @typedef {{}} Plug_ToggleInputs */
-/** @typedef {{}} Plug_VoltageInputs */
 /** @typedef {{}} Profile_AccountInputs */
 /** @typedef {{}} Profile_Avatar_Clear_FailedInputs */
 /** @typedef {{ size: NonNullable<unknown> }} Profile_Avatar_HelpInputs */
@@ -1410,7 +1530,6 @@
 /** @typedef {{}} Room_NameInputs */
 /** @typedef {{}} Room_No_MatchInputs */
 /** @typedef {{}} Room_NoneInputs */
-/** @typedef {{}} Room_None_HelpInputs */
 /** @typedef {{}} Room_Rename_FailedInputs */
 /** @typedef {{}} Room_Save_FailedInputs */
 /** @typedef {{}} Room_SearchInputs */
@@ -1420,25 +1539,19 @@
 /** @typedef {{}} Scene_BackInputs */
 /** @typedef {{}} Scene_Choose_IconInputs */
 /** @typedef {{}} Scene_Create_Add_SelectorInputs */
-/** @typedef {{}} Scene_Create_Adjust_LightingInputs */
-/** @typedef {{}} Scene_Create_BackInputs */
 /** @typedef {{}} Scene_Create_BreadcrumbInputs */
 /** @typedef {{}} Scene_Create_BuildingInputs */
-/** @typedef {{}} Scene_Create_Choose_LocationInputs */
-/** @typedef {{}} Scene_Create_Choose_LookInputs */
 /** @typedef {{}} Scene_Create_CreatingInputs */
 /** @typedef {{}} Scene_Create_Error_Choose_VibeInputs */
 /** @typedef {{}} Scene_Create_Error_CreateInputs */
 /** @typedef {{}} Scene_Create_Full_ColorInputs */
 /** @typedef {{}} Scene_Create_Loading_GalleryInputs */
 /** @typedef {{}} Scene_Create_Name_PlaceholderInputs */
-/** @typedef {{}} Scene_Create_Name_TitleInputs */
 /** @typedef {{}} Scene_Create_No_GalleryInputs */
 /** @typedef {{}} Scene_Create_Photo_AtmosphereInputs */
 /** @typedef {{}} Scene_Create_Photo_FormatsInputs */
 /** @typedef {{}} Scene_Create_Photo_PrivacyInputs */
 /** @typedef {{}} Scene_Create_Supporting_DescriptionInputs */
-/** @typedef {{}} Scene_Create_TitleInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Scene_Create_Turn_OnInputs */
 /** @typedef {{}} Scene_Create_Vibe_Preview_EmptyInputs */
 /** @typedef {{}} Scene_Create_Whites_OnlyInputs */
@@ -1520,7 +1633,6 @@
 /** @typedef {{}} Scenes_DevicesInputs */
 /** @typedef {{}} Scenes_EditInputs */
 /** @typedef {{}} Scenes_EmptyInputs */
-/** @typedef {{}} Scenes_Empty_HelpInputs */
 /** @typedef {{}} Scenes_Error_ApplyInputs */
 /** @typedef {{}} Scenes_Error_DeleteInputs */
 /** @typedef {{}} Scenes_Error_Delete_ManyInputs */
@@ -1530,7 +1642,6 @@
 /** @typedef {{}} Scenes_Error_UpdateInputs */
 /** @typedef {{}} Scenes_Filter_DeviceInputs */
 /** @typedef {{}} Scenes_Filter_EmptyInputs */
-/** @typedef {{}} Scenes_Filter_GroupInputs */
 /** @typedef {{}} Scenes_Filter_RoomInputs */
 /** @typedef {{}} Scenes_Filter_TargetInputs */
 /** @typedef {{}} Scenes_GroupsInputs */
@@ -1545,7 +1656,6 @@
 /** @typedef {{ count: NonNullable<unknown> }} Scenes_Target_CountInputs */
 /** @typedef {{}} Scenes_TitleInputs */
 /** @typedef {{}} Sensor_ContactInputs */
-/** @typedef {{}} Sensor_Current_ReadingsInputs */
 /** @typedef {{}} Sensor_DetailsInputs */
 /** @typedef {{}} Sensor_Device_PostureInputs */
 /** @typedef {{}} Sensor_DoorInputs */
@@ -1568,6 +1678,7 @@
 /** @typedef {{}} Settings_Retention_AriaInputs */
 /** @typedef {{}} Settings_Retention_DaysInputs */
 /** @typedef {{}} Settings_Retention_HelpInputs */
+/** @typedef {{}} Settings_Retention_InvalidInputs */
 /** @typedef {{}} Settings_Save_FailedInputs */
 /** @typedef {{}} Settings_Time_ZoneInputs */
 /** @typedef {{ zone: NonNullable<unknown> }} Settings_Time_Zone_BrowserInputs */
@@ -1930,7 +2041,6 @@
 /** @typedef {{}} Webhooks_DurationInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Webhooks_Edit_NamedInputs */
 /** @typedef {{}} Webhooks_EmptyInputs */
-/** @typedef {{}} Webhooks_Empty_HelpInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Webhooks_Enable_NamedInputs */
 /** @typedef {{}} Webhooks_EnabledInputs */
 /** @typedef {{}} Webhooks_Filter_StatusInputs */
@@ -1953,7 +2063,6 @@
 /** @typedef {{}} Webhooks_Query_KeysInputs */
 /** @typedef {{}} Webhooks_ReceivedInputs */
 /** @typedef {{}} Webhooks_Recent_RequestsInputs */
-/** @typedef {{}} Webhooks_Rename_FailedInputs */
 /** @typedef {{}} Webhooks_Request_BodyInputs */
 /** @typedef {{}} Webhooks_Request_IdInputs */
 /** @typedef {{}} Webhooks_RequestsInputs */
@@ -2076,6 +2185,14 @@ export const activity_automation_id = /** @type {(inputs: Activity_Automation_Id
 	return /** @type {LocalizedString} */ (`Автоматизация ${i?.id}`)
 };
 
+export const activity_command_confirmed = /** @type {(inputs: Activity_Command_ConfirmedInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.name}: команда подтверждена`)
+};
+
+export const activity_command_failed = /** @type {(inputs: Activity_Command_FailedInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.name}: команда не выполнена`)
+};
+
 export const activity_command_sent = /** @type {(inputs: Activity_Command_SentInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`Команда отправлена устройству ${i?.name}`)
 };
@@ -2117,11 +2234,7 @@ export const activity_device_state_changed = /** @type {(inputs: Activity_Device
 };
 
 export const activity_empty = /** @type {(inputs: Activity_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Событий пока нет.`)
-};
-
-export const activity_empty_help = /** @type {(inputs: Activity_Empty_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Изменения состояния устройства, активации сцены и запуски автоматизации появятся здесь по мере их возникновения.`)
+	return /** @type {LocalizedString} */ (`Нет активности`)
 };
 
 export const activity_event_automation_fired = /** @type {(inputs: Activity_Event_Automation_FiredInputs) => LocalizedString} */ () => {
@@ -2132,8 +2245,20 @@ export const activity_event_availability = /** @type {(inputs: Activity_Event_Av
 	return /** @type {LocalizedString} */ (`Доступность`)
 };
 
+export const activity_event_command_confirmed = /** @type {(inputs: Activity_Event_Command_ConfirmedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Команда подтверждена`)
+};
+
+export const activity_event_command_failed = /** @type {(inputs: Activity_Event_Command_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Команда не выполнена`)
+};
+
 export const activity_event_command_sent = /** @type {(inputs: Activity_Event_Command_SentInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Команда отправлена`)
+};
+
+export const activity_event_device_action = /** @type {(inputs: Activity_Event_Device_ActionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Действие устройства`)
 };
 
 export const activity_event_device_added = /** @type {(inputs: Activity_Event_Device_AddedInputs) => LocalizedString} */ () => {
@@ -2324,6 +2449,14 @@ export const alarm_broker_disconnected = /** @type {(inputs: Alarm_Broker_Discon
 	return /** @type {LocalizedString} */ (`Брокер Zigbee2MQTT отключен.`)
 };
 
+export const alarm_cleaning_due = /** @type {(inputs: Alarm_Cleaning_DueInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.name}: ${i?.task}.`)
+};
+
+export const alarm_cleaning_soon = /** @type {(inputs: Alarm_Cleaning_SoonInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.name}: скоро потребуется выполнить обслуживание — ${i?.task}.`)
+};
+
 export const alarm_device_unavailable = /** @type {(inputs: Alarm_Device_UnavailableInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`Устройство «${i?.name}» давно не выходило на связь`)
 };
@@ -2397,11 +2530,7 @@ export const alarms_delete_title = /** @type {(inputs: Alarms_Delete_TitleInputs
 };
 
 export const alarms_empty = /** @type {(inputs: Alarms_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Активных оповещений нет — система в порядке.`)
-};
-
-export const alarms_empty_help = /** @type {(inputs: Alarms_Empty_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Здесь появятся оповещения от системного монитора и ваших автоматизаций.`)
+	return /** @type {LocalizedString} */ (`Активных оповещений нет`)
 };
 
 export const alarms_filter_kind = /** @type {(inputs: Alarms_Filter_KindInputs) => LocalizedString} */ () => {
@@ -4537,11 +4666,7 @@ export const automations_edit = /** @type {(inputs: Automations_EditInputs) => L
 };
 
 export const automations_empty = /** @type {(inputs: Automations_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Автоматизаций пока нет.`)
-};
-
-export const automations_empty_help = /** @type {(inputs: Automations_Empty_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Создайте правила, управляемые событиями, с триггерами, условиями и действиями.`)
+	return /** @type {LocalizedString} */ (`Нет автоматизаций`)
 };
 
 export const automations_enable = /** @type {(inputs: Automations_EnableInputs) => LocalizedString} */ (i) => {
@@ -4672,10 +4797,6 @@ export const button_no_action = /** @type {(inputs: Button_No_ActionInputs) => L
 	return /** @type {LocalizedString} */ (`Никаких действий не зафиксировано`)
 };
 
-export const button_status = /** @type {(inputs: Button_StatusInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Статус кнопки`)
-};
-
 export const claude_choose_model = /** @type {(inputs: Claude_Choose_ModelInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Выберите модель`)
 };
@@ -4720,12 +4841,424 @@ export const claude_token_keep = /** @type {(inputs: Claude_Token_KeepInputs) =>
 	return /** @type {LocalizedString} */ (`Токен сохранён — оставьте поле пустым, чтобы сохранить его`)
 };
 
+export const cleaning_add_landmark = /** @type {(inputs: Cleaning_Add_LandmarkInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Добавить точку`)
+};
+
+export const cleaning_align = /** @type {(inputs: Cleaning_AlignInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Совместить карту`)
+};
+
+export const cleaning_align_first = /** @type {(inputs: Cleaning_Align_FirstInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Совместите карты, чтобы включить наложение.`)
+};
+
+export const cleaning_alignment_load_failed = /** @type {(inputs: Cleaning_Alignment_Load_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Не удалось загрузить совмещение карт.`)
+};
+
+export const cleaning_alignment_save_failed = /** @type {(inputs: Cleaning_Alignment_Save_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Не удалось сохранить совмещение карт.`)
+};
+
+export const cleaning_area_cleaned = /** @type {(inputs: Cleaning_Area_CleanedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Убранная площадь`)
+};
+
+export const cleaning_clean = /** @type {(inputs: Cleaning_CleanInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Убрать…`)
+};
+
+export const cleaning_clean_sensors = /** @type {(inputs: Cleaning_Clean_SensorsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Очистите датчики`)
+};
+
+export const cleaning_control = /** @type {(inputs: Cleaning_ControlInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Управление уборкой`)
+};
+
+export const cleaning_create_floorplan = /** @type {(inputs: Cleaning_Create_FloorplanInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Создать план`)
+};
+
+export const cleaning_current_task = /** @type {(inputs: Cleaning_Current_TaskInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Текущая уборка`)
+};
+
+export const cleaning_diagnostics = /** @type {(inputs: Cleaning_DiagnosticsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Диагностика`)
+};
+
+export const cleaning_dock = /** @type {(inputs: Cleaning_DockInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Вернуться на базу`)
+};
+
+export const cleaning_dreame_rooms = /** @type {(inputs: Cleaning_Dreame_RoomsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Комнаты Dreame`)
+};
+
+export const cleaning_due_soon = /** @type {(inputs: Cleaning_Due_SoonInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Скоро потребуется обслуживание`)
+};
+
+export const cleaning_elapsed = /** @type {(inputs: Cleaning_ElapsedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Прошло времени`)
+};
+
+export const cleaning_empty_bin = /** @type {(inputs: Cleaning_Empty_BinInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Опустошить контейнер`)
+};
+
+export const cleaning_estimated_progress = /** @type {(inputs: Cleaning_Estimated_ProgressInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Расчётный ход уборки`)
+};
+
+export const cleaning_external = /** @type {(inputs: Cleaning_ExternalInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Запущено вне Hive`)
+};
+
+export const cleaning_external_origin = /** @type {(inputs: Cleaning_External_OriginInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Вне Hive`)
+};
+
+export const cleaning_failed = /** @type {(inputs: Cleaning_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Не удалось выполнить запрос.`)
+};
+
+export const cleaning_filter = /** @type {(inputs: Cleaning_FilterInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Фильтр`)
+};
+
+export const cleaning_high = /** @type {(inputs: Cleaning_HighInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Высокая`)
+};
+
+export const cleaning_history = /** @type {(inputs: Cleaning_HistoryInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Последние уборки`)
+};
+
+export const cleaning_hive_rooms = /** @type {(inputs: Cleaning_Hive_RoomsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Комнаты Hive`)
+};
+
+export const cleaning_landmark_number = /** @type {(inputs: Cleaning_Landmark_NumberInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Ориентир ${i?.number}`)
+};
+
+export const cleaning_landmark_partner = /** @type {(inputs: Cleaning_Landmark_PartnerInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Разместите ориентир ${i?.number} на карте ${i?.map}`)
+};
+
+export const cleaning_last_seen = /** @type {(inputs: Cleaning_Last_SeenInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Последние данные: ${i?.time}`)
+};
+
+export const cleaning_link_rooms = /** @type {(inputs: Cleaning_Link_RoomsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Связать комнаты`)
+};
+
+export const cleaning_load_more = /** @type {(inputs: Cleaning_Load_MoreInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Показать ещё`)
+};
+
+export const cleaning_locate = /** @type {(inputs: Cleaning_LocateInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Найти`)
+};
+
+export const cleaning_low = /** @type {(inputs: Cleaning_LowInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Низкая`)
+};
+
+export const cleaning_main_brush = /** @type {(inputs: Cleaning_Main_BrushInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Основная щётка`)
+};
+
+export const cleaning_maintenance = /** @type {(inputs: Cleaning_MaintenanceInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Обслуживание`)
+};
+
+export const cleaning_manufacturer = /** @type {(inputs: Cleaning_ManufacturerInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Производитель`)
+};
+
+export const cleaning_map = /** @type {(inputs: Cleaning_MapInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Карта робота`)
+};
+
+export const cleaning_map_dock = /** @type {(inputs: Cleaning_Map_DockInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`База`)
+};
+
+export const cleaning_map_name = /** @type {(inputs: Cleaning_Map_NameInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Карта ${i?.id}`)
+};
+
+export const cleaning_map_room = /** @type {(inputs: Cleaning_Map_RoomInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Комната ${i?.id}`)
+};
+
+export const cleaning_map_select = /** @type {(inputs: Cleaning_Map_SelectInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Выбрать сохранённую карту`)
+};
+
+export const cleaning_map_title = /** @type {(inputs: Cleaning_Map_TitleInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Карта Dreame`)
+};
+
+export const cleaning_map_zoom_in = /** @type {(inputs: Cleaning_Map_Zoom_InInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Увеличить`)
+};
+
+export const cleaning_map_zoom_out = /** @type {(inputs: Cleaning_Map_Zoom_OutInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Уменьшить`)
+};
+
+export const cleaning_mark_cleaned = /** @type {(inputs: Cleaning_Mark_CleanedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Отметить очистку`)
+};
+
+export const cleaning_mark_replaced = /** @type {(inputs: Cleaning_Mark_ReplacedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Отметить замену`)
+};
+
+export const cleaning_medium = /** @type {(inputs: Cleaning_MediumInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Средняя`)
+};
+
+export const cleaning_missing_room = /** @type {(inputs: Cleaning_Missing_RoomInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Комната удалена`)
+};
+
+export const cleaning_model = /** @type {(inputs: Cleaning_ModelInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Модель`)
+};
+
+export const cleaning_model_id = /** @type {(inputs: Cleaning_Model_IdInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Идентификатор модели`)
+};
+
+export const cleaning_no_available = /** @type {(inputs: Cleaning_No_AvailableInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Нет доступных пылесосов.`)
+};
+
+export const cleaning_no_history = /** @type {(inputs: Cleaning_No_HistoryInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Истории уборки пока нет.`)
+};
+
+export const cleaning_options = /** @type {(inputs: Cleaning_OptionsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Параметры уборки`)
+};
+
+export const cleaning_overlay = /** @type {(inputs: Cleaning_OverlayInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Наложение`)
+};
+
+export const cleaning_pause = /** @type {(inputs: Cleaning_PauseInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Пауза`)
+};
+
+export const cleaning_place_landmark = /** @type {(inputs: Cleaning_Place_LandmarkInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Разместить ориентир ${i?.number}`)
+};
+
+export const cleaning_position_unavailable = /** @type {(inputs: Cleaning_Position_UnavailableInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Позиция недоступна`)
+};
+
+export const cleaning_progress = /** @type {(inputs: Cleaning_ProgressInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Ход уборки`)
+};
+
+export const cleaning_quiet = /** @type {(inputs: Cleaning_QuietInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Тихий`)
+};
+
+export const cleaning_remaining = /** @type {(inputs: Cleaning_RemainingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Осталось`)
+};
+
+export const cleaning_repeats = /** @type {(inputs: Cleaning_RepeatsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Количество проходов`)
+};
+
+export const cleaning_replace = /** @type {(inputs: Cleaning_ReplaceInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Заменить уборку`)
+};
+
+export const cleaning_replace_filter = /** @type {(inputs: Cleaning_Replace_FilterInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Замените фильтр`)
+};
+
+export const cleaning_replace_main_brush = /** @type {(inputs: Cleaning_Replace_Main_BrushInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Замените основную щётку`)
+};
+
+export const cleaning_replace_side_brush = /** @type {(inputs: Cleaning_Replace_Side_BrushInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Замените боковую щётку`)
+};
+
+export const cleaning_replace_title = /** @type {(inputs: Cleaning_Replace_TitleInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Заменить текущую уборку?`)
+};
+
+export const cleaning_resume = /** @type {(inputs: Cleaning_ResumeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Продолжить`)
+};
+
+export const cleaning_robot = /** @type {(inputs: Cleaning_RobotInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Пылесос`)
+};
+
+export const cleaning_robot_settings = /** @type {(inputs: Cleaning_Robot_SettingsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Настройки робота`)
+};
+
+export const cleaning_rooms = /** @type {(inputs: Cleaning_RoomsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Комнаты`)
+};
+
+export const cleaning_rotate_left = /** @type {(inputs: Cleaning_Rotate_LeftInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Повернуть карту влево`)
+};
+
+export const cleaning_rotate_right = /** @type {(inputs: Cleaning_Rotate_RightInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Повернуть карту вправо`)
+};
+
+export const cleaning_select_robot = /** @type {(inputs: Cleaning_Select_RobotInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Выбрать пылесос`)
+};
+
+export const cleaning_selection_changed = /** @type {(inputs: Cleaning_Selection_ChangedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Комнаты изменились. Проверьте выбор.`)
+};
+
+export const cleaning_sensors = /** @type {(inputs: Cleaning_SensorsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Датчики`)
+};
+
+export const cleaning_shared_rooms = /** @type {(inputs: Cleaning_Shared_RoomsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Эти комнаты имеют общую зону уборки.`)
+};
+
+export const cleaning_show_on_map = /** @type {(inputs: Cleaning_Show_On_MapInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Показывать пылесос на карте Hive`)
+};
+
+export const cleaning_side_brush = /** @type {(inputs: Cleaning_Side_BrushInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Боковая щётка`)
+};
+
+export const cleaning_standard = /** @type {(inputs: Cleaning_StandardInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Стандартный`)
+};
+
+export const cleaning_start = /** @type {(inputs: Cleaning_StartInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Начать уборку`)
+};
+
+export const cleaning_start_new = /** @type {(inputs: Cleaning_Start_NewInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Начать новую`)
+};
+
+export const cleaning_status_attention = /** @type {(inputs: Cleaning_Status_AttentionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Требуется внимание`)
+};
+
+export const cleaning_status_cancelled = /** @type {(inputs: Cleaning_Status_CancelledInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Остановлено`)
+};
+
+export const cleaning_status_cleaning = /** @type {(inputs: Cleaning_Status_CleaningInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Уборка`)
+};
+
+export const cleaning_status_completed = /** @type {(inputs: Cleaning_Status_CompletedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Завершено`)
+};
+
+export const cleaning_status_docked = /** @type {(inputs: Cleaning_Status_DockedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`На базе`)
+};
+
+export const cleaning_status_ended = /** @type {(inputs: Cleaning_Status_EndedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Закончено · результат неизвестен`)
+};
+
+export const cleaning_status_failed = /** @type {(inputs: Cleaning_Status_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Ошибка`)
+};
+
+export const cleaning_status_idle = /** @type {(inputs: Cleaning_Status_IdleInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Ожидание`)
+};
+
+export const cleaning_status_offline = /** @type {(inputs: Cleaning_Status_OfflineInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Не в сети`)
+};
+
+export const cleaning_status_paused = /** @type {(inputs: Cleaning_Status_PausedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Приостановлено`)
+};
+
+export const cleaning_status_returning = /** @type {(inputs: Cleaning_Status_ReturningInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Возвращается`)
+};
+
+export const cleaning_status_starting = /** @type {(inputs: Cleaning_Status_StartingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Запускается`)
+};
+
+export const cleaning_status_stopping = /** @type {(inputs: Cleaning_Status_StoppingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Останавливается`)
+};
+
+export const cleaning_status_unknown = /** @type {(inputs: Cleaning_Status_UnknownInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Неизвестно`)
+};
+
+export const cleaning_stop = /** @type {(inputs: Cleaning_StopInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Остановить`)
+};
+
+export const cleaning_strong = /** @type {(inputs: Cleaning_StrongInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Сильный`)
+};
+
+export const cleaning_suction = /** @type {(inputs: Cleaning_SuctionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Мощность`)
+};
+
+export const cleaning_test = /** @type {(inputs: Cleaning_TestInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Проверить соединение`)
+};
+
+export const cleaning_title = /** @type {(inputs: Cleaning_TitleInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Уборка`)
+};
+
+export const cleaning_turbo = /** @type {(inputs: Cleaning_TurboInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Турбо`)
+};
+
+export const cleaning_water = /** @type {(inputs: Cleaning_WaterInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Подача воды`)
+};
+
+export const cleaning_whole_apartment = /** @type {(inputs: Cleaning_Whole_ApartmentInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Вся квартира`)
+};
+
 export const color_picker_aria = /** @type {(inputs: Color_Picker_AriaInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Оттенок и насыщенность`)
 };
 
 export const common_add_to = /** @type {(inputs: Common_Add_ToInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Добавить`)
+};
+
+export const common_back = /** @type {(inputs: Common_BackInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Назад`)
 };
 
 export const common_brand_name = /** @type {(inputs: Common_Brand_NameInputs) => LocalizedString} */ () => {
@@ -4822,6 +5355,10 @@ export const common_paste = /** @type {(inputs: Common_PasteInputs) => Localized
 
 export const common_remove = /** @type {(inputs: Common_RemoveInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Удалить`)
+};
+
+export const common_rename = /** @type {(inputs: Common_RenameInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Переименовать`)
 };
 
 export const common_save = /** @type {(inputs: Common_SaveInputs) => LocalizedString} */ () => {
@@ -5118,10 +5655,6 @@ export const data_viewer_title = /** @type {(inputs: Data_Viewer_TitleInputs) =>
 	return /** @type {LocalizedString} */ (`Анализ данных`)
 };
 
-export const device_actions = /** @type {(inputs: Device_ActionsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Действия`)
-};
-
 export const device_adjust_climate_named = /** @type {(inputs: Device_Adjust_Climate_NamedInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`Настроить климат для ${i?.name}`)
 };
@@ -5134,16 +5667,16 @@ export const device_apply = /** @type {(inputs: Device_ApplyInputs) => Localized
 	return /** @type {LocalizedString} */ (`Применить`)
 };
 
-export const device_applying = /** @type {(inputs: Device_ApplyingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Применение…`)
-};
-
 export const device_back_to_devices = /** @type {(inputs: Device_Back_To_DevicesInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Вернуться к устройствам`)
 };
 
 export const device_brightness = /** @type {(inputs: Device_BrightnessInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Яркость`)
+};
+
+export const device_charging = /** @type {(inputs: Device_ChargingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Заряжается`)
 };
 
 export const device_color = /** @type {(inputs: Device_ColorInputs) => LocalizedString} */ () => {
@@ -5202,6 +5735,10 @@ export const device_configuration_timeout = /** @type {(inputs: Device_Configura
 	return /** @type {LocalizedString} */ (`Устройство не подтвердило свои настройки. Попробуйте применить их ещё раз.`)
 };
 
+export const device_control = /** @type {(inputs: Device_ControlInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Управление`)
+};
+
 export const device_controls_disabled = /** @type {(inputs: Device_Controls_DisabledInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Элементы управления недоступны, пока это устройство отключено.`)
 };
@@ -5232,6 +5769,10 @@ export const device_flags_none = /** @type {(inputs: Device_Flags_NoneInputs) =>
 
 export const device_flags_summary = /** @type {(inputs: Device_Flags_SummaryInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`Включено ${i?.count} из ${i?.total}`)
+};
+
+export const device_fully_charged = /** @type {(inputs: Device_Fully_ChargedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Полностью заряжено`)
 };
 
 export const device_generic = /** @type {(inputs: Device_GenericInputs) => LocalizedString} */ () => {
@@ -5334,6 +5875,10 @@ export const device_settings = /** @type {(inputs: Device_SettingsInputs) => Loc
 	return /** @type {LocalizedString} */ (`Настройки`)
 };
 
+export const device_status = /** @type {(inputs: Device_StatusInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Состояние`)
+};
+
 export const device_swing = /** @type {(inputs: Device_SwingInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Качание`)
 };
@@ -5396,10 +5941,6 @@ export const device_type_unknown = /** @type {(inputs: Device_Type_UnknownInputs
 
 export const device_update = /** @type {(inputs: Device_UpdateInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Обновить`)
-};
-
-export const device_waiting = /** @type {(inputs: Device_WaitingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Ожидание устройства…`)
 };
 
 export const device_white = /** @type {(inputs: Device_WhiteInputs) => LocalizedString} */ () => {
@@ -5479,11 +6020,7 @@ export const devices_no_match = /** @type {(inputs: Devices_No_MatchInputs) => L
 };
 
 export const devices_none = /** @type {(inputs: Devices_NoneInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Устройства пока не обнаружены.`)
-};
-
-export const devices_none_help = /** @type {(inputs: Devices_None_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Устройства появляются здесь после подключения интеграции.`)
+	return /** @type {LocalizedString} */ (`Нет устройств`)
 };
 
 export const devices_offline = /** @type {(inputs: Devices_OfflineInputs) => LocalizedString} */ () => {
@@ -5512,6 +6049,70 @@ export const devices_search = /** @type {(inputs: Devices_SearchInputs) => Local
 
 export const devices_trigger_event = /** @type {(inputs: Devices_Trigger_EventInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`Вызвать событие ${i?.name}`)
+};
+
+export const dreame_connect_account = /** @type {(inputs: Dreame_Connect_AccountInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`1. Введите адрес электронной почты и пароль Dreamehome.`)
+};
+
+export const dreame_connect_region = /** @type {(inputs: Dreame_Connect_RegionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`2. Выберите тот же облачный сервер, что и в приложении.`)
+};
+
+export const dreame_connect_save = /** @type {(inputs: Dreame_Connect_SaveInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`3. Включите интеграцию и сохраните, чтобы найти пылесосы.`)
+};
+
+export const dreame_connecting = /** @type {(inputs: Dreame_ConnectingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Как подключить`)
+};
+
+export const dreame_email = /** @type {(inputs: Dreame_EmailInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Электронная почта Dreamehome`)
+};
+
+export const dreame_enabled = /** @type {(inputs: Dreame_EnabledInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Включить Dreame`)
+};
+
+export const dreame_password = /** @type {(inputs: Dreame_PasswordInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Пароль в приложении`)
+};
+
+export const dreame_read = /** @type {(inputs: Dreame_ReadInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Прочитать данные`)
+};
+
+export const dreame_region = /** @type {(inputs: Dreame_RegionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Облачный сервер`)
+};
+
+export const dreame_region_cn = /** @type {(inputs: Dreame_Region_CnInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Китай`)
+};
+
+export const dreame_region_eu = /** @type {(inputs: Dreame_Region_EuInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Европа`)
+};
+
+export const dreame_region_in = /** @type {(inputs: Dreame_Region_InInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Индия`)
+};
+
+export const dreame_region_kr = /** @type {(inputs: Dreame_Region_KrInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Южная Корея`)
+};
+
+export const dreame_region_ru = /** @type {(inputs: Dreame_Region_RuInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Россия`)
+};
+
+export const dreame_region_sg = /** @type {(inputs: Dreame_Region_SgInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Сингапур`)
+};
+
+export const dreame_region_us = /** @type {(inputs: Dreame_Region_UsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Северная Америка`)
 };
 
 export const editor_changed_elsewhere = /** @type {(inputs: Editor_Changed_ElsewhereInputs) => LocalizedString} */ () => {
@@ -5875,11 +6476,7 @@ export const effects_edit = /** @type {(inputs: Effects_EditInputs) => Localized
 };
 
 export const effects_empty = /** @type {(inputs: Effects_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Эффектов пока нет.`)
-};
-
-export const effects_empty_help = /** @type {(inputs: Effects_Empty_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Создайте эффект Hive или подключите устройство с поддержкой эффектов Zigbee.`)
+	return /** @type {LocalizedString} */ (`Нет эффектов`)
 };
 
 export const effects_error_create = /** @type {(inputs: Effects_Error_CreateInputs) => LocalizedString} */ () => {
@@ -5923,7 +6520,7 @@ export const effects_name_placeholder = /** @type {(inputs: Effects_Name_Placeho
 };
 
 export const effects_native_empty = /** @type {(inputs: Effects_Native_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Устройства с эффектами Zigbee пока не обнаружены.`)
+	return /** @type {LocalizedString} */ (`Нет встроенных эффектов`)
 };
 
 export const effects_native_load_error = /** @type {(inputs: Effects_Native_Load_ErrorInputs) => LocalizedString} */ () => {
@@ -6416,11 +7013,11 @@ export const group_member_add = /** @type {(inputs: Group_Member_AddInputs) => L
 };
 
 export const group_members_empty = /** @type {(inputs: Group_Members_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Пока нет участников. Добавьте устройства или группы в эту группу.`)
+	return /** @type {LocalizedString} */ (`Нет участников`)
 };
 
 export const group_members_none = /** @type {(inputs: Group_Members_NoneInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Нет участников.`)
+	return /** @type {LocalizedString} */ (`Нет участников`)
 };
 
 export const group_name = /** @type {(inputs: Group_NameInputs) => LocalizedString} */ () => {
@@ -6432,11 +7029,7 @@ export const group_no_match = /** @type {(inputs: Group_No_MatchInputs) => Local
 };
 
 export const group_none = /** @type {(inputs: Group_NoneInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Групп пока нет.`)
-};
-
-export const group_none_help = /** @type {(inputs: Group_None_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Создайте группу для совместного управления устройствами.`)
+	return /** @type {LocalizedString} */ (`Нет групп`)
 };
 
 export const group_rename_failed = /** @type {(inputs: Group_Rename_FailedInputs) => LocalizedString} */ () => {
@@ -6715,6 +7308,10 @@ export const integrations_delete_title = /** @type {(inputs: Integrations_Delete
 	return /** @type {LocalizedString} */ (`Удалить интеграцию`)
 };
 
+export const integrations_description_dreame = /** @type {(inputs: Integrations_Description_DreameInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Роботы-пылесосы через Dreamehome`)
+};
+
 export const integrations_description_generic = /** @type {(inputs: Integrations_Description_GenericInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Адаптер устройств`)
 };
@@ -6744,11 +7341,7 @@ export const integrations_devices_kept = /** @type {(inputs: Integrations_Device
 };
 
 export const integrations_empty = /** @type {(inputs: Integrations_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Интеграций пока нет.`)
-};
-
-export const integrations_empty_help = /** @type {(inputs: Integrations_Empty_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Добавьте интеграцию для подключения внешних устройств к Saffron Hive.`)
+	return /** @type {LocalizedString} */ (`Нет интеграций`)
 };
 
 export const integrations_no_match = /** @type {(inputs: Integrations_No_MatchInputs) => LocalizedString} */ () => {
@@ -6807,12 +7400,16 @@ export const maintenance_battery_detail = /** @type {(inputs: Maintenance_Batter
 	return /** @type {LocalizedString} */ (`${i?.name}: заряд ${i?.value}%`)
 };
 
+export const maintenance_cleaning_detail = /** @type {(inputs: Maintenance_Cleaning_DetailInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.name} · осталось ${i?.value}%`)
+};
+
 export const maintenance_correct_posture = /** @type {(inputs: Maintenance_Correct_PostureInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Правильное размещение датчика`)
 };
 
 export const maintenance_empty = /** @type {(inputs: Maintenance_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Обслуживание не требуется.`)
+	return /** @type {LocalizedString} */ (`Обслуживание не требуется`)
 };
 
 export const maintenance_filter_device = /** @type {(inputs: Maintenance_Filter_DeviceInputs) => LocalizedString} */ () => {
@@ -6845,6 +7442,10 @@ export const maintenance_free_storage = /** @type {(inputs: Maintenance_Free_Sto
 
 export const maintenance_group_batteries = /** @type {(inputs: Maintenance_Group_BatteriesInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Заменить батареи`)
+};
+
+export const maintenance_group_cleaning = /** @type {(inputs: Maintenance_Group_CleaningInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Обслуживание пылесоса`)
 };
 
 export const maintenance_group_posture = /** @type {(inputs: Maintenance_Group_PostureInputs) => LocalizedString} */ () => {
@@ -7195,6 +7796,10 @@ export const map_go_to_group = /** @type {(inputs: Map_Go_To_GroupInputs) => Loc
 	return /** @type {LocalizedString} */ (`Перейти в группу`)
 };
 
+export const map_hide_cleaning_trails = /** @type {(inputs: Map_Hide_Cleaning_TrailsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Скрыть маршруты уборки`)
+};
+
 export const map_hide_neighbour_links = /** @type {(inputs: Map_Hide_Neighbour_LinksInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Скрыть связи с соседями`)
 };
@@ -7343,6 +7948,10 @@ export const map_set_display_color = /** @type {(inputs: Map_Set_Display_ColorIn
 	return /** @type {LocalizedString} */ (`Установить цвет дисплея`)
 };
 
+export const map_show_cleaning_trails = /** @type {(inputs: Map_Show_Cleaning_TrailsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Показать маршруты уборки`)
+};
+
 export const map_show_neighbour_links = /** @type {(inputs: Map_Show_Neighbour_LinksInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Показать связи с соседями`)
 };
@@ -7460,7 +8069,7 @@ export const member_add_failed = /** @type {(inputs: Member_Add_FailedInputs) =>
 };
 
 export const member_empty = /** @type {(inputs: Member_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Пока нет участников.`)
+	return /** @type {LocalizedString} */ (`Нет участников`)
 };
 
 export const member_more = /** @type {(inputs: Member_MoreInputs) => LocalizedString} */ (i) => {
@@ -7593,26 +8202,6 @@ export const nav_users = /** @type {(inputs: Nav_UsersInputs) => LocalizedString
 
 export const nav_webhooks = /** @type {(inputs: Nav_WebhooksInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Вебхуки`)
-};
-
-export const plug_current = /** @type {(inputs: Plug_CurrentInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Сила тока`)
-};
-
-export const plug_energy = /** @type {(inputs: Plug_EnergyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Энергия`)
-};
-
-export const plug_status = /** @type {(inputs: Plug_StatusInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Состояние розетки`)
-};
-
-export const plug_toggle = /** @type {(inputs: Plug_ToggleInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Переключить розетку`)
-};
-
-export const plug_voltage = /** @type {(inputs: Plug_VoltageInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Напряжение`)
 };
 
 export const profile_account = /** @type {(inputs: Profile_AccountInputs) => LocalizedString} */ () => {
@@ -7920,7 +8509,7 @@ export const room_lights = /** @type {(inputs: Room_LightsInputs) => LocalizedSt
 };
 
 export const room_members_empty = /** @type {(inputs: Room_Members_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Пока нет участников. Добавьте устройства или группы в эту комнату.`)
+	return /** @type {LocalizedString} */ (`Нет участников`)
 };
 
 export const room_name = /** @type {(inputs: Room_NameInputs) => LocalizedString} */ () => {
@@ -7932,11 +8521,7 @@ export const room_no_match = /** @type {(inputs: Room_No_MatchInputs) => Localiz
 };
 
 export const room_none = /** @type {(inputs: Room_NoneInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Комнат пока нет.`)
-};
-
-export const room_none_help = /** @type {(inputs: Room_None_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Создайте комнату, чтобы упорядочить свои устройства по местоположению.`)
+	return /** @type {LocalizedString} */ (`Нет комнат`)
 };
 
 export const room_rename_failed = /** @type {(inputs: Room_Rename_FailedInputs) => LocalizedString} */ () => {
@@ -7975,28 +8560,12 @@ export const scene_create_add_selector = /** @type {(inputs: Scene_Create_Add_Se
 	return /** @type {LocalizedString} */ (`Добавить фильтр`)
 };
 
-export const scene_create_adjust_lighting = /** @type {(inputs: Scene_Create_Adjust_LightingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Выбор освещения`)
-};
-
-export const scene_create_back = /** @type {(inputs: Scene_Create_BackInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Назад`)
-};
-
 export const scene_create_breadcrumb = /** @type {(inputs: Scene_Create_BreadcrumbInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Создание`)
 };
 
 export const scene_create_building = /** @type {(inputs: Scene_Create_BuildingInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Создание…`)
-};
-
-export const scene_create_choose_location = /** @type {(inputs: Scene_Create_Choose_LocationInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Локация`)
-};
-
-export const scene_create_choose_look = /** @type {(inputs: Scene_Create_Choose_LookInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Выбор внешнего вида`)
 };
 
 export const scene_create_creating = /** @type {(inputs: Scene_Create_CreatingInputs) => LocalizedString} */ () => {
@@ -8023,10 +8592,6 @@ export const scene_create_name_placeholder = /** @type {(inputs: Scene_Create_Na
 	return /** @type {LocalizedString} */ (`Вечернее сияние`)
 };
 
-export const scene_create_name_title = /** @type {(inputs: Scene_Create_Name_TitleInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Название сцены`)
-};
-
 export const scene_create_no_gallery = /** @type {(inputs: Scene_Create_No_GalleryInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Сцены галереи недоступны.`)
 };
@@ -8045,10 +8610,6 @@ export const scene_create_photo_privacy = /** @type {(inputs: Scene_Create_Photo
 
 export const scene_create_supporting_description = /** @type {(inputs: Scene_Create_Supporting_DescriptionInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Добавьте управляемые устройства.`)
-};
-
-export const scene_create_title = /** @type {(inputs: Scene_Create_TitleInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Создание сцены`)
 };
 
 export const scene_create_turn_on = /** @type {(inputs: Scene_Create_Turn_OnInputs) => LocalizedString} */ (i) => {
@@ -8397,11 +8958,7 @@ export const scenes_edit = /** @type {(inputs: Scenes_EditInputs) => LocalizedSt
 };
 
 export const scenes_empty = /** @type {(inputs: Scenes_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Сцен пока нет.`)
-};
-
-export const scenes_empty_help = /** @type {(inputs: Scenes_Empty_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Создайте сцену, чтобы сохранить состояния устройств и применить их одним действием.`)
+	return /** @type {LocalizedString} */ (`Нет сцен`)
 };
 
 export const scenes_error_apply = /** @type {(inputs: Scenes_Error_ApplyInputs) => LocalizedString} */ () => {
@@ -8438,10 +8995,6 @@ export const scenes_filter_device = /** @type {(inputs: Scenes_Filter_DeviceInpu
 
 export const scenes_filter_empty = /** @type {(inputs: Scenes_Filter_EmptyInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Пусто`)
-};
-
-export const scenes_filter_group = /** @type {(inputs: Scenes_Filter_GroupInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Группа`)
 };
 
 export const scenes_filter_room = /** @type {(inputs: Scenes_Filter_RoomInputs) => LocalizedString} */ () => {
@@ -8506,10 +9059,6 @@ export const scenes_title = /** @type {(inputs: Scenes_TitleInputs) => Localized
 
 export const sensor_contact = /** @type {(inputs: Sensor_ContactInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Контакт`)
-};
-
-export const sensor_current_readings = /** @type {(inputs: Sensor_Current_ReadingsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Текущие показания`)
 };
 
 export const sensor_details = /** @type {(inputs: Sensor_DetailsInputs) => LocalizedString} */ () => {
@@ -8598,6 +9147,10 @@ export const settings_retention_days = /** @type {(inputs: Settings_Retention_Da
 
 export const settings_retention_help = /** @type {(inputs: Settings_Retention_HelpInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Записи о состоянии устройств старше указанного срока удаляются каждые 6 часов.`)
+};
+
+export const settings_retention_invalid = /** @type {(inputs: Settings_Retention_InvalidInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Введите количество дней больше нуля.`)
 };
 
 export const settings_save_failed = /** @type {(inputs: Settings_Save_FailedInputs) => LocalizedString} */ () => {
@@ -10109,11 +10662,7 @@ export const webhooks_edit_named = /** @type {(inputs: Webhooks_Edit_NamedInputs
 };
 
 export const webhooks_empty = /** @type {(inputs: Webhooks_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Входящих вебхуков пока нет.`)
-};
-
-export const webhooks_empty_help = /** @type {(inputs: Webhooks_Empty_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Создайте конечную точку, через которую другая система сможет запускать действия Hive.`)
+	return /** @type {LocalizedString} */ (`Нет вебхуков`)
 };
 
 export const webhooks_enable_named = /** @type {(inputs: Webhooks_Enable_NamedInputs) => LocalizedString} */ (i) => {
@@ -10161,7 +10710,7 @@ export const webhooks_no_match = /** @type {(inputs: Webhooks_No_MatchInputs) =>
 };
 
 export const webhooks_no_requests = /** @type {(inputs: Webhooks_No_RequestsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Запросов пока не поступало.`)
+	return /** @type {LocalizedString} */ (`Нет запросов`)
 };
 
 export const webhooks_not_found = /** @type {(inputs: Webhooks_Not_FoundInputs) => LocalizedString} */ () => {
@@ -10202,10 +10751,6 @@ export const webhooks_received = /** @type {(inputs: Webhooks_ReceivedInputs) =>
 
 export const webhooks_recent_requests = /** @type {(inputs: Webhooks_Recent_RequestsInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Недавние запросы`)
-};
-
-export const webhooks_rename_failed = /** @type {(inputs: Webhooks_Rename_FailedInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Не удалось переименовать вебхук.`)
 };
 
 export const webhooks_request_body = /** @type {(inputs: Webhooks_Request_BodyInputs) => LocalizedString} */ () => {

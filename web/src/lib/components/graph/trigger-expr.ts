@@ -117,6 +117,7 @@ export function formatHoldDuration(ms: number): string {
 }
 
 const capToExprProperty: Record<string, string> = {
+  cleaning: "cleaningStatus",
   on_off: "on",
   color_temp: "colorTemp",
   target_temperature: "targetTemperature",
@@ -429,6 +430,41 @@ export function validateActionConfig(
 ): ValidationError<ActionField> | null {
   if (!config.actionType) return { field: "actionType", code: "action_required" };
   if (config.actionType === MACRO_ACTION) return null;
+  if (["start_cleaning", "control_cleaning"].includes(config.actionType)) {
+    if (config.targetType !== "device" || !config.targetId) return targetError(config);
+    try {
+      const p = JSON.parse(config.payload) as {
+        roomIds?: unknown;
+        options?: { repeats?: number; water?: number; suction?: number };
+        action?: string;
+      };
+      if (config.actionType === "start_cleaning") {
+        if (
+          !Array.isArray(p.roomIds) ||
+          !p.roomIds.length ||
+          p.roomIds.some((id) => typeof id !== "string" || !id)
+        )
+          return { field: "payload", code: "field_required" };
+        const options = p.options;
+        if (
+          options &&
+          ((options.repeats != null &&
+            (!Number.isInteger(options.repeats) || options.repeats < 1 || options.repeats > 3)) ||
+            (options.suction != null &&
+              (!Number.isInteger(options.suction) || options.suction < 0 || options.suction > 3)) ||
+            (options.water != null &&
+              (!Number.isInteger(options.water) || options.water < 1 || options.water > 3)))
+        )
+          return { field: "payload", code: "json_invalid" };
+      } else if (
+        !["pause", "resume", "stop", "dock", "locate", "empty_bin"].includes(p.action ?? "")
+      )
+        return { field: "payload", code: "json_invalid" };
+      return null;
+    } catch {
+      return { field: "payload", code: "json_invalid" };
+    }
+  }
   if (config.actionType === "raise_alarm" || config.actionType === "clear_alarm") {
     try {
       const parsed = JSON.parse(config.payload || "{}") as Record<string, unknown>;

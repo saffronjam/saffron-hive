@@ -79,6 +79,12 @@
 		return placementKey(placementViewRef(pl));
 	}
 
+	export interface FloorplanViewport {
+		x: number;
+		y: number;
+		k: number;
+	}
+
 	export interface FloorplanEditorApi {
 		/** Cancel an in-progress polyline. Returns true when there was one to cancel. */
 		cancelDraw: () => boolean;
@@ -98,11 +104,14 @@
 		worldToClient: (p: PlanPoint) => { left: number; top: number } | null;
 		/** Frame the whole plan — walls, markers and furniture — in the viewport. */
 		fitToContent: () => boolean;
+		zoomBy: (factor: number) => void;
+		getViewport: () => FloorplanViewport;
+		setViewport: (viewport: FloorplanViewport) => void;
 	}
 </script>
 
 <script lang="ts">
-	import { untrack } from "svelte";
+	import { untrack, type Snippet } from "svelte";
 	import { haptics } from "$lib/stores/haptics.svelte";
 	import { m } from "$lib/i18n/messages";
 	import { select } from "d3-selection";
@@ -202,6 +211,9 @@
 
 	interface Props {
 		graph: PlanGraph;
+		framePoints?: Point[];
+		fitOnResize?: boolean;
+		surface?: "background" | "muted";
 		faces: Face[];
 		tool: EditorTool;
 		selection: EditorSelection;
@@ -239,6 +251,9 @@
 		hideReadings?: boolean;
 		onmarkertap?: (placement: PlacementView, e: PointerEvent) => void;
 		onfacetap?: (faceIndex: number) => void;
+		onpointtap?: (point: Point) => void;
+		worldOverlay?: Snippet<[number]>;
+		highlightedFaces?: Set<string>;
 		/** Right-click / touch-hold on a room face (edit mode). */
 		onfacemenu?: (faceIndex: number, clientX: number, clientY: number) => void;
 		/** Right-click / touch-hold on a placed marker, in either mode. */
@@ -302,11 +317,15 @@
 		ondoorsensormenu?: (deviceId: string, clientX: number, clientY: number) => void;
 		/** Fires on every pan/zoom step so screen-anchored chrome can follow. */
 		onviewportchange?: () => void;
+		onviewportcommit?: () => void;
 		onready?: (api: FloorplanEditorApi) => void;
 	}
 
 	let {
 		graph,
+		framePoints,
+		fitOnResize = false,
+		surface = "background",
 		faces,
 		tool,
 		selection,
@@ -329,6 +348,9 @@
 		hideReadings = false,
 		onmarkertap,
 		onfacetap,
+		onpointtap,
+		worldOverlay,
+		highlightedFaces,
 		onfacemenu,
 		onmarkermenu,
 		openingKind = "door",
@@ -364,6 +386,7 @@
 		ondoorsensorcancel,
 		ondoorsensormenu,
 		onviewportchange,
+		onviewportcommit,
 		onready,
 	}: Props = $props();
 
@@ -466,6 +489,9 @@
 				.on("zoom", (e: D3ZoomEvent<SVGSVGElement, unknown>) => {
 					transform = { x: e.transform.x, y: e.transform.y, k: e.transform.k };
 					onviewportchange?.();
+				})
+				.on("end", (e: D3ZoomEvent<SVGSVGElement, unknown>) => {
+					if (e.sourceEvent) onviewportcommit?.();
 				});
 			zoomBehavior = zoom;
 			sel.call(zoom);
@@ -626,6 +652,12 @@
 		};
 	}
 
+	const fitPoints = $derived(framePoints ?? [
+		...graph.vertices.map((v) => ({ x: v.x, y: v.y })),
+		...placements.map((pl) => ({ x: pl.x, y: pl.y })),
+		...furniture.flatMap(furnitureCorners),
+	]);
+
 	/** Margin the framed plan keeps from the viewport edge, in screen pixels. */
 	const FIT_MARGIN_PX = 24;
 
@@ -633,11 +665,7 @@
 		if (!svgEl || !zoomBehavior) return false;
 		const viewport = svgEl.getBoundingClientRect();
 		if (viewport.width === 0 || viewport.height === 0) return false;
-		const pts: Point[] = [
-			...graph.vertices.map((v) => ({ x: v.x, y: v.y })),
-			...placements.map((pl) => ({ x: pl.x, y: pl.y })),
-			...furniture.flatMap(furnitureCorners),
-		];
+		const pts = fitPoints;
 		const b = pts.length > 0 ? polygonBounds(pts) : null;
 		// A blank plan, or one collapsed to a point, has no span to fit — those
 		// land at 1:1 centred on whatever is there.
@@ -661,6 +689,18 @@
 	}
 
 	$effect(() => {
+		if (!fitOnResize || !svgEl) return;
+		void fitPoints;
+		let frame = 0;
+		const observer = new ResizeObserver(() => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(fitToContent);
+		});
+		observer.observe(svgEl);
+		return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+	});
+
+	$effect(() => {
 		onready?.({
 			cancelDraw,
 			openMenuAt,
@@ -670,6 +710,18 @@
 			faceClientRect,
 			getViewportCenterWorld,
 			fitToContent,
+			zoomBy: (factor) => {
+				if (svgEl && zoomBehavior) {
+					select(svgEl).call(zoomBehavior.scaleBy, factor);
+					onviewportcommit?.();
+				}
+			},
+			getViewport: () => ({ ...transform }),
+			setViewport: (viewport) => {
+				if (svgEl && zoomBehavior) {
+					select(svgEl).call(zoomBehavior.transform, zoomIdentity.translate(viewport.x, viewport.y).scale(viewport.k));
+				}
+			},
 		});
 	});
 
@@ -1689,6 +1741,7 @@
 				const clicked = Math.hypot(e.clientX - pressed.x, e.clientY - pressed.y) < 4;
 				pressed = null;
 				if (clicked) {
+					if (onpointtap) { onpointtap(p); return; }
 					const m = hitMarker(p);
 					if (m) {
 						onmarkertap?.(m, e);
@@ -2076,7 +2129,7 @@
 >
 	<svg
 		bind:this={svgEl}
-		class="h-full w-full touch-none select-none bg-background {live || tool === 'select'
+		class="h-full w-full touch-none select-none {surface === 'muted' ? 'bg-muted dark:bg-card' : 'bg-background'} {live || tool === 'select'
 			? hover
 				? 'cursor-pointer'
 				: 'cursor-default'
@@ -2110,7 +2163,7 @@
 
 				<g>
 					{#each faces as face, i (face.vertexIds.join("-"))}
-						{@const highlighted =
+                        {@const highlighted =
 							!live && highlightFaceKey !== null && highlightFaceKey === faceKey(face)}
 						{@const outlined = !live && (selection.faceIndex === i || highlighted)}
 						{@const unlocked = !live && unlockedKeys.has(faceKey(face))}
@@ -2127,6 +2180,19 @@
 						/>
 					{/each}
 				</g>
+
+				{#if live && highlightedFaces}
+					<g class="pointer-events-none" data-room-selection>
+						{#each faces as face (face.vertexIds.join("-"))}
+							<polygon
+								points={face.polygon.map((pt) => `${pt.x},${pt.y}`).join(" ")}
+								fill="color-mix(in srgb, var(--primary) 25%, var(--card))"
+								opacity={highlightedFaces.has(faceKey(face)) ? 0.8 : 0}
+								class="transition-opacity duration-200 ease-out motion-reduce:transition-none"
+							/>
+						{/each}
+					</g>
+				{/if}
 
 				{#if live}
 					<g class="pointer-events-none">
@@ -2472,6 +2538,7 @@
 					{/if}
 				</g>
 
+				{@render worldOverlay?.(pxPerM)}
 				<PlanLabels labels={planLabels} {pxPerM} />
 			</g>
 		</g>

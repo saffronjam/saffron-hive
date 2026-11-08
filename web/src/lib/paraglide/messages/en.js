@@ -4,6 +4,8 @@
 /** @typedef {{ name: NonNullable<unknown> }} Activity_Automation_FiredInputs */
 /** @typedef {{}} Activity_Automation_Fired_GenericInputs */
 /** @typedef {{ id: NonNullable<unknown> }} Activity_Automation_IdInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Activity_Command_ConfirmedInputs */
+/** @typedef {{ name: NonNullable<unknown> }} Activity_Command_FailedInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Activity_Command_SentInputs */
 /** @typedef {{ name: NonNullable<unknown>, action: NonNullable<unknown> }} Activity_Device_ActionInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Activity_Device_Action_GenericInputs */
@@ -15,10 +17,12 @@
 /** @typedef {{}} Activity_Device_Removed_GenericInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Activity_Device_State_ChangedInputs */
 /** @typedef {{}} Activity_EmptyInputs */
-/** @typedef {{}} Activity_Empty_HelpInputs */
 /** @typedef {{}} Activity_Event_Automation_FiredInputs */
 /** @typedef {{}} Activity_Event_AvailabilityInputs */
+/** @typedef {{}} Activity_Event_Command_ConfirmedInputs */
+/** @typedef {{}} Activity_Event_Command_FailedInputs */
 /** @typedef {{}} Activity_Event_Command_SentInputs */
+/** @typedef {{}} Activity_Event_Device_ActionInputs */
 /** @typedef {{}} Activity_Event_Device_AddedInputs */
 /** @typedef {{}} Activity_Event_Device_RemovedInputs */
 /** @typedef {{}} Activity_Event_Node_ActivatedInputs */
@@ -63,6 +67,8 @@
 /** @typedef {{}} Activity_Webhook_Received_GenericInputs */
 /** @typedef {{ name: NonNullable<unknown>, value: NonNullable<unknown> }} Alarm_Battery_LowInputs */
 /** @typedef {{}} Alarm_Broker_DisconnectedInputs */
+/** @typedef {{ name: NonNullable<unknown>, task: NonNullable<unknown> }} Alarm_Cleaning_DueInputs */
+/** @typedef {{ name: NonNullable<unknown>, task: NonNullable<unknown> }} Alarm_Cleaning_SoonInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Alarm_Device_UnavailableInputs */
 /** @typedef {{ value: NonNullable<unknown>, threshold: NonNullable<unknown> }} Alarm_Disk_LowInputs */
 /** @typedef {{ value: NonNullable<unknown>, threshold: NonNullable<unknown> }} Alarm_Memory_HighInputs */
@@ -80,7 +86,6 @@
 /** @typedef {{ count: NonNullable<unknown> }} Alarms_Delete_Many_TitleInputs */
 /** @typedef {{}} Alarms_Delete_TitleInputs */
 /** @typedef {{}} Alarms_EmptyInputs */
-/** @typedef {{}} Alarms_Empty_HelpInputs */
 /** @typedef {{}} Alarms_Filter_KindInputs */
 /** @typedef {{}} Alarms_Filter_SeverityInputs */
 /** @typedef {{}} Alarms_Filter_SinceInputs */
@@ -608,7 +613,6 @@
 /** @typedef {{ name: NonNullable<unknown> }} Automations_DisableInputs */
 /** @typedef {{}} Automations_EditInputs */
 /** @typedef {{}} Automations_EmptyInputs */
-/** @typedef {{}} Automations_Empty_HelpInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Automations_EnableInputs */
 /** @typedef {{}} Automations_Error_CreateInputs */
 /** @typedef {{}} Automations_Error_DeleteInputs */
@@ -638,7 +642,6 @@
 /** @typedef {{}} Button_Last_ActionInputs */
 /** @typedef {{ time: NonNullable<unknown> }} Button_Last_SeenInputs */
 /** @typedef {{}} Button_No_ActionInputs */
-/** @typedef {{}} Button_StatusInputs */
 /** @typedef {{}} Claude_Choose_ModelInputs */
 /** @typedef {{}} Claude_Connect_ModelInputs */
 /** @typedef {{}} Claude_Connect_SaveInputs */
@@ -650,8 +653,111 @@
 /** @typedef {{}} Claude_TestInputs */
 /** @typedef {{}} Claude_TokenInputs */
 /** @typedef {{}} Claude_Token_KeepInputs */
+/** @typedef {{}} Cleaning_Add_LandmarkInputs */
+/** @typedef {{}} Cleaning_AlignInputs */
+/** @typedef {{}} Cleaning_Align_FirstInputs */
+/** @typedef {{}} Cleaning_Alignment_Load_FailedInputs */
+/** @typedef {{}} Cleaning_Alignment_Save_FailedInputs */
+/** @typedef {{}} Cleaning_Area_CleanedInputs */
+/** @typedef {{}} Cleaning_CleanInputs */
+/** @typedef {{}} Cleaning_Clean_SensorsInputs */
+/** @typedef {{}} Cleaning_ControlInputs */
+/** @typedef {{}} Cleaning_Create_FloorplanInputs */
+/** @typedef {{}} Cleaning_Current_TaskInputs */
+/** @typedef {{}} Cleaning_DiagnosticsInputs */
+/** @typedef {{}} Cleaning_DockInputs */
+/** @typedef {{}} Cleaning_Dreame_RoomsInputs */
+/** @typedef {{}} Cleaning_Due_SoonInputs */
+/** @typedef {{}} Cleaning_ElapsedInputs */
+/** @typedef {{}} Cleaning_Empty_BinInputs */
+/** @typedef {{}} Cleaning_Estimated_ProgressInputs */
+/** @typedef {{}} Cleaning_ExternalInputs */
+/** @typedef {{}} Cleaning_External_OriginInputs */
+/** @typedef {{}} Cleaning_FailedInputs */
+/** @typedef {{}} Cleaning_FilterInputs */
+/** @typedef {{}} Cleaning_HighInputs */
+/** @typedef {{}} Cleaning_HistoryInputs */
+/** @typedef {{}} Cleaning_Hive_RoomsInputs */
+/** @typedef {{ number: NonNullable<unknown> }} Cleaning_Landmark_NumberInputs */
+/** @typedef {{ number: NonNullable<unknown>, map: NonNullable<unknown> }} Cleaning_Landmark_PartnerInputs */
+/** @typedef {{ time: NonNullable<unknown> }} Cleaning_Last_SeenInputs */
+/** @typedef {{}} Cleaning_Link_RoomsInputs */
+/** @typedef {{}} Cleaning_Load_MoreInputs */
+/** @typedef {{}} Cleaning_LocateInputs */
+/** @typedef {{}} Cleaning_LowInputs */
+/** @typedef {{}} Cleaning_Main_BrushInputs */
+/** @typedef {{}} Cleaning_MaintenanceInputs */
+/** @typedef {{}} Cleaning_ManufacturerInputs */
+/** @typedef {{}} Cleaning_MapInputs */
+/** @typedef {{}} Cleaning_Map_DockInputs */
+/** @typedef {{ id: NonNullable<unknown> }} Cleaning_Map_NameInputs */
+/** @typedef {{ id: NonNullable<unknown> }} Cleaning_Map_RoomInputs */
+/** @typedef {{}} Cleaning_Map_SelectInputs */
+/** @typedef {{}} Cleaning_Map_TitleInputs */
+/** @typedef {{}} Cleaning_Map_Zoom_InInputs */
+/** @typedef {{}} Cleaning_Map_Zoom_OutInputs */
+/** @typedef {{}} Cleaning_Mark_CleanedInputs */
+/** @typedef {{}} Cleaning_Mark_ReplacedInputs */
+/** @typedef {{}} Cleaning_MediumInputs */
+/** @typedef {{}} Cleaning_Missing_RoomInputs */
+/** @typedef {{}} Cleaning_ModelInputs */
+/** @typedef {{}} Cleaning_Model_IdInputs */
+/** @typedef {{}} Cleaning_No_AvailableInputs */
+/** @typedef {{}} Cleaning_No_HistoryInputs */
+/** @typedef {{}} Cleaning_OptionsInputs */
+/** @typedef {{}} Cleaning_OverlayInputs */
+/** @typedef {{}} Cleaning_PauseInputs */
+/** @typedef {{ number: NonNullable<unknown> }} Cleaning_Place_LandmarkInputs */
+/** @typedef {{}} Cleaning_Position_UnavailableInputs */
+/** @typedef {{}} Cleaning_ProgressInputs */
+/** @typedef {{}} Cleaning_QuietInputs */
+/** @typedef {{}} Cleaning_RemainingInputs */
+/** @typedef {{}} Cleaning_RepeatsInputs */
+/** @typedef {{}} Cleaning_ReplaceInputs */
+/** @typedef {{}} Cleaning_Replace_FilterInputs */
+/** @typedef {{}} Cleaning_Replace_Main_BrushInputs */
+/** @typedef {{}} Cleaning_Replace_Side_BrushInputs */
+/** @typedef {{}} Cleaning_Replace_TitleInputs */
+/** @typedef {{}} Cleaning_ResumeInputs */
+/** @typedef {{}} Cleaning_RobotInputs */
+/** @typedef {{}} Cleaning_Robot_SettingsInputs */
+/** @typedef {{}} Cleaning_RoomsInputs */
+/** @typedef {{}} Cleaning_Rotate_LeftInputs */
+/** @typedef {{}} Cleaning_Rotate_RightInputs */
+/** @typedef {{}} Cleaning_Select_RobotInputs */
+/** @typedef {{}} Cleaning_Selection_ChangedInputs */
+/** @typedef {{}} Cleaning_SensorsInputs */
+/** @typedef {{}} Cleaning_Shared_RoomsInputs */
+/** @typedef {{}} Cleaning_Show_On_MapInputs */
+/** @typedef {{}} Cleaning_Side_BrushInputs */
+/** @typedef {{}} Cleaning_StandardInputs */
+/** @typedef {{}} Cleaning_StartInputs */
+/** @typedef {{}} Cleaning_Start_NewInputs */
+/** @typedef {{}} Cleaning_Status_AttentionInputs */
+/** @typedef {{}} Cleaning_Status_CancelledInputs */
+/** @typedef {{}} Cleaning_Status_CleaningInputs */
+/** @typedef {{}} Cleaning_Status_CompletedInputs */
+/** @typedef {{}} Cleaning_Status_DockedInputs */
+/** @typedef {{}} Cleaning_Status_EndedInputs */
+/** @typedef {{}} Cleaning_Status_FailedInputs */
+/** @typedef {{}} Cleaning_Status_IdleInputs */
+/** @typedef {{}} Cleaning_Status_OfflineInputs */
+/** @typedef {{}} Cleaning_Status_PausedInputs */
+/** @typedef {{}} Cleaning_Status_ReturningInputs */
+/** @typedef {{}} Cleaning_Status_StartingInputs */
+/** @typedef {{}} Cleaning_Status_StoppingInputs */
+/** @typedef {{}} Cleaning_Status_UnknownInputs */
+/** @typedef {{}} Cleaning_StopInputs */
+/** @typedef {{}} Cleaning_StrongInputs */
+/** @typedef {{}} Cleaning_SuctionInputs */
+/** @typedef {{}} Cleaning_TestInputs */
+/** @typedef {{}} Cleaning_TitleInputs */
+/** @typedef {{}} Cleaning_TurboInputs */
+/** @typedef {{}} Cleaning_WaterInputs */
+/** @typedef {{}} Cleaning_Whole_ApartmentInputs */
 /** @typedef {{}} Color_Picker_AriaInputs */
 /** @typedef {{}} Common_Add_ToInputs */
+/** @typedef {{}} Common_BackInputs */
 /** @typedef {{}} Common_Brand_NameInputs */
 /** @typedef {{}} Common_CancelInputs */
 /** @typedef {{}} Common_ClearInputs */
@@ -676,6 +782,7 @@
 /** @typedef {{}} Common_NoInputs */
 /** @typedef {{}} Common_PasteInputs */
 /** @typedef {{}} Common_RemoveInputs */
+/** @typedef {{}} Common_RenameInputs */
 /** @typedef {{}} Common_SaveInputs */
 /** @typedef {{}} Common_SavingInputs */
 /** @typedef {{}} Common_SearchInputs */
@@ -727,13 +834,12 @@
 /** @typedef {{}} Data_Viewer_RoomsInputs */
 /** @typedef {{}} Data_Viewer_SourcesInputs */
 /** @typedef {{}} Data_Viewer_TitleInputs */
-/** @typedef {{}} Device_ActionsInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Device_Adjust_Climate_NamedInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Device_Adjust_NamedInputs */
 /** @typedef {{}} Device_ApplyInputs */
-/** @typedef {{}} Device_ApplyingInputs */
 /** @typedef {{}} Device_Back_To_DevicesInputs */
 /** @typedef {{}} Device_BrightnessInputs */
+/** @typedef {{}} Device_ChargingInputs */
 /** @typedef {{}} Device_ColorInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Device_Command_FailedInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Device_Command_SentInputs */
@@ -748,6 +854,7 @@
 /** @typedef {{}} Device_Config_Section_PresenceInputs */
 /** @typedef {{}} Device_Configuration_FailedInputs */
 /** @typedef {{}} Device_Configuration_TimeoutInputs */
+/** @typedef {{}} Device_ControlInputs */
 /** @typedef {{}} Device_Controls_DisabledInputs */
 /** @typedef {{}} Device_Controls_Enable_HelpInputs */
 /** @typedef {{}} Device_Copy_IdInputs */
@@ -756,6 +863,7 @@
 /** @typedef {{}} Device_Flags_AllInputs */
 /** @typedef {{}} Device_Flags_NoneInputs */
 /** @typedef {{ count: NonNullable<unknown>, total: NonNullable<unknown> }} Device_Flags_SummaryInputs */
+/** @typedef {{}} Device_Fully_ChargedInputs */
 /** @typedef {{}} Device_GenericInputs */
 /** @typedef {{}} Device_HistoryInputs */
 /** @typedef {{}} Device_IdInputs */
@@ -781,6 +889,7 @@
 /** @typedef {{}} Device_Select_SpeedInputs */
 /** @typedef {{}} Device_Select_SwingInputs */
 /** @typedef {{}} Device_SettingsInputs */
+/** @typedef {{}} Device_StatusInputs */
 /** @typedef {{}} Device_SwingInputs */
 /** @typedef {{}} Device_TargetInputs */
 /** @typedef {{}} Device_Target_TemperatureInputs */
@@ -797,7 +906,6 @@
 /** @typedef {{}} Device_Type_SwitchInputs */
 /** @typedef {{}} Device_Type_UnknownInputs */
 /** @typedef {{}} Device_UpdateInputs */
-/** @typedef {{}} Device_WaitingInputs */
 /** @typedef {{}} Device_WhiteInputs */
 /** @typedef {{}} Devices_ActionsInputs */
 /** @typedef {{}} Devices_Add_To_ActionInputs */
@@ -817,7 +925,6 @@
 /** @typedef {{}} Devices_NewInputs */
 /** @typedef {{}} Devices_No_MatchInputs */
 /** @typedef {{}} Devices_NoneInputs */
-/** @typedef {{}} Devices_None_HelpInputs */
 /** @typedef {{}} Devices_OfflineInputs */
 /** @typedef {{}} Devices_OnlineInputs */
 /** @typedef {{}} Devices_RestoreInputs */
@@ -825,6 +932,22 @@
 /** @typedef {{ name: NonNullable<unknown> }} Devices_Restore_NamedInputs */
 /** @typedef {{}} Devices_SearchInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Devices_Trigger_EventInputs */
+/** @typedef {{}} Dreame_Connect_AccountInputs */
+/** @typedef {{}} Dreame_Connect_RegionInputs */
+/** @typedef {{}} Dreame_Connect_SaveInputs */
+/** @typedef {{}} Dreame_ConnectingInputs */
+/** @typedef {{}} Dreame_EmailInputs */
+/** @typedef {{}} Dreame_EnabledInputs */
+/** @typedef {{}} Dreame_PasswordInputs */
+/** @typedef {{}} Dreame_ReadInputs */
+/** @typedef {{}} Dreame_RegionInputs */
+/** @typedef {{}} Dreame_Region_CnInputs */
+/** @typedef {{}} Dreame_Region_EuInputs */
+/** @typedef {{}} Dreame_Region_InInputs */
+/** @typedef {{}} Dreame_Region_KrInputs */
+/** @typedef {{}} Dreame_Region_RuInputs */
+/** @typedef {{}} Dreame_Region_SgInputs */
+/** @typedef {{}} Dreame_Region_UsInputs */
 /** @typedef {{}} Editor_Changed_ElsewhereInputs */
 /** @typedef {{}} Editor_Reload_SavedInputs */
 /** @typedef {{}} Effect_Action_RunInputs */
@@ -913,7 +1036,6 @@
 /** @typedef {{}} Effects_Delete_TitleInputs */
 /** @typedef {{}} Effects_EditInputs */
 /** @typedef {{}} Effects_EmptyInputs */
-/** @typedef {{}} Effects_Empty_HelpInputs */
 /** @typedef {{}} Effects_Error_CreateInputs */
 /** @typedef {{}} Effects_Error_DeleteInputs */
 /** @typedef {{}} Effects_Error_Delete_ManyInputs */
@@ -1045,7 +1167,6 @@
 /** @typedef {{}} Group_NameInputs */
 /** @typedef {{}} Group_No_MatchInputs */
 /** @typedef {{}} Group_NoneInputs */
-/** @typedef {{}} Group_None_HelpInputs */
 /** @typedef {{}} Group_Rename_FailedInputs */
 /** @typedef {{}} Group_Save_FailedInputs */
 /** @typedef {{}} Group_SearchInputs */
@@ -1111,13 +1232,13 @@
 /** @typedef {{}} Integrations_Delete_Keep_DescriptionInputs */
 /** @typedef {{}} Integrations_Delete_Purge_DescriptionInputs */
 /** @typedef {{}} Integrations_Delete_TitleInputs */
+/** @typedef {{}} Integrations_Description_DreameInputs */
 /** @typedef {{}} Integrations_Description_GenericInputs */
 /** @typedef {{}} Integrations_Description_TuyaInputs */
 /** @typedef {{}} Integrations_Description_Zigbee2mqttInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Integrations_Devices_DeletedInputs */
 /** @typedef {{ count: NonNullable<unknown> }} Integrations_Devices_KeptInputs */
 /** @typedef {{}} Integrations_EmptyInputs */
-/** @typedef {{}} Integrations_Empty_HelpInputs */
 /** @typedef {{}} Integrations_No_MatchInputs */
 /** @typedef {{}} Integrations_None_AvailableInputs */
 /** @typedef {{}} Integrations_SearchInputs */
@@ -1132,6 +1253,7 @@
 /** @typedef {{}} Logs_SearchInputs */
 /** @typedef {{}} Maintenance_Battery_ActionInputs */
 /** @typedef {{ name: NonNullable<unknown>, value: NonNullable<unknown> }} Maintenance_Battery_DetailInputs */
+/** @typedef {{ name: NonNullable<unknown>, value: NonNullable<unknown> }} Maintenance_Cleaning_DetailInputs */
 /** @typedef {{}} Maintenance_Correct_PostureInputs */
 /** @typedef {{}} Maintenance_EmptyInputs */
 /** @typedef {{}} Maintenance_Filter_DeviceInputs */
@@ -1142,6 +1264,7 @@
 /** @typedef {{ version: NonNullable<unknown>, name: NonNullable<unknown> }} Maintenance_Firmware_DetailInputs */
 /** @typedef {{}} Maintenance_Free_StorageInputs */
 /** @typedef {{}} Maintenance_Group_BatteriesInputs */
+/** @typedef {{}} Maintenance_Group_CleaningInputs */
 /** @typedef {{}} Maintenance_Group_PostureInputs */
 /** @typedef {{}} Maintenance_Group_SystemInputs */
 /** @typedef {{}} Maintenance_Group_UpdatesInputs */
@@ -1228,6 +1351,7 @@
 /** @typedef {{}} Map_Furniture_ToiletInputs */
 /** @typedef {{}} Map_Go_To_DeviceInputs */
 /** @typedef {{}} Map_Go_To_GroupInputs */
+/** @typedef {{}} Map_Hide_Cleaning_TrailsInputs */
 /** @typedef {{}} Map_Hide_Neighbour_LinksInputs */
 /** @typedef {{ provider: NonNullable<unknown> }} Map_Hide_Provider_MeshInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Map_Inside_PieceInputs */
@@ -1265,6 +1389,7 @@
 /** @typedef {{}} Map_Select_Walls_To_CopyInputs */
 /** @typedef {{}} Map_Sensor_Conflict_DescriptionInputs */
 /** @typedef {{}} Map_Set_Display_ColorInputs */
+/** @typedef {{}} Map_Show_Cleaning_TrailsInputs */
 /** @typedef {{}} Map_Show_Neighbour_LinksInputs */
 /** @typedef {{ provider: NonNullable<unknown> }} Map_Show_Provider_MeshInputs */
 /** @typedef {{}} Map_Snap_LabelInputs */
@@ -1326,11 +1451,6 @@
 /** @typedef {{}} Nav_ThingsInputs */
 /** @typedef {{}} Nav_UsersInputs */
 /** @typedef {{}} Nav_WebhooksInputs */
-/** @typedef {{}} Plug_CurrentInputs */
-/** @typedef {{}} Plug_EnergyInputs */
-/** @typedef {{}} Plug_StatusInputs */
-/** @typedef {{}} Plug_ToggleInputs */
-/** @typedef {{}} Plug_VoltageInputs */
 /** @typedef {{}} Profile_AccountInputs */
 /** @typedef {{}} Profile_Avatar_Clear_FailedInputs */
 /** @typedef {{ size: NonNullable<unknown> }} Profile_Avatar_HelpInputs */
@@ -1410,7 +1530,6 @@
 /** @typedef {{}} Room_NameInputs */
 /** @typedef {{}} Room_No_MatchInputs */
 /** @typedef {{}} Room_NoneInputs */
-/** @typedef {{}} Room_None_HelpInputs */
 /** @typedef {{}} Room_Rename_FailedInputs */
 /** @typedef {{}} Room_Save_FailedInputs */
 /** @typedef {{}} Room_SearchInputs */
@@ -1420,25 +1539,19 @@
 /** @typedef {{}} Scene_BackInputs */
 /** @typedef {{}} Scene_Choose_IconInputs */
 /** @typedef {{}} Scene_Create_Add_SelectorInputs */
-/** @typedef {{}} Scene_Create_Adjust_LightingInputs */
-/** @typedef {{}} Scene_Create_BackInputs */
 /** @typedef {{}} Scene_Create_BreadcrumbInputs */
 /** @typedef {{}} Scene_Create_BuildingInputs */
-/** @typedef {{}} Scene_Create_Choose_LocationInputs */
-/** @typedef {{}} Scene_Create_Choose_LookInputs */
 /** @typedef {{}} Scene_Create_CreatingInputs */
 /** @typedef {{}} Scene_Create_Error_Choose_VibeInputs */
 /** @typedef {{}} Scene_Create_Error_CreateInputs */
 /** @typedef {{}} Scene_Create_Full_ColorInputs */
 /** @typedef {{}} Scene_Create_Loading_GalleryInputs */
 /** @typedef {{}} Scene_Create_Name_PlaceholderInputs */
-/** @typedef {{}} Scene_Create_Name_TitleInputs */
 /** @typedef {{}} Scene_Create_No_GalleryInputs */
 /** @typedef {{}} Scene_Create_Photo_AtmosphereInputs */
 /** @typedef {{}} Scene_Create_Photo_FormatsInputs */
 /** @typedef {{}} Scene_Create_Photo_PrivacyInputs */
 /** @typedef {{}} Scene_Create_Supporting_DescriptionInputs */
-/** @typedef {{}} Scene_Create_TitleInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Scene_Create_Turn_OnInputs */
 /** @typedef {{}} Scene_Create_Vibe_Preview_EmptyInputs */
 /** @typedef {{}} Scene_Create_Whites_OnlyInputs */
@@ -1520,7 +1633,6 @@
 /** @typedef {{}} Scenes_DevicesInputs */
 /** @typedef {{}} Scenes_EditInputs */
 /** @typedef {{}} Scenes_EmptyInputs */
-/** @typedef {{}} Scenes_Empty_HelpInputs */
 /** @typedef {{}} Scenes_Error_ApplyInputs */
 /** @typedef {{}} Scenes_Error_DeleteInputs */
 /** @typedef {{}} Scenes_Error_Delete_ManyInputs */
@@ -1530,7 +1642,6 @@
 /** @typedef {{}} Scenes_Error_UpdateInputs */
 /** @typedef {{}} Scenes_Filter_DeviceInputs */
 /** @typedef {{}} Scenes_Filter_EmptyInputs */
-/** @typedef {{}} Scenes_Filter_GroupInputs */
 /** @typedef {{}} Scenes_Filter_RoomInputs */
 /** @typedef {{}} Scenes_Filter_TargetInputs */
 /** @typedef {{}} Scenes_GroupsInputs */
@@ -1545,7 +1656,6 @@
 /** @typedef {{ count: NonNullable<unknown> }} Scenes_Target_CountInputs */
 /** @typedef {{}} Scenes_TitleInputs */
 /** @typedef {{}} Sensor_ContactInputs */
-/** @typedef {{}} Sensor_Current_ReadingsInputs */
 /** @typedef {{}} Sensor_DetailsInputs */
 /** @typedef {{}} Sensor_Device_PostureInputs */
 /** @typedef {{}} Sensor_DoorInputs */
@@ -1568,6 +1678,7 @@
 /** @typedef {{}} Settings_Retention_AriaInputs */
 /** @typedef {{}} Settings_Retention_DaysInputs */
 /** @typedef {{}} Settings_Retention_HelpInputs */
+/** @typedef {{}} Settings_Retention_InvalidInputs */
 /** @typedef {{}} Settings_Save_FailedInputs */
 /** @typedef {{}} Settings_Time_ZoneInputs */
 /** @typedef {{ zone: NonNullable<unknown> }} Settings_Time_Zone_BrowserInputs */
@@ -1930,7 +2041,6 @@
 /** @typedef {{}} Webhooks_DurationInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Webhooks_Edit_NamedInputs */
 /** @typedef {{}} Webhooks_EmptyInputs */
-/** @typedef {{}} Webhooks_Empty_HelpInputs */
 /** @typedef {{ name: NonNullable<unknown> }} Webhooks_Enable_NamedInputs */
 /** @typedef {{}} Webhooks_EnabledInputs */
 /** @typedef {{}} Webhooks_Filter_StatusInputs */
@@ -1953,7 +2063,6 @@
 /** @typedef {{}} Webhooks_Query_KeysInputs */
 /** @typedef {{}} Webhooks_ReceivedInputs */
 /** @typedef {{}} Webhooks_Recent_RequestsInputs */
-/** @typedef {{}} Webhooks_Rename_FailedInputs */
 /** @typedef {{}} Webhooks_Request_BodyInputs */
 /** @typedef {{}} Webhooks_Request_IdInputs */
 /** @typedef {{}} Webhooks_RequestsInputs */
@@ -2076,6 +2185,14 @@ export const activity_automation_id = /** @type {(inputs: Activity_Automation_Id
 	return /** @type {LocalizedString} */ (`Automation ${i?.id}`)
 };
 
+export const activity_command_confirmed = /** @type {(inputs: Activity_Command_ConfirmedInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.name}: command confirmed`)
+};
+
+export const activity_command_failed = /** @type {(inputs: Activity_Command_FailedInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.name}: command failed`)
+};
+
 export const activity_command_sent = /** @type {(inputs: Activity_Command_SentInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`Command sent to ${i?.name}`)
 };
@@ -2117,11 +2234,7 @@ export const activity_device_state_changed = /** @type {(inputs: Activity_Device
 };
 
 export const activity_empty = /** @type {(inputs: Activity_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No activity yet.`)
-};
-
-export const activity_empty_help = /** @type {(inputs: Activity_Empty_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Device state changes, scene activations, and automation runs will appear here as they happen.`)
+	return /** @type {LocalizedString} */ (`No activity`)
 };
 
 export const activity_event_automation_fired = /** @type {(inputs: Activity_Event_Automation_FiredInputs) => LocalizedString} */ () => {
@@ -2132,8 +2245,20 @@ export const activity_event_availability = /** @type {(inputs: Activity_Event_Av
 	return /** @type {LocalizedString} */ (`Availability`)
 };
 
+export const activity_event_command_confirmed = /** @type {(inputs: Activity_Event_Command_ConfirmedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Command confirmed`)
+};
+
+export const activity_event_command_failed = /** @type {(inputs: Activity_Event_Command_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Command failed`)
+};
+
 export const activity_event_command_sent = /** @type {(inputs: Activity_Event_Command_SentInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Command sent`)
+};
+
+export const activity_event_device_action = /** @type {(inputs: Activity_Event_Device_ActionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Device action`)
 };
 
 export const activity_event_device_added = /** @type {(inputs: Activity_Event_Device_AddedInputs) => LocalizedString} */ () => {
@@ -2312,6 +2437,14 @@ export const alarm_broker_disconnected = /** @type {(inputs: Alarm_Broker_Discon
 	return /** @type {LocalizedString} */ (`Zigbee2MQTT broker is disconnected`)
 };
 
+export const alarm_cleaning_due = /** @type {(inputs: Alarm_Cleaning_DueInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.name}: ${i?.task}.`)
+};
+
+export const alarm_cleaning_soon = /** @type {(inputs: Alarm_Cleaning_SoonInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.name}: ${i?.task} soon.`)
+};
+
 export const alarm_device_unavailable = /** @type {(inputs: Alarm_Device_UnavailableInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`Device “${i?.name}” has not reported recently`)
 };
@@ -2381,11 +2514,7 @@ export const alarms_delete_title = /** @type {(inputs: Alarms_Delete_TitleInputs
 };
 
 export const alarms_empty = /** @type {(inputs: Alarms_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No active alarms — the system looks healthy.`)
-};
-
-export const alarms_empty_help = /** @type {(inputs: Alarms_Empty_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Alarms raised by the system monitor or your automations will appear here.`)
+	return /** @type {LocalizedString} */ (`No active alarms`)
 };
 
 export const alarms_filter_kind = /** @type {(inputs: Alarms_Filter_KindInputs) => LocalizedString} */ () => {
@@ -4505,11 +4634,7 @@ export const automations_edit = /** @type {(inputs: Automations_EditInputs) => L
 };
 
 export const automations_empty = /** @type {(inputs: Automations_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No automations yet.`)
-};
-
-export const automations_empty_help = /** @type {(inputs: Automations_Empty_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Create event-driven rules with triggers, conditions, and actions.`)
+	return /** @type {LocalizedString} */ (`No automations`)
 };
 
 export const automations_enable = /** @type {(inputs: Automations_EnableInputs) => LocalizedString} */ (i) => {
@@ -4634,10 +4759,6 @@ export const button_no_action = /** @type {(inputs: Button_No_ActionInputs) => L
 	return /** @type {LocalizedString} */ (`No action recorded`)
 };
 
-export const button_status = /** @type {(inputs: Button_StatusInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Button status`)
-};
-
 export const claude_choose_model = /** @type {(inputs: Claude_Choose_ModelInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Choose a model`)
 };
@@ -4682,12 +4803,424 @@ export const claude_token_keep = /** @type {(inputs: Claude_Token_KeepInputs) =>
 	return /** @type {LocalizedString} */ (`Token saved — leave blank to keep it`)
 };
 
+export const cleaning_add_landmark = /** @type {(inputs: Cleaning_Add_LandmarkInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Add landmark`)
+};
+
+export const cleaning_align = /** @type {(inputs: Cleaning_AlignInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Align map`)
+};
+
+export const cleaning_align_first = /** @type {(inputs: Cleaning_Align_FirstInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Align the maps to enable the overlay.`)
+};
+
+export const cleaning_alignment_load_failed = /** @type {(inputs: Cleaning_Alignment_Load_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Couldn't load map alignment.`)
+};
+
+export const cleaning_alignment_save_failed = /** @type {(inputs: Cleaning_Alignment_Save_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Couldn't save map alignment.`)
+};
+
+export const cleaning_area_cleaned = /** @type {(inputs: Cleaning_Area_CleanedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Area cleaned`)
+};
+
+export const cleaning_clean = /** @type {(inputs: Cleaning_CleanInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Clean…`)
+};
+
+export const cleaning_clean_sensors = /** @type {(inputs: Cleaning_Clean_SensorsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Clean sensors`)
+};
+
+export const cleaning_control = /** @type {(inputs: Cleaning_ControlInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Control cleaning`)
+};
+
+export const cleaning_create_floorplan = /** @type {(inputs: Cleaning_Create_FloorplanInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Create floor plan`)
+};
+
+export const cleaning_current_task = /** @type {(inputs: Cleaning_Current_TaskInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Current cleaning task`)
+};
+
+export const cleaning_diagnostics = /** @type {(inputs: Cleaning_DiagnosticsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Diagnostics`)
+};
+
+export const cleaning_dock = /** @type {(inputs: Cleaning_DockInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Return to dock`)
+};
+
+export const cleaning_dreame_rooms = /** @type {(inputs: Cleaning_Dreame_RoomsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Dreame rooms`)
+};
+
+export const cleaning_due_soon = /** @type {(inputs: Cleaning_Due_SoonInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Due soon`)
+};
+
+export const cleaning_elapsed = /** @type {(inputs: Cleaning_ElapsedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Elapsed time`)
+};
+
+export const cleaning_empty_bin = /** @type {(inputs: Cleaning_Empty_BinInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Empty bin`)
+};
+
+export const cleaning_estimated_progress = /** @type {(inputs: Cleaning_Estimated_ProgressInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Estimated cleaning progress`)
+};
+
+export const cleaning_external = /** @type {(inputs: Cleaning_ExternalInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Started outside Hive`)
+};
+
+export const cleaning_external_origin = /** @type {(inputs: Cleaning_External_OriginInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Outside Hive`)
+};
+
+export const cleaning_failed = /** @type {(inputs: Cleaning_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Cleaning request failed.`)
+};
+
+export const cleaning_filter = /** @type {(inputs: Cleaning_FilterInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Filter`)
+};
+
+export const cleaning_high = /** @type {(inputs: Cleaning_HighInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`High`)
+};
+
+export const cleaning_history = /** @type {(inputs: Cleaning_HistoryInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Recent cleaning`)
+};
+
+export const cleaning_hive_rooms = /** @type {(inputs: Cleaning_Hive_RoomsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Hive rooms`)
+};
+
+export const cleaning_landmark_number = /** @type {(inputs: Cleaning_Landmark_NumberInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Landmark ${i?.number}`)
+};
+
+export const cleaning_landmark_partner = /** @type {(inputs: Cleaning_Landmark_PartnerInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Place landmark ${i?.number} on ${i?.map}`)
+};
+
+export const cleaning_last_seen = /** @type {(inputs: Cleaning_Last_SeenInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Last seen ${i?.time}`)
+};
+
+export const cleaning_link_rooms = /** @type {(inputs: Cleaning_Link_RoomsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Link rooms`)
+};
+
+export const cleaning_load_more = /** @type {(inputs: Cleaning_Load_MoreInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Load more`)
+};
+
+export const cleaning_locate = /** @type {(inputs: Cleaning_LocateInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Locate`)
+};
+
+export const cleaning_low = /** @type {(inputs: Cleaning_LowInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Low`)
+};
+
+export const cleaning_main_brush = /** @type {(inputs: Cleaning_Main_BrushInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Main brush`)
+};
+
+export const cleaning_maintenance = /** @type {(inputs: Cleaning_MaintenanceInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Maintenance`)
+};
+
+export const cleaning_manufacturer = /** @type {(inputs: Cleaning_ManufacturerInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Manufacturer`)
+};
+
+export const cleaning_map = /** @type {(inputs: Cleaning_MapInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Robot map`)
+};
+
+export const cleaning_map_dock = /** @type {(inputs: Cleaning_Map_DockInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Dock`)
+};
+
+export const cleaning_map_name = /** @type {(inputs: Cleaning_Map_NameInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Map ${i?.id}`)
+};
+
+export const cleaning_map_room = /** @type {(inputs: Cleaning_Map_RoomInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Room ${i?.id}`)
+};
+
+export const cleaning_map_select = /** @type {(inputs: Cleaning_Map_SelectInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Choose saved map`)
+};
+
+export const cleaning_map_title = /** @type {(inputs: Cleaning_Map_TitleInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Dreame map`)
+};
+
+export const cleaning_map_zoom_in = /** @type {(inputs: Cleaning_Map_Zoom_InInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Zoom in`)
+};
+
+export const cleaning_map_zoom_out = /** @type {(inputs: Cleaning_Map_Zoom_OutInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Zoom out`)
+};
+
+export const cleaning_mark_cleaned = /** @type {(inputs: Cleaning_Mark_CleanedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Mark cleaned`)
+};
+
+export const cleaning_mark_replaced = /** @type {(inputs: Cleaning_Mark_ReplacedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Mark replaced`)
+};
+
+export const cleaning_medium = /** @type {(inputs: Cleaning_MediumInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Medium`)
+};
+
+export const cleaning_missing_room = /** @type {(inputs: Cleaning_Missing_RoomInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Missing room`)
+};
+
+export const cleaning_model = /** @type {(inputs: Cleaning_ModelInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Model`)
+};
+
+export const cleaning_model_id = /** @type {(inputs: Cleaning_Model_IdInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Model ID`)
+};
+
+export const cleaning_no_available = /** @type {(inputs: Cleaning_No_AvailableInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`No vacuums available.`)
+};
+
+export const cleaning_no_history = /** @type {(inputs: Cleaning_No_HistoryInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`No cleaning history.`)
+};
+
+export const cleaning_options = /** @type {(inputs: Cleaning_OptionsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Cleaning options`)
+};
+
+export const cleaning_overlay = /** @type {(inputs: Cleaning_OverlayInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Overlay`)
+};
+
+export const cleaning_pause = /** @type {(inputs: Cleaning_PauseInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Pause`)
+};
+
+export const cleaning_place_landmark = /** @type {(inputs: Cleaning_Place_LandmarkInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`Place landmark ${i?.number}`)
+};
+
+export const cleaning_position_unavailable = /** @type {(inputs: Cleaning_Position_UnavailableInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Position unavailable`)
+};
+
+export const cleaning_progress = /** @type {(inputs: Cleaning_ProgressInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Cleaning progress`)
+};
+
+export const cleaning_quiet = /** @type {(inputs: Cleaning_QuietInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Quiet`)
+};
+
+export const cleaning_remaining = /** @type {(inputs: Cleaning_RemainingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Remaining`)
+};
+
+export const cleaning_repeats = /** @type {(inputs: Cleaning_RepeatsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Passes`)
+};
+
+export const cleaning_replace = /** @type {(inputs: Cleaning_ReplaceInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Replace task`)
+};
+
+export const cleaning_replace_filter = /** @type {(inputs: Cleaning_Replace_FilterInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Replace filter`)
+};
+
+export const cleaning_replace_main_brush = /** @type {(inputs: Cleaning_Replace_Main_BrushInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Replace main brush`)
+};
+
+export const cleaning_replace_side_brush = /** @type {(inputs: Cleaning_Replace_Side_BrushInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Replace side brush`)
+};
+
+export const cleaning_replace_title = /** @type {(inputs: Cleaning_Replace_TitleInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Replace current task?`)
+};
+
+export const cleaning_resume = /** @type {(inputs: Cleaning_ResumeInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Resume`)
+};
+
+export const cleaning_robot = /** @type {(inputs: Cleaning_RobotInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Vacuum`)
+};
+
+export const cleaning_robot_settings = /** @type {(inputs: Cleaning_Robot_SettingsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Robot settings`)
+};
+
+export const cleaning_rooms = /** @type {(inputs: Cleaning_RoomsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Rooms`)
+};
+
+export const cleaning_rotate_left = /** @type {(inputs: Cleaning_Rotate_LeftInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Rotate map left`)
+};
+
+export const cleaning_rotate_right = /** @type {(inputs: Cleaning_Rotate_RightInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Rotate map right`)
+};
+
+export const cleaning_select_robot = /** @type {(inputs: Cleaning_Select_RobotInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Select vacuum`)
+};
+
+export const cleaning_selection_changed = /** @type {(inputs: Cleaning_Selection_ChangedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Rooms changed. Review your selection.`)
+};
+
+export const cleaning_sensors = /** @type {(inputs: Cleaning_SensorsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Sensors`)
+};
+
+export const cleaning_shared_rooms = /** @type {(inputs: Cleaning_Shared_RoomsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`These rooms share a cleaning area.`)
+};
+
+export const cleaning_show_on_map = /** @type {(inputs: Cleaning_Show_On_MapInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Show vacuum on Hive map`)
+};
+
+export const cleaning_side_brush = /** @type {(inputs: Cleaning_Side_BrushInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Side brush`)
+};
+
+export const cleaning_standard = /** @type {(inputs: Cleaning_StandardInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Standard`)
+};
+
+export const cleaning_start = /** @type {(inputs: Cleaning_StartInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Start cleaning`)
+};
+
+export const cleaning_start_new = /** @type {(inputs: Cleaning_Start_NewInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Start new`)
+};
+
+export const cleaning_status_attention = /** @type {(inputs: Cleaning_Status_AttentionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Needs attention`)
+};
+
+export const cleaning_status_cancelled = /** @type {(inputs: Cleaning_Status_CancelledInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Stopped`)
+};
+
+export const cleaning_status_cleaning = /** @type {(inputs: Cleaning_Status_CleaningInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Cleaning`)
+};
+
+export const cleaning_status_completed = /** @type {(inputs: Cleaning_Status_CompletedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Completed`)
+};
+
+export const cleaning_status_docked = /** @type {(inputs: Cleaning_Status_DockedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Docked`)
+};
+
+export const cleaning_status_ended = /** @type {(inputs: Cleaning_Status_EndedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Finished · outcome unknown`)
+};
+
+export const cleaning_status_failed = /** @type {(inputs: Cleaning_Status_FailedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Failed`)
+};
+
+export const cleaning_status_idle = /** @type {(inputs: Cleaning_Status_IdleInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Idle`)
+};
+
+export const cleaning_status_offline = /** @type {(inputs: Cleaning_Status_OfflineInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Offline`)
+};
+
+export const cleaning_status_paused = /** @type {(inputs: Cleaning_Status_PausedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Paused`)
+};
+
+export const cleaning_status_returning = /** @type {(inputs: Cleaning_Status_ReturningInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Returning`)
+};
+
+export const cleaning_status_starting = /** @type {(inputs: Cleaning_Status_StartingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Starting`)
+};
+
+export const cleaning_status_stopping = /** @type {(inputs: Cleaning_Status_StoppingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Stopping`)
+};
+
+export const cleaning_status_unknown = /** @type {(inputs: Cleaning_Status_UnknownInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Unknown`)
+};
+
+export const cleaning_stop = /** @type {(inputs: Cleaning_StopInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Stop`)
+};
+
+export const cleaning_strong = /** @type {(inputs: Cleaning_StrongInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Strong`)
+};
+
+export const cleaning_suction = /** @type {(inputs: Cleaning_SuctionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Suction`)
+};
+
+export const cleaning_test = /** @type {(inputs: Cleaning_TestInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Test connection`)
+};
+
+export const cleaning_title = /** @type {(inputs: Cleaning_TitleInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Cleaning`)
+};
+
+export const cleaning_turbo = /** @type {(inputs: Cleaning_TurboInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Turbo`)
+};
+
+export const cleaning_water = /** @type {(inputs: Cleaning_WaterInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Water`)
+};
+
+export const cleaning_whole_apartment = /** @type {(inputs: Cleaning_Whole_ApartmentInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Whole apartment`)
+};
+
 export const color_picker_aria = /** @type {(inputs: Color_Picker_AriaInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Hue and saturation`)
 };
 
 export const common_add_to = /** @type {(inputs: Common_Add_ToInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Add to`)
+};
+
+export const common_back = /** @type {(inputs: Common_BackInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Back`)
 };
 
 export const common_brand_name = /** @type {(inputs: Common_Brand_NameInputs) => LocalizedString} */ () => {
@@ -4784,6 +5317,10 @@ export const common_paste = /** @type {(inputs: Common_PasteInputs) => Localized
 
 export const common_remove = /** @type {(inputs: Common_RemoveInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Remove`)
+};
+
+export const common_rename = /** @type {(inputs: Common_RenameInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Rename`)
 };
 
 export const common_save = /** @type {(inputs: Common_SaveInputs) => LocalizedString} */ () => {
@@ -5023,10 +5560,6 @@ export const data_viewer_title = /** @type {(inputs: Data_Viewer_TitleInputs) =>
 	return /** @type {LocalizedString} */ (`Data viewer`)
 };
 
-export const device_actions = /** @type {(inputs: Device_ActionsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Actions`)
-};
-
 export const device_adjust_climate_named = /** @type {(inputs: Device_Adjust_Climate_NamedInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`Adjust ${i?.name} climate`)
 };
@@ -5039,16 +5572,16 @@ export const device_apply = /** @type {(inputs: Device_ApplyInputs) => Localized
 	return /** @type {LocalizedString} */ (`Apply`)
 };
 
-export const device_applying = /** @type {(inputs: Device_ApplyingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Applying…`)
-};
-
 export const device_back_to_devices = /** @type {(inputs: Device_Back_To_DevicesInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Back to devices`)
 };
 
 export const device_brightness = /** @type {(inputs: Device_BrightnessInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Brightness`)
+};
+
+export const device_charging = /** @type {(inputs: Device_ChargingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Charging`)
 };
 
 export const device_color = /** @type {(inputs: Device_ColorInputs) => LocalizedString} */ () => {
@@ -5107,6 +5640,10 @@ export const device_configuration_timeout = /** @type {(inputs: Device_Configura
 	return /** @type {LocalizedString} */ (`The device did not confirm its settings. You can try applying them again.`)
 };
 
+export const device_control = /** @type {(inputs: Device_ControlInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Control`)
+};
+
 export const device_controls_disabled = /** @type {(inputs: Device_Controls_DisabledInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Controls are unavailable while this device is disabled.`)
 };
@@ -5137,6 +5674,10 @@ export const device_flags_none = /** @type {(inputs: Device_Flags_NoneInputs) =>
 
 export const device_flags_summary = /** @type {(inputs: Device_Flags_SummaryInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`${i?.count} of ${i?.total} on`)
+};
+
+export const device_fully_charged = /** @type {(inputs: Device_Fully_ChargedInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Fully charged`)
 };
 
 export const device_generic = /** @type {(inputs: Device_GenericInputs) => LocalizedString} */ () => {
@@ -5239,6 +5780,10 @@ export const device_settings = /** @type {(inputs: Device_SettingsInputs) => Loc
 	return /** @type {LocalizedString} */ (`Settings`)
 };
 
+export const device_status = /** @type {(inputs: Device_StatusInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Status`)
+};
+
 export const device_swing = /** @type {(inputs: Device_SwingInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Swing`)
 };
@@ -5301,10 +5846,6 @@ export const device_type_unknown = /** @type {(inputs: Device_Type_UnknownInputs
 
 export const device_update = /** @type {(inputs: Device_UpdateInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Update`)
-};
-
-export const device_waiting = /** @type {(inputs: Device_WaitingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Waiting for device…`)
 };
 
 export const device_white = /** @type {(inputs: Device_WhiteInputs) => LocalizedString} */ () => {
@@ -5382,11 +5923,7 @@ export const devices_no_match = /** @type {(inputs: Devices_No_MatchInputs) => L
 };
 
 export const devices_none = /** @type {(inputs: Devices_NoneInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No devices discovered yet.`)
-};
-
-export const devices_none_help = /** @type {(inputs: Devices_None_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Devices appear here once an integration is connected.`)
+	return /** @type {LocalizedString} */ (`No devices`)
 };
 
 export const devices_offline = /** @type {(inputs: Devices_OfflineInputs) => LocalizedString} */ () => {
@@ -5415,6 +5952,70 @@ export const devices_search = /** @type {(inputs: Devices_SearchInputs) => Local
 
 export const devices_trigger_event = /** @type {(inputs: Devices_Trigger_EventInputs) => LocalizedString} */ (i) => {
 	return /** @type {LocalizedString} */ (`Trigger ${i?.name} event`)
+};
+
+export const dreame_connect_account = /** @type {(inputs: Dreame_Connect_AccountInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`1. Enter your Dreamehome email and password.`)
+};
+
+export const dreame_connect_region = /** @type {(inputs: Dreame_Connect_RegionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`2. Choose the same cloud server as the app.`)
+};
+
+export const dreame_connect_save = /** @type {(inputs: Dreame_Connect_SaveInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`3. Enable and save to discover your vacuums.`)
+};
+
+export const dreame_connecting = /** @type {(inputs: Dreame_ConnectingInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`How to connect`)
+};
+
+export const dreame_email = /** @type {(inputs: Dreame_EmailInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Dreamehome email`)
+};
+
+export const dreame_enabled = /** @type {(inputs: Dreame_EnabledInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Enable Dreame`)
+};
+
+export const dreame_password = /** @type {(inputs: Dreame_PasswordInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`App password`)
+};
+
+export const dreame_read = /** @type {(inputs: Dreame_ReadInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Read diagnostics`)
+};
+
+export const dreame_region = /** @type {(inputs: Dreame_RegionInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Cloud server`)
+};
+
+export const dreame_region_cn = /** @type {(inputs: Dreame_Region_CnInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`China`)
+};
+
+export const dreame_region_eu = /** @type {(inputs: Dreame_Region_EuInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Europe`)
+};
+
+export const dreame_region_in = /** @type {(inputs: Dreame_Region_InInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`India`)
+};
+
+export const dreame_region_kr = /** @type {(inputs: Dreame_Region_KrInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`South Korea`)
+};
+
+export const dreame_region_ru = /** @type {(inputs: Dreame_Region_RuInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Russia`)
+};
+
+export const dreame_region_sg = /** @type {(inputs: Dreame_Region_SgInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Singapore`)
+};
+
+export const dreame_region_us = /** @type {(inputs: Dreame_Region_UsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`North America`)
 };
 
 export const editor_changed_elsewhere = /** @type {(inputs: Editor_Changed_ElsewhereInputs) => LocalizedString} */ () => {
@@ -5772,11 +6373,7 @@ export const effects_edit = /** @type {(inputs: Effects_EditInputs) => Localized
 };
 
 export const effects_empty = /** @type {(inputs: Effects_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No effects yet.`)
-};
-
-export const effects_empty_help = /** @type {(inputs: Effects_Empty_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Create a Hive effect, or pair a device that exposes Zigbee effects.`)
+	return /** @type {LocalizedString} */ (`No effects`)
 };
 
 export const effects_error_create = /** @type {(inputs: Effects_Error_CreateInputs) => LocalizedString} */ () => {
@@ -5820,7 +6417,7 @@ export const effects_name_placeholder = /** @type {(inputs: Effects_Name_Placeho
 };
 
 export const effects_native_empty = /** @type {(inputs: Effects_Native_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No devices report any Zigbee effects yet.`)
+	return /** @type {LocalizedString} */ (`No native effects`)
 };
 
 export const effects_native_load_error = /** @type {(inputs: Effects_Native_Load_ErrorInputs) => LocalizedString} */ () => {
@@ -6293,11 +6890,11 @@ export const group_member_add = /** @type {(inputs: Group_Member_AddInputs) => L
 };
 
 export const group_members_empty = /** @type {(inputs: Group_Members_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No members yet. Add devices or groups to this group.`)
+	return /** @type {LocalizedString} */ (`No members`)
 };
 
 export const group_members_none = /** @type {(inputs: Group_Members_NoneInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No members.`)
+	return /** @type {LocalizedString} */ (`No members`)
 };
 
 export const group_name = /** @type {(inputs: Group_NameInputs) => LocalizedString} */ () => {
@@ -6309,11 +6906,7 @@ export const group_no_match = /** @type {(inputs: Group_No_MatchInputs) => Local
 };
 
 export const group_none = /** @type {(inputs: Group_NoneInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No groups yet.`)
-};
-
-export const group_none_help = /** @type {(inputs: Group_None_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Create a group to control devices together.`)
+	return /** @type {LocalizedString} */ (`No groups`)
 };
 
 export const group_rename_failed = /** @type {(inputs: Group_Rename_FailedInputs) => LocalizedString} */ () => {
@@ -6582,6 +7175,10 @@ export const integrations_delete_title = /** @type {(inputs: Integrations_Delete
 	return /** @type {LocalizedString} */ (`Delete integration`)
 };
 
+export const integrations_description_dreame = /** @type {(inputs: Integrations_Description_DreameInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Robot vacuums via Dreamehome`)
+};
+
 export const integrations_description_generic = /** @type {(inputs: Integrations_Description_GenericInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Device adapter`)
 };
@@ -6607,11 +7204,7 @@ export const integrations_devices_kept = /** @type {(inputs: Integrations_Device
 };
 
 export const integrations_empty = /** @type {(inputs: Integrations_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No integrations yet.`)
-};
-
-export const integrations_empty_help = /** @type {(inputs: Integrations_Empty_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Add an integration to bring external devices into Saffron Hive.`)
+	return /** @type {LocalizedString} */ (`No integrations`)
 };
 
 export const integrations_no_match = /** @type {(inputs: Integrations_No_MatchInputs) => LocalizedString} */ () => {
@@ -6670,12 +7263,16 @@ export const maintenance_battery_detail = /** @type {(inputs: Maintenance_Batter
 	return /** @type {LocalizedString} */ (`${i?.name} battery is ${i?.value}%`)
 };
 
+export const maintenance_cleaning_detail = /** @type {(inputs: Maintenance_Cleaning_DetailInputs) => LocalizedString} */ (i) => {
+	return /** @type {LocalizedString} */ (`${i?.name} · ${i?.value}% remaining`)
+};
+
 export const maintenance_correct_posture = /** @type {(inputs: Maintenance_Correct_PostureInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Correct sensor placement`)
 };
 
 export const maintenance_empty = /** @type {(inputs: Maintenance_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Nothing needs maintenance.`)
+	return /** @type {LocalizedString} */ (`No maintenance needed`)
 };
 
 export const maintenance_filter_device = /** @type {(inputs: Maintenance_Filter_DeviceInputs) => LocalizedString} */ () => {
@@ -6708,6 +7305,10 @@ export const maintenance_free_storage = /** @type {(inputs: Maintenance_Free_Sto
 
 export const maintenance_group_batteries = /** @type {(inputs: Maintenance_Group_BatteriesInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Replace batteries`)
+};
+
+export const maintenance_group_cleaning = /** @type {(inputs: Maintenance_Group_CleaningInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Vacuum maintenance`)
 };
 
 export const maintenance_group_posture = /** @type {(inputs: Maintenance_Group_PostureInputs) => LocalizedString} */ () => {
@@ -7056,6 +7657,10 @@ export const map_go_to_group = /** @type {(inputs: Map_Go_To_GroupInputs) => Loc
 	return /** @type {LocalizedString} */ (`Go to group`)
 };
 
+export const map_hide_cleaning_trails = /** @type {(inputs: Map_Hide_Cleaning_TrailsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Hide cleaning trails`)
+};
+
 export const map_hide_neighbour_links = /** @type {(inputs: Map_Hide_Neighbour_LinksInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Hide neighbour links`)
 };
@@ -7204,6 +7809,10 @@ export const map_set_display_color = /** @type {(inputs: Map_Set_Display_ColorIn
 	return /** @type {LocalizedString} */ (`Set display color`)
 };
 
+export const map_show_cleaning_trails = /** @type {(inputs: Map_Show_Cleaning_TrailsInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Show cleaning trails`)
+};
+
 export const map_show_neighbour_links = /** @type {(inputs: Map_Show_Neighbour_LinksInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Show neighbour links`)
 };
@@ -7321,7 +7930,7 @@ export const member_add_failed = /** @type {(inputs: Member_Add_FailedInputs) =>
 };
 
 export const member_empty = /** @type {(inputs: Member_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No members yet.`)
+	return /** @type {LocalizedString} */ (`No members`)
 };
 
 export const member_more = /** @type {(inputs: Member_MoreInputs) => LocalizedString} */ (i) => {
@@ -7450,26 +8059,6 @@ export const nav_users = /** @type {(inputs: Nav_UsersInputs) => LocalizedString
 
 export const nav_webhooks = /** @type {(inputs: Nav_WebhooksInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Webhooks`)
-};
-
-export const plug_current = /** @type {(inputs: Plug_CurrentInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Current`)
-};
-
-export const plug_energy = /** @type {(inputs: Plug_EnergyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Energy`)
-};
-
-export const plug_status = /** @type {(inputs: Plug_StatusInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Plug status`)
-};
-
-export const plug_toggle = /** @type {(inputs: Plug_ToggleInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Toggle plug`)
-};
-
-export const plug_voltage = /** @type {(inputs: Plug_VoltageInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Voltage`)
 };
 
 export const profile_account = /** @type {(inputs: Profile_AccountInputs) => LocalizedString} */ () => {
@@ -7775,7 +8364,7 @@ export const room_lights = /** @type {(inputs: Room_LightsInputs) => LocalizedSt
 };
 
 export const room_members_empty = /** @type {(inputs: Room_Members_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No members yet. Add devices or groups to this room.`)
+	return /** @type {LocalizedString} */ (`No members`)
 };
 
 export const room_name = /** @type {(inputs: Room_NameInputs) => LocalizedString} */ () => {
@@ -7787,11 +8376,7 @@ export const room_no_match = /** @type {(inputs: Room_No_MatchInputs) => Localiz
 };
 
 export const room_none = /** @type {(inputs: Room_NoneInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No rooms yet.`)
-};
-
-export const room_none_help = /** @type {(inputs: Room_None_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Create a room to organize your devices by location.`)
+	return /** @type {LocalizedString} */ (`No rooms`)
 };
 
 export const room_rename_failed = /** @type {(inputs: Room_Rename_FailedInputs) => LocalizedString} */ () => {
@@ -7830,28 +8415,12 @@ export const scene_create_add_selector = /** @type {(inputs: Scene_Create_Add_Se
 	return /** @type {LocalizedString} */ (`Add selector`)
 };
 
-export const scene_create_adjust_lighting = /** @type {(inputs: Scene_Create_Adjust_LightingInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Adjust the lighting`)
-};
-
-export const scene_create_back = /** @type {(inputs: Scene_Create_BackInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Back`)
-};
-
 export const scene_create_breadcrumb = /** @type {(inputs: Scene_Create_BreadcrumbInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Create`)
 };
 
 export const scene_create_building = /** @type {(inputs: Scene_Create_BuildingInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Building…`)
-};
-
-export const scene_create_choose_location = /** @type {(inputs: Scene_Create_Choose_LocationInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Choose where it lives`)
-};
-
-export const scene_create_choose_look = /** @type {(inputs: Scene_Create_Choose_LookInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Choose the look`)
 };
 
 export const scene_create_creating = /** @type {(inputs: Scene_Create_CreatingInputs) => LocalizedString} */ () => {
@@ -7878,10 +8447,6 @@ export const scene_create_name_placeholder = /** @type {(inputs: Scene_Create_Na
 	return /** @type {LocalizedString} */ (`Evening glow`)
 };
 
-export const scene_create_name_title = /** @type {(inputs: Scene_Create_Name_TitleInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Name the scene`)
-};
-
 export const scene_create_no_gallery = /** @type {(inputs: Scene_Create_No_GalleryInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`No gallery scenes are available.`)
 };
@@ -7900,10 +8465,6 @@ export const scene_create_photo_privacy = /** @type {(inputs: Scene_Create_Photo
 
 export const scene_create_supporting_description = /** @type {(inputs: Scene_Create_Supporting_DescriptionInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Add controllable devices.`)
-};
-
-export const scene_create_title = /** @type {(inputs: Scene_Create_TitleInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Create a scene`)
 };
 
 export const scene_create_turn_on = /** @type {(inputs: Scene_Create_Turn_OnInputs) => LocalizedString} */ (i) => {
@@ -8236,11 +8797,7 @@ export const scenes_edit = /** @type {(inputs: Scenes_EditInputs) => LocalizedSt
 };
 
 export const scenes_empty = /** @type {(inputs: Scenes_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No scenes yet.`)
-};
-
-export const scenes_empty_help = /** @type {(inputs: Scenes_Empty_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Create a scene to save device state presets and apply them with a single action.`)
+	return /** @type {LocalizedString} */ (`No scenes`)
 };
 
 export const scenes_error_apply = /** @type {(inputs: Scenes_Error_ApplyInputs) => LocalizedString} */ () => {
@@ -8277,10 +8834,6 @@ export const scenes_filter_device = /** @type {(inputs: Scenes_Filter_DeviceInpu
 
 export const scenes_filter_empty = /** @type {(inputs: Scenes_Filter_EmptyInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Empty`)
-};
-
-export const scenes_filter_group = /** @type {(inputs: Scenes_Filter_GroupInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Group`)
 };
 
 export const scenes_filter_room = /** @type {(inputs: Scenes_Filter_RoomInputs) => LocalizedString} */ () => {
@@ -8341,10 +8894,6 @@ export const scenes_title = /** @type {(inputs: Scenes_TitleInputs) => Localized
 
 export const sensor_contact = /** @type {(inputs: Sensor_ContactInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Contact`)
-};
-
-export const sensor_current_readings = /** @type {(inputs: Sensor_Current_ReadingsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Current readings`)
 };
 
 export const sensor_details = /** @type {(inputs: Sensor_DetailsInputs) => LocalizedString} */ () => {
@@ -8433,6 +8982,10 @@ export const settings_retention_days = /** @type {(inputs: Settings_Retention_Da
 
 export const settings_retention_help = /** @type {(inputs: Settings_Retention_HelpInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Device state samples older than this are pruned every 6 hours.`)
+};
+
+export const settings_retention_invalid = /** @type {(inputs: Settings_Retention_InvalidInputs) => LocalizedString} */ () => {
+	return /** @type {LocalizedString} */ (`Enter a number of days greater than zero.`)
 };
 
 export const settings_save_failed = /** @type {(inputs: Settings_Save_FailedInputs) => LocalizedString} */ () => {
@@ -9908,11 +10461,7 @@ export const webhooks_edit_named = /** @type {(inputs: Webhooks_Edit_NamedInputs
 };
 
 export const webhooks_empty = /** @type {(inputs: Webhooks_EmptyInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No incoming webhooks yet.`)
-};
-
-export const webhooks_empty_help = /** @type {(inputs: Webhooks_Empty_HelpInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Create an endpoint for another system to trigger Hive.`)
+	return /** @type {LocalizedString} */ (`No webhooks`)
 };
 
 export const webhooks_enable_named = /** @type {(inputs: Webhooks_Enable_NamedInputs) => LocalizedString} */ (i) => {
@@ -9960,7 +10509,7 @@ export const webhooks_no_match = /** @type {(inputs: Webhooks_No_MatchInputs) =>
 };
 
 export const webhooks_no_requests = /** @type {(inputs: Webhooks_No_RequestsInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`No requests received yet.`)
+	return /** @type {LocalizedString} */ (`No requests`)
 };
 
 export const webhooks_not_found = /** @type {(inputs: Webhooks_Not_FoundInputs) => LocalizedString} */ () => {
@@ -10001,10 +10550,6 @@ export const webhooks_received = /** @type {(inputs: Webhooks_ReceivedInputs) =>
 
 export const webhooks_recent_requests = /** @type {(inputs: Webhooks_Recent_RequestsInputs) => LocalizedString} */ () => {
 	return /** @type {LocalizedString} */ (`Recent requests`)
-};
-
-export const webhooks_rename_failed = /** @type {(inputs: Webhooks_Rename_FailedInputs) => LocalizedString} */ () => {
-	return /** @type {LocalizedString} */ (`Could not rename the webhook.`)
 };
 
 export const webhooks_request_body = /** @type {(inputs: Webhooks_Request_BodyInputs) => LocalizedString} */ () => {

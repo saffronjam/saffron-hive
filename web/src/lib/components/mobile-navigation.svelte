@@ -1,11 +1,12 @@
 <script lang="ts">
+ import { deviceStore } from "$lib/stores/devices";
 	import { page } from "$app/state";
 	import { afterNavigate, beforeNavigate } from "$app/navigation";
 	import { onDestroy } from "svelte";
 	import { mobilePrimaryItems, routeIsActive } from "$lib/app-navigation";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
-	const tabs = $derived(mobilePrimaryItems());
+	const tabs = $derived(mobilePrimaryItems($deviceStore));
 	let desiredPath = $state<string | null>(null);
 	let requestId = 0;
 	const selectedPath = $derived(desiredPath ?? page.url.pathname);

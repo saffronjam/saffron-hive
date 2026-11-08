@@ -1,6 +1,6 @@
 <script lang="ts" generics="G extends { id: string; name?: string | null; friendlyName?: string | null; source: string; icon?: string | null; members: { memberType: string }[]; createdBy?: { id: string; username: string; name: string } | null }">
 	import { Button } from "$lib/components/ui/button/index.js";
-	import InlineEditName from "$lib/components/inline-edit-name.svelte";
+	import ResourceLink from "$lib/components/resource-link.svelte";
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
 	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
 	import HiveDataTable from "$lib/components/hive-data-table.svelte";
@@ -31,14 +31,14 @@
 		groups: G[];
 		selection: TableSelection;
 		ondelete: (group: G) => void;
-		onrename: (group: G, newName: string) => void;
+
 		oniconchange: (group: G, icon: string | null) => void;
 		onAddTo: (group: G) => void;
 		editHref: (group: G) => string;
 		getDevices?: (group: G) => Device[];
 	}
 
-	let { groups, selection, ondelete, onrename, oniconchange, onAddTo, editHref, getDevices }: Props = $props();
+	let { groups, selection, ondelete, oniconchange, onAddTo, editHref, getDevices }: Props = $props();
 
 	const COLUMNS: ColumnDef<G>[] = $derived.by(() => [
 		{
@@ -125,7 +125,7 @@
 {/snippet}
 
 {#snippet nameCell(g: G)}
-	<InlineEditName name={groupDisplayName(g)} entityType="group" entityId={g.id} onsave={(newName) => onrename(g, newName)} />
+	<ResourceLink href={editHref(g)}>{groupDisplayName(g)}</ResourceLink>
 {/snippet}
 
 {#snippet sourceCell(g: G)}

@@ -40,3 +40,31 @@ it("restores the confirmed name after a rejected save and submits Enter once", a
     expect(errorToast).toHaveBeenCalledOnce();
   });
 });
+
+it("keeps linked names out of double-click editing and restores link focus after cancel", async () => {
+  const { client } = createMockClient();
+  host = document.createElement("div");
+  document.body.append(host);
+  const save = vi.fn();
+  const editor = mount(InlineEditName, {
+    target: host,
+    context: new Map([["$$_urql", client]]),
+    props: { name: "Kitchen", href: "/rooms?edit=kitchen", onsave: save },
+  });
+  component = editor;
+  flushSync();
+  host.firstElementChild!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+  flushSync();
+  expect(host.querySelector("input")).toBeNull();
+
+  editor.startEditing();
+  flushSync();
+  const input = host.querySelector("input")!;
+  input.focus();
+  input.value = "Draft";
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  flushSync();
+  await vi.waitFor(() => expect(document.activeElement).toBe(host!.querySelector("a")));
+  expect(save).not.toHaveBeenCalled();
+});

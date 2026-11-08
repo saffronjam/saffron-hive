@@ -1,10 +1,10 @@
 <script lang="ts">
+  import { watchErrorToast } from "$lib/error-toast.svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { Camera } from "@lucide/svelte";
 	import { graphql } from "$lib/gql";
 	import { VibeFieldDomain, type VibeSourceInput } from "$lib/gql/graphql";
 	import { Button } from "$lib/components/ui/button/index.js";
-	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import FieldError from "$lib/components/field-error.svelte";
 	import VibeChoiceCard from "$lib/components/vibe-choice-card.svelte";
 	import VibeGuided from "$lib/components/vibe-guided.svelte";
@@ -149,6 +149,8 @@
 		candidate = null;
 		error = null;
 	}
+  watchErrorToast(() => error);
+  watchErrorToast(() => vibeCatalog.error, () => vibeCatalog.load(client));
 </script>
 
 <div class="space-y-5">
@@ -158,13 +160,13 @@
 		<Button variant={kind === "guided" ? "default" : "outline"} size="sm" onclick={() => chooseKind("guided")}>{m.vibe_guided({}, locale.messageOptions())}</Button>
 	</div>
 
-	{#if error}<ErrorBanner message={error} ondismiss={() => (error = null)} />{/if}
+
 
 	{#if kind === "gallery"}
 		{#if vibeCatalog.loading && presets.length === 0}
 			<div class="grid gap-3 sm:grid-cols-2">{#each [0, 1] as placeholder}<div class="h-36 animate-pulse rounded-lg bg-muted" aria-hidden="true"></div>{/each}</div>
 		{:else if vibeCatalog.error}
-			<ErrorBanner message={vibeCatalog.error} />
+			<Button variant="outline" onclick={() => void vibeCatalog.load(client)}>{m.common_try_again({}, locale.messageOptions())}</Button>
 		{:else}
 			<div class="grid max-h-[60vh] gap-3 overflow-y-auto p-2 sm:grid-cols-3 lg:grid-cols-5">
 				{#each presets as preset (preset.id)}

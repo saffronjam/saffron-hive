@@ -152,7 +152,7 @@ func decoded(v json.RawMessage) json.RawMessage {
 // EntityType identifies the configuration aggregate targeted by an operation.
 func EntityType(field string) string {
 	for _, entry := range []struct{ name, table string }{
-		{"Zigbee2Mqtt", "zigbee2mqtt_config"}, {"Tuya", "tuya_config"}, {"Claude", "claude_config"}, {"Automation", "automations"}, {"Scene", "scenes"}, {"Effect", "effects"}, {"Room", "rooms"}, {"Group", "groups"}, {"Device", "devices"}, {"User", "users"}, {"Guest", "guests"}, {"Setting", "settings"}, {"WebhookEndpoint", "webhook_endpoints"}, {"Floorplan", "floorplans"},
+		{"Dreame", "dreame_config"}, {"CleaningRoomLinks", "cleaning_room_links"}, {"CleaningCalibration", "cleaning_calibrations"}, {"Zigbee2Mqtt", "zigbee2mqtt_config"}, {"Tuya", "tuya_config"}, {"Claude", "claude_config"}, {"Automation", "automations"}, {"Scene", "scenes"}, {"Effect", "effects"}, {"Room", "rooms"}, {"Group", "groups"}, {"Device", "devices"}, {"User", "users"}, {"Guest", "guests"}, {"Setting", "settings"}, {"WebhookEndpoint", "webhook_endpoints"}, {"Floorplan", "floorplans"},
 	} {
 		if strings.Contains(field, entry.name) {
 			return entry.table

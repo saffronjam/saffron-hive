@@ -57,7 +57,7 @@ Shared TypeScript modules — domain logic, mutation helpers, reactivity primiti
   - `theme.ts` — dark/light mode toggle, persisted to localStorage.
   - `profile.svelte.ts` — user profile reactive store.
   - `page-header.svelte.ts` — `pageHeader` (breadcrumbs + actions + view toggle).
-  - `banner-error.svelte.ts` — `BannerError` for top-of-page error banners.
+  - `error-toast.svelte.ts` — `watchErrorToast` for deduplicated reactive request-error notifications.
 - `hooks/` — composable reactive hooks:
   - `is-mobile.svelte.ts` — `IsMobile` class wrapping a `MediaQuery` (768 px breakpoint).
 

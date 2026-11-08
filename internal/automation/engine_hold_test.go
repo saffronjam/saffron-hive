@@ -101,7 +101,7 @@ func newHoldFixture(t *testing.T, holdMs, cooldownMs int64) *holdFixture {
 		reader: reader, store: s, timers: &fakeTimers{},
 		clock: time.Date(2026, 10, 6, 20, 0, 0, 0, time.UTC),
 	}
-	f.engine = NewEngine(bus, reader, s, s, nil, nil, nil)
+	f.engine = NewEngine(bus, reader, s, s, nil, nil, nil, nil)
 	f.engine.afterFunc = f.timers.afterFunc
 	f.engine.now = func() time.Time { return f.clock }
 	f.commands = bus.Subscribe(eventbus.EventCommandRequested)

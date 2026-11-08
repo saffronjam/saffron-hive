@@ -9,29 +9,20 @@ import (
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/device"
-	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
 )
 
-type handlerStore struct {
-	device   device.Device
-	metadata *zigbeemetadata.Metadata
-}
+type handlerStore struct{ sources []string }
 
-func (s handlerStore) GetDevice(context.Context, device.DeviceID) (device.Device, error) {
-	return s.device, nil
-}
-
-func (s handlerStore) GetZigbeeDeviceMetadata(context.Context, device.DeviceID) (*zigbeemetadata.Metadata, error) {
-	return s.metadata, nil
+func (s handlerStore) DeviceImageSources(context.Context, device.DeviceID) ([]string, error) {
+	return s.sources, nil
 }
 
 func TestHandlerServesConditionalImage(t *testing.T) {
 	pngData := testPNG(t)
 	icon := "data:image/png;base64," + base64.StdEncoding.EncodeToString(pngData)
-	metadata := &zigbeemetadata.Metadata{Definition: &zigbeemetadata.Definition{Icon: &icon}}
 	cache := NewCacheWithClient(t.TempDir(), http.DefaultClient, time.Now)
 	handler := NewHandler(cache, handlerStore{
-		device: device.Device{ID: "0x123", Source: device.SourceZigbee2MQTT}, metadata: metadata,
+		sources: []string{icon},
 	})
 
 	first := httptest.NewRecorder()
@@ -48,9 +39,9 @@ func TestHandlerServesConditionalImage(t *testing.T) {
 	}
 }
 
-func TestHandlerRejectsMethodTraversalAndOtherSource(t *testing.T) {
+func TestHandlerRejectsMethodTraversalAndMissingSource(t *testing.T) {
 	cache := NewCacheWithClient(t.TempDir(), http.DefaultClient, time.Now)
-	other := NewHandler(cache, handlerStore{device: device.Device{ID: "tuya-1", Source: device.SourceTuya}})
+	other := NewHandler(cache, handlerStore{})
 	for _, test := range []struct {
 		method string
 		path   string

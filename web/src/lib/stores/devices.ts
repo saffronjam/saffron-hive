@@ -65,6 +65,7 @@ function statesEqual(
     a.hvacMode === b.hvacMode &&
     a.fanMode === b.fanMode &&
     a.swing === b.swing &&
+    a.cleaningStatus === b.cleaningStatus &&
     a.transition === b.transition &&
     a.temperature === b.temperature &&
     a.humidity === b.humidity &&
@@ -132,6 +133,7 @@ const DEVICES_QUERY = graphql(`
         hvacMode
         fanMode
         swing
+        cleaningStatus
         color {
           r
           g
@@ -178,6 +180,7 @@ const DEVICE_STATE_CHANGED = graphql(`
         hvacMode
         fanMode
         swing
+        cleaningStatus
         color {
           r
           g
@@ -269,6 +272,7 @@ const DEVICE_ADDED = graphql(`
         hvacMode
         fanMode
         swing
+        cleaningStatus
         color {
           r
           g
@@ -352,6 +356,7 @@ const DEVICE_UPDATED = graphql(`
         hvacMode
         fanMode
         swing
+        cleaningStatus
         color {
           r
           g

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import FieldError from "$lib/components/field-error.svelte";
+	import CleaningActionEditor from "./cleaning-action-editor.svelte";
 	import { deviceDisplayName, entityDisplayName, groupDisplayName } from "$lib/utils";
 	import {
 		Select,
@@ -143,7 +145,11 @@
 			payload = JSON.stringify({ scenes: [] });
 		} else if (value === "change_value" && !isChangeValuePayload(payload)) {
 			payload = JSON.stringify({ field: "", delta: 0, mode: "percent" });
-		} else if (value === "configure_device") {
+		} else if (value === "start_cleaning") {
+            payload = JSON.stringify({roomIds:[],options:{repeats:1}});
+        } else if (value === "control_cleaning") {
+            payload = JSON.stringify({action:"dock"});
+        } else if (value === "configure_device") {
 			payload = JSON.stringify({ settings: [] });
 		} else if (value === "toggle_device_state") {
 			payload = "";
@@ -315,12 +321,14 @@
 		const allRooms = data.rooms ?? [];
 		const isChangeValue = data.config.actionType === "change_value";
 		const isConfigureDevice = data.config.actionType === "configure_device";
+        const isCleaning = ["start_cleaning","control_cleaning"].includes(data.config.actionType);
 		const supportsChangeValue = (kind: "device" | "group" | "room", id: string) =>
 			settableNumericCapabilities(
 				capabilityUnionForTarget({ type: kind, id }, allDevices, allGroups, allRooms),
 			).length > 0;
 		const items: TargetItem[] = [];
 		for (const d of allDevices) {
+            if(isCleaning && (d.disabled||d.deleted||!d.capabilities.some(c=>c.name==="cleaning")))continue;
 			if (isChangeValue && !supportsChangeValue("device", d.id)) continue;
 			if (
 				isConfigureDevice &&
@@ -335,7 +343,7 @@
 				roomLabel: deviceRoomLabels.get(d.id),
 			});
 		}
-		if (isConfigureDevice) return items;
+		if (isConfigureDevice||isCleaning) return items;
 		for (const g of allGroups) {
 			if (isChangeValue && !supportsChangeValue("group", g.id)) continue;
 			items.push({ kind: "group", id: g.id, name: groupDisplayName(g) });
@@ -386,7 +394,7 @@
 			targetId: id,
 			targetName: item?.name ?? "",
 			payload:
-				data.config.actionType === "configure_device"
+				data.config.actionType === "start_cleaning" ? JSON.stringify({roomIds:[],options:{repeats:1}}) : data.config.actionType === "configure_device"
 					? JSON.stringify({ settings: [] })
 					: data.config.payload,
 		});
@@ -694,7 +702,9 @@
 				</HiveSelectAutocomplete>
 				{/if}
 
-				{#if data.config.actionType === "configure_device"}
+				{#if ["start_cleaning","control_cleaning"].includes(data.config.actionType)}
+                    <CleaningActionEditor deviceId={data.config.targetId} kind={data.config.actionType} value={data.config.payload} disabled={data.readOnly} onchange={payload=>data.onConfigChange?.({...data.config,payload})}/>
+                {:else if data.config.actionType === "configure_device"}
 					{#if selectedDevice}
 						<DeviceConfigurationEditor
 							capabilities={selectedDevice.capabilities}
@@ -785,6 +795,6 @@
 				{/if}
 			{/if}
 		{#if validationError && !data.readOnly}
-			<p class="text-xs text-destructive">{automationValidationMessage(validationError.code)}</p>
+			<FieldError message={automationValidationMessage(validationError.code)} />
 		{/if}
 	</fieldset>

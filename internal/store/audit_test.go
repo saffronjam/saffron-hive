@@ -97,7 +97,7 @@ func TestAuditPrivateAttemptsAndSharedCommittedChanges(t *testing.T) {
 
 func TestAuditTablesHaveExplicitCoverage(t *testing.T) {
 	s := newTestStore(t)
-	excluded := map[string]bool{"schema_migrations": true, "active_effects": true, "active_scene_runs": true, "active_scene_members": true, "network_topology_snapshots": true, "zigbee_device_metadata": true, "webhook_deliveries": true, "native_effect_observations": true, "activity_events": true, "automation_node_state": true, "assistant_conversations": true, "assistant_attachments": true, "device_state_samples": true, "localized_name_subjects": true, "audit_operations": true, "audit_events": true, "audit_write_context": true, "audit_watermark": true, "audit_run_targets": true}
+	excluded := map[string]bool{"schema_migrations": true, "cleaning_tasks": true, "cleaning_snapshots": true, "cleaning_link_sets": true, "dreame_devices": true, "active_effects": true, "active_scene_runs": true, "active_scene_members": true, "network_topology_snapshots": true, "zigbee_device_metadata": true, "webhook_deliveries": true, "native_effect_observations": true, "activity_events": true, "automation_node_state": true, "assistant_conversations": true, "assistant_attachments": true, "device_state_samples": true, "localized_name_subjects": true, "audit_operations": true, "audit_events": true, "audit_write_context": true, "audit_watermark": true, "audit_run_targets": true}
 	rows, err := s.db.Query(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND NOT EXISTS(SELECT 1 FROM sqlite_master t WHERE t.type='trigger' AND t.tbl_name=sqlite_master.name AND t.name LIKE 'audit_%_created')`)
 	if err != nil {
 		t.Fatal(err)

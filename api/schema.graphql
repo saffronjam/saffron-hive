@@ -97,11 +97,15 @@ type Device {
   attributes: [DeviceAttributeValue!]!
   """Zigbee2MQTT detail, available only for Zigbee2MQTT devices."""
   zigbee2Mqtt: Zigbee2MqttDeviceMetadata
+  """Optional product artwork served by Hive."""
+  image: DeviceImage
+}
+
+type DeviceImage {
+  version: String!
 }
 
 type Zigbee2MqttDeviceMetadata {
-  imageCandidate: Boolean!
-  imageVersion: String
   networkType: String
   ieeeAddress: String
   addressVendor: String
@@ -184,6 +188,7 @@ value. Clients typically branch on Device.type to decide which fields to
 display, but any field may be present on any device.
 """
 type DeviceState {
+  cleaningStatus: String
   on: Boolean
   brightness: Int
   colorTemp: Int
@@ -1358,6 +1363,7 @@ enum MaintenanceKind {
   FIRMWARE
   POSTURE
   STORAGE
+  CLEANING
 }
 
 type MaintenanceTask {
@@ -1369,6 +1375,7 @@ type MaintenanceTask {
   value: Float
   context: String
   actionUrl: String
+  canComplete: Boolean!
 }
 
 input AlarmFilter {
@@ -1736,6 +1743,12 @@ input UpdateAutomationInput {
 }
 
 type Query {
+  dreameConfig: DreameConfig @auth
+  cleaningDevices: [CleaningDevice!]! @auth
+  cleaningDevice(deviceId: ID!): CleaningDevice @auth
+  cleaningHistory(deviceId: ID!, before: String, limit: Int = 20): [CleaningTask!]! @auth
+  cleaningCalibration(deviceId: ID!, mapId: ID!, floorplanId: ID!): CleaningCalibration @auth
+
   localizedNameSets: [LocalizedNameSet!]! @auth
   devices: [Device!]! @auth(allowGuest: true)
   device(id: ID!): Device @auth
@@ -1783,6 +1796,16 @@ type Query {
 }
 
 type Mutation {
+  updateDreameConfig(input: DreameConfigInput!, expectedRevision: Int!): DreameConfigResult! @auth
+  testDreameConnection(input: DreameConfigInput!): ConnectionTestResult! @auth
+  prepareCleaning(input: CleaningSelectionInput!): CleaningPlan! @auth
+  startCleaning(input: StartCleaningInput!): CleaningTask! @auth
+  controlCleaning(deviceId: ID!, action: CleaningAction!): Boolean! @auth
+  updateCleaningRoomLinks(input: CleaningRoomLinksInput!): [CleaningRoomLinks!]! @auth
+  updateCleaningCalibration(input: CleaningCalibrationInput!): CleaningCalibration! @auth
+
+  "Read-only Dreamehome diagnostics. Credentials are used for this request only."
+  readDreameDiagnostics: DreameDiagnosticsReport! @auth
   updateLocalizedNameSet(input: LocalizedNameSetInput!): LocalizedNameSet! @auth
   updateDevice(id: ID!, input: UpdateDeviceInput!): Device! @auth
   deleteDevice(id: ID!): Device! @auth
@@ -1935,7 +1958,87 @@ type Mutation {
   stopEffect(targetType: String!, targetId: ID!): Boolean! @auth
 }
 
+type DreameDiagnosticRead {
+  name: String!
+  json: String!
+  error: String
+}
+
+type DreameDiagnosticProperty {
+  name: String!
+  siid: Int!
+  piid: Int!
+  value: String!
+  code: Int!
+}
+
+type DreameDeviceReport {
+  id: ID!
+  name: String!
+  model: String!
+  reads: [DreameDiagnosticRead!]!
+  properties: [DreameDiagnosticProperty!]!
+  maps: [CleaningMap!]!
+}
+
+type CleaningMapPoint {
+  x: Float!
+  y: Float!
+}
+
+type CleaningMapPosition {
+  x: Float!
+  y: Float!
+  angle: Float!
+}
+
+type CleaningMapLayer {
+  kind: String!
+  roomId: Int!
+  path: String!
+}
+
+type CleaningMapRoom {
+  id: Int!
+  name: String!
+  x: Float!
+  y: Float!
+  area: Float!
+}
+
+type CleaningMapArea {
+  kind: String!
+  points: [CleaningMapPoint!]!
+}
+
+type CleaningMap {
+  revision: String!
+  id: Int!
+  name: String!
+  width: Int!
+  height: Int!
+  metersPerPixel: Float!
+  origin: CleaningMapPoint!
+  rotation: Float!
+  robot: CleaningMapPosition
+  dock: CleaningMapPosition
+  layers: [CleaningMapLayer!]!
+  rooms: [CleaningMapRoom!]!
+  areas: [CleaningMapArea!]!
+  walls: [[CleaningMapPoint!]!]!
+  path: [CleaningMapPoint!]!
+}
+
+type DreameDiagnosticsReport {
+  completedAt: DateTime!
+  authenticated: Boolean!
+  reads: [DreameDiagnosticRead!]!
+  devices: [DreameDeviceReport!]!
+}
+
 type Subscription {
+ cleaningChanged: ID! @auth
+
   deviceStateChanged(deviceId: ID): DeviceStateEvent! @auth(allowGuest: true)
   deviceAttributesChanged(deviceId: ID): DeviceAttributesEvent! @auth(allowGuest: true)
   deviceActionFired(deviceId: ID): DeviceActionEvent! @auth
@@ -2042,4 +2145,130 @@ type ObservationResult {
 }
 extend type Query {
  observeEvents(stream: ObservationStream!, after: String, auditFilter: AuditFilter, activityFilter: ActivityFilter, search: String, waitSeconds: Int = 15, limit: Int = 20): ObservationResult! @auth
+}
+
+
+type DreameConfig {
+  revision: Int!
+  email: String!
+  password: String!
+  region: String!
+  enabled: Boolean!
+}
+input DreameConfigInput {
+  email: String!
+  password: String!
+  region: String!
+  enabled: Boolean!
+}
+type DreameConfigResult {
+  config: DreameConfig!
+  application: ConnectionTestResult!
+}
+type CleaningOptions { suction: Int water: Int repeats: Int! }
+input CleaningOptionsInput { suction: Int water: Int repeats: Int = 1 }
+enum CleaningScope { APARTMENT ROOMS }
+type CleaningPlan {
+  scope: CleaningScope!
+  deviceId: ID!
+  mapId: ID!
+  roomIds: [ID!]!
+  areaIds: [ID!]!
+  options: CleaningOptions!
+  revision: String!
+}
+input CleaningSelectionInput {
+  scope: CleaningScope! = ROOMS
+  deviceId: ID!
+  mapId: ID!
+  roomIds: [ID!]!
+  options: CleaningOptionsInput!
+}
+input StartCleaningInput {
+  selection: CleaningSelectionInput!
+  expectedRevision: String!
+  requestId: ID!
+  replaceTaskId: ID
+}
+enum CleaningAction { PAUSE RESUME STOP DOCK LOCATE EMPTY_BIN }
+type CleaningControl {
+  action: CleaningAction!
+  enabled: Boolean!
+}
+type CleaningTask {
+  scope: CleaningScope!
+  id: ID!
+  deviceId: ID!
+  mapId: ID!
+  roomIds: [ID!]!
+  state: String!
+  origin: String!
+  elapsedMinutes: Float
+  cleanedArea: Float
+  error: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  completedAt: DateTime
+}
+type CleaningRoomLink { roomId: ID! areaId: ID! }
+input CleaningRoomLinkInput { roomId: ID! areaId: ID! }
+type CleaningRoomLinks { mapId: ID! mapRevision: String! revision: Int! links: [CleaningRoomLink!]! }
+input CleaningRoomLinksInput { deviceId: ID! mapId: ID! mapRevision: String! expectedRevision: Int! links: [CleaningRoomLinkInput!]! }
+type CleaningAnchor { robot: CleaningMapPoint! hive: CleaningMapPoint! }
+input CleaningPointInput { x: Float! y: Float! }
+input CleaningAnchorInput { robot: CleaningPointInput! hive: CleaningPointInput! }
+type CleaningTransform { a: Float! b: Float! x: Float! y: Float! }
+type CleaningCalibration {
+  mapRotation: Float!
+  enabled: Boolean!
+  deviceId: ID!
+  mapId: ID!
+  floorplanId: ID!
+  revision: Int!
+  mapRevision: String!
+  floorplanRevision: Int!
+  anchors: [CleaningAnchor!]!
+  transform: CleaningTransform!
+  valid: Boolean!
+}
+input CleaningCalibrationInput {
+  mapRotation: Float! = 0
+  enabled: Boolean! = false
+  deviceId: ID!
+  mapId: ID!
+  floorplanId: ID!
+  expectedRevision: Int!
+  mapRevision: String!
+  floorplanRevision: Int!
+  anchors: [CleaningAnchorInput!]!
+}
+type CleaningConsumable { name: String! percent: Float! resettable: Boolean! }
+type CleaningDevice {
+  deviceId: ID!
+  supported: Boolean!
+  """Optional controls advertised by this vacuum's adapter."""
+  controls: [CleaningControl!]!
+  model: String
+  modelId: String
+  manufacturer: String
+  status: String!
+  battery: Float
+  suction: Int
+  water: Int
+  elapsedMinutes: Float
+  cleanedArea: Float
+  """Reported cleaning completion from 0 to 100; null when unavailable."""
+  progress: Float
+  """Area-based completion estimate when no robot percentage is available."""
+  estimatedProgress: Float
+  consumables: [CleaningConsumable!]!
+  error: String
+  updatedAt: DateTime!
+  activeMapId: ID
+  maps: [CleaningMap!]!
+  liveMap: CleaningMap
+  liveAt: DateTime
+  mapError: String
+  activeTask: CleaningTask
+  roomLinks: [CleaningRoomLinks!]!
 }

@@ -31,7 +31,7 @@
 
 <div class="space-y-2">
 	{#if value.controlledLoad != null}
-		<div class="flex items-center gap-3">
+		<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
 			<span class="w-16 text-sm text-muted-foreground">
 				{m.device_roles_controls({}, locale.messageOptions())}
 			</span>
@@ -59,7 +59,7 @@
 	{/if}
 
 	{#if value.contact != null}
-		<div class="flex items-center gap-3">
+		<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
 			<span class="w-16 text-sm text-muted-foreground">
 				{m.device_roles_contact({}, locale.messageOptions())}
 			</span>

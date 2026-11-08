@@ -1,0 +1,9 @@
+DROP TRIGGER audit_cleaning_calibrations_deleted;
+DROP TRIGGER audit_cleaning_calibrations_updated;
+DROP TRIGGER audit_cleaning_calibrations_created;
+DROP TRIGGER audit_cleaning_room_links_deleted;
+DROP TRIGGER audit_cleaning_room_links_updated;
+DROP TRIGGER audit_cleaning_room_links_created;
+DROP TRIGGER audit_dreame_config_deleted;
+DROP TRIGGER audit_dreame_config_updated;
+DROP TRIGGER audit_dreame_config_created;

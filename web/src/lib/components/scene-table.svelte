@@ -2,7 +2,7 @@
 	import { entityDisplayName } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
-	import InlineEditName from "$lib/components/inline-edit-name.svelte";
+	import ResourceLink from "$lib/components/resource-link.svelte";
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
 	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
 	import HiveDataTable from "$lib/components/hive-data-table.svelte";
@@ -32,7 +32,7 @@
 		onapply: (scene: SceneData) => void;
 		onstop?: (scene: SceneData) => void;
 		ondelete: (scene: SceneData) => void;
-		onrename: (scene: SceneData, newName: string) => void;
+
 		oniconchange: (scene: SceneData, icon: string | null) => void;
 		onAddTo?: (scene: SceneData) => void;
 	}
@@ -44,7 +44,7 @@
 		onapply,
 		onstop,
 		ondelete,
-		onrename,
+
 		oniconchange,
 		onAddTo,
 	}: Props = $props();
@@ -147,7 +147,7 @@
 {/snippet}
 
 {#snippet nameCell(s: SceneData)}
-	<InlineEditName name={entityDisplayName("scene", s)} entityType="scene" entityId={s.id} onsave={(newName) => onrename(s, newName)} />
+	<ResourceLink href={`/scenes/${s.id}`}>{entityDisplayName("scene", s)}</ResourceLink>
 {/snippet}
 
 {#snippet targetsCell(s: SceneData)}

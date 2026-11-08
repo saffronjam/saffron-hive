@@ -14,6 +14,18 @@ export function identifierLabel(value: string): string {
       return m.state_open({}, options);
     case "closed":
       return m.state_closed({}, options);
+    case "cleaning":
+      return m.cleaning_status_cleaning({}, options);
+    case "docked":
+      return m.cleaning_status_docked({}, options);
+    case "paused":
+      return m.cleaning_status_paused({}, options);
+    case "returning":
+      return m.cleaning_status_returning({}, options);
+    case "attention":
+      return m.cleaning_status_attention({}, options);
+    case "idle":
+      return m.cleaning_status_idle({}, options);
     case "unknown":
       return m.state_unknown({}, options);
     case "available":
@@ -74,6 +86,10 @@ export function identifierLabel(value: string): string {
 export function historyFieldLabel(field: string, fallbackLabel?: string | null): string {
   const options = locale.messageOptions();
   switch (field) {
+    case "suction":
+      return m.cleaning_suction({}, options);
+    case "water":
+      return m.cleaning_water({}, options);
     case "temperature":
       return m.field_temperature({}, options);
     case "humidity":
@@ -116,6 +132,9 @@ export function historyFieldLabel(field: string, fallbackLabel?: string | null):
     case "fanMode":
     case "fan_mode":
       return m.field_fan_mode({}, options);
+    case "cleaning":
+    case "cleaningStatus":
+      return m.cleaning_title({}, options);
     case "swing":
       return m.field_swing({}, options);
     case "transition":
@@ -150,6 +169,8 @@ export function historyFieldLabel(field: string, fallbackLabel?: string | null):
 export function chipLabel(type: string): string {
   const options = locale.messageOptions();
   switch (type) {
+    case "vacuum":
+      return m.cleaning_robot({}, options);
     case "light":
       return m.device_type_light({}, options);
     case "sensor":
@@ -195,6 +216,8 @@ export function chipLabel(type: string): string {
       return m.field_new({}, options);
     case "offline":
       return m.devices_offline({}, options);
+    case "cleaning":
+      return m.cleaning_title({}, options);
     case "firmware":
       return m.maintenance_type_firmware({}, options);
     case "posture":

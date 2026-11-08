@@ -2,6 +2,14 @@
 
 Svelte frontend for the Saffron Hive dashboard. Uses bun as package manager and runtime.
 
+Product artwork uses generic `Device.image` metadata and the authenticated Hive image cache; components never build provider image URLs. External product/model names and vendor metadata come from the API. Never add a hardcoded identifier-to-display-name catalog in UI code. Show the supplied display value or its reported identifier; keep user nicknames distinct from model names. Finite Hive-owned enums, internal errors, and their localized labels are separate from external catalogs.
+
+Device detail pages place Power first among capability cards when on/off control is supported. Reported battery percentages use the shared Battery card and progress bar, outside Status. Electrical measurements (power usage, voltage, current and energy) belong in Diagnostics. Editable roles occupy a separate card beside name and enabled state on desktop and stack below them on mobile.
+
+Active cleaning cards expand the shared `MapPage` with `cleaningRobot` to scope a read-only view to one vacuum. Its path is always shown, and the initial map and position/path response appear together. The Cleaning page preloads active maps into the cleaning store's shared memory cache; expanded views reuse the same data and in-flight requests. Embedded maps do not claim page navigation, editor controls, or map-view preferences.
+
+Device settings use the shared `DeviceConfigurationEditor` row layout and Apply flow. Adapters advertise configuration capabilities, choices, access and reported values; pages render them dynamically. Do not build provider-specific settings cards. Momentary capability actions belong in a separate shared Control card; Power and Color retain their dedicated controls. Cleaning controls come from the generic cleaning capability, including backend-derived availability, and UI code must not branch on a vacuum brand or model.
+
 ## Reusable building blocks — search before you write
 
 The codebase has matured patterns for the things people repeatedly need to build. Search and reuse before writing anything in this list.
@@ -180,9 +188,7 @@ starts fixing it:
 <FieldError id="password-error" message={passwordError} />
 ```
 
-The banner and toasts are for things no single field owns: a failed mutation, an
-unreachable server, a validation that spans several inputs. A form whose only
-problem is one empty field must not push a banner to the top of the page.
+Failed requests and actions use the shared toast notifications. Reactive loading failures use `watchErrorToast` from `src/lib/error-toast.svelte.ts`, gated by visibility on retained pages, so repeated polling failures do not spam notifications. Errors must not insert page-level banners or shift content. Field and editor validation stays beside its input; persistent device/run failures and external-edit conflicts remain contextual state.
 
 Where the invalid state is obvious without prose, prefer disabling submit over
 showing a message. The create dialogs do this: the button stays disabled while
@@ -199,6 +205,8 @@ behavior needs a new composition, build it from existing primitives and make rou
 choices independently. Ask when an unresolved choice materially changes product
 behavior or design direction. An explicit redesign request authorizes changing the
 affected pattern; carry it through consistently.
+
+Resource names in cards and tables open their existing detail or edit destination and show a continuous underline on hover/focus. Dimmed secondary links, such as room metadata, brighten on hover without an underline. Card Rename actions live in the context menu; tables have no rename action or inline rename. Edit stays in context menus. Provider-defined names without an editor remain read-only. Dashboard names are plain text; clicking them follows the card’s dashboard action without navigating to an editor or detail page.
 
 The established visual vocabulary:
 

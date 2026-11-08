@@ -160,7 +160,7 @@ func assistantDiagnostic(err error) *string { s := err.Error(); return &s }
 
 func structuralMutation(field string) bool {
 	switch field {
-	case "discoverClaudeModels", "setTargetState", "setDeviceConfiguration", "runDeviceCommand", "simulateDeviceAction", "applyScene", "deactivateScene", "fireAutomationTrigger", "runEffect", "runNativeEffect", "stopEffect", "markDevicesSeen", "testClaudeConnection", "testTuyaConnection", "testZigbee2MqttConnection", "scanZigbee2MqttNetwork", "login", "guestLogin":
+	case "prepareCleaning", "startCleaning", "controlCleaning", "testDreameConnection", "discoverClaudeModels", "setTargetState", "setDeviceConfiguration", "runDeviceCommand", "simulateDeviceAction", "applyScene", "deactivateScene", "fireAutomationTrigger", "runEffect", "runNativeEffect", "stopEffect", "markDevicesSeen", "testClaudeConnection", "testTuyaConnection", "testZigbee2MqttConnection", "scanZigbee2MqttNetwork", "login", "guestLogin":
 		return false
 	}
 	return true

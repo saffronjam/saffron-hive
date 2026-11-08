@@ -31,7 +31,7 @@
 <Card>
 	<CardHeader>
 		<div class="flex items-center justify-between gap-3">
-			<CardTitle>{m.button_status({}, locale.messageOptions())}</CardTitle>
+			<CardTitle>{m.device_status({}, locale.messageOptions())}</CardTitle>
 			<DeviceActionMenu {deviceId} {name} {actions} {disabled} />
 		</div>
 	</CardHeader>

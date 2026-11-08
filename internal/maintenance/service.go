@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/saffronjam/saffron-hive/internal/cleaning"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/store"
 	"github.com/saffronjam/saffron-hive/internal/zigbeemetadata"
@@ -31,6 +32,11 @@ type Store interface {
 // DiskProbe reports free disk fraction for a path.
 type DiskProbe func(string) (float64, error)
 
+type CleaningProvider interface {
+	Snapshots(context.Context) ([]cleaning.Snapshot, error)
+	ResetConsumable(context.Context, string, string, string) error
+}
+
 // Service owns the derived snapshot and durable completions.
 type Service struct {
 	store    Store
@@ -39,14 +45,15 @@ type Service struct {
 	diskPath string
 	disk     DiskProbe
 	now      func() time.Time
+	cleaning CleaningProvider
 
 	mu    sync.RWMutex
 	tasks []Task
 }
 
 // NewService wires the maintenance service.
-func NewService(s Store, reader device.StateReader, buffer *Buffer, diskPath string, disk DiskProbe) *Service {
-	return &Service{store: s, reader: reader, buffer: buffer, diskPath: diskPath, disk: disk, now: time.Now}
+func NewService(s Store, reader device.StateReader, buffer *Buffer, diskPath string, disk DiskProbe, cleaning CleaningProvider) *Service {
+	return &Service{store: s, reader: reader, buffer: buffer, diskPath: diskPath, disk: disk, now: time.Now, cleaning: cleaning}
 }
 
 // Snapshot returns an immutable, deterministic copy of visible tasks.
@@ -63,7 +70,7 @@ func (s *Service) Evaluate(ctx context.Context) error {
 	return s.evaluateLocked(ctx)
 }
 
-// Complete atomically acknowledges active IDs and returns the IDs accepted.
+// Complete acknowledges active tasks and confirms supported consumable resets.
 func (s *Service) Complete(ctx context.Context, ids []string, userID string) ([]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -84,17 +91,29 @@ func (s *Service) Complete(ctx context.Context, ids []string, userID string) ([]
 			continue
 		}
 		seen[id] = struct{}{}
+		if task.Kind == KindCleaning {
+			if !task.CanComplete || task.Device == nil || task.Context == nil || s.cleaning == nil {
+				return nil, fmt.Errorf("cleaning maintenance cannot be completed while the vacuum is unavailable")
+			}
+			if err := s.cleaning.ResetConsumable(ctx, string(task.Device.ID), *task.Context, device.OriginKindUser); err != nil {
+				return nil, err
+			}
+			accepted = append(accepted, id)
+			continue
+		}
 		accepted = append(accepted, id)
 		rows = append(rows, store.InsertMaintenanceAcknowledgementParams{
 			TaskKey: task.TaskKey, ConditionFingerprint: task.ConditionFingerprint,
 			CompletedAt: completedAt, CompletedBy: &userID,
 		})
 	}
-	if len(rows) == 0 {
+	if len(rows) == 0 && len(accepted) == 0 {
 		return []string{}, nil
 	}
-	if err := s.store.InsertMaintenanceAcknowledgements(ctx, rows); err != nil {
-		return nil, err
+	if len(rows) > 0 {
+		if err := s.store.InsertMaintenanceAcknowledgements(ctx, rows); err != nil {
+			return nil, err
+		}
 	}
 	if err := s.evaluateLocked(ctx); err != nil {
 		remaining := s.tasks[:0]
@@ -120,12 +139,21 @@ func (s *Service) evaluateLocked(ctx context.Context) error {
 		return err
 	}
 	tasks = append(tasks, deviceTasks...)
+	cleaningTasks, cleaningErr := s.deriveCleaningTasks(ctx)
+	if cleaningErr != nil {
+		tasks = append(tasks, tasksOfKind(s.tasks, KindCleaning)...)
+	} else {
+		tasks = append(tasks, cleaningTasks...)
+	}
 
 	firmware, firmwareErr := s.deriveFirmwareTasks(ctx, acks)
 	if firmwareErr != nil {
 		tasks = append(tasks, tasksOfKind(s.tasks, KindFirmware)...)
 	} else {
 		tasks = append(tasks, firmware...)
+	}
+	if cleaningErr != nil {
+		return cleaningErr
 	}
 	storage, storageErr := s.deriveStorageTask(ctx, acks)
 	if storageErr != nil {
@@ -265,7 +293,7 @@ func (s *Service) setTasksLocked(tasks []Task) {
 
 func newTask(key, fingerprint string, kind Kind, found *device.Device, current, target *string, value *float64, context, actionURL *string) Task {
 	return Task{ID: opaqueID(key, fingerprint), TaskKey: key, ConditionFingerprint: fingerprint,
-		Kind: kind, Device: found, CurrentValue: current, TargetValue: target,
+		Kind: kind, Device: found, CanComplete: true, CurrentValue: current, TargetValue: target,
 		Value: value, Context: context, ActionURL: actionURL}
 }
 
@@ -337,7 +365,7 @@ func tasksOfKind(tasks []Task, kind Kind) []Task {
 }
 
 func sortTasks(tasks []Task) {
-	rank := map[Kind]int{KindBattery: 0, KindFirmware: 1, KindPosture: 2, KindStorage: 3}
+	rank := map[Kind]int{KindBattery: 0, KindCleaning: 1, KindFirmware: 2, KindPosture: 3, KindStorage: 4}
 	sort.Slice(tasks, func(i, j int) bool {
 		if rank[tasks[i].Kind] != rank[tasks[j].Kind] {
 			return rank[tasks[i].Kind] < rank[tasks[j].Kind]

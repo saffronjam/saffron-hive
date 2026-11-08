@@ -27,7 +27,7 @@
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
 	import { parseSince } from "$lib/time-format";
 	import { Copy } from "@lucide/svelte";
-	import { activityMessage } from "$lib/i18n/activity";
+	import { activityMessage, activityTypeOptions } from "$lib/i18n/activity";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
 
@@ -129,19 +129,7 @@
 	let loadingMore = $state(false);
 	let ready = $state(restoredEvents !== null);
 
-	const basicTypes = $derived.by(() => [
-		{ value: "device.state_changed", label: m.activity_event_state_changed({}, messageOptions) },
-		{ value: "device.availability_changed", label: m.activity_event_availability({}, messageOptions) },
-		{ value: "device.added", label: m.activity_event_device_added({}, messageOptions) },
-		{ value: "device.removed", label: m.activity_event_device_removed({}, messageOptions) },
-		{ value: "scene.applied", label: m.activity_event_scene_applied({}, messageOptions) },
-		{ value: "automation.triggered", label: m.activity_event_automation_fired({}, messageOptions) },
-		{ value: "webhook.received", label: m.activity_event_webhook_received({}, messageOptions) },
-	]);
-	const advancedTypes = $derived.by(() => [
-		{ value: "command.dispatched", label: m.activity_event_command_sent({}, messageOptions) },
-		{ value: "automation.node_activated", label: m.activity_event_node_activated({}, messageOptions) },
-	]);
+	const typeOptions = $derived(activityTypeOptions(events.map(event => event.type), advanced));
 
 	const sinceOptions = $derived.by(() => [
 		{ value: "5m", label: m.activity_since_minutes({ count: 5 }, messageOptions) },
@@ -166,12 +154,10 @@
 			label: m.activity_filter_type({}, messageOptions),
 			variant: "secondary",
 			options: (input) => {
-				const types = advanced ? [...basicTypes, ...advancedTypes] : basicTypes;
-				return filterOptions(input, types);
+				return filterOptions(input, typeOptions);
 			},
 			resolveLabel: (value) => {
-				const all = [...basicTypes, ...advancedTypes];
-				return all.find((t) => t.value === value)?.label ?? null;
+				return typeOptions.find((t) => t.value === value)?.label ?? null;
 			},
 		},
 		{
@@ -440,9 +426,6 @@
 		{#if events.length === 0}
 			<div class="rounded-lg shadow-card bg-card p-12 text-center">
 				<p class="text-muted-foreground">{m.activity_empty({}, messageOptions)}</p>
-				<p class="mt-2 text-sm text-muted-foreground">
-					{m.activity_empty_help({}, messageOptions)}
-				</p>
 			</div>
 		{:else if filteredEvents.length === 0}
 			<div class="rounded-lg shadow-card bg-card p-12 text-center">

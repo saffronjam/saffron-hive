@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 130" fill="none">
+  <title>Dreame</title>
+  <defs>
+    <linearGradient id="stem" x1="0" y1="65" x2="65" y2="65" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ead6ab"/>
+      <stop offset=".4" stop-color="#e4b785"/>
+      <stop offset="1" stop-color="#d4a171"/>
+    </linearGradient>
+    <linearGradient id="upper" x1="65" y1="0" x2="128" y2="65" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#d4a171"/>
+      <stop offset="1" stop-color="#b87e52"/>
+    </linearGradient>
+    <linearGradient id="lower" x1="117" y1="65" x2="65" y2="129" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#eac999"/>
+      <stop offset=".5" stop-color="#d3a06f"/>
+      <stop offset="1" stop-color="#b98257"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#stem)" d="M2 0h62.5v25h-39q-1 0-1 1v77q0 1.5 1.5 1.5h38.5V129H2q-2 0-2-2V2q0-2 2-2Z"/>
+  <path fill="url(#upper)" d="M64.5 0C100 0 128 28 128 64.5h-23q-1.5 0-1.5-1.5C102.5 42 85.5 25 64.5 25V0Z"/>
+  <path fill="url(#lower)" d="M106 64.5h21q2 0 1.8 2C128 100.5 100.5 128 67 129q-2.5 0-2.5-2v-21q0-1.5 2-1.5C87 103.5 103.5 87.5 104 67q0-2.5 2-2.5Z"/>
+</svg>

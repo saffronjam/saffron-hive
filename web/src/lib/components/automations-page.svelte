@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { actionOptions as automationActionOptions } from "$lib/components/graph/automation-node-options";
+  import { toast } from "svelte-sonner";
 	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
 	import { measureMount } from "$lib/perf";
@@ -44,12 +46,10 @@
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
 	import ListView from "$lib/components/list-view.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
-	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { Plus, Workflow, Zap, GitMerge, Play } from "@lucide/svelte";
 	import { fly } from "svelte/transition";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
-	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
 
@@ -86,13 +86,7 @@
 		{ value: "schedule", label: m.automations_trigger_schedule({}, locale.messageOptions()) },
 	]);
 
-	const actionOptions = $derived.by(() => [
-		{ value: "set_device_state", label: m.automation_action_set_state({}, locale.messageOptions()) },
-		{ value: "configure_device", label: m.automation_action_configure_device({}, locale.messageOptions()) },
-		{ value: "activate_scene", label: m.automation_action_activate_scene({}, locale.messageOptions()) },
-		{ value: "raise_alarm", label: m.automation_action_raise_alarm({}, locale.messageOptions()) },
-		{ value: "clear_alarm", label: m.automation_action_clear_alarm({}, locale.messageOptions()) },
-	]);
+	const actionOptions = $derived([...automationActionOptions()]);
 
 	const emptyOptions = $derived(enabledOptions);
 
@@ -248,7 +242,6 @@
 			},
 		};
 	});
-	const errors = new BannerError();
 	let deleteConfirmId = $state<string | null>(null);
 	let deleteConfirmName = $state("");
 	let deleteLoading = $state(false);
@@ -260,14 +253,14 @@
 	async function handleCreateAutomation(options: { keepOpen?: boolean } = {}) {
 		if (!newAutomationName.trim()) return;
 		createLoading = true;
-		errors.clear();
+
 
 		let created: Automation;
 		try {
 			created = await automationsStore.create(client, newAutomationName.trim());
 		} catch (e) {
 			createLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.automations_error_create({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.automations_error_create({}, locale.messageOptions())));
 			return;
 		}
 
@@ -284,11 +277,11 @@
 	}
 
 	async function handleToggle(a: Automation, enabled: boolean) {
-		errors.clear();
+
 		try {
 			await automationsStore.toggle(client, a.id, enabled);
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.automations_error_toggle({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.automations_error_toggle({}, locale.messageOptions())));
 		}
 	}
 
@@ -300,13 +293,13 @@
 	async function handleConfirmDelete() {
 		if (!deleteConfirmId) return;
 		deleteLoading = true;
-		errors.clear();
+
 
 		try {
 			await automationsStore.delete(client, deleteConfirmId);
 		} catch (e) {
 			deleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.automations_error_delete({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.automations_error_delete({}, locale.messageOptions())));
 			return;
 		}
 
@@ -321,12 +314,12 @@
 			return;
 		}
 		batchDeleteLoading = true;
-		errors.clear();
+
 		try {
 			await automationsStore.deleteMany(client, ids);
 		} catch (e) {
 			batchDeleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.automations_error_delete_many({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.automations_error_delete_many({}, locale.messageOptions())));
 			return;
 		}
 		batchDeleteLoading = false;
@@ -335,20 +328,20 @@
 	}
 
 	async function handleRename(a: Automation, newName: string) {
-		errors.clear();
+
 		try {
 			await automationsStore.update(client, a.id, { expectedRevision:a.revision, name: newName });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.automations_error_rename({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.automations_error_rename({}, locale.messageOptions())));
 		}
 	}
 
 	async function handleIconChange(a: Automation, icon: string | null) {
-		errors.clear();
+
 		try {
 			await automationsStore.update(client, a.id, { expectedRevision:a.revision, icon });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.automations_error_icon({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.automations_error_icon({}, locale.messageOptions())));
 		}
 	}
 
@@ -357,9 +350,7 @@
 </script>
 
 <div>
-	{#if errors.message}
-		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
-	{/if}
+
 
 
 	{#if automationsStore.hydrated}
@@ -370,9 +361,6 @@
 						<Workflow class="size-6 text-muted-foreground" />
 					</div>
 					<p class="text-muted-foreground">{m.automations_empty({}, locale.messageOptions())}</p>
-					<p class="mt-2 text-sm text-muted-foreground">
-						{m.automations_empty_help({}, locale.messageOptions())}
-					</p>
 					<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
 						<Plus class="size-4" />
 						<span>{m.automations_create_first({}, locale.messageOptions())}</span>
@@ -483,7 +471,6 @@
 								{selection}
 								ontoggle={handleToggle}
 								ondelete={requestDelete}
-								onrename={handleRename}
 								oniconchange={handleIconChange}
 							/>
 						{/snippet}

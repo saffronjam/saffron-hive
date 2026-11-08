@@ -1,5 +1,6 @@
 <script lang="ts" module>
 	import {
+		Brush,
 		Columns2,
 		DoorClosed,
 		Grid2x2,
@@ -54,6 +55,7 @@
 			{ id: "light", icon: Lightbulb, label: m.map_view_light() },
 			{ id: "temperature", icon: Thermometer, label: m.map_view_temperature() },
 			{ id: "connectivity", icon: Waypoints, label: m.map_view_connectivity() },
+            { id: "cleaning", icon: Brush, label: m.cleaning_title() },
 		];
 	}
 </script>
@@ -70,6 +72,7 @@
 		Paintbrush,
 		PenLine,
 		Radio,
+		Route,
 		Redo2,
 		Square,
 		SquareDashedMousePointer,
@@ -130,6 +133,8 @@
 		onviewchange: (view: MapViewId) => void;
 		/** Frame the whole plan in the viewport. */
 		onfit: () => void;
+		showTrails: boolean;
+		ontrailstoggle: () => void;
 		/** Whether the connectivity view also draws heard-neighbour links. */
 		showNeighbours: boolean;
 		onneighbourstoggle: () => void;
@@ -177,6 +182,8 @@
 		viewOptions,
 		onviewchange,
 		onfit,
+		showTrails,
+		ontrailstoggle,
 		showNeighbours,
 		onneighbourstoggle,
 		meshSources,
@@ -189,7 +196,8 @@
 	// this pill, left of the divider. One mesh needs no source picker.
 	const showMeshTools = $derived(view === "connectivity");
 	const showMeshSources = $derived(showMeshTools && meshSources.length > 1);
-	const showTools = $derived(showBrush || showMeshTools);
+	const showCleaningTools = $derived(view === "cleaning");
+	const showTools = $derived(showBrush || showMeshTools || showCleaningTools);
 	// Picking a view disables the item that was clicked, which cancels the
 	// menu's own close-on-select — so the menu is closed here instead.
 	let viewMenuOpen = $state(false);
@@ -197,7 +205,7 @@
 	// The box is width-bounded and stays put; the row inside it scrolls, so a
 	// toolbar too wide for a phone stays reachable without resizing itself.
 	const PILL =
-		"absolute left-1/2 -translate-x-1/2 z-10 max-w-[calc(100%-1.5rem)] rounded-lg bg-card/90 shadow-card px-2 py-1.5 backdrop-blur-sm transition-opacity duration-150";
+		"absolute left-1/2 -translate-x-1/2 z-10 max-w-[calc(100%-1.5rem)] rounded-lg bg-card/90 shadow-card px-2 py-1.5 backdrop-blur-sm transition-opacity duration-150 [&_button]:size-11 [&_svg]:size-5 md:[&_button]:size-8 md:[&_svg]:size-3.5";
 	const ROW = "no-scrollbar flex items-center gap-1 overflow-x-auto";
 	const DIVIDER = "mx-1 h-4 w-px shrink-0 bg-border";
 
@@ -225,7 +233,7 @@
 </script>
 
 <!-- Two pills, each centering itself: the swap cannot jitter the width. -->
-<div class="{PILL} top-3 {editMode ? 'opacity-100 delay-150' : 'pointer-events-none opacity-0'}">
+<div data-map-edit-toolbar class="{PILL} top-full mt-3 md:top-3 md:mt-0 {editMode ? 'opacity-100 delay-150' : 'pointer-events-none opacity-0 hidden md:block'}">
 	<div class={ROW}>
 		<Tooltip>
 			<TooltipTrigger class="shrink-0">
@@ -369,9 +377,9 @@
 </div>
 
 <div
-	class="{PILL} top-14 {editMode && furnitureSelected && tool !== 'opening'
+	data-map-secondary-toolbar class="{PILL} top-full mt-[4.75rem] md:top-14 md:mt-0 {editMode && furnitureSelected && tool === 'select'
 		? 'opacity-100'
-		: 'pointer-events-none opacity-0'}"
+		: 'pointer-events-none opacity-0 hidden md:block'}"
 >
 	<div class={ROW}>
 		{#each localizedFurnitureModes as mode (mode.id)}
@@ -394,9 +402,9 @@
 </div>
 
 <div
-	class="{PILL} top-14 {editMode && tool === 'measure'
+	data-map-secondary-toolbar class="{PILL} top-full mt-[4.75rem] md:top-14 md:mt-0 {editMode && tool === 'measure'
 		? 'opacity-100'
-		: 'pointer-events-none opacity-0'}"
+		: 'pointer-events-none opacity-0 hidden md:block'}"
 >
 	<div class={ROW}>
 		{#each localizedMeasureKinds as k (k.id)}
@@ -436,9 +444,9 @@
 </div>
 
 <div
-	class="{PILL} top-14 {editMode && tool === 'opening'
+	data-map-secondary-toolbar class="{PILL} top-full mt-[4.75rem] md:top-14 md:mt-0 {editMode && tool === 'opening'
 		? 'opacity-100'
-		: 'pointer-events-none opacity-0'}"
+		: 'pointer-events-none opacity-0 hidden md:block'}"
 >
 	<div class={ROW}>
 		{#each localizedOpeningKinds as k (k.id)}
@@ -459,7 +467,7 @@
 	</div>
 </div>
 
-<div class="{PILL} top-3 {editMode ? 'pointer-events-none opacity-0' : 'opacity-100 delay-150'}">
+<div data-map-live-toolbar class="{PILL} {editMode ? 'top-3 pointer-events-none opacity-0' : 'top-full mt-3 opacity-100 delay-150 md:top-3 md:mt-0'}">
 	<div class={ROW}>
 		{#if showBrush}
 			<Button
@@ -485,6 +493,19 @@
 				<Radio class="size-3.5" />
 			</Button>
 		{/if}
+		{#if showCleaningTools}
+			<Button
+				variant={showTrails ? "secondary" : "ghost"}
+				size="icon-sm"
+				class="shrink-0"
+				disabled={editMode}
+				onclick={press(ontrailstoggle)}
+				aria-pressed={showTrails}
+				aria-label={showTrails ? m.map_hide_cleaning_trails() : m.map_show_cleaning_trails()}
+			>
+				<Route class="size-3.5" />
+			</Button>
+		{/if}
 		{#if showMeshSources}
 			{#each meshSources as source (source.provider)}
 				<Button
@@ -504,11 +525,13 @@
 		{/if}
 		{#if showViews}
 			<DropdownMenu bind:open={viewMenuOpen}>
-				<DropdownMenuTrigger class="shrink-0">
-					<Button variant="ghost" size="icon-sm" disabled={editMode} aria-label={m.map_view_picker()}>
-						<Layers class="size-3.5" />
-					</Button>
-				</DropdownMenuTrigger>
+				<DropdownMenuTrigger disabled={editMode}>
+                    {#snippet child({ props })}
+                        <Button {...props} variant="ghost" size="icon-sm" class="shrink-0" aria-label={m.map_view_picker()}>
+                            <Layers class="size-3.5" />
+                        </Button>
+                    {/snippet}
+                </DropdownMenuTrigger>
 				<DropdownMenuContent align="center" class="w-44">
 					{#each localizedMapViews.filter((v) => viewOptions.includes(v.id)) as v (v.id)}
 						<DropdownMenuItem

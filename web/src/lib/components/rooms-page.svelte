@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { deviceTypeFilterOptions } from "$lib/list-helpers";
+  import { chipLabel } from "$lib/i18n/vocabulary";
+  import { toast } from "svelte-sonner";
  import { graphqlErrorMessage } from "$lib/graphql-error";
  import {createEditorRefresh} from "$lib/editor-refresh.svelte";
  import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
@@ -32,7 +35,6 @@
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import IconPickerTrigger from "$lib/components/icon-picker-trigger.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
-	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
 	import {
 		Plus,
@@ -49,7 +51,6 @@
 	import { roomsStore, type Room } from "$lib/stores/rooms.svelte";
 	import { groupsStore } from "$lib/stores/groups.svelte";
 	import { deviceIcon, deviceDisplayName, groupDisplayName } from "$lib/utils";
-	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { m } from "$lib/paraglide/messages.js";
 	import { locale } from "$lib/i18n/locale.svelte";
 	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
@@ -110,11 +111,7 @@
 		active: () => visible && page.url.pathname === "/rooms",
 	});
 
-	const deviceTypeOptions = $derived([
-		{ value: "light", label: m.device_type_light({}, locale.messageOptions()) },
-		{ value: "sensor", label: m.device_type_sensor({}, locale.messageOptions()) },
-		{ value: "switch", label: m.device_type_switch({}, locale.messageOptions()) },
-	]);
+	const deviceTypeOptions = $derived(deviceTypeFilterOptions(rooms.flatMap(roomDevices)));
 
 	const emptyOptions = $derived([
 		{ value: "yes", label: m.common_yes({}, locale.messageOptions()) },
@@ -126,6 +123,7 @@
 			keyword: "type",
 			label: m.field_type({}, locale.messageOptions()),
 			variant: "secondary",
+			resolveLabel: chipLabel,
 			options: (input: string) => {
 				const q = input.toLowerCase();
 				return q
@@ -269,11 +267,9 @@
 			await roomsStore.addMember(client, roomId, memberType, memberId);
 		} catch (e) {
 			console.error(e);
-			errors.setWithAutoDismiss(m.member_add_failed({}, locale.messageOptions()));
+			toast.error(m.member_add_failed({}, locale.messageOptions()));
 		}
 	}
-
-	const errors = new BannerError();
 
 	let view = $state<ListViewMode>(profile.get("view.rooms", "card"));
 
@@ -442,7 +438,7 @@
 	async function handleCreateRoom(options: { keepOpen?: boolean } = {}) {
 		if (!newRoomName.trim()) return;
 		createLoading = true;
-		errors.clear();
+
 
 		let created: Room;
 		try {
@@ -450,7 +446,7 @@
 		} catch (e) {
 			createLoading = false;
 			console.error(e);
-			errors.setWithAutoDismiss(m.room_create_failed({}, locale.messageOptions()));
+			toast.error(m.room_create_failed({}, locale.messageOptions()));
 			return;
 		}
 
@@ -526,7 +522,7 @@
 		if (!editingRoom || refreshGuard.conflict) return;
 		const roomId = editingRoom.id;
 		editLoading = true;
-		errors.clear();
+
 
 		let latest = editingRoom;
  try {
@@ -536,7 +532,7 @@
 		} catch (e) {
 			editLoading = false;
 			console.error(e);
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.room_save_failed({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.room_save_failed({}, locale.messageOptions())));
 			return;
 		}
 
@@ -557,13 +553,13 @@
 			return;
 		}
 		batchDeleteLoading = true;
-		errors.clear();
+
 		try {
 			await roomsStore.deleteMany(client, ids);
 		} catch (e) {
 			batchDeleteLoading = false;
 			console.error(e);
-			errors.setWithAutoDismiss(m.room_delete_many_failed({}, locale.messageOptions()));
+			toast.error(m.room_delete_many_failed({}, locale.messageOptions()));
 			return;
 		}
 		batchDeleteLoading = false;
@@ -575,14 +571,14 @@
 	async function handleDeleteRoom() {
 		if (!deleteConfirmRoom) return;
 		deleteLoading = true;
-		errors.clear();
+
 
 		try {
 			await roomsStore.delete(client, deleteConfirmRoom.id);
 		} catch (e) {
 			deleteLoading = false;
 			console.error(e);
-			errors.setWithAutoDismiss(m.room_delete_failed({}, locale.messageOptions()));
+			toast.error(m.room_delete_failed({}, locale.messageOptions()));
 			return;
 		}
 
@@ -625,22 +621,22 @@
 	}
 
 	async function handleRename(room: Room, newName: string) {
-		errors.clear();
+
 		try {
 			await roomsStore.update(client, room.id, { expectedRevision:room.revision, name: newName });
 		} catch (e) {
 			console.error(e);
-			errors.setWithAutoDismiss(m.room_rename_failed({}, locale.messageOptions()));
+			toast.error(m.room_rename_failed({}, locale.messageOptions()));
 		}
 	}
 
 	async function handleIconChange(room: Room, icon: string | null) {
-		errors.clear();
+
 		try {
 			await roomsStore.update(client, room.id, { expectedRevision:room.revision, icon });
 		} catch (e) {
 			console.error(e);
-			errors.setWithAutoDismiss(m.icon_change_failed({}, locale.messageOptions()));
+			toast.error(m.icon_change_failed({}, locale.messageOptions()));
 		}
 	}
 
@@ -652,10 +648,7 @@
 <UnsavedGuard dirty={hasPendingChanges} />
 
 <div>
-	{#if errors.message}
-		{#if refreshGuard.conflict}<ExternalChangeBanner onreload={()=>refreshGuard.refresh(true)} />{/if}
-		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
-	{/if}
+	{#if refreshGuard.conflict}<ExternalChangeBanner onreload={()=>refreshGuard.refresh(true)} />{/if}
 
 	{#if editingRoom}
 		<div class="mx-auto max-w-6xl space-y-6" in:fly={{ y: -4, duration: 150 }}>
@@ -715,9 +708,6 @@
 						<DoorOpen class="size-6 text-muted-foreground" />
 					</div>
 					<p class="text-muted-foreground">{m.room_none({}, locale.messageOptions())}</p>
-					<p class="mt-2 text-sm text-muted-foreground">
-						{m.room_none_help({}, locale.messageOptions())}
-					</p>
 					<Button class="mt-4" onclick={() => (createDialogOpen = true)}>
 						<Plus class="size-4" />
 						<span>{m.room_create_first({}, locale.messageOptions())}</span>
@@ -788,7 +778,6 @@
 								{selection}
 								editHref={(room) => editRoomHref(room.id)}
 								ondelete={(r) => (deleteConfirmRoom = r)}
-								onrename={handleRename}
 								oniconchange={handleIconChange}
 								onAddTo={handleAddToRoom}
 								getDevices={roomDevices}

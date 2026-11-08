@@ -11,6 +11,7 @@ const (
 	KindFirmware Kind = "firmware"
 	KindPosture  Kind = "posture"
 	KindStorage  Kind = "storage"
+	KindCleaning Kind = "cleaning"
 )
 
 // Task is one active, actionable condition.
@@ -25,4 +26,5 @@ type Task struct {
 	Value                *float64
 	Context              *string
 	ActionURL            *string
+	CanComplete          bool
 }

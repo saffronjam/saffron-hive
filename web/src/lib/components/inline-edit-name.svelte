@@ -1,4 +1,6 @@
 <script lang="ts">
+ import { tick } from "svelte";
+ import ResourceLink from "$lib/components/resource-link.svelte";
  import { graphqlErrorMessage } from "$lib/graphql-error";
 	import {toast} from "svelte-sonner";
  import {m} from "$lib/i18n/messages";
@@ -9,13 +11,14 @@
 
 	interface Props {
 		name: string;
+    href?: string;
 		class?: string;
 		onsave: (newName: string) => void | Promise<void>;
 		entityType?: string;
 		entityId?: string;
 	}
 
-	let { name, class: className = "", onsave, entityType, entityId }: Props = $props();
+	let { name, href, class: className = "", onsave, entityType, entityId }: Props = $props();
 	const client = getContextClient();
 
 	let editing = $state(false);
@@ -24,6 +27,7 @@
 	let editValue = $state("");
 	let optimisticName = $state<string | null>(null);
 	let inputEl = $state<HTMLInputElement | null>(null);
+	let container = $state<HTMLDivElement | null>(null);
 
 	const displayName = $derived(optimisticName ?? name);
 
@@ -33,7 +37,7 @@
 		}
 	});
 
-	function startEditing() {
+	export function startEditing() {
 		originalName=displayName;
  originalNames=entityType&&entityId?structuredClone($state.snapshot(localizedNamesStore.get(entityType,entityId))):undefined;
 		editValue = displayName;
@@ -46,7 +50,7 @@
 
 	async function commit() {
  if (!editing) return;
-		editing = false;
+		finishEditing();
 		const trimmed = editValue.trim();
 		const names=originalNames;
  if(name!==originalName&&optimisticName===null){toast.error(m.editor_changed_elsewhere({},locale.messageOptions()));return;}
@@ -74,8 +78,14 @@
 		}
 	}
 
-	function cancel() {
+	function finishEditing() {
+		const restoreFocus = inputEl === document.activeElement;
 		editing = false;
+		if (href && restoreFocus) void tick().then(() => container?.querySelector("a")?.focus());
+	}
+
+	function cancel() {
+		finishEditing();
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -90,8 +100,8 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="relative min-w-0 overflow-hidden {className}" ondblclick={startEditing}>
-	<h3 class="truncate font-medium text-card-foreground {editing ? 'invisible' : ''}">{displayName}</h3>
+<div bind:this={container} class="relative min-w-0 overflow-hidden {className}" ondblclick={href ? undefined : startEditing}>
+	<h3 class="truncate font-medium text-card-foreground {editing ? 'invisible' : ''}">{#if href}<ResourceLink {href}>{displayName}</ResourceLink>{:else}{displayName}{/if}</h3>
 	{#if editing}
 		<input
 			bind:this={inputEl}

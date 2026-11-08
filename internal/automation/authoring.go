@@ -10,6 +10,7 @@ import (
 
 	"github.com/expr-lang/expr/ast"
 	"github.com/expr-lang/expr/parser"
+	"github.com/saffronjam/saffron-hive/internal/cleaning"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
 	"github.com/saffronjam/saffron-hive/internal/webhook"
@@ -163,6 +164,9 @@ type AuthoringAction struct {
 
 // AuthoringActionPayload contains the fields accepted by Hive's action executors.
 type AuthoringActionPayload struct {
+	RoomIDs           []string                `json:"roomIds,omitempty"`
+	Options           *cleaning.Options       `json:"options,omitempty"`
+	Action            *string                 `json:"action,omitempty"`
 	On                *bool                   `json:"on,omitempty"`
 	Brightness        *int                    `json:"brightness,omitempty"`
 	ColorTemp         *int                    `json:"colorTemp,omitempty"`

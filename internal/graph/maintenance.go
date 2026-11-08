@@ -10,6 +10,7 @@ func mapMaintenanceTask(reader device.StateReader, task maintenance.Task) *model
 	out := &model.MaintenanceTask{
 		ID: task.ID, Kind: maintenanceKindToModel(task.Kind), CurrentValue: task.CurrentValue,
 		TargetValue: task.TargetValue, Value: task.Value, Context: task.Context, ActionURL: task.ActionURL,
+		CanComplete: task.CanComplete,
 	}
 	if task.Device != nil {
 		out.Device = mapDeviceFromReader(reader, *task.Device)
@@ -27,6 +28,8 @@ func maintenanceKindToModel(kind maintenance.Kind) model.MaintenanceKind {
 		return model.MaintenanceKindPosture
 	case maintenance.KindStorage:
 		return model.MaintenanceKindStorage
+	case maintenance.KindCleaning:
+		return model.MaintenanceKindCleaning
 	default:
 		return model.MaintenanceKindStorage
 	}

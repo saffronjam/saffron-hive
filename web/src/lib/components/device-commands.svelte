@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Capability } from "$lib/stores/devices";
+	import { Loader2 } from "@lucide/svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { toast } from "svelte-sonner";
 	import { getContextClient } from "@urql/svelte";
@@ -73,21 +74,17 @@
 	}
 </script>
 
-<div class="space-y-2">
-	<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-		{m.device_actions({}, locale.messageOptions())}
-	</p>
-	<div class="flex flex-wrap gap-2">
+<div class="flex flex-wrap gap-2">
 		{#each buttons as button (button.key)}
 			<Button
 				variant="outline"
 				size="sm"
 				disabled={disabled || running !== null}
+				aria-busy={running === button.key}
 				title={button.capability.description ?? undefined}
 				onclick={() => run(button)}
 			>
-				{button.label}
+				{#if running === button.key}<Loader2 class="size-4 animate-spin" />{/if}{button.label}
 			</Button>
 		{/each}
 	</div>
-</div>

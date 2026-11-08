@@ -1,5 +1,6 @@
 import { m } from "$lib/i18n/messages";
 import { locale } from "$lib/i18n/locale.svelte";
+import { cleaningMaintenanceAction } from "$lib/cleaning-maintenance";
 import { formatNumber } from "$lib/i18n/format";
 
 export interface AlarmPresentation {
@@ -10,6 +11,7 @@ export interface AlarmPresentation {
 
 interface AlarmArguments {
   deviceName?: string;
+  consumable?: string;
   value?: number;
   threshold?: number;
 }
@@ -28,6 +30,16 @@ export function alarmMessage(alarm: AlarmPresentation): string {
   const options = locale.messageOptions();
   const args = argumentsFor(alarm);
   switch (alarm.messageCode) {
+    case "cleaning_maintenance_soon":
+      return m.alarm_cleaning_soon(
+        { name: args.deviceName ?? "", task: cleaningMaintenanceAction(args.consumable ?? "") },
+        options,
+      );
+    case "cleaning_maintenance_due":
+      return m.alarm_cleaning_due(
+        { name: args.deviceName ?? "", task: cleaningMaintenanceAction(args.consumable ?? "") },
+        options,
+      );
     case "disk_low":
       return m.alarm_disk_low(
         {

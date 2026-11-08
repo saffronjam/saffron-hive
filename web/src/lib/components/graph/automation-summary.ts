@@ -460,6 +460,28 @@ export function summarizeAction(
         ),
       );
     }
+    case "start_cleaning": {
+      const rooms = (Array.isArray(payload.roomIds) ? payload.roomIds : []).map((id) =>
+        targetName(lookups, "room", String(id)),
+      );
+      return ok(`${m.cleaning_clean({}, messageOptions)} ${rooms.join(", ")} · ${target}`);
+    }
+    case "control_cleaning": {
+      const action = String(payload.action ?? "");
+      const label =
+        action === "pause"
+          ? m.cleaning_pause({}, messageOptions)
+          : action === "resume"
+            ? m.cleaning_resume({}, messageOptions)
+            : action === "stop"
+              ? m.cleaning_stop({}, messageOptions)
+              : action === "dock"
+                ? m.cleaning_dock({}, messageOptions)
+                : action === "locate"
+                  ? m.cleaning_locate({}, messageOptions)
+                  : m.cleaning_empty_bin({}, messageOptions);
+      return ok(`${label} · ${target}`);
+    }
     case "configure_device":
       return ok(m.automation_summary_configure({ device: target }, messageOptions));
     case "raise_alarm":

@@ -1,8 +1,9 @@
 import type { Device } from "$lib/stores/devices";
-import type { SearchState } from "$lib/components/hive-searchbar";
-import { deviceDisplayName, entityDisplayName } from "$lib/utils";
+import type { ChipOption, SearchState } from "$lib/components/hive-searchbar";
+import { deviceDisplayName, entityDisplayName, sentenceCase } from "$lib/utils";
 import { collator as localeCollator } from "$lib/i18n/format";
-import { formatList } from "$lib/i18n/format";
+import { compareLocalized, formatList } from "$lib/i18n/format";
+import { chipLabel } from "$lib/i18n/vocabulary";
 import { m } from "$lib/i18n/messages";
 import { locale } from "$lib/i18n/locale.svelte";
 import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
@@ -31,6 +32,24 @@ export function compareDevicesByNewThenName(
     const rank = Number(newIds.has(b.id)) - Number(newIds.has(a.id));
     return rank || compareDevicesByName(a, b);
   };
+}
+
+/** Lists the distinct device types present in a search surface's candidate devices. */
+export function deviceTypeFilterOptions(devices: readonly Pick<Device, "type">[]): ChipOption[] {
+  return uniqueFilterOptions(
+    devices.map((device) => device.type),
+    chipLabel,
+  );
+}
+
+/** Builds sorted suggestions from the values present in a search surface. */
+export function uniqueFilterOptions(
+  values: readonly string[],
+  label: (value: string) => string = sentenceCase,
+): ChipOption[] {
+  return [...new Set(values.filter(Boolean))]
+    .map((value) => ({ value, label: label(value) }))
+    .sort((a, b) => compareLocalized(a.label, b.label));
 }
 
 export function filterDevices(devices: Device[], search: SearchState): Device[] {

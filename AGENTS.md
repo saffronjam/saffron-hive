@@ -227,6 +227,16 @@ Domain types are the authoritative representation. Everything else maps to/from 
 
 ## Code style
 
+### External data is not a hardcoded catalog
+
+- Never hand-maintain mappings of external device/model identifiers to product names, manufacturers, specifications, or other vendor metadata. External catalogs are open-ended and belong to their providers.
+- Read these values from provider APIs or discovery metadata. If those sources cannot provide them, investigate an externally maintained catalog with a defined refresh/cache policy. Preserve the reported identifier when no trustworthy display value is available; do not invent a friendly name.
+- Hardcoded mappings are appropriate only for genuinely finite contracts owned by Hive, such as internal error codes, protocol enums, and localization keys. A list of currently known external models is not a finite internal contract.
+
+### Integration ownership
+
+External vendor applications may be needed for initial device setup. Supported day-to-day controls and upkeep belong in Hive, including maintenance completion and provider counter resets. Do not make an external app the normal recovery or maintenance workflow; surface provider limitations explicitly when an operation is unavailable.
+
 ### Rewrite, don't wrap
 - When internal types, schemas, tables, queries, or APIs change, **delete the old path and update every caller.** Do not introduce wrappers, aliases, adapter shims, deprecated-but-kept types, or "compatibility" re-exports to preserve an old contract. `internal/` code has no external consumers — there is no contract to preserve.
 - Applies to: SQL tables/columns, sqlc query names, domain structs, GraphQL types/fields, Go package APIs, frontend component props.

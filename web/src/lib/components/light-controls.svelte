@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
-	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Slider } from "$lib/components/ui/slider/index.js";
 	import LightColorPicker from "$lib/components/light-color-picker.svelte";
 	import type { DeviceState } from "$lib/stores/devices";
@@ -41,10 +40,6 @@
 			localBrightness = lightState.brightness;
 		}
 	});
-
-	function handleToggle(checked: boolean) {
-		oncommand({ on: checked });
-	}
 
 	function autoOn(): { on: true } | Record<string, never> {
 		return lightState.on ? {} : { on: true };
@@ -108,18 +103,8 @@
 	const hasColorTemp = $derived(lightState.colorTemp != null);
 </script>
 
+{#if hasColor || hasColorTemp || lightState.brightness != null}
 <div class="space-y-4">
-	<Card>
-		<CardHeader>
-			<div class="flex items-center justify-between">
-				<CardTitle>{m.device_power({}, locale.messageOptions())}</CardTitle>
-				<Switch
-					checked={lightState.on ?? false}
-					onCheckedChange={handleToggle}
-				/>
-			</div>
-		</CardHeader>
-	</Card>
 
 	{#if hasColor || hasColorTemp}
 		<Card>
@@ -163,3 +148,4 @@
 		</Card>
 	{/if}
 </div>
+{/if}

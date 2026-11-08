@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/saffronjam/saffron-hive/internal/alarms"
+	"github.com/saffronjam/saffron-hive/internal/cleaning"
 	"github.com/saffronjam/saffron-hive/internal/device"
 	"github.com/saffronjam/saffron-hive/internal/effect"
 	"github.com/saffronjam/saffron-hive/internal/eventbus"
@@ -24,6 +26,8 @@ const (
 	ActionRaiseAlarm        = "raise_alarm"
 	ActionClearAlarm        = "clear_alarm"
 	ActionRunEffect         = "run_effect"
+	ActionStartCleaning     = "start_cleaning"
+	ActionControlCleaning   = "control_cleaning"
 )
 
 const cycleIndexStateKey = "cycle_index"
@@ -51,16 +55,28 @@ type SceneRunner interface {
 
 // ActionExecutor resolves automation actions into shared output requests or
 // service calls.
+// CleaningRunner prepares Hive room selections and dispatches typed cleaning operations.
+type CleaningRunner interface {
+	Snapshot(context.Context, string) (cleaning.Snapshot, error)
+	Prepare(context.Context, string, string, []string, cleaning.Options, cleaning.Scope) (cleaning.Plan, error)
+	Start(context.Context, cleaning.Plan, string, string, string) (*cleaning.Task, error)
+	Control(context.Context, string, string, string) error
+}
+
 type ActionExecutor struct {
-	bus        eventbus.Publisher
-	reader     device.StateReader
-	store      automationStore
-	resolver   device.TargetResolver
-	alarms     AlarmRaiser
-	runner     EffectRunner
-	scenes     SceneRunner
-	commander  device.TargetCommander
-	configurer device.ConfigurationCommander
+	cleaner         CleaningRunner
+	cleaningMu      sync.Mutex
+	cleaningQueue   []cleaningActionJob
+	cleaningRunning bool
+	bus             eventbus.Publisher
+	reader          device.StateReader
+	store           automationStore
+	resolver        device.TargetResolver
+	alarms          AlarmRaiser
+	runner          EffectRunner
+	scenes          SceneRunner
+	commander       device.TargetCommander
+	configurer      device.ConfigurationCommander
 
 	// stateMatchSkips counts how many commands were suppressed because the
 	// device already matched the desired state (loop-prevention mechanism
@@ -70,8 +86,9 @@ type ActionExecutor struct {
 
 // NewActionExecutor creates an ActionExecutor. runner may be nil for tests
 // that do not exercise run_effect actions or scene-payload effect dispatch.
-func NewActionExecutor(bus eventbus.Publisher, reader device.StateReader, s automationStore, resolver device.TargetResolver, alarmSvc AlarmRaiser, runner EffectRunner, scenes SceneRunner) *ActionExecutor {
+func NewActionExecutor(bus eventbus.Publisher, reader device.StateReader, s automationStore, resolver device.TargetResolver, alarmSvc AlarmRaiser, runner EffectRunner, scenes SceneRunner, cleaner CleaningRunner) *ActionExecutor {
 	executor := &ActionExecutor{
+		cleaner:  cleaner,
 		bus:      bus,
 		reader:   reader,
 		store:    s,
@@ -196,6 +213,10 @@ func (a *ActionExecutor) ExecuteGraphAction(ctx context.Context, cfg ActionConfi
 		a.executeClearAlarm(ctx, cfg)
 	case ActionRunEffect:
 		a.executeRunEffect(ctx, cfg)
+	case ActionStartCleaning, ActionControlCleaning:
+		if err := a.queueCleaning(ctx, cfg); err != nil {
+			logger.Warn("cleaning action failed", "automation_id", cfg.AutomationID, "node_id", cfg.NodeID, "error", err)
+		}
 	}
 }
 

@@ -17,7 +17,9 @@ type Querier interface {
 	AddGroupMemberIfMissing(ctx context.Context, arg AddGroupMemberIfMissingParams) (int64, error)
 	AddRoomMember(ctx context.Context, arg AddRoomMemberParams) error
 	AddRoomMemberIfMissing(ctx context.Context, arg AddRoomMemberIfMissingParams) (int64, error)
+	AdvanceCleaningLinkRevision(ctx context.Context, arg AdvanceCleaningLinkRevisionParams) (int64, error)
 	AppendAuditEvent(ctx context.Context, arg AppendAuditEventParams) error
+	AttachCleaningHistory(ctx context.Context, arg AttachCleaningHistoryParams) (int64, error)
 	AuditEvents(ctx context.Context, arg AuditEventsParams) ([]AuditEventsRow, error)
 	AuditFloor(ctx context.Context) (int64, error)
 	AuditHighWater(ctx context.Context) (int64, error)
@@ -114,6 +116,8 @@ type Querier interface {
 	DeleteAutomationNodeStateExcept(ctx context.Context, arg DeleteAutomationNodeStateExceptParams) error
 	DeleteAutomationNodesByAutomation(ctx context.Context, automationID string) error
 	DeleteClaudeConfig(ctx context.Context) error
+	DeleteCleaningRoomLinks(ctx context.Context, arg DeleteCleaningRoomLinksParams) error
+	DeleteDreameConfig(ctx context.Context) error
 	DeleteEffect(ctx context.Context, id string) error
 	DeleteEffectClipsByTrack(ctx context.Context, trackID string) error
 	DeleteEffectTracksExcept(ctx context.Context, arg DeleteEffectTracksExceptParams) error
@@ -155,6 +159,7 @@ type Querier interface {
 	DeleteZigbee2MQTTConfig(ctx context.Context) error
 	DeleteZigbeeDeviceMetadata(ctx context.Context, deviceID device.DeviceID) error
 	FinishAuditOperation(ctx context.Context, arg FinishAuditOperationParams) (int64, error)
+	GetActiveCleaningTask(ctx context.Context, deviceID string) (CleaningTask, error)
 	GetActiveGuestByID(ctx context.Context, arg GetActiveGuestByIDParams) (Guest, error)
 	GetActiveGuestByNormalizedName(ctx context.Context, arg GetActiveGuestByNormalizedNameParams) (Guest, error)
 	GetActiveSceneRun(ctx context.Context, sceneID string) (ActiveSceneRun, error)
@@ -168,7 +173,11 @@ type Querier interface {
 	// deletes the state of every node the new graph no longer contains.
 	GetAutomationNodeState(ctx context.Context, arg GetAutomationNodeStateParams) (string, error)
 	GetClaudeConfig(ctx context.Context) (GetClaudeConfigRow, error)
+	GetCleaningCalibration(ctx context.Context, arg GetCleaningCalibrationParams) (GetCleaningCalibrationRow, error)
+	GetCleaningTaskByProviderHistory(ctx context.Context, arg GetCleaningTaskByProviderHistoryParams) (CleaningTask, error)
+	GetCleaningTaskByRequest(ctx context.Context, requestID string) (CleaningTask, error)
 	GetDevice(ctx context.Context, id device.DeviceID) (GetDeviceRow, error)
+	GetDreameConfig(ctx context.Context) (GetDreameConfigRow, error)
 	GetEffect(ctx context.Context, id string) (GetEffectRow, error)
 	// A floorplan owns its graph, rooms, placements, furniture, and door bindings. GetFloorplanGraph
 	// is composed in Go from these queries; ReplaceFloorplan swaps the whole plan
@@ -218,7 +227,10 @@ type Querier interface {
 	// Deletion is by alarm_id, removing every row belonging to a logical alarm
 	// in one shot. The user-facing identity is alarm_id, not the row id.
 	InsertAlarm(ctx context.Context, arg InsertAlarmParams) (Alarm, error)
+	InsertCleaningRoomLink(ctx context.Context, arg InsertCleaningRoomLinkParams) error
+	InsertCleaningTask(ctx context.Context, arg InsertCleaningTaskParams) error
 	InsertGroupTag(ctx context.Context, arg InsertGroupTagParams) error
+	InsertHistoricalCleaningTask(ctx context.Context, arg InsertHistoricalCleaningTaskParams) error
 	InsertMaintenanceAcknowledgement(ctx context.Context, arg InsertMaintenanceAcknowledgementParams) error
 	InsertProviderGroupMember(ctx context.Context, arg InsertProviderGroupMemberParams) error
 	InsertSceneDynamicSample(ctx context.Context, arg InsertSceneDynamicSampleParams) error
@@ -242,8 +254,14 @@ type Querier interface {
 	ListAutomationNodeStateByAutomation(ctx context.Context, automationID string) ([]ListAutomationNodeStateByAutomationRow, error)
 	ListAutomationNodes(ctx context.Context, automationID string) ([]ListAutomationNodesRow, error)
 	ListAutomations(ctx context.Context) ([]ListAutomationsRow, error)
+	ListCleaningAreaHistory(ctx context.Context, arg ListCleaningAreaHistoryParams) ([]CleaningTask, error)
+	ListCleaningHistory(ctx context.Context, arg ListCleaningHistoryParams) ([]CleaningTask, error)
+	ListCleaningRoomLinks(ctx context.Context, deviceID string) ([]ListCleaningRoomLinksRow, error)
+	ListCleaningSnapshots(ctx context.Context) ([]CleaningSnapshot, error)
+	ListCleaningTasks(ctx context.Context, arg ListCleaningTasksParams) ([]CleaningTask, error)
 	ListDevices(ctx context.Context) ([]ListDevicesRow, error)
 	ListDevicesBySource(ctx context.Context, source device.Source) ([]ListDevicesBySourceRow, error)
+	ListDreameDevices(ctx context.Context) ([]DreameDevice, error)
 	ListEffectClips(ctx context.Context, trackID string) ([]EffectClip, error)
 	ListEffectTracks(ctx context.Context, effectID string) ([]EffectTrack, error)
 	ListEffects(ctx context.Context) ([]ListEffectsRow, error)
@@ -320,6 +338,7 @@ type Querier interface {
 	RestoreDevices(ctx context.Context, idsJson string) ([]device.DeviceID, error)
 	SaveAssistantConversation(ctx context.Context, arg SaveAssistantConversationParams) (int64, error)
 	SaveClaudeConfig(ctx context.Context, arg SaveClaudeConfigParams) (int64, error)
+	SaveCleaningSnapshot(ctx context.Context, arg SaveCleaningSnapshotParams) error
 	SetAuditEventDetails(ctx context.Context, detailsJson string) error
 	SetAuditWriteContext(ctx context.Context, operationID *string) error
 	SetAutomationNodeState(ctx context.Context, arg SetAutomationNodeStateParams) error
@@ -352,6 +371,7 @@ type Querier interface {
 	// Stamps when the automation most recently fired. updated_at is intentionally
 	// NOT touched so the "last edited" semantics stay distinct from "last fired".
 	UpdateAutomationLastFired(ctx context.Context, arg UpdateAutomationLastFiredParams) error
+	UpdateCleaningTask(ctx context.Context, arg UpdateCleaningTaskParams) (int64, error)
 	UpdateDevice(ctx context.Context, arg UpdateDeviceParams) error
 	UpdateDeviceDisplayBrightness(ctx context.Context, arg UpdateDeviceDisplayBrightnessParams) error
 	UpdateDeviceDisplayColor(ctx context.Context, arg UpdateDeviceDisplayColorParams) error
@@ -381,10 +401,13 @@ type Querier interface {
 	UpsertActiveSceneRun(ctx context.Context, arg UpsertActiveSceneRunParams) error
 	UpsertAuditRunOutcome(ctx context.Context, arg UpsertAuditRunOutcomeParams) error
 	UpsertAuditRunState(ctx context.Context, arg UpsertAuditRunStateParams) error
+	UpsertCleaningCalibration(ctx context.Context, arg UpsertCleaningCalibrationParams) (int64, error)
 	// Refreshes every adapter-owned column, including the friendly name, and clears
 	// the removed flag when a device reappears. The name column is the user's
 	// override and is never touched here.
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error
+	UpsertDreameConfig(ctx context.Context, arg UpsertDreameConfigParams) (int64, error)
+	UpsertDreameDevice(ctx context.Context, arg UpsertDreameDeviceParams) error
 	UpsertFloorplan(ctx context.Context, arg UpsertFloorplanParams) error
 	UpsertLocalizedName(ctx context.Context, arg UpsertLocalizedNameParams) error
 	UpsertNativeEffectObservation(ctx context.Context, arg UpsertNativeEffectObservationParams) (NativeEffectObservation, error)

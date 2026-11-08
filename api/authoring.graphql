@@ -162,6 +162,9 @@ input AutomationActionInput {
 }
 
 type AutomationActionPayload {
+ roomIds: [String!]
+ options: CleaningOptions
+ action: String
   on: Boolean
   brightness: Int
   colorTemp: Int
@@ -186,6 +189,9 @@ type AutomationActionPayload {
 }
 
 input AutomationActionPayloadInput {
+ roomIds: [String!]
+ options: CleaningOptionsInput
+ action: String
   on: Boolean
   brightness: Int
   colorTemp: Int

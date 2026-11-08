@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { watchErrorToast } from "$lib/error-toast.svelte";
 	import { goto } from "$app/navigation";
 	import { getContextClient } from "@urql/svelte";
 	import { graphql } from "$lib/gql";
@@ -59,6 +60,7 @@
 			{ label: m.auth_set_new_password({}, locale.messageOptions()) },
 		];
 	});
+  watchErrorToast(() => error);
 </script>
 
 <div class="flex min-h-screen items-center justify-center bg-background p-6">
@@ -111,9 +113,7 @@
 				/>
 				<FieldError id="cpr-confirm-error" message={confirmError} />
 			</div>
-			{#if error}
-				<p class="text-sm text-red-600 dark:text-red-400">{error}</p>
-			{/if}
+
 			<Button type="submit" disabled={submitting || !newPassword || !confirmPassword}>
 				{#if submitting}
 					<Loader2 class="mr-1.5 size-4 animate-spin" />

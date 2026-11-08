@@ -62,6 +62,8 @@ export const ACTION_KEYS: Record<string, string> = {
   effect: "run_effect",
   change: "change_value",
   configure: "configure_device",
+  clean: "start_cleaning",
+  cleaning: "control_cleaning",
   alarm: "raise_alarm",
   clear_alarm: "clear_alarm",
 };

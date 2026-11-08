@@ -58,7 +58,7 @@ afterEach(async () => {
 });
 
 describe("WebhooksPage", () => {
-  it("renames a webhook by double-clicking its name", async () => {
+  it("links a webhook name to its editor without inline renaming", async () => {
     const mock = createMockClient();
     mock.queueResult({ data: { webhookEndpoints: [endpoint] } });
     await webhooksStore.start(mock.client);
@@ -72,33 +72,11 @@ describe("WebhooksPage", () => {
     });
     flushSync();
 
-    const name = Array.from(host.querySelectorAll("h3")).find(
-      (element) => element.textContent === endpoint.name,
-    );
-    expect(name).toBeDefined();
-    name!.parentElement!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    const name = host.querySelector('a[href="/webhooks/hook-1"]');
+    expect(name?.textContent).toBe(endpoint.name);
+    name!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
     flushSync();
-
-    const input = name!.parentElement!.querySelector("input");
-    expect(input).not.toBeNull();
-    input!.value = "Deploy failed";
-    input!.dispatchEvent(new Event("input", { bubbles: true }));
-    mock.queueMutationResult({
-      data: { updateWebhookEndpoint: { ...endpoint, name: "Deploy failed" } },
-    });
-    input!.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-
-    await vi.waitFor(() => {
-      expect(mock.mutations.at(-1)?.variables).toEqual({
-        id: endpoint.id,
-        input: {
-          name: "Deploy failed",
-          enabled: true,
-          rateLimitCount: 1,
-          rateLimitWindowMs: 1000,
-        },
-      });
-      expect(webhooksStore.byId.get(endpoint.id)?.name).toBe("Deploy failed");
-    });
+    expect(name!.parentElement!.querySelector("input")).toBeNull();
+    expect(mock.mutations).toHaveLength(0);
   });
 });

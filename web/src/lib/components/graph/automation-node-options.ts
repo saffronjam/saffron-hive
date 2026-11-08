@@ -59,6 +59,8 @@ export function conditionOptions(): readonly AutomationNodeOption[] {
 export function actionOptions(): readonly AutomationNodeOption[] {
   const options = locale.messageOptions();
   return [
+    { value: "start_cleaning", label: m.cleaning_start({}, options), description: "" },
+    { value: "control_cleaning", label: m.cleaning_control({}, options), description: "" },
     {
       value: "set_device_state",
       label: m.automation_action_set_state({}, options),

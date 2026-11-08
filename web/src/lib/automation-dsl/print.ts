@@ -448,6 +448,18 @@ class Printer {
           payload.mode === "absolute" ? delta : `${delta > 0 ? "+" : ""}${delta}%`;
         return { change: { ...target, [field]: amount } };
       }
+      case "start_cleaning":
+        return {
+          clean: {
+            ...target,
+            rooms: (Array.isArray(payload.roomIds) ? payload.roomIds : []).map((id) =>
+              this.ref("room", String(id)),
+            ),
+            ...(payload.options ? { options: payload.options } : {}),
+          },
+        };
+      case "control_cleaning":
+        return { cleaning: { ...target, action: payload.action ?? "dock" } };
       case "configure_device": {
         const settings: JsonObject = {};
         for (const entry of Array.isArray(payload.settings) ? payload.settings : []) {

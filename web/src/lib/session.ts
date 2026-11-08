@@ -13,6 +13,7 @@ import { groupsStore } from "$lib/stores/groups.svelte";
 import { scenesStore } from "$lib/stores/scenes.svelte";
 import { automationsStore } from "$lib/stores/automations.svelte";
 import { effectsStore } from "$lib/stores/effects.svelte";
+import { cleaningStore } from "$lib/stores/cleaning.svelte";
 import { floorplanStore } from "$lib/stores/floorplan.svelte";
 import { webhooksStore } from "$lib/stores/webhooks.svelte";
 import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
@@ -40,6 +41,7 @@ export function sessionTeardown(): void {
   automationsStore.stop();
   effectsStore.stop();
   floorplanStore.stop();
+  cleaningStore.stop();
   webhooksStore.stop();
 
   alarmsStore.clear();
@@ -51,6 +53,7 @@ export function sessionTeardown(): void {
   automationsStore.clear();
   effectsStore.clear();
   floorplanStore.clear();
+  cleaningStore.clear();
   webhooksStore.clear();
   localizedNamesStore.clear();
 

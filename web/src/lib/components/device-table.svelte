@@ -8,7 +8,7 @@
 	import SensorHistoryPopover from "$lib/components/sensor-history-popover.svelte";
 	import HiveChip from "$lib/components/hive-chip.svelte";
 	import DeviceQuickControls from "$lib/components/device-quick-controls.svelte";
-	import InlineEditName from "$lib/components/inline-edit-name.svelte";
+	import ResourceLink from "$lib/components/resource-link.svelte";
 	import IconCell from "$lib/components/table-cells/icon-cell.svelte";
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
 	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
@@ -41,7 +41,7 @@
 	interface Props {
 		rows: Row[];
 		selection: TableSelection;
-		onrename: (id: string, newName: string) => void;
+
 		oniconchange: (id: string, icon: string | null) => void;
 		onAddTo: (device: Device) => void;
 		ontoggleenabled: (device: Device) => void;
@@ -54,7 +54,7 @@
 	let {
 		rows,
 		selection,
-		onrename,
+
 		oniconchange,
 		onAddTo,
 		ontoggleenabled,
@@ -158,12 +158,7 @@
 
 {#snippet nameCell(row: Row)}
 	<div class="flex items-center gap-2">
-		<InlineEditName
-			name={deviceDisplayName(row.device)}
-			entityType="device"
-			entityId={row.device.id}
-			onsave={(newName) => onrename(row.device.id, newName)}
-		/>
+		<ResourceLink href={`/devices/${row.device.id}`}>{deviceDisplayName(row.device)}</ResourceLink>
 		{#if newDeviceIds?.has(row.device.id)}
 			<HiveChip type="new" label={m.field_new({}, locale.messageOptions())} />
 		{/if}

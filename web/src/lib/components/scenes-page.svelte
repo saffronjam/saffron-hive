@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { watchErrorToast } from "$lib/error-toast.svelte";
+  import { toast } from "svelte-sonner";
 	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
 	import { delayedLoading } from "$lib/delayed-loading.svelte";
@@ -11,7 +13,8 @@
 	import SceneTable from "$lib/components/scene-table.svelte";
 	import HiveDrawer from "$lib/components/hive-drawer.svelte";
 	import type { DrawerGroup } from "$lib/components/hive-drawer";
-	import { sceneRoomLabel } from "$lib/list-helpers";
+	import { sceneRoomLabel, uniqueFilterOptions } from "$lib/list-helpers";
+	import { chipLabel } from "$lib/i18n/vocabulary";
 	import { scenePreviewColors } from "$lib/device-tint";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
 	import { createTableSelection } from "$lib/utils/table-selection.svelte";
@@ -21,7 +24,6 @@
 	import AnimatedGrid from "$lib/components/animated-grid.svelte";
 	import ListView from "$lib/components/list-view.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
-	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { deviceStore, isRuntimeEnabledDevice, type Device } from "$lib/stores/devices";
 	import { roomsStore } from "$lib/stores/rooms.svelte";
 	import { scenesStore, type Scene as SceneData } from "$lib/stores/scenes.svelte";
@@ -33,7 +35,6 @@
 	import { Plus, Clapperboard, Play, Square, Group as GroupIcon, DoorOpen } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
 	import { profile, type ListView as ListViewMode } from "$lib/stores/profile.svelte";
-	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import {
 		SceneLightOverrideKind,
 		SceneTargetType,
@@ -181,7 +182,7 @@
 			};
 			await scenesStore.update(clientRef, scene.id, { expectedRevision:scene.revision, definition });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_update({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.scenes_error_update({}, locale.messageOptions())));
 		}
 	}
 
@@ -203,7 +204,6 @@
 	});
 	let deleteConfirmScene = $state<SceneData | null>(null);
 	let deleteLoading = $state(false);
-	const errors = new BannerError();
 
 	const selection = createTableSelection();
 	let batchDeleteConfirm = $state(false);
@@ -211,32 +211,32 @@
 
 	async function handleRename(scene: SceneData, newName: string) {
 		if (!clientRef) return;
-		errors.clear();
+
 		try {
 			await scenesStore.update(clientRef, scene.id, { expectedRevision:scene.revision, name: newName });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_rename({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.scenes_error_rename({}, locale.messageOptions())));
 		}
 	}
 
 	async function handleIconChange(scene: SceneData, icon: string | null) {
 		if (!clientRef) return;
-		errors.clear();
+
 		try {
 			await scenesStore.update(clientRef, scene.id, { expectedRevision:scene.revision, icon });
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_icon({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.scenes_error_icon({}, locale.messageOptions())));
 		}
 	}
 
 	async function handleApply(scene: SceneData) {
 		if (!clientRef) return;
 		applyingId = scene.id;
-		errors.clear();
+
 		try {
 			await scenesStore.apply(clientRef, scene.id);
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_apply({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.scenes_error_apply({}, locale.messageOptions())));
 		} finally {
 			applyingId = null;
 		}
@@ -245,11 +245,11 @@
 	async function handleStop(scene: SceneData) {
 		if (!clientRef) return;
 		applyingId = scene.id;
-		errors.clear();
+
 		try {
 			await scenesStore.deactivate(clientRef, scene.id);
 		} catch (e) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_stop({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.scenes_error_stop({}, locale.messageOptions())));
 		} finally {
 			applyingId = null;
 		}
@@ -258,13 +258,13 @@
 	async function handleDelete() {
 		if (!clientRef || !deleteConfirmScene) return;
 		deleteLoading = true;
-		errors.clear();
+
 
 		try {
 			await scenesStore.delete(clientRef, deleteConfirmScene.id);
 		} catch (e) {
 			deleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_delete({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.scenes_error_delete({}, locale.messageOptions())));
 			return;
 		}
 
@@ -276,14 +276,10 @@
 		active: () => visible && page.url.pathname === "/scenes",
 	});
 
-	const targetOptions = $derived.by(() => {
-		const options = locale.messageOptions();
-		return [
-			{ value: "device", label: m.scenes_filter_device({}, options) },
-			{ value: "group", label: m.scenes_filter_group({}, options) },
-			{ value: "room", label: m.scenes_filter_room({}, options) },
-		];
-	});
+	const targetOptions = $derived(uniqueFilterOptions(
+		scenes.flatMap(scene => scene.targets.map(target => target.targetType)),
+		type => type === "expression" ? m.scene_editor_selector({}, locale.messageOptions()) : chipLabel(type),
+	));
 
 	const emptyOptions = $derived.by(() => {
 		const options = locale.messageOptions();
@@ -393,12 +389,12 @@
 			return;
 		}
 		batchDeleteLoading = true;
-		errors.clear();
+
 		try {
 			await scenesStore.deleteMany(clientRef, ids);
 		} catch (e) {
 			batchDeleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.scenes_error_delete_many({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.scenes_error_delete_many({}, locale.messageOptions())));
 			return;
 		}
 		batchDeleteLoading = false;
@@ -409,16 +405,13 @@
 
 	const mountTimer = measureMount("scenes", { ready: () => scenesStore.hydrated, items: () => filteredScenes.length });
 	$effect(() => mountTimer.tick());
+  watchErrorToast(() => visible ? (scenesStore.error) : null);
 </script>
 
 <div>
-	{#if errors.message}
-		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
-	{/if}
 
-	{#if scenesStore.error}
-		<ErrorBanner class="mb-4" message={scenesStore.error} />
-	{/if}
+
+
 
 	{#if !scenesStore.hydrated}
 		{#if loader.visible}
@@ -432,9 +425,6 @@
 						<Clapperboard class="size-6 text-muted-foreground" />
 					</div>
 					<p class="text-muted-foreground">{m.scenes_empty({}, locale.messageOptions())}</p>
-					<p class="mt-2 text-sm text-muted-foreground">
-						{m.scenes_empty_help({}, locale.messageOptions())}
-					</p>
 					<Button class="mt-4" onclick={() => goto("/scenes/new")}>
 						<Plus class="size-4" />
 						<span>{m.scenes_create_first({}, locale.messageOptions())}</span>
@@ -552,7 +542,6 @@
 								onapply={handleApply}
 								onstop={handleStop}
 								ondelete={(s) => (deleteConfirmScene = s)}
-								onrename={handleRename}
 								oniconchange={handleIconChange}
 								onAddTo={handleAddToScene}
 							/>

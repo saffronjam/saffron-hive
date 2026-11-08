@@ -60,6 +60,8 @@ func (r *Recorder) Run(ctx context.Context) {
 		eventbus.EventDeviceAdded,
 		eventbus.EventDeviceRemoved,
 		eventbus.EventCommandDispatched,
+		eventbus.EventCommandConfirmed,
+		eventbus.EventCommandFailed,
 		eventbus.EventSceneApplied,
 		eventbus.EventAutomationTriggered,
 		eventbus.EventAutomationNodeActivated,
@@ -81,6 +83,12 @@ func (r *Recorder) Run(ctx context.Context) {
 }
 
 func (r *Recorder) handle(ctx context.Context, evt eventbus.Event) {
+	if evt.Type == eventbus.EventCommandConfirmed || evt.Type == eventbus.EventCommandFailed {
+		d, ok := r.stateReader.GetDevice(device.DeviceID(evt.DeviceID))
+		if !ok || d.Type != device.Vacuum {
+			return
+		}
+	}
 	params := store.InsertActivityEventParams{
 		Type:      string(evt.Type),
 		Timestamp: evt.Timestamp,

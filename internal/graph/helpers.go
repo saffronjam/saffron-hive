@@ -695,6 +695,7 @@ func resolveDeviceStateFromReader(sr device.StateReader, id device.DeviceID) *mo
 		return nil
 	}
 	out := &model.DeviceState{
+		CleaningStatus:    ds.CleaningStatus,
 		On:                ds.On,
 		Brightness:        ds.Brightness,
 		ColorTemp:         ds.ColorTemp,

@@ -8,4 +8,6 @@ Passwords, integration tokens and newly issued webhook secrets are private. Omit
 
 Read settings before editing and preserve unrelated keys. Settings under internal authentication namespaces are unavailable through the normal API. Use the schema to discover profile, localization, webhook, maintenance, alarms and diagnostic operations. Single-item cleanup is ordinarily direct; bulk removal or disable requires a fixed Hive confirmation card.
 
+Dreamehome account diagnostics are available to registered users at `/dreame`. The page reads device information using credentials entered there; it does not register or command devices. This probe is unavailable through assistant actions.
+
 Audit history records committed configuration changes, operation attempts, and output delivery outcomes for 90 days. Query audit with bounded filters to investigate who changed an entity, including AI actions on behalf of a user. Actual changes are separate from proposed arguments; failed or rejected operations do not imply that configuration changed. An accepted command is not device confirmation. Unexecuted AI proposals are private to their owner. Conversation links are available only to their owner. Use observe for bounded live AUDIT, ACTIVITY, or LOGS observation; a timeout means no matching events arrived. Log cursors are process-local and can require reset after a restart.

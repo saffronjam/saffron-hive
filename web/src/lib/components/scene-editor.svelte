@@ -1,5 +1,6 @@
 <script lang="ts">
- import ErrorBanner from "$lib/components/error-banner.svelte";
+	import FieldError from "$lib/components/field-error.svelte";
+  import { watchErrorToast } from "$lib/error-toast.svelte";
  let authoringError=$state<string|null>(null);
  import {authorSceneStates} from "$lib/scene-authoring";
 	import { onMount, tick } from "svelte";
@@ -573,6 +574,7 @@
 	function setPower(deviceId: string, on: boolean) {
 		updateStateOverride(deviceId, { on });
 	}
+  watchErrorToast(() => authoringError);
 </script>
 
 {#snippet statePicker(device: Device)}
@@ -833,7 +835,7 @@
 	</div>
 {/snippet}
 
-{#if authoringError}<ErrorBanner message={authoringError} ondismiss={()=>authoringError=null} />{/if}
+
 
 {#if editor.dynamicSource}
 	<div class="grid items-start gap-6 xl:grid-cols-[minmax(42rem,1fr)_minmax(30rem,32rem)]">
@@ -861,9 +863,7 @@
 								{m.scene_editor_output_summary({ sceneLights: dynamicZigbeeLightCount, zigbeeLights: projectedContinuousZigbeeLightCount, interval: formatRevisit(zigbeeRevisitSeconds) }, locale.messageOptions())}
 							</p>
 							{#if zigbeeMotionBands === 0}
-								<p class="text-xs text-destructive">
-									{m.scene_editor_output_too_fast({}, locale.messageOptions())}
-								</p>
+								<FieldError message={m.scene_editor_output_too_fast({}, locale.messageOptions())} />
 							{:else if zigbeeMotionBands < 3}
 								<p class="text-xs text-muted-foreground">
 									{m.scene_editor_output_simplified({}, locale.messageOptions())}

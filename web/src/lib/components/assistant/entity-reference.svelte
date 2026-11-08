@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { watchErrorToast } from "$lib/error-toast.svelte";
 	import { getContextClient } from "@urql/svelte";
 	import { DoorOpen, Group, Lightbulb, Clapperboard, Workflow, Sparkles, Play, Square } from "@lucide/svelte";
 	import type { AssistantEntityReference } from "$lib/assistant-entities";
@@ -55,6 +56,7 @@
 		catch (e) { error = graphqlErrorMessage(e, m.assistant_error({}, options)); }
 		finally { if (lock) busy = false; }
 	}
+  watchErrorToast(() => error);
 </script>
 
 <div class="min-w-0 max-w-lg leading-normal" data-entity-kind={reference.kind} data-entity-id={reference.id}>
@@ -87,7 +89,7 @@
 	{:else}
 		<a href={reference.href} class="text-primary hover:underline">{label}</a>
 	{/if}
-	{#if error}<p class="mt-2 text-sm text-destructive" role="alert">{error}</p>{/if}
+
 </div>
 {#if effect && runOpen}
 	{#if effect.kind === EffectKind.Native && effect.nativeName}

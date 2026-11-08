@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { AlertCircle } from "@lucide/svelte";
 	import { slide } from "svelte/transition";
+	import { prefersReducedMotion } from "svelte/motion";
 
 	interface Props {
 		/** Nothing renders when this is null or empty, so callers can bind it directly. */
@@ -20,7 +21,7 @@
 		{id}
 		class="mt-1.5 flex items-center gap-1.5 text-sm text-destructive"
 		role="alert"
-		transition:slide={{ duration: 150 }}
+		transition:slide={{ duration: prefersReducedMotion.current ? 0 : 150 }}
 	>
 		<AlertCircle class="size-4 shrink-0" aria-hidden="true" />
 		{message}

@@ -164,7 +164,7 @@ func StartApp(ctx context.Context, brokerURL string) (*App, error) {
 	}
 	go sceneRunner.Run(appCtx)
 
-	engine := automation.NewEngine(bus, memStore, sqlStore, targetCommander, alarmSvc, effectRunner, sceneRunner)
+	engine := automation.NewEngine(bus, memStore, sqlStore, targetCommander, alarmSvc, effectRunner, sceneRunner, nil)
 	go func() {
 		if err := engine.Run(appCtx); err != nil && appCtx.Err() == nil {
 			log.Printf("automation engine error: %v", err)

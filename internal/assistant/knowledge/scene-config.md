@@ -2,8 +2,8 @@
 
 These are GraphQL input and result types. Use discover for operation arguments and selection sets. Configuration objects contain exactly one matching variant.
 
-<!-- source: api/schema.graphql sha256: 0f70d61c0fc17d5b5ef9cac639ca3428a31e7ea8ada27f15938c90674183fa71 -->
-<!-- source: api/authoring.graphql sha256: 923bc19aa3e079890eeaff0ebddb9acb4462edd0882cf702ae23c66102a73f2e -->
+<!-- source: api/schema.graphql sha256: 0325058ad76821e49bac94d5482558b9fc88a84449279b922785596f887ec15a -->
+<!-- source: api/authoring.graphql sha256: 1f1afd06be8ae7796e17dc3408fdb440171483d99b71948e39e5e39c577b4f3c -->
 
 ```graphql
 type Color {

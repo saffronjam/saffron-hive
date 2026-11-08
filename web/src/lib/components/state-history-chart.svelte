@@ -54,6 +54,8 @@
 	import { IsMobile } from "$lib/hooks/is-mobile.svelte.js";
 	import { MediaQuery, SvelteSet } from "svelte/reactivity";
 	import { createStateHistory } from "$lib/stores/state-history.svelte";
+	import { watchErrorToast } from "$lib/error-toast.svelte";
+	import { Button } from "$lib/components/ui/button";
 	import { curveMonotoneX } from "d3-shape";
 	import { fly } from "svelte/transition";
 	import { X } from "@lucide/svelte";
@@ -126,10 +128,13 @@
 	const history = createStateHistory(getContextClient());
 	onDestroy(() => history.destroy());
 
+	function historyRequest() { return { sources, fields, from, to, bucketSeconds, rollingSnapshot, enabled }; }
+	function retryHistory() { history.refresh(historyRequest()); }
 	$effect(() => {
-		const request = { sources, fields, from, to, bucketSeconds, rollingSnapshot, enabled };
+		const request = historyRequest();
 		untrack(() => history.update(request));
 	});
+	watchErrorToast(() => enabled && history.error ? m.history_load_failed({}, locale.messageOptions()) : null, retryHistory);
 
 	$effect(() => {
 		for (const source of sources) {
@@ -596,8 +601,8 @@
 		{m.common_loading({}, locale.messageOptions())}
 	</div>
 {:else if history.error && !history.loaded}
-	<div class="flex w-full {height} items-center justify-center text-sm text-destructive">
-		{m.history_load_failed({}, locale.messageOptions())}
+	<div class="flex w-full {height} items-center justify-center">
+		<Button variant="outline" onclick={retryHistory}>{m.common_try_again({}, locale.messageOptions())}</Button>
 	</div>
 {:else if !hasSamples}
 	<div class="flex w-full {height} items-center justify-center text-sm text-muted-foreground">

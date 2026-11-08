@@ -15,7 +15,7 @@ func fixtureCycleScenes(s *mockStore) {
 }
 
 func newCycleExecutor(s *mockStore, runner *mockSceneRunner) *ActionExecutor {
-	executor := NewActionExecutor(eventbus.NewChannelBus(), newMockStateReader(), s, s, nil, nil, runner)
+	executor := NewActionExecutor(eventbus.NewChannelBus(), newMockStateReader(), s, s, nil, nil, runner, nil)
 	return executor
 }
 

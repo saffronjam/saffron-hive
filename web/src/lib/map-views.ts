@@ -2,7 +2,7 @@ import type { Device } from "$lib/gql/graphql";
 import { isLightControlDevice } from "$lib/stores/devices";
 
 /** The live map's render dimensions: what the plan's field and markers show. */
-export type MapViewId = "light" | "temperature" | "connectivity";
+export type MapViewId = "light" | "temperature" | "connectivity" | "cleaning";
 
 export const MAP_VIEW_IDS: MapViewId[] = ["light", "temperature", "connectivity"];
 
@@ -28,6 +28,8 @@ export const EMPTY_MAP_VIEW_CONTEXT: MapViewContext = { topologyProviders: new S
  */
 export function supportsMapView(view: MapViewId, device: Device, ctx: MapViewContext): boolean {
   switch (view) {
+    case "cleaning":
+      return false;
     case "light":
       return device.type !== "button" && isLightControlDevice(device);
     case "temperature":

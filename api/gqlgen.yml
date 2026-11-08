@@ -24,6 +24,8 @@ nullable_input_omittable: true
 models:
   Device:
     fields:
+      image:
+        resolver: true
       zigbee2Mqtt:
         resolver: true
   Zigbee2MqttDeviceMetadata:
@@ -189,6 +191,12 @@ models:
   AutomationActionPayloadInput:
     model: github.com/saffronjam/saffron-hive/internal/automation.AuthoringActionPayload
     fields:
+      roomIds:
+        omittable: false
+      options:
+        omittable: false
+      action:
+        omittable: false
       on:
         omittable: false
       brightness:

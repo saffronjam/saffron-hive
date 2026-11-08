@@ -16,6 +16,18 @@ import (
 	"github.com/saffronjam/saffron-hive/internal/store"
 )
 
+// Options is the resolver for the options field.
+func (r *automationActionPayloadResolver) Options(ctx context.Context, obj *automation.AuthoringActionPayload) (*model.CleaningOptions, error) {
+	if obj.Options == nil {
+		return nil, nil
+	}
+	repeats := obj.Options.Repeats
+	if repeats == 0 {
+		repeats = 1
+	}
+	return &model.CleaningOptions{Suction: obj.Options.Suction, Water: obj.Options.Water, Repeats: repeats}, nil
+}
+
 // AutomationNodePreview is the resolver for the automationNodePreview field.
 func (r *queryResolver) AutomationNodePreview(ctx context.Context, typeArg string, config automation.AuthoringConfig) (*model.AutomationNodePreview, error) {
 	raw, err := automation.CompileAuthoring(automation.NodeType(typeArg), config)
@@ -63,3 +75,27 @@ func (r *queryResolver) SceneAuthoring(ctx context.Context, input model.SceneAut
 	}
 	return result, nil
 }
+
+// Options is the resolver for the options field.
+func (r *automationActionPayloadInputResolver) Options(ctx context.Context, obj *automation.AuthoringActionPayload, data *model.CleaningOptionsInput) error {
+	if data == nil {
+		obj.Options = nil
+		return nil
+	}
+	options := cleaningOptions(data)
+	obj.Options = &options
+	return nil
+}
+
+// AutomationActionPayload returns AutomationActionPayloadResolver implementation.
+func (r *Resolver) AutomationActionPayload() AutomationActionPayloadResolver {
+	return &automationActionPayloadResolver{r}
+}
+
+// AutomationActionPayloadInput returns AutomationActionPayloadInputResolver implementation.
+func (r *Resolver) AutomationActionPayloadInput() AutomationActionPayloadInputResolver {
+	return &automationActionPayloadInputResolver{r}
+}
+
+type automationActionPayloadResolver struct{ *Resolver }
+type automationActionPayloadInputResolver struct{ *Resolver }

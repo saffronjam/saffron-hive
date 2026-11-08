@@ -63,9 +63,8 @@ const DEVICE_QUERY = graphql(`
 const ZIGBEE_METADATA_QUERY = graphql(`
   query E2EZigbeeDeviceMetadata($id: ID!) {
     device(id: $id) {
+      image { version }
       zigbee2Mqtt {
-        imageCandidate
-        imageVersion
         ieeeAddress
         networkAddress
         supported
@@ -232,8 +231,8 @@ describe("devices", () => {
         supportsOta: false,
       },
     });
-    expect(t1.data?.device?.zigbee2Mqtt?.imageCandidate).toBe(true);
-    expect(t1.data?.device?.zigbee2Mqtt?.imageVersion).toMatch(/^[a-f0-9]{64}$/);
+    expect(t1.data?.device?.image).not.toBeNull();
+    expect(t1.data?.device?.image?.version).toMatch(/^[a-f0-9]{64}$/);
     expect(t1.data?.device?.zigbee2Mqtt?.definitionUrl).toBe(
       "https://www.zigbee2mqtt.io/devices/MCCGQ12LM.html",
     );

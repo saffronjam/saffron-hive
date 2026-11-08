@@ -67,15 +67,8 @@
 	}
 </script>
 
+{#if showTemp || showHvac || showFan || showSwing}
 <div class="space-y-4">
-	<Card>
-		<CardHeader>
-			<div class="flex items-center justify-between">
-				<CardTitle>{m.device_power({}, locale.messageOptions())}</CardTitle>
-				<Switch checked={deviceState.on ?? false} onCheckedChange={(c) => oncommand({ on: c })} />
-			</div>
-		</CardHeader>
-	</Card>
 
 	{#if showTemp}
 		<Card>
@@ -164,3 +157,4 @@
 		</Card>
 	{/if}
 </div>
+{/if}

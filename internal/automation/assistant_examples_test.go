@@ -86,7 +86,7 @@ func TestAssistantNightLightExampleGuardsActions(t *testing.T) {
 			activations := bus.Subscribe(eventbus.EventAutomationNodeActivated)
 			defer bus.Unsubscribe(activations)
 			st := newMockStore()
-			engine := NewEngine(bus, newMockStateReader(), st, st, nil, nil, &mockSceneRunner{})
+			engine := NewEngine(bus, newMockStateReader(), st, st, nil, nil, &mockSceneRunner{}, nil)
 			env := ExprEnv{Time: buildTimeContext(time.Date(2026, 10, 18, tc.hour, 0, 0, 0, time.UTC)), SceneActive: func(id string) bool { return id == "SCENE_ID" && tc.sceneActive }}
 			fired := map[NodeID]bool{}
 			if tc.trigger != "" {
@@ -116,7 +116,7 @@ func TestAssistantAlternativeGuardExample(t *testing.T) {
 			for _, fired := range []bool{false, true} {
 				st := newMockStore()
 				bus := eventbus.NewChannelBus()
-				engine := NewEngine(bus, newMockStateReader(), st, st, nil, nil, &mockSceneRunner{})
+				engine := NewEngine(bus, newMockStateReader(), st, st, nil, nil, &mockSceneRunner{}, nil)
 				now := time.Date(2026, 10, 18+int(weekday), hour, 0, 0, 0, time.UTC)
 				env := ExprEnv{Time: buildTimeContext(now), Day: buildDayContext(now)}
 				got := engine.evaluateGraph(t.Context(), compiled, env, map[NodeID]bool{"motion": fired})

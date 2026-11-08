@@ -59,10 +59,8 @@
 	import EffectRunTargetDrawer from "$lib/components/effect-run-target-drawer.svelte";
 	import UnsavedGuard from "$lib/components/unsaved-guard.svelte";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
-	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import { ArrowLeft, Play, Save, Sparkles, Trash2, X } from "@lucide/svelte";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import {
 		editableToInputTracks,
 		effectToEditable,
@@ -137,7 +135,6 @@
 	let deleteConfirmOpen = $state(false);
 	let deleteLoading = $state(false);
 	let runDrawerOpen = $state(false);
-	const errors = new BannerError();
 
 	let effectData = $state<EffectData | null>(null);
 	let effectName = $state("");
@@ -217,7 +214,7 @@
 
 		if (result.error) {
 			console.error(result.error);
-			errors.setWithAutoDismiss(m.effect_load_failed({}, locale.messageOptions()));
+			toast.error(m.effect_load_failed({}, locale.messageOptions()));
 			return;
 		}
 
@@ -256,15 +253,14 @@
 
 	async function handleSave() {
 		if (!effectData || saving || externalConflict) return;
-		errors.clear();
+
 
 		nameError = null;
 		const validation = validateTimelineEffect(effectName, durationMs, loop, tracks);
 		if (validation) {
-			// A clip error belongs to no single input, so it keeps the banner; the
-			// name error goes on the field it is about.
+			// Clip validation applies to the timeline; name validation belongs to its field.
 			if (validation.field === "name") nameError = effectValidationMessage(validation.code);
-			else errors.setWithAutoDismiss(effectValidationMessage(validation.code));
+			else toast.error(effectValidationMessage(validation.code));
 			return;
 		}
 
@@ -286,7 +282,7 @@
 
 		if (result.error) {
 			console.error(result.error);
-			errors.setWithAutoDismiss(m.effect_save_failed({}, locale.messageOptions()));
+			toast.error(m.effect_save_failed({}, locale.messageOptions()));
 			return;
 		}
 
@@ -311,13 +307,13 @@
 	async function handleDelete() {
 		if (!effectData || deleteLoading) return;
 		deleteLoading = true;
-		errors.clear();
+
 
 		try {
 			await effectsStore.delete(clientRef, effectData.id);
 		} catch (e) {
 			deleteLoading = false;
-			errors.setWithAutoDismiss(graphqlErrorMessage(e, m.effects_error_delete({}, locale.messageOptions())));
+			toast.error(graphqlErrorMessage(e, m.effects_error_delete({}, locale.messageOptions())));
 			return;
 		}
 		deleteLoading = false;
@@ -346,9 +342,7 @@
 {/if}
 
 <div>
-	{#if errors.message}
-		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
-	{/if}
+
 
 	{#if loading}
 		<div class="space-y-4">

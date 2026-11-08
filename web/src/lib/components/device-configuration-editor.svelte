@@ -12,6 +12,7 @@
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import { Separator } from "$lib/components/ui/separator/index.js";
 	import {
 		Select,
 		SelectContent,
@@ -285,8 +286,9 @@
 					{sectionTitle(group.section)}
 				</p>
 			{/if}
-			<div class={compact ? "divide-y divide-border rounded-md border border-input" : "space-y-4"}>
-			{#each group.capabilities as capability (capability.name)}
+			<div class={compact ? "divide-y divide-border rounded-md border border-input" : "space-y-3"}>
+			{#each group.capabilities as capability, index (capability.name)}
+				{#if !compact && index > 0}<Separator />{/if}
 				{@render settingRow(capability)}
 			{/each}
 			</div>

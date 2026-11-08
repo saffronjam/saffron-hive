@@ -411,6 +411,214 @@ type ClaudeConfigInput struct {
 	Model   string `json:"model"`
 }
 
+type CleaningAnchor struct {
+	Robot *CleaningMapPoint `json:"robot"`
+	Hive  *CleaningMapPoint `json:"hive"`
+}
+
+type CleaningAnchorInput struct {
+	Robot *CleaningPointInput `json:"robot"`
+	Hive  *CleaningPointInput `json:"hive"`
+}
+
+type CleaningCalibration struct {
+	MapRotation       float64            `json:"mapRotation"`
+	Enabled           bool               `json:"enabled"`
+	DeviceID          string             `json:"deviceId"`
+	MapID             string             `json:"mapId"`
+	FloorplanID       string             `json:"floorplanId"`
+	Revision          int                `json:"revision"`
+	MapRevision       string             `json:"mapRevision"`
+	FloorplanRevision int                `json:"floorplanRevision"`
+	Anchors           []*CleaningAnchor  `json:"anchors"`
+	Transform         *CleaningTransform `json:"transform"`
+	Valid             bool               `json:"valid"`
+}
+
+type CleaningCalibrationInput struct {
+	MapRotation       float64                `json:"mapRotation"`
+	Enabled           bool                   `json:"enabled"`
+	DeviceID          string                 `json:"deviceId"`
+	MapID             string                 `json:"mapId"`
+	FloorplanID       string                 `json:"floorplanId"`
+	ExpectedRevision  int                    `json:"expectedRevision"`
+	MapRevision       string                 `json:"mapRevision"`
+	FloorplanRevision int                    `json:"floorplanRevision"`
+	Anchors           []*CleaningAnchorInput `json:"anchors"`
+}
+
+type CleaningConsumable struct {
+	Name       string  `json:"name"`
+	Percent    float64 `json:"percent"`
+	Resettable bool    `json:"resettable"`
+}
+
+type CleaningControl struct {
+	Action  CleaningAction `json:"action"`
+	Enabled bool           `json:"enabled"`
+}
+
+type CleaningDevice struct {
+	DeviceID  string `json:"deviceId"`
+	Supported bool   `json:"supported"`
+	// Optional controls advertised by this vacuum's adapter.
+	Controls       []*CleaningControl `json:"controls"`
+	Model          *string            `json:"model,omitempty"`
+	ModelID        *string            `json:"modelId,omitempty"`
+	Manufacturer   *string            `json:"manufacturer,omitempty"`
+	Status         string             `json:"status"`
+	Battery        *float64           `json:"battery,omitempty"`
+	Suction        *int               `json:"suction,omitempty"`
+	Water          *int               `json:"water,omitempty"`
+	ElapsedMinutes *float64           `json:"elapsedMinutes,omitempty"`
+	CleanedArea    *float64           `json:"cleanedArea,omitempty"`
+	// Reported cleaning completion from 0 to 100; null when unavailable.
+	Progress *float64 `json:"progress,omitempty"`
+	// Area-based completion estimate when no robot percentage is available.
+	EstimatedProgress *float64              `json:"estimatedProgress,omitempty"`
+	Consumables       []*CleaningConsumable `json:"consumables"`
+	Error             *string               `json:"error,omitempty"`
+	UpdatedAt         time.Time             `json:"updatedAt"`
+	ActiveMapID       *string               `json:"activeMapId,omitempty"`
+	Maps              []*CleaningMap        `json:"maps"`
+	LiveMap           *CleaningMap          `json:"liveMap,omitempty"`
+	LiveAt            *time.Time            `json:"liveAt,omitempty"`
+	MapError          *string               `json:"mapError,omitempty"`
+	ActiveTask        *CleaningTask         `json:"activeTask,omitempty"`
+	RoomLinks         []*CleaningRoomLinks  `json:"roomLinks"`
+}
+
+type CleaningMap struct {
+	Revision       string                `json:"revision"`
+	ID             int                   `json:"id"`
+	Name           string                `json:"name"`
+	Width          int                   `json:"width"`
+	Height         int                   `json:"height"`
+	MetersPerPixel float64               `json:"metersPerPixel"`
+	Origin         *CleaningMapPoint     `json:"origin"`
+	Rotation       float64               `json:"rotation"`
+	Robot          *CleaningMapPosition  `json:"robot,omitempty"`
+	Dock           *CleaningMapPosition  `json:"dock,omitempty"`
+	Layers         []*CleaningMapLayer   `json:"layers"`
+	Rooms          []*CleaningMapRoom    `json:"rooms"`
+	Areas          []*CleaningMapArea    `json:"areas"`
+	Walls          [][]*CleaningMapPoint `json:"walls"`
+	Path           []*CleaningMapPoint   `json:"path"`
+}
+
+type CleaningMapArea struct {
+	Kind   string              `json:"kind"`
+	Points []*CleaningMapPoint `json:"points"`
+}
+
+type CleaningMapLayer struct {
+	Kind   string `json:"kind"`
+	RoomID int    `json:"roomId"`
+	Path   string `json:"path"`
+}
+
+type CleaningMapPoint struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
+type CleaningMapPosition struct {
+	X     float64 `json:"x"`
+	Y     float64 `json:"y"`
+	Angle float64 `json:"angle"`
+}
+
+type CleaningMapRoom struct {
+	ID   int     `json:"id"`
+	Name string  `json:"name"`
+	X    float64 `json:"x"`
+	Y    float64 `json:"y"`
+	Area float64 `json:"area"`
+}
+
+type CleaningOptions struct {
+	Suction *int `json:"suction,omitempty"`
+	Water   *int `json:"water,omitempty"`
+	Repeats int  `json:"repeats"`
+}
+
+type CleaningOptionsInput struct {
+	Suction graphql.Omittable[*int] `json:"suction,omitempty"`
+	Water   graphql.Omittable[*int] `json:"water,omitempty"`
+	Repeats graphql.Omittable[*int] `json:"repeats,omitempty"`
+}
+
+type CleaningPlan struct {
+	Scope    CleaningScope    `json:"scope"`
+	DeviceID string           `json:"deviceId"`
+	MapID    string           `json:"mapId"`
+	RoomIds  []string         `json:"roomIds"`
+	AreaIds  []string         `json:"areaIds"`
+	Options  *CleaningOptions `json:"options"`
+	Revision string           `json:"revision"`
+}
+
+type CleaningPointInput struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
+type CleaningRoomLink struct {
+	RoomID string `json:"roomId"`
+	AreaID string `json:"areaId"`
+}
+
+type CleaningRoomLinkInput struct {
+	RoomID string `json:"roomId"`
+	AreaID string `json:"areaId"`
+}
+
+type CleaningRoomLinks struct {
+	MapID       string              `json:"mapId"`
+	MapRevision string              `json:"mapRevision"`
+	Revision    int                 `json:"revision"`
+	Links       []*CleaningRoomLink `json:"links"`
+}
+
+type CleaningRoomLinksInput struct {
+	DeviceID         string                   `json:"deviceId"`
+	MapID            string                   `json:"mapId"`
+	MapRevision      string                   `json:"mapRevision"`
+	ExpectedRevision int                      `json:"expectedRevision"`
+	Links            []*CleaningRoomLinkInput `json:"links"`
+}
+
+type CleaningSelectionInput struct {
+	Scope    CleaningScope         `json:"scope"`
+	DeviceID string                `json:"deviceId"`
+	MapID    string                `json:"mapId"`
+	RoomIds  []string              `json:"roomIds"`
+	Options  *CleaningOptionsInput `json:"options"`
+}
+
+type CleaningTask struct {
+	Scope          CleaningScope `json:"scope"`
+	ID             string        `json:"id"`
+	DeviceID       string        `json:"deviceId"`
+	MapID          string        `json:"mapId"`
+	RoomIds        []string      `json:"roomIds"`
+	State          string        `json:"state"`
+	Origin         string        `json:"origin"`
+	ElapsedMinutes *float64      `json:"elapsedMinutes,omitempty"`
+	CleanedArea    *float64      `json:"cleanedArea,omitempty"`
+	Error          *string       `json:"error,omitempty"`
+	CreatedAt      time.Time     `json:"createdAt"`
+	UpdatedAt      time.Time     `json:"updatedAt"`
+	CompletedAt    *time.Time    `json:"completedAt,omitempty"`
+}
+
+type CleaningTransform struct {
+	A float64 `json:"a"`
+	B float64 `json:"b"`
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
 type Color struct {
 	R int     `json:"r"`
 	G int     `json:"g"`
@@ -587,6 +795,8 @@ type Device struct {
 	Attributes []*DeviceAttributeValue `json:"attributes"`
 	// Zigbee2MQTT detail, available only for Zigbee2MQTT devices.
 	Zigbee2Mqtt *Zigbee2MqttDeviceMetadata `json:"zigbee2Mqtt,omitempty"`
+	// Optional product artwork served by Hive.
+	Image *DeviceImage `json:"image,omitempty"`
 }
 
 func (Device) IsSceneTarget() {}
@@ -624,6 +834,10 @@ type DeviceAvailabilityEvent struct {
 	Available bool   `json:"available"`
 }
 
+type DeviceImage struct {
+	Version string `json:"version"`
+}
+
 type DeviceRoles struct {
 	ControlledLoad *ControlledLoadRole `json:"controlledLoad,omitempty"`
 	Contact        *ContactRole        `json:"contact,omitempty"`
@@ -634,17 +848,18 @@ type DeviceRoles struct {
 // value. Clients typically branch on Device.type to decide which fields to
 // display, but any field may be present on any device.
 type DeviceState struct {
-	On          *bool    `json:"on,omitempty"`
-	Brightness  *int     `json:"brightness,omitempty"`
-	ColorTemp   *int     `json:"colorTemp,omitempty"`
-	Color       *Color   `json:"color,omitempty"`
-	Transition  *float64 `json:"transition,omitempty"`
-	Temperature *float64 `json:"temperature,omitempty"`
-	Humidity    *float64 `json:"humidity,omitempty"`
-	Pressure    *float64 `json:"pressure,omitempty"`
-	Illuminance *float64 `json:"illuminance,omitempty"`
-	Occupancy   *bool    `json:"occupancy,omitempty"`
-	Presence    *bool    `json:"presence,omitempty"`
+	CleaningStatus *string  `json:"cleaningStatus,omitempty"`
+	On             *bool    `json:"on,omitempty"`
+	Brightness     *int     `json:"brightness,omitempty"`
+	ColorTemp      *int     `json:"colorTemp,omitempty"`
+	Color          *Color   `json:"color,omitempty"`
+	Transition     *float64 `json:"transition,omitempty"`
+	Temperature    *float64 `json:"temperature,omitempty"`
+	Humidity       *float64 `json:"humidity,omitempty"`
+	Pressure       *float64 `json:"pressure,omitempty"`
+	Illuminance    *float64 `json:"illuminance,omitempty"`
+	Occupancy      *bool    `json:"occupancy,omitempty"`
+	Presence       *bool    `json:"presence,omitempty"`
 	// True means closed; false means open.
 	Contact           *bool    `json:"contact,omitempty"`
 	Orientation       *string  `json:"orientation,omitempty"`
@@ -676,6 +891,56 @@ type DeviceStateInput struct {
 	HvacMode          graphql.Omittable[*string]     `json:"hvacMode,omitempty"`
 	FanMode           graphql.Omittable[*string]     `json:"fanMode,omitempty"`
 	Swing             graphql.Omittable[*string]     `json:"swing,omitempty"`
+}
+
+type DreameConfig struct {
+	Revision int    `json:"revision"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Region   string `json:"region"`
+	Enabled  bool   `json:"enabled"`
+}
+
+type DreameConfigInput struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Region   string `json:"region"`
+	Enabled  bool   `json:"enabled"`
+}
+
+type DreameConfigResult struct {
+	Config      *DreameConfig         `json:"config"`
+	Application *ConnectionTestResult `json:"application"`
+}
+
+type DreameDeviceReport struct {
+	ID         string                      `json:"id"`
+	Name       string                      `json:"name"`
+	Model      string                      `json:"model"`
+	Reads      []*DreameDiagnosticRead     `json:"reads"`
+	Properties []*DreameDiagnosticProperty `json:"properties"`
+	Maps       []*CleaningMap              `json:"maps"`
+}
+
+type DreameDiagnosticProperty struct {
+	Name  string `json:"name"`
+	Siid  int    `json:"siid"`
+	Piid  int    `json:"piid"`
+	Value string `json:"value"`
+	Code  int    `json:"code"`
+}
+
+type DreameDiagnosticRead struct {
+	Name  string  `json:"name"`
+	JSON  string  `json:"json"`
+	Error *string `json:"error,omitempty"`
+}
+
+type DreameDiagnosticsReport struct {
+	CompletedAt   time.Time               `json:"completedAt"`
+	Authenticated bool                    `json:"authenticated"`
+	Reads         []*DreameDiagnosticRead `json:"reads"`
+	Devices       []*DreameDeviceReport   `json:"devices"`
 }
 
 type DynamicSceneSource struct {
@@ -1061,6 +1326,7 @@ type MaintenanceTask struct {
 	Value        *float64        `json:"value,omitempty"`
 	Context      *string         `json:"context,omitempty"`
 	ActionURL    *string         `json:"actionUrl,omitempty"`
+	CanComplete  bool            `json:"canComplete"`
 }
 
 type Mutation struct {
@@ -1301,6 +1567,13 @@ type Setting struct {
 
 type SetupStatus struct {
 	HasInitialUser bool `json:"hasInitialUser"`
+}
+
+type StartCleaningInput struct {
+	Selection        *CleaningSelectionInput    `json:"selection"`
+	ExpectedRevision string                     `json:"expectedRevision"`
+	RequestID        string                     `json:"requestId"`
+	ReplaceTaskID    graphql.Omittable[*string] `json:"replaceTaskId,omitempty"`
 }
 
 type StateHistoryFilter struct {
@@ -1683,8 +1956,6 @@ type Zigbee2MqttDeviceDocumentation struct {
 }
 
 type Zigbee2MqttDeviceMetadata struct {
-	ImageCandidate     bool                            `json:"imageCandidate"`
-	ImageVersion       *string                         `json:"imageVersion,omitempty"`
 	NetworkType        *string                         `json:"networkType,omitempty"`
 	IeeeAddress        *string                         `json:"ieeeAddress,omitempty"`
 	AddressVendor      *string                         `json:"addressVendor,omitempty"`
@@ -2189,6 +2460,124 @@ func (e *CapabilityCategory) UnmarshalJSON(b []byte) error {
 }
 
 func (e CapabilityCategory) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type CleaningAction string
+
+const (
+	CleaningActionPause    CleaningAction = "PAUSE"
+	CleaningActionResume   CleaningAction = "RESUME"
+	CleaningActionStop     CleaningAction = "STOP"
+	CleaningActionDock     CleaningAction = "DOCK"
+	CleaningActionLocate   CleaningAction = "LOCATE"
+	CleaningActionEmptyBin CleaningAction = "EMPTY_BIN"
+)
+
+var AllCleaningAction = []CleaningAction{
+	CleaningActionPause,
+	CleaningActionResume,
+	CleaningActionStop,
+	CleaningActionDock,
+	CleaningActionLocate,
+	CleaningActionEmptyBin,
+}
+
+func (e CleaningAction) IsValid() bool {
+	switch e {
+	case CleaningActionPause, CleaningActionResume, CleaningActionStop, CleaningActionDock, CleaningActionLocate, CleaningActionEmptyBin:
+		return true
+	}
+	return false
+}
+
+func (e CleaningAction) String() string {
+	return string(e)
+}
+
+func (e *CleaningAction) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = CleaningAction(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid CleaningAction", str)
+	}
+	return nil
+}
+
+func (e CleaningAction) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *CleaningAction) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e CleaningAction) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type CleaningScope string
+
+const (
+	CleaningScopeApartment CleaningScope = "APARTMENT"
+	CleaningScopeRooms     CleaningScope = "ROOMS"
+)
+
+var AllCleaningScope = []CleaningScope{
+	CleaningScopeApartment,
+	CleaningScopeRooms,
+}
+
+func (e CleaningScope) IsValid() bool {
+	switch e {
+	case CleaningScopeApartment, CleaningScopeRooms:
+		return true
+	}
+	return false
+}
+
+func (e CleaningScope) String() string {
+	return string(e)
+}
+
+func (e *CleaningScope) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = CleaningScope(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid CleaningScope", str)
+	}
+	return nil
+}
+
+func (e CleaningScope) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *CleaningScope) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e CleaningScope) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
@@ -2955,6 +3344,7 @@ const (
 	MaintenanceKindFirmware MaintenanceKind = "FIRMWARE"
 	MaintenanceKindPosture  MaintenanceKind = "POSTURE"
 	MaintenanceKindStorage  MaintenanceKind = "STORAGE"
+	MaintenanceKindCleaning MaintenanceKind = "CLEANING"
 )
 
 var AllMaintenanceKind = []MaintenanceKind{
@@ -2962,11 +3352,12 @@ var AllMaintenanceKind = []MaintenanceKind{
 	MaintenanceKindFirmware,
 	MaintenanceKindPosture,
 	MaintenanceKindStorage,
+	MaintenanceKindCleaning,
 }
 
 func (e MaintenanceKind) IsValid() bool {
 	switch e {
-	case MaintenanceKindBattery, MaintenanceKindFirmware, MaintenanceKindPosture, MaintenanceKindStorage:
+	case MaintenanceKindBattery, MaintenanceKindFirmware, MaintenanceKindPosture, MaintenanceKindStorage, MaintenanceKindCleaning:
 		return true
 	}
 	return false

@@ -209,3 +209,22 @@ func TestAuthoringRejectsInvalidControls(t *testing.T) {
 		}
 	}
 }
+
+func TestCleaningAuthoringRoundTrip(t *testing.T) {
+	raw := `{"action_type":"start_cleaning","target_type":"device","target_id":"robot","payload":"{\"roomIds\":[\"kitchen\"],\"options\":{\"repeats\":2}}"}`
+	config, err := InterpretAuthoring(NodeAction, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.Action.Payload.Options.Repeats != 2 || len(config.Action.Payload.RoomIDs) != 1 {
+		t.Fatal("lost cleaning selection")
+	}
+	result, err := CompileAuthoring(NodeAction, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roundtrip, err := InterpretAuthoring(NodeAction, result)
+	if err != nil || !reflect.DeepEqual(roundtrip, config) {
+		t.Fatalf("cleaning action did not roundtrip: %s %v", result, err)
+	}
+}

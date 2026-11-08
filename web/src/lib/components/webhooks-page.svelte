@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { toast } from "svelte-sonner";
 	import { page } from "$app/state";
 	import { getContextClient } from "@urql/svelte";
 	import { fly } from "svelte/transition";
@@ -15,14 +16,14 @@
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
 	import HiveDataTable from "$lib/components/hive-data-table.svelte";
-	import InlineEditName from "$lib/components/inline-edit-name.svelte";
+	import ResourceLink from "$lib/components/resource-link.svelte";
+	import RowActionsCell from "$lib/components/table-cells/row-actions-cell.svelte";
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
 	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
 	import TableSelectionToolbar from "$lib/components/table-selection-toolbar.svelte";
 	import HiveSearchbar from "$lib/components/hive-searchbar.svelte";
 	import type { ChipConfig } from "$lib/components/hive-searchbar";
 	import ConfirmDialog from "$lib/components/confirm-dialog.svelte";
-	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import CreatedByCell from "$lib/components/table-cells/created-by-cell.svelte";
 	import ActionsHead from "$lib/components/table-cells/actions-head.svelte";
 	import { createUrlSearchState } from "$lib/search-state.svelte";
@@ -33,12 +34,11 @@
 	import { automationsStore } from "$lib/stores/automations.svelte";
 	import { automationsByWebhookEndpoint } from "$lib/automation-config";
 	import { pageHeader } from "$lib/stores/page-header.svelte";
-	import { BannerError } from "$lib/stores/banner-error.svelte";
 	import { formatFull, formatRelative } from "$lib/time-format";
 	import { nowStore } from "$lib/stores/now.svelte";
 	import { me } from "$lib/stores/me.svelte";
 	import { graphqlErrorMessage } from "$lib/graphql-error";
-	import { Check, Copy, Pencil, Plus, Trash2, Webhook } from "@lucide/svelte";
+	import { Check, Copy, Plus, Webhook } from "@lucide/svelte";
 	import { m } from "$lib/i18n/messages";
 	import { locale } from "$lib/i18n/locale.svelte";
 	import { localizedNamesStore } from "$lib/stores/localized-names.svelte";
@@ -53,7 +53,6 @@
 	const endpoints = $derived(webhooksStore.items);
 	const automations = $derived(automationsStore.items);
 	const usageByEndpoint = $derived(automationsByWebhookEndpoint(automations));
-	const errors = new BannerError();
 	const searchController = createUrlSearchState({
 		active: () => visible && page.url.pathname === "/webhooks",
 	});
@@ -126,7 +125,7 @@
 	async function createEndpoint() {
 		if (!createName.trim()) return;
 		createLoading = true;
-		errors.clear();
+
 		try {
 			const result = await webhooksStore.create(client, {
 				name: createName.trim(),
@@ -138,14 +137,14 @@
 			createName = "";
 			createOpen = false;
 		} catch (error) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, m.webhooks_create_failed({}, messageOptions)));
+			toast.error(graphqlErrorMessage(error, m.webhooks_create_failed({}, messageOptions)));
 		} finally {
 			createLoading = false;
 		}
 	}
 
 	async function toggleEndpoint(endpoint: WebhookEndpoint, enabled: boolean) {
-		errors.clear();
+
 		try {
 			await webhooksStore.update(client, endpoint.id, {
  expectedRevision:endpoint.revision,
@@ -155,24 +154,10 @@
 				rateLimitWindowMs: endpoint.rateLimitWindowMs,
 			});
 		} catch (error) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, m.webhooks_update_failed({}, messageOptions)));
+			toast.error(graphqlErrorMessage(error, m.webhooks_update_failed({}, messageOptions)));
 		}
 	}
 
-	async function renameEndpoint(endpoint: WebhookEndpoint, name: string) {
-		errors.clear();
-		try {
-			await webhooksStore.update(client, endpoint.id, {
- expectedRevision:endpoint.revision,
-				name,
-				enabled: endpoint.enabled,
-				rateLimitCount: endpoint.rateLimitCount,
-				rateLimitWindowMs: endpoint.rateLimitWindowMs,
-			});
-		} catch (error) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, m.webhooks_rename_failed({}, messageOptions)));
-		}
-	}
 
 	async function confirmBatchDelete() {
 		const ids = selection.selectedIds();
@@ -181,16 +166,16 @@
 			return;
 		}
 		batchDeleteLoading = true;
-		errors.clear();
+
 		try {
 			const deleted = await webhooksStore.deleteMany(client, ids);
 			selection.clear();
 			batchDeleteConfirm = false;
 			if (deleted < ids.length) {
-				errors.setWithAutoDismiss(m.webhooks_delete_used_kept({}, messageOptions));
+				toast.error(m.webhooks_delete_used_kept({}, messageOptions));
 			}
 		} catch (error) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, m.webhooks_delete_many_failed({}, messageOptions)));
+			toast.error(graphqlErrorMessage(error, m.webhooks_delete_many_failed({}, messageOptions)));
 		} finally {
 			batchDeleteLoading = false;
 		}
@@ -199,12 +184,12 @@
 	async function confirmDelete() {
 		if (!deleteEndpoint) return;
 		deleteLoading = true;
-		errors.clear();
+
 		try {
 			await webhooksStore.delete(client, deleteEndpoint.id);
 			deleteEndpoint = null;
 		} catch (error) {
-			errors.setWithAutoDismiss(graphqlErrorMessage(error, m.webhooks_delete_failed({}, messageOptions)));
+			toast.error(graphqlErrorMessage(error, m.webhooks_delete_failed({}, messageOptions)));
 		} finally {
 			deleteLoading = false;
 		}
@@ -251,12 +236,7 @@
 {#snippet nameCell(endpoint: WebhookEndpoint)}
 	<div class="flex items-center gap-2">
 		<Webhook class="size-4 text-muted-foreground" />
-		<InlineEditName
-			name={localizedNamesStore.display("webhook", endpoint.id, endpoint.name)}
-			entityType="webhook"
-			entityId={endpoint.id}
-			onsave={(name) => renameEndpoint(endpoint, name)}
-		/>
+		<ResourceLink href={`/webhooks/${endpoint.id}`}>{localizedNamesStore.display("webhook", endpoint.id, endpoint.name)}</ResourceLink>
 	</div>
 {/snippet}
 
@@ -289,42 +269,21 @@
 {#snippet actionsHead()}<ActionsHead />{/snippet}
 
 {#snippet actionsCell(endpoint: WebhookEndpoint)}
-	<div class="flex items-center justify-end gap-1">
-		<Switch
-			checked={endpoint.enabled}
-			onCheckedChange={(enabled) => toggleEndpoint(endpoint, enabled)}
-			aria-label={endpoint.enabled ? m.webhooks_disable_named({ name: localizedNamesStore.display("webhook", endpoint.id, endpoint.name) }, messageOptions) : m.webhooks_enable_named({ name: localizedNamesStore.display("webhook", endpoint.id, endpoint.name) }, messageOptions)}
-		/>
-		<Button variant="ghost" size="icon-sm" href={`/webhooks/${endpoint.id}`} aria-label={m.webhooks_edit_named({ name: localizedNamesStore.display("webhook", endpoint.id, endpoint.name) }, messageOptions)}>
-			<Pencil class="size-4" />
-		</Button>
-		{#if (usageByEndpoint.get(endpoint.id)?.length ?? 0) > 0}
-			<Tooltip>
-				<TooltipTrigger>
-					<Button variant="ghost" size="icon-sm" disabled aria-label={m.webhooks_delete_named({ name: localizedNamesStore.display("webhook", endpoint.id, endpoint.name) }, messageOptions)}>
-						<Trash2 class="size-4" />
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent>{m.webhooks_used_by_automation({}, messageOptions)}</TooltipContent>
-			</Tooltip>
-		{:else}
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				class="text-destructive hover:text-destructive"
-				onclick={() => (deleteEndpoint = endpoint)}
-				aria-label={m.webhooks_delete_named({ name: localizedNamesStore.display("webhook", endpoint.id, endpoint.name) }, messageOptions)}
-			>
-				<Trash2 class="size-4" />
-			</Button>
-		{/if}
-	</div>
+    <RowActionsCell
+        editHref={`/webhooks/${endpoint.id}`}
+        editLabel={m.webhooks_edit_named({ name: localizedNamesStore.display("webhook", endpoint.id, endpoint.name) }, messageOptions)}
+        ondelete={() => (deleteEndpoint = endpoint)}
+        deleteLabel={m.webhooks_delete_named({ name: localizedNamesStore.display("webhook", endpoint.id, endpoint.name) }, messageOptions)}
+        deleteDisabledReason={(usageByEndpoint.get(endpoint.id)?.length ?? 0) > 0 ? m.webhooks_used_by_automation({}, messageOptions) : undefined}
+    >
+        {#snippet leading()}
+            <Switch checked={endpoint.enabled} onCheckedChange={(enabled) => toggleEndpoint(endpoint, enabled)} aria-label={endpoint.enabled ? m.webhooks_disable_named({ name: localizedNamesStore.display("webhook", endpoint.id, endpoint.name) }, messageOptions) : m.webhooks_enable_named({ name: localizedNamesStore.display("webhook", endpoint.id, endpoint.name) }, messageOptions)} />
+        {/snippet}
+    </RowActionsCell>
 {/snippet}
 
 <div>
-	{#if errors.message}
-		<ErrorBanner class="mb-4" message={errors.message} ondismiss={() => errors.clear()} />
-	{/if}
+
 
 	{#if webhooksStore.hydrated}
 		<div in:fly={{ y: -4, duration: 150 }}>
@@ -334,7 +293,6 @@
 						<Webhook class="size-6 text-muted-foreground" />
 					</div>
 					<p class="text-muted-foreground">{m.webhooks_empty({}, messageOptions)}</p>
-					<p class="mt-2 text-sm text-muted-foreground">{m.webhooks_empty_help({}, messageOptions)}</p>
 					<Button class="mt-4" onclick={() => (createOpen = true)}>
 						<Plus class="size-4" />
 						{m.webhooks_create_first({}, messageOptions)}

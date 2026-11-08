@@ -31,6 +31,7 @@ type DeviceStateChange struct {
 // Button presses are carried by eventbus.EventDeviceActionFired (payload
 // device.Action), not by this struct.
 type DeviceState struct {
+	CleaningStatus    *string  `json:"cleaningStatus,omitempty" expr:"cleaningStatus"`
 	On                *bool    `json:"on,omitempty" expr:"on"`
 	Brightness        *int     `json:"brightness,omitempty" expr:"brightness"`
 	ColorTemp         *int     `json:"colorTemp,omitempty" expr:"colorTemp"`

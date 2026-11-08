@@ -78,7 +78,9 @@
 			case "device.availability_changed": return m.activity_type_availability({}, options);
 			case "device.added": return m.activity_type_added({}, options);
 			case "device.removed": return m.activity_type_removed({}, options);
-			case "command.dispatched": return m.activity_type_command({}, options);
+			case "command.confirmed":
+            case "command.failed":
+            case "command.dispatched": return m.activity_type_command({}, options);
 			case "scene.applied": return m.activity_type_scene({}, options);
 			case "automation.triggered": return m.activity_type_automation({}, options);
 			case "automation.node_activated": return m.activity_type_node({}, options);
@@ -99,7 +101,9 @@
 				return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20";
 			case "device.removed":
 				return "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20";
-			case "command.dispatched":
+			case "command.confirmed":
+            case "command.failed":
+            case "command.dispatched":
 				return "bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20";
 			case "scene.applied":
 				return "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20";

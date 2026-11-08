@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { toast } from "svelte-sonner";
 	import { measureMount } from "$lib/perf";
 	import SectionDivider from "$lib/components/section-divider.svelte";
 	import { getContextClient, queryStore } from "@urql/svelte";
@@ -126,7 +127,7 @@
 		try {
 			await scenesStore.apply(client, scene.id);
 		} catch (e) {
-			console.error("Failed to apply scene:", graphqlErrorMessage(e, "unknown error"));
+			toast.error(graphqlErrorMessage(e, m.scenes_error_apply({}, locale.messageOptions())));
 		}
 	}
 
@@ -134,7 +135,7 @@
 		try {
 			await scenesStore.deactivate(client, scene.id);
 		} catch (e) {
-			console.error("Failed to stop scene:", graphqlErrorMessage(e, "unknown error"));
+			toast.error(graphqlErrorMessage(e, m.scenes_error_stop({}, locale.messageOptions())));
 		}
 	}
 

@@ -2,7 +2,7 @@
 	import type { Automation } from "$lib/stores/automations.svelte";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip/index.js";
-	import InlineEditName from "$lib/components/inline-edit-name.svelte";
+	import ResourceLink from "$lib/components/resource-link.svelte";
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
 	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
 	import HiveDataTable from "$lib/components/hive-data-table.svelte";
@@ -30,11 +30,11 @@
 		selection: TableSelection;
 		ontoggle: (a: Automation, enabled: boolean) => void;
 		ondelete: (a: Automation) => void;
-		onrename: (a: Automation, newName: string) => void;
+
 		oniconchange: (a: Automation, icon: string | null) => void;
 	}
 
-	let { automations, selection, ontoggle, ondelete, onrename, oniconchange }: Props = $props();
+	let { automations, selection, ontoggle, ondelete, oniconchange }: Props = $props();
 
 	const COLUMNS: ColumnDef<Automation>[] = $derived.by(() => {
 		const options = locale.messageOptions();
@@ -124,12 +124,7 @@
 {/snippet}
 
 {#snippet nameCell(a: Automation)}
-	<InlineEditName
-		name={entityDisplayName("automation", a)}
-		entityType="automation"
-		entityId={a.id}
-		onsave={(newName) => onrename(a, newName)}
-	/>
+	<ResourceLink href={`/automations/${a.id}`}>{entityDisplayName("automation", a)}</ResourceLink>
 {/snippet}
 
 {#snippet metaCell(a: Automation)}

@@ -7,6 +7,7 @@ import {
   configurationSection,
   configurationValues,
   deviceCommandCapabilities,
+  diagnosticCapabilities,
   flagIsSet,
   groupConfigurationCapabilities,
   setFlag,
@@ -155,4 +156,17 @@ describe("flags settings", () => {
       configurationEntry(capability({ name: "zones", type: "flags", values: ["a", "b", "c"] })),
     ).toMatchObject({ numberValue: 7 });
   });
+});
+
+
+it("shows reported electrical measurements as diagnostics without treating switches or settings as readings", () => {
+  const inputs = [
+    ...["power", "voltage", "current", "energy"].map(name => capability({name, category:CapabilityCategory.State, canSet:false})),
+    capability({name:"on_off",category:CapabilityCategory.State}),
+    capability({name:"power_calibration",category:CapabilityCategory.Configuration}),
+    capability({name:"unreported",category:CapabilityCategory.Diagnostic,reportsValue:false}),
+    capability({name:"temperature",category:CapabilityCategory.State}),
+    capability({name:"internal_temperature",category:CapabilityCategory.Diagnostic}),
+  ];
+  expect(diagnosticCapabilities(inputs).map(item => item.name)).toEqual(["power","voltage","current","energy","internal_temperature"]);
 });

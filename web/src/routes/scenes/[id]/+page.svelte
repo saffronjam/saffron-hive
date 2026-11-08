@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { watchErrorToast } from "$lib/error-toast.svelte";
 	import { onExternalChanges } from "$lib/external-changes";
 	import ExternalChangeBanner from "$lib/components/external-change-banner.svelte";
 	let externalConflict = $state(false);
@@ -38,7 +39,6 @@
 	import IconPicker from "$lib/components/icons/icon-picker.svelte";
 	import IconPickerTrigger from "$lib/components/icon-picker-trigger.svelte";
 	import AnimatedIcon from "$lib/components/icons/animated-icon.svelte";
-	import ErrorBanner from "$lib/components/error-banner.svelte";
 	import {
 		editorDefinitionInput,
 		sceneControllableDeviceCount,
@@ -217,6 +217,7 @@
 		];
 	});
 
+  watchErrorToast(() => error);
 </script>
 
 <UnsavedGuard {dirty} />
@@ -224,7 +225,7 @@
 	<ExternalChangeBanner onreload={() => { void refreshExternalScene(true); }} />
 {/if}
 
-{#if error}<ErrorBanner class="mb-4" message={error} ondismiss={() => (error = null)} />{/if}
+
 
 {#if loading}
 	<div class="rounded-lg shadow-card bg-card p-12 text-center text-muted-foreground">{m.scene_loading({}, locale.messageOptions())}</div>

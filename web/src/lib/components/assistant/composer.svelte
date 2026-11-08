@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { toast } from "svelte-sonner";
+  import FieldError from "$lib/components/field-error.svelte";
 	import { Button } from "$lib/components/ui/button";
 	import { IsMobile } from "$lib/hooks/is-mobile.svelte";
 	import { Textarea } from "$lib/components/ui/textarea";
@@ -19,6 +21,7 @@
 		onstop?: () => void;
 	} = $props();
 	const options = $derived(locale.messageOptions());
+	const attachmentErrorId = $props.id();
 	let text = $state("");
 	let files = $state<File[]>([]);
 	let busy = $state(false);
@@ -56,7 +59,7 @@
 			files = [];
 			clientId = crypto.randomUUID();
 		} catch (e) {
-			error = e instanceof Error ? e.message : m.assistant_error({}, options);
+			toast.error(e instanceof Error ? e.message : m.assistant_error({}, options));
 		} finally {
 			busy = false;
 		}
@@ -102,7 +105,7 @@
 					}}
 				/>
 				<div class="composer-attach col-start-1 row-start-1" bind:clientWidth={attachWidth}>
-					<input bind:this={input} type="file" accept="image/jpeg,image/png,image/webp" multiple class="hidden" onchange={() => { attach(input.files); input.value = ""; }} />
+					<input bind:this={input} type="file" aria-invalid={!!error} aria-describedby={error ? attachmentErrorId : undefined} accept="image/jpeg,image/png,image/webp" multiple class="hidden" onchange={() => { attach(input.files); input.value = ""; }} />
 					<Button type="button" variant="ghost" size="icon-sm" aria-label={m.assistant_attach({}, options)} disabled={disabled || busy || waiting} onclick={() => input.click()}><Paperclip class="size-4" /></Button>
 				</div>
 				<div class="composer-controls col-start-3 row-start-1 flex items-center gap-2" bind:clientWidth={controlsWidth}>
@@ -112,7 +115,7 @@
 					</Button>
 				</div>
 			</div>
-			{#if error}<p class="text-destructive mt-2 text-sm" role="alert">{error}</p>{/if}
+			<FieldError id={attachmentErrorId} message={error} />
 		</div>
 	</div>
 </form>

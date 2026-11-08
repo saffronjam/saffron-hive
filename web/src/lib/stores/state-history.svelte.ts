@@ -245,6 +245,10 @@ export function createStateHistory(client: Client) {
       return [...results.values()].find((r) => r.error)?.error;
     },
     update,
+    refresh(request: HistoryRequest) {
+      clear();
+      update(request);
+    },
     destroy() {
       clear();
       resetters.delete(clear);

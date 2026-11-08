@@ -1,5 +1,6 @@
 import {
   MessageCircle,
+  Brush,
   Menu,
   LayoutDashboard,
   Lightbulb,
@@ -19,6 +20,9 @@ import {
   CircleCheck,
   Webhook,
 } from "@lucide/svelte";
+import type { Device } from "$lib/gql/graphql";
+import { cleaningCandidates } from "$lib/cleaning";
+import { cleaningStore } from "$lib/stores/cleaning.svelte";
 import { assistantAvailability } from "$lib/stores/assistant-availability.svelte";
 import { auth } from "$lib/stores/auth.svelte";
 import { m } from "$lib/i18n/messages";
@@ -34,7 +38,7 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-export function navigationGroups(): NavGroup[] {
+export function navigationGroups(devices: Record<string, Device>): NavGroup[] {
   const options = locale.messageOptions();
   return [
     {
@@ -44,6 +48,9 @@ export function navigationGroups(): NavGroup[] {
           ? [{ href: "/assistant", label: m.assistant_title({}, options), icon: MessageCircle }]
           : []),
         { href: "/map", label: m.nav_map({}, options), icon: MapIcon },
+        ...(!auth.isGuest() && cleaningCandidates(cleaningStore.items, devices).length
+          ? [{ href: "/cleaning", label: m.cleaning_title({}, options), icon: Brush }]
+          : []),
       ],
     },
     {
@@ -91,8 +98,8 @@ export function systemItems(): NavItem[] {
 }
 
 /** Primary destinations shown in the mobile navigation bar. */
-export function mobilePrimaryItems(): NavItem[] {
-  const groups = navigationGroups();
+export function mobilePrimaryItems(devices: Record<string, Device>): NavItem[] {
+  const groups = navigationGroups(devices);
   const chat = groups[0].items.find((item) => item.href === "/assistant");
   return [
     groups[0].items[0],

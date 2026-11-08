@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { graphqlErrorMessage } from "$lib/graphql-error";
+  import { watchErrorToast } from "$lib/error-toast.svelte";
 	import { onMount, tick, untrack } from "svelte";
 	import { getContextClient, subscriptionStore } from "@urql/svelte";
 	import type { AssistantConversationFieldsFragment } from "$lib/gql/graphql";
@@ -48,7 +50,7 @@
 	}
 	async function load() {
 		const r = await client.query(CHAT_GET, { id }, { requestPolicy: "network-only" }).toPromise();
-		if (r.error) error = r.error.message;
+		if (r.error) error = graphqlErrorMessage(r.error, m.assistant_error({}, options));
 		else if (r.data) {
 			error = "";
 			apply(r.data.assistantConversation);
@@ -77,7 +79,7 @@
 	}
 	async function stop() {
 		const r = await client.mutation(CHAT_STOP, { id }).toPromise();
-		if (r.error) error = r.error.message;
+		if (r.error) error = graphqlErrorMessage(r.error, m.assistant_error({}, options));
 		await load();
 	}
 	$effect(() => {
@@ -99,6 +101,7 @@
 	onGraphQLRecovered(() => {
 		void load();
 	});
+  watchErrorToast(() => error);
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
@@ -163,7 +166,7 @@
 				</div>{/if}
 		</div>
 	</div>
-	{#if error}<p class="text-destructive text-sm" role="alert">{error}</p>{/if}
+
 	<div class="mx-auto min-h-0 w-full max-w-3xl overflow-y-auto p-1">
 		<Composer
 			disabled={!enabled || !conversation}

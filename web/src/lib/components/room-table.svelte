@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { entityDisplayName } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button/index.js";
-	import InlineEditName from "$lib/components/inline-edit-name.svelte";
+	import ResourceLink from "$lib/components/resource-link.svelte";
 	import TableHeaderCheckbox from "$lib/components/table-header-checkbox.svelte";
 	import TableRowCheckbox from "$lib/components/table-row-checkbox.svelte";
 	import HiveDataTable from "$lib/components/hive-data-table.svelte";
@@ -39,7 +39,7 @@
 		rooms: RoomData[];
 		selection: TableSelection;
 		ondelete: (room: RoomData) => void;
-		onrename: (room: RoomData, newName: string) => void;
+
 		oniconchange: (room: RoomData, icon: string | null) => void;
 		onAddTo: (room: RoomData) => void;
 		editHref: (room: RoomData) => string;
@@ -50,7 +50,7 @@
 		rooms,
 		selection,
 		ondelete,
-		onrename,
+
 		oniconchange,
 		onAddTo,
 		editHref,
@@ -131,7 +131,7 @@
 {/snippet}
 
 {#snippet nameCell(r: RoomData)}
-	<InlineEditName name={entityDisplayName("room", r)} entityType="room" entityId={r.id} onsave={(newName) => onrename(r, newName)} />
+	<ResourceLink href={editHref(r)}>{entityDisplayName("room", r)}</ResourceLink>
 {/snippet}
 
 {#snippet devicesCell(r: RoomData)}

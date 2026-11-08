@@ -39,7 +39,7 @@ func (m *mockSceneRunner) appliedScenes() []string {
 func TestActivateSceneDelegatesToRunner(t *testing.T) {
 	runner := &mockSceneRunner{}
 	s := newMockStore()
-	executor := NewActionExecutor(eventbus.NewChannelBus(), newMockStateReader(), s, s, nil, nil, runner)
+	executor := NewActionExecutor(eventbus.NewChannelBus(), newMockStateReader(), s, s, nil, nil, runner, nil)
 
 	executor.ExecuteGraphAction(t.Context(), ActionConfig{ActionType: ActionActivateScene, Payload: `{"scene_id":"scene-1"}`})
 
@@ -51,14 +51,14 @@ func TestActivateSceneDelegatesToRunner(t *testing.T) {
 
 func TestActivateSceneWithoutRunnerIsNoOp(t *testing.T) {
 	s := newMockStore()
-	executor := NewActionExecutor(eventbus.NewChannelBus(), newMockStateReader(), s, s, nil, nil, nil)
+	executor := NewActionExecutor(eventbus.NewChannelBus(), newMockStateReader(), s, s, nil, nil, nil, nil)
 	executor.ExecuteGraphAction(t.Context(), ActionConfig{ActionType: ActionActivateScene, Payload: `{"scene_id":"scene-1"}`})
 }
 
 func TestActivateSceneRunnerErrorDoesNotRetry(t *testing.T) {
 	runner := &mockSceneRunner{err: errors.New("apply failed")}
 	s := newMockStore()
-	executor := NewActionExecutor(eventbus.NewChannelBus(), newMockStateReader(), s, s, nil, nil, runner)
+	executor := NewActionExecutor(eventbus.NewChannelBus(), newMockStateReader(), s, s, nil, nil, runner, nil)
 
 	executor.ExecuteGraphAction(t.Context(), ActionConfig{ActionType: ActionActivateScene, Payload: `{"scene_id":"scene-1"}`})
 

@@ -57,6 +57,34 @@ export const activity_automation_id: ((inputs: Activity_Automation_IdInputs, opt
 /**
 * | output |
 * | --- |
+* | "{name}: command confirmed" |
+*
+* @param {Activity_Command_ConfirmedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const activity_command_confirmed: ((inputs: Activity_Command_ConfirmedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Activity_Command_ConfirmedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "{name}: command failed" |
+*
+* @param {Activity_Command_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const activity_command_failed: ((inputs: Activity_Command_FailedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Activity_Command_FailedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Command sent to {name}" |
 *
 * @param {Activity_Command_SentInputs} inputs
@@ -197,7 +225,7 @@ export const activity_device_state_changed: ((inputs: Activity_Device_State_Chan
 /**
 * | output |
 * | --- |
-* | "No activity yet." |
+* | "No activity" |
 *
 * @param {Activity_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -206,20 +234,6 @@ export const activity_device_state_changed: ((inputs: Activity_Device_State_Chan
 export const activity_empty: ((inputs?: Activity_EmptyInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Activity_EmptyInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Device state changes, scene activations, and automation runs will appear here as they happen." |
-*
-* @param {Activity_Empty_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const activity_empty_help: ((inputs?: Activity_Empty_HelpInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Activity_Empty_HelpInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -253,6 +267,34 @@ export const activity_event_availability: ((inputs?: Activity_Event_Availability
 /**
 * | output |
 * | --- |
+* | "Command confirmed" |
+*
+* @param {Activity_Event_Command_ConfirmedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const activity_event_command_confirmed: ((inputs?: Activity_Event_Command_ConfirmedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Activity_Event_Command_ConfirmedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Command failed" |
+*
+* @param {Activity_Event_Command_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const activity_event_command_failed: ((inputs?: Activity_Event_Command_FailedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Activity_Event_Command_FailedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Command sent" |
 *
 * @param {Activity_Event_Command_SentInputs} inputs
@@ -262,6 +304,20 @@ export const activity_event_availability: ((inputs?: Activity_Event_Availability
 export const activity_event_command_sent: ((inputs?: Activity_Event_Command_SentInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Activity_Event_Command_SentInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Device action" |
+*
+* @param {Activity_Event_Device_ActionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const activity_event_device_action: ((inputs?: Activity_Event_Device_ActionInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Activity_Event_Device_ActionInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -883,6 +939,34 @@ export const alarm_broker_disconnected: ((inputs?: Alarm_Broker_DisconnectedInpu
 /**
 * | output |
 * | --- |
+* | "{name}: {task}." |
+*
+* @param {Alarm_Cleaning_DueInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const alarm_cleaning_due: ((inputs: Alarm_Cleaning_DueInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Alarm_Cleaning_DueInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "{name}: {task} soon." |
+*
+* @param {Alarm_Cleaning_SoonInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const alarm_cleaning_soon: ((inputs: Alarm_Cleaning_SoonInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Alarm_Cleaning_SoonInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Device “{name}” has not reported recently" |
 *
 * @param {Alarm_Device_UnavailableInputs} inputs
@@ -1109,7 +1193,7 @@ export const alarms_delete_title: ((inputs?: Alarms_Delete_TitleInputs, options?
 /**
 * | output |
 * | --- |
-* | "No active alarms — the system looks healthy." |
+* | "No active alarms" |
 *
 * @param {Alarms_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -1118,20 +1202,6 @@ export const alarms_delete_title: ((inputs?: Alarms_Delete_TitleInputs, options?
 export const alarms_empty: ((inputs?: Alarms_EmptyInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Alarms_EmptyInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Alarms raised by the system monitor or your automations will appear here." |
-*
-* @param {Alarms_Empty_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const alarms_empty_help: ((inputs?: Alarms_Empty_HelpInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Alarms_Empty_HelpInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -8507,7 +8577,7 @@ export const automations_edit: ((inputs?: Automations_EditInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "No automations yet." |
+* | "No automations" |
 *
 * @param {Automations_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -8516,20 +8586,6 @@ export const automations_edit: ((inputs?: Automations_EditInputs, options?: {
 export const automations_empty: ((inputs?: Automations_EmptyInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Automations_EmptyInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Create event-driven rules with triggers, conditions, and actions." |
-*
-* @param {Automations_Empty_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const automations_empty_help: ((inputs?: Automations_Empty_HelpInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Automations_Empty_HelpInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -8944,20 +9000,6 @@ export const button_no_action: ((inputs?: Button_No_ActionInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "Button status" |
-*
-* @param {Button_StatusInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const button_status: ((inputs?: Button_StatusInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Button_StatusInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
 * | "Choose a model" |
 *
 * @param {Claude_Choose_ModelInputs} inputs
@@ -9112,6 +9154,1434 @@ export const claude_token_keep: ((inputs?: Claude_Token_KeepInputs, options?: {
 /**
 * | output |
 * | --- |
+* | "Add landmark" |
+*
+* @param {Cleaning_Add_LandmarkInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_add_landmark: ((inputs?: Cleaning_Add_LandmarkInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Add_LandmarkInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Align map" |
+*
+* @param {Cleaning_AlignInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_align: ((inputs?: Cleaning_AlignInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_AlignInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Align the maps to enable the overlay." |
+*
+* @param {Cleaning_Align_FirstInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_align_first: ((inputs?: Cleaning_Align_FirstInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Align_FirstInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Couldn't load map alignment." |
+*
+* @param {Cleaning_Alignment_Load_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_alignment_load_failed: ((inputs?: Cleaning_Alignment_Load_FailedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Alignment_Load_FailedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Couldn't save map alignment." |
+*
+* @param {Cleaning_Alignment_Save_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_alignment_save_failed: ((inputs?: Cleaning_Alignment_Save_FailedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Alignment_Save_FailedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Area cleaned" |
+*
+* @param {Cleaning_Area_CleanedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_area_cleaned: ((inputs?: Cleaning_Area_CleanedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Area_CleanedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Clean…" |
+*
+* @param {Cleaning_CleanInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_clean: ((inputs?: Cleaning_CleanInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_CleanInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Clean sensors" |
+*
+* @param {Cleaning_Clean_SensorsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_clean_sensors: ((inputs?: Cleaning_Clean_SensorsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Clean_SensorsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Control cleaning" |
+*
+* @param {Cleaning_ControlInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_control: ((inputs?: Cleaning_ControlInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_ControlInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Create floor plan" |
+*
+* @param {Cleaning_Create_FloorplanInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_create_floorplan: ((inputs?: Cleaning_Create_FloorplanInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Create_FloorplanInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Current cleaning task" |
+*
+* @param {Cleaning_Current_TaskInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_current_task: ((inputs?: Cleaning_Current_TaskInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Current_TaskInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Diagnostics" |
+*
+* @param {Cleaning_DiagnosticsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_diagnostics: ((inputs?: Cleaning_DiagnosticsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_DiagnosticsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Return to dock" |
+*
+* @param {Cleaning_DockInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_dock: ((inputs?: Cleaning_DockInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_DockInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Dreame rooms" |
+*
+* @param {Cleaning_Dreame_RoomsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_dreame_rooms: ((inputs?: Cleaning_Dreame_RoomsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Dreame_RoomsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Due soon" |
+*
+* @param {Cleaning_Due_SoonInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_due_soon: ((inputs?: Cleaning_Due_SoonInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Due_SoonInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Elapsed time" |
+*
+* @param {Cleaning_ElapsedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_elapsed: ((inputs?: Cleaning_ElapsedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_ElapsedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Empty bin" |
+*
+* @param {Cleaning_Empty_BinInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_empty_bin: ((inputs?: Cleaning_Empty_BinInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Empty_BinInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Estimated cleaning progress" |
+*
+* @param {Cleaning_Estimated_ProgressInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_estimated_progress: ((inputs?: Cleaning_Estimated_ProgressInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Estimated_ProgressInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Started outside Hive" |
+*
+* @param {Cleaning_ExternalInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_external: ((inputs?: Cleaning_ExternalInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_ExternalInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Outside Hive" |
+*
+* @param {Cleaning_External_OriginInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_external_origin: ((inputs?: Cleaning_External_OriginInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_External_OriginInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Cleaning request failed." |
+*
+* @param {Cleaning_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_failed: ((inputs?: Cleaning_FailedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_FailedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Filter" |
+*
+* @param {Cleaning_FilterInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_filter: ((inputs?: Cleaning_FilterInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_FilterInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "High" |
+*
+* @param {Cleaning_HighInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_high: ((inputs?: Cleaning_HighInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_HighInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Recent cleaning" |
+*
+* @param {Cleaning_HistoryInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_history: ((inputs?: Cleaning_HistoryInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_HistoryInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Hive rooms" |
+*
+* @param {Cleaning_Hive_RoomsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_hive_rooms: ((inputs?: Cleaning_Hive_RoomsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Hive_RoomsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Landmark {number}" |
+*
+* @param {Cleaning_Landmark_NumberInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_landmark_number: ((inputs: Cleaning_Landmark_NumberInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Landmark_NumberInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Place landmark {number} on {map}" |
+*
+* @param {Cleaning_Landmark_PartnerInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_landmark_partner: ((inputs: Cleaning_Landmark_PartnerInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Landmark_PartnerInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Last seen {time}" |
+*
+* @param {Cleaning_Last_SeenInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_last_seen: ((inputs: Cleaning_Last_SeenInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Last_SeenInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Link rooms" |
+*
+* @param {Cleaning_Link_RoomsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_link_rooms: ((inputs?: Cleaning_Link_RoomsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Link_RoomsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Load more" |
+*
+* @param {Cleaning_Load_MoreInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_load_more: ((inputs?: Cleaning_Load_MoreInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Load_MoreInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Locate" |
+*
+* @param {Cleaning_LocateInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_locate: ((inputs?: Cleaning_LocateInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_LocateInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Low" |
+*
+* @param {Cleaning_LowInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_low: ((inputs?: Cleaning_LowInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_LowInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Main brush" |
+*
+* @param {Cleaning_Main_BrushInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_main_brush: ((inputs?: Cleaning_Main_BrushInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Main_BrushInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Maintenance" |
+*
+* @param {Cleaning_MaintenanceInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_maintenance: ((inputs?: Cleaning_MaintenanceInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_MaintenanceInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Manufacturer" |
+*
+* @param {Cleaning_ManufacturerInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_manufacturer: ((inputs?: Cleaning_ManufacturerInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_ManufacturerInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Robot map" |
+*
+* @param {Cleaning_MapInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_map: ((inputs?: Cleaning_MapInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_MapInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Dock" |
+*
+* @param {Cleaning_Map_DockInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_map_dock: ((inputs?: Cleaning_Map_DockInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Map_DockInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Map {id}" |
+*
+* @param {Cleaning_Map_NameInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_map_name: ((inputs: Cleaning_Map_NameInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Map_NameInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Room {id}" |
+*
+* @param {Cleaning_Map_RoomInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_map_room: ((inputs: Cleaning_Map_RoomInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Map_RoomInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Choose saved map" |
+*
+* @param {Cleaning_Map_SelectInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_map_select: ((inputs?: Cleaning_Map_SelectInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Map_SelectInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Dreame map" |
+*
+* @param {Cleaning_Map_TitleInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_map_title: ((inputs?: Cleaning_Map_TitleInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Map_TitleInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Zoom in" |
+*
+* @param {Cleaning_Map_Zoom_InInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_map_zoom_in: ((inputs?: Cleaning_Map_Zoom_InInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Map_Zoom_InInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Zoom out" |
+*
+* @param {Cleaning_Map_Zoom_OutInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_map_zoom_out: ((inputs?: Cleaning_Map_Zoom_OutInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Map_Zoom_OutInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Mark cleaned" |
+*
+* @param {Cleaning_Mark_CleanedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_mark_cleaned: ((inputs?: Cleaning_Mark_CleanedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Mark_CleanedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Mark replaced" |
+*
+* @param {Cleaning_Mark_ReplacedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_mark_replaced: ((inputs?: Cleaning_Mark_ReplacedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Mark_ReplacedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Medium" |
+*
+* @param {Cleaning_MediumInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_medium: ((inputs?: Cleaning_MediumInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_MediumInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Missing room" |
+*
+* @param {Cleaning_Missing_RoomInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_missing_room: ((inputs?: Cleaning_Missing_RoomInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Missing_RoomInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Model" |
+*
+* @param {Cleaning_ModelInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_model: ((inputs?: Cleaning_ModelInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_ModelInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Model ID" |
+*
+* @param {Cleaning_Model_IdInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_model_id: ((inputs?: Cleaning_Model_IdInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Model_IdInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "No vacuums available." |
+*
+* @param {Cleaning_No_AvailableInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_no_available: ((inputs?: Cleaning_No_AvailableInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_No_AvailableInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "No cleaning history." |
+*
+* @param {Cleaning_No_HistoryInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_no_history: ((inputs?: Cleaning_No_HistoryInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_No_HistoryInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Cleaning options" |
+*
+* @param {Cleaning_OptionsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_options: ((inputs?: Cleaning_OptionsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_OptionsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Overlay" |
+*
+* @param {Cleaning_OverlayInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_overlay: ((inputs?: Cleaning_OverlayInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_OverlayInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Pause" |
+*
+* @param {Cleaning_PauseInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_pause: ((inputs?: Cleaning_PauseInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_PauseInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Place landmark {number}" |
+*
+* @param {Cleaning_Place_LandmarkInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_place_landmark: ((inputs: Cleaning_Place_LandmarkInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Place_LandmarkInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Position unavailable" |
+*
+* @param {Cleaning_Position_UnavailableInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_position_unavailable: ((inputs?: Cleaning_Position_UnavailableInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Position_UnavailableInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Cleaning progress" |
+*
+* @param {Cleaning_ProgressInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_progress: ((inputs?: Cleaning_ProgressInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_ProgressInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Quiet" |
+*
+* @param {Cleaning_QuietInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_quiet: ((inputs?: Cleaning_QuietInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_QuietInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Remaining" |
+*
+* @param {Cleaning_RemainingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_remaining: ((inputs?: Cleaning_RemainingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_RemainingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Passes" |
+*
+* @param {Cleaning_RepeatsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_repeats: ((inputs?: Cleaning_RepeatsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_RepeatsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Replace task" |
+*
+* @param {Cleaning_ReplaceInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_replace: ((inputs?: Cleaning_ReplaceInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_ReplaceInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Replace filter" |
+*
+* @param {Cleaning_Replace_FilterInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_replace_filter: ((inputs?: Cleaning_Replace_FilterInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Replace_FilterInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Replace main brush" |
+*
+* @param {Cleaning_Replace_Main_BrushInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_replace_main_brush: ((inputs?: Cleaning_Replace_Main_BrushInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Replace_Main_BrushInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Replace side brush" |
+*
+* @param {Cleaning_Replace_Side_BrushInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_replace_side_brush: ((inputs?: Cleaning_Replace_Side_BrushInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Replace_Side_BrushInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Replace current task?" |
+*
+* @param {Cleaning_Replace_TitleInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_replace_title: ((inputs?: Cleaning_Replace_TitleInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Replace_TitleInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Resume" |
+*
+* @param {Cleaning_ResumeInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_resume: ((inputs?: Cleaning_ResumeInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_ResumeInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Vacuum" |
+*
+* @param {Cleaning_RobotInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_robot: ((inputs?: Cleaning_RobotInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_RobotInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Robot settings" |
+*
+* @param {Cleaning_Robot_SettingsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_robot_settings: ((inputs?: Cleaning_Robot_SettingsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Robot_SettingsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Rooms" |
+*
+* @param {Cleaning_RoomsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_rooms: ((inputs?: Cleaning_RoomsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_RoomsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Rotate map left" |
+*
+* @param {Cleaning_Rotate_LeftInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_rotate_left: ((inputs?: Cleaning_Rotate_LeftInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Rotate_LeftInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Rotate map right" |
+*
+* @param {Cleaning_Rotate_RightInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_rotate_right: ((inputs?: Cleaning_Rotate_RightInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Rotate_RightInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Select vacuum" |
+*
+* @param {Cleaning_Select_RobotInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_select_robot: ((inputs?: Cleaning_Select_RobotInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Select_RobotInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Rooms changed. Review your selection." |
+*
+* @param {Cleaning_Selection_ChangedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_selection_changed: ((inputs?: Cleaning_Selection_ChangedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Selection_ChangedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Sensors" |
+*
+* @param {Cleaning_SensorsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_sensors: ((inputs?: Cleaning_SensorsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_SensorsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "These rooms share a cleaning area." |
+*
+* @param {Cleaning_Shared_RoomsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_shared_rooms: ((inputs?: Cleaning_Shared_RoomsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Shared_RoomsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Show vacuum on Hive map" |
+*
+* @param {Cleaning_Show_On_MapInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_show_on_map: ((inputs?: Cleaning_Show_On_MapInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Show_On_MapInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Side brush" |
+*
+* @param {Cleaning_Side_BrushInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_side_brush: ((inputs?: Cleaning_Side_BrushInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Side_BrushInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Standard" |
+*
+* @param {Cleaning_StandardInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_standard: ((inputs?: Cleaning_StandardInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_StandardInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Start cleaning" |
+*
+* @param {Cleaning_StartInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_start: ((inputs?: Cleaning_StartInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_StartInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Start new" |
+*
+* @param {Cleaning_Start_NewInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_start_new: ((inputs?: Cleaning_Start_NewInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Start_NewInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Needs attention" |
+*
+* @param {Cleaning_Status_AttentionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_attention: ((inputs?: Cleaning_Status_AttentionInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Status_AttentionInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Stopped" |
+*
+* @param {Cleaning_Status_CancelledInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_cancelled: ((inputs?: Cleaning_Status_CancelledInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Status_CancelledInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Cleaning" |
+*
+* @param {Cleaning_Status_CleaningInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_cleaning: ((inputs?: Cleaning_Status_CleaningInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Status_CleaningInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Completed" |
+*
+* @param {Cleaning_Status_CompletedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_completed: ((inputs?: Cleaning_Status_CompletedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Status_CompletedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Docked" |
+*
+* @param {Cleaning_Status_DockedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_docked: ((inputs?: Cleaning_Status_DockedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Status_DockedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Finished · outcome unknown" |
+*
+* @param {Cleaning_Status_EndedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_ended: ((inputs?: Cleaning_Status_EndedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Status_EndedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Failed" |
+*
+* @param {Cleaning_Status_FailedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_failed: ((inputs?: Cleaning_Status_FailedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Status_FailedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Idle" |
+*
+* @param {Cleaning_Status_IdleInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_idle: ((inputs?: Cleaning_Status_IdleInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Status_IdleInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Offline" |
+*
+* @param {Cleaning_Status_OfflineInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_offline: ((inputs?: Cleaning_Status_OfflineInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Status_OfflineInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Paused" |
+*
+* @param {Cleaning_Status_PausedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_paused: ((inputs?: Cleaning_Status_PausedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Status_PausedInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Returning" |
+*
+* @param {Cleaning_Status_ReturningInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_returning: ((inputs?: Cleaning_Status_ReturningInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Status_ReturningInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Starting" |
+*
+* @param {Cleaning_Status_StartingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_starting: ((inputs?: Cleaning_Status_StartingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Status_StartingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Stopping" |
+*
+* @param {Cleaning_Status_StoppingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_stopping: ((inputs?: Cleaning_Status_StoppingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Status_StoppingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Unknown" |
+*
+* @param {Cleaning_Status_UnknownInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_status_unknown: ((inputs?: Cleaning_Status_UnknownInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Status_UnknownInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Stop" |
+*
+* @param {Cleaning_StopInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_stop: ((inputs?: Cleaning_StopInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_StopInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Strong" |
+*
+* @param {Cleaning_StrongInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_strong: ((inputs?: Cleaning_StrongInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_StrongInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Suction" |
+*
+* @param {Cleaning_SuctionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_suction: ((inputs?: Cleaning_SuctionInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_SuctionInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Test connection" |
+*
+* @param {Cleaning_TestInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_test: ((inputs?: Cleaning_TestInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_TestInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Cleaning" |
+*
+* @param {Cleaning_TitleInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_title: ((inputs?: Cleaning_TitleInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_TitleInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Turbo" |
+*
+* @param {Cleaning_TurboInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_turbo: ((inputs?: Cleaning_TurboInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_TurboInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Water" |
+*
+* @param {Cleaning_WaterInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_water: ((inputs?: Cleaning_WaterInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_WaterInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Whole apartment" |
+*
+* @param {Cleaning_Whole_ApartmentInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const cleaning_whole_apartment: ((inputs?: Cleaning_Whole_ApartmentInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Cleaning_Whole_ApartmentInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Hue and saturation" |
 *
 * @param {Color_Picker_AriaInputs} inputs
@@ -9135,6 +10605,20 @@ export const color_picker_aria: ((inputs?: Color_Picker_AriaInputs, options?: {
 export const common_add_to: ((inputs?: Common_Add_ToInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Common_Add_ToInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Back" |
+*
+* @param {Common_BackInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const common_back: ((inputs?: Common_BackInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Common_BackInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -9471,6 +10955,20 @@ export const common_paste: ((inputs?: Common_PasteInputs, options?: {
 export const common_remove: ((inputs?: Common_RemoveInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Common_RemoveInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Rename" |
+*
+* @param {Common_RenameInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const common_rename: ((inputs?: Common_RenameInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Common_RenameInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -10217,20 +11715,6 @@ export const data_viewer_title: ((inputs?: Data_Viewer_TitleInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "Actions" |
-*
-* @param {Device_ActionsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const device_actions: ((inputs?: Device_ActionsInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_ActionsInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
 * | "Adjust {name} climate" |
 *
 * @param {Device_Adjust_Climate_NamedInputs} inputs
@@ -10273,20 +11757,6 @@ export const device_apply: ((inputs?: Device_ApplyInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "Applying…" |
-*
-* @param {Device_ApplyingInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const device_applying: ((inputs?: Device_ApplyingInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_ApplyingInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
 * | "Back to devices" |
 *
 * @param {Device_Back_To_DevicesInputs} inputs
@@ -10310,6 +11780,20 @@ export const device_back_to_devices: ((inputs?: Device_Back_To_DevicesInputs, op
 export const device_brightness: ((inputs?: Device_BrightnessInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_BrightnessInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Charging" |
+*
+* @param {Device_ChargingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_charging: ((inputs?: Device_ChargingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_ChargingInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -10511,6 +11995,20 @@ export const device_configuration_timeout: ((inputs?: Device_Configuration_Timeo
 /**
 * | output |
 * | --- |
+* | "Control" |
+*
+* @param {Device_ControlInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_control: ((inputs?: Device_ControlInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_ControlInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Controls are unavailable while this device is disabled." |
 *
 * @param {Device_Controls_DisabledInputs} inputs
@@ -10618,6 +12116,20 @@ export const device_flags_none: ((inputs?: Device_Flags_NoneInputs, options?: {
 export const device_flags_summary: ((inputs: Device_Flags_SummaryInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_Flags_SummaryInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Fully charged" |
+*
+* @param {Device_Fully_ChargedInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_fully_charged: ((inputs?: Device_Fully_ChargedInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_Fully_ChargedInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -10973,6 +12485,20 @@ export const device_settings: ((inputs?: Device_SettingsInputs, options?: {
 /**
 * | output |
 * | --- |
+* | "Status" |
+*
+* @param {Device_StatusInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const device_status: ((inputs?: Device_StatusInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_StatusInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Swing" |
 *
 * @param {Device_SwingInputs} inputs
@@ -11192,20 +12718,6 @@ export const device_type_unknown: ((inputs?: Device_Type_UnknownInputs, options?
 export const device_update: ((inputs?: Device_UpdateInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_UpdateInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Waiting for device…" |
-*
-* @param {Device_WaitingInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const device_waiting: ((inputs?: Device_WaitingInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Device_WaitingInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -11464,7 +12976,7 @@ export const devices_no_match: ((inputs?: Devices_No_MatchInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "No devices discovered yet." |
+* | "No devices" |
 *
 * @param {Devices_NoneInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -11473,20 +12985,6 @@ export const devices_no_match: ((inputs?: Devices_No_MatchInputs, options?: {
 export const devices_none: ((inputs?: Devices_NoneInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Devices_NoneInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Devices appear here once an integration is connected." |
-*
-* @param {Devices_None_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const devices_none_help: ((inputs?: Devices_None_HelpInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Devices_None_HelpInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -11585,6 +13083,230 @@ export const devices_search: ((inputs?: Devices_SearchInputs, options?: {
 export const devices_trigger_event: ((inputs: Devices_Trigger_EventInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Devices_Trigger_EventInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "1. Enter your Dreamehome email and password." |
+*
+* @param {Dreame_Connect_AccountInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_connect_account: ((inputs?: Dreame_Connect_AccountInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Dreame_Connect_AccountInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "2. Choose the same cloud server as the app." |
+*
+* @param {Dreame_Connect_RegionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_connect_region: ((inputs?: Dreame_Connect_RegionInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Dreame_Connect_RegionInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "3. Enable and save to discover your vacuums." |
+*
+* @param {Dreame_Connect_SaveInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_connect_save: ((inputs?: Dreame_Connect_SaveInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Dreame_Connect_SaveInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "How to connect" |
+*
+* @param {Dreame_ConnectingInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_connecting: ((inputs?: Dreame_ConnectingInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Dreame_ConnectingInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Dreamehome email" |
+*
+* @param {Dreame_EmailInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_email: ((inputs?: Dreame_EmailInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Dreame_EmailInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Enable Dreame" |
+*
+* @param {Dreame_EnabledInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_enabled: ((inputs?: Dreame_EnabledInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Dreame_EnabledInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "App password" |
+*
+* @param {Dreame_PasswordInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_password: ((inputs?: Dreame_PasswordInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Dreame_PasswordInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Read diagnostics" |
+*
+* @param {Dreame_ReadInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_read: ((inputs?: Dreame_ReadInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Dreame_ReadInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Cloud server" |
+*
+* @param {Dreame_RegionInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_region: ((inputs?: Dreame_RegionInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Dreame_RegionInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "China" |
+*
+* @param {Dreame_Region_CnInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_region_cn: ((inputs?: Dreame_Region_CnInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Dreame_Region_CnInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Europe" |
+*
+* @param {Dreame_Region_EuInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_region_eu: ((inputs?: Dreame_Region_EuInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Dreame_Region_EuInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "India" |
+*
+* @param {Dreame_Region_InInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_region_in: ((inputs?: Dreame_Region_InInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Dreame_Region_InInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "South Korea" |
+*
+* @param {Dreame_Region_KrInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_region_kr: ((inputs?: Dreame_Region_KrInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Dreame_Region_KrInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Russia" |
+*
+* @param {Dreame_Region_RuInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_region_ru: ((inputs?: Dreame_Region_RuInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Dreame_Region_RuInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Singapore" |
+*
+* @param {Dreame_Region_SgInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_region_sg: ((inputs?: Dreame_Region_SgInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Dreame_Region_SgInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "North America" |
+*
+* @param {Dreame_Region_UsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const dreame_region_us: ((inputs?: Dreame_Region_UsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Dreame_Region_UsInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -12811,7 +14533,7 @@ export const effects_edit: ((inputs?: Effects_EditInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "No effects yet." |
+* | "No effects" |
 *
 * @param {Effects_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -12820,20 +14542,6 @@ export const effects_edit: ((inputs?: Effects_EditInputs, options?: {
 export const effects_empty: ((inputs?: Effects_EmptyInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Effects_EmptyInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Create a Hive effect, or pair a device that exposes Zigbee effects." |
-*
-* @param {Effects_Empty_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const effects_empty_help: ((inputs?: Effects_Empty_HelpInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Effects_Empty_HelpInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -12979,7 +14687,7 @@ export const effects_name_placeholder: ((inputs?: Effects_Name_PlaceholderInputs
 /**
 * | output |
 * | --- |
-* | "No devices report any Zigbee effects yet." |
+* | "No native effects" |
 *
 * @param {Effects_Native_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -14608,7 +16316,7 @@ export const group_member_add: ((inputs?: Group_Member_AddInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "No members yet. Add devices or groups to this group." |
+* | "No members" |
 *
 * @param {Group_Members_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -14622,7 +16330,7 @@ export const group_members_empty: ((inputs?: Group_Members_EmptyInputs, options?
 /**
 * | output |
 * | --- |
-* | "No members." |
+* | "No members" |
 *
 * @param {Group_Members_NoneInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -14664,7 +16372,7 @@ export const group_no_match: ((inputs?: Group_No_MatchInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "No groups yet." |
+* | "No groups" |
 *
 * @param {Group_NoneInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -14673,20 +16381,6 @@ export const group_no_match: ((inputs?: Group_No_MatchInputs, options?: {
 export const group_none: ((inputs?: Group_NoneInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Group_NoneInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Create a group to control devices together." |
-*
-* @param {Group_None_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const group_none_help: ((inputs?: Group_None_HelpInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Group_None_HelpInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -15605,6 +17299,20 @@ export const integrations_delete_title: ((inputs?: Integrations_Delete_TitleInpu
 /**
 * | output |
 * | --- |
+* | "Robot vacuums via Dreamehome" |
+*
+* @param {Integrations_Description_DreameInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const integrations_description_dreame: ((inputs?: Integrations_Description_DreameInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Integrations_Description_DreameInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Device adapter" |
 *
 * @param {Integrations_Description_GenericInputs} inputs
@@ -15677,7 +17385,7 @@ export const integrations_devices_kept: ((inputs: Integrations_Devices_KeptInput
 /**
 * | output |
 * | --- |
-* | "No integrations yet." |
+* | "No integrations" |
 *
 * @param {Integrations_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -15686,20 +17394,6 @@ export const integrations_devices_kept: ((inputs: Integrations_Devices_KeptInput
 export const integrations_empty: ((inputs?: Integrations_EmptyInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Integrations_EmptyInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Add an integration to bring external devices into Saffron Hive." |
-*
-* @param {Integrations_Empty_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const integrations_empty_help: ((inputs?: Integrations_Empty_HelpInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Integrations_Empty_HelpInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -15901,6 +17595,20 @@ export const maintenance_battery_detail: ((inputs: Maintenance_Battery_DetailInp
 /**
 * | output |
 * | --- |
+* | "{name} · {value}% remaining" |
+*
+* @param {Maintenance_Cleaning_DetailInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const maintenance_cleaning_detail: ((inputs: Maintenance_Cleaning_DetailInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Maintenance_Cleaning_DetailInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Correct sensor placement" |
 *
 * @param {Maintenance_Correct_PostureInputs} inputs
@@ -15915,7 +17623,7 @@ export const maintenance_correct_posture: ((inputs?: Maintenance_Correct_Posture
 /**
 * | output |
 * | --- |
-* | "Nothing needs maintenance." |
+* | "No maintenance needed" |
 *
 * @param {Maintenance_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -16036,6 +17744,20 @@ export const maintenance_free_storage: ((inputs?: Maintenance_Free_StorageInputs
 export const maintenance_group_batteries: ((inputs?: Maintenance_Group_BatteriesInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Maintenance_Group_BatteriesInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Vacuum maintenance" |
+*
+* @param {Maintenance_Group_CleaningInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const maintenance_group_cleaning: ((inputs?: Maintenance_Group_CleaningInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Maintenance_Group_CleaningInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -17246,6 +18968,20 @@ export const map_go_to_group: ((inputs?: Map_Go_To_GroupInputs, options?: {
 /**
 * | output |
 * | --- |
+* | "Hide cleaning trails" |
+*
+* @param {Map_Hide_Cleaning_TrailsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const map_hide_cleaning_trails: ((inputs?: Map_Hide_Cleaning_TrailsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Map_Hide_Cleaning_TrailsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Hide neighbour links" |
 *
 * @param {Map_Hide_Neighbour_LinksInputs} inputs
@@ -17764,6 +19500,20 @@ export const map_set_display_color: ((inputs?: Map_Set_Display_ColorInputs, opti
 /**
 * | output |
 * | --- |
+* | "Show cleaning trails" |
+*
+* @param {Map_Show_Cleaning_TrailsInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const map_show_cleaning_trails: ((inputs?: Map_Show_Cleaning_TrailsInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Map_Show_Cleaning_TrailsInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
 * | "Show neighbour links" |
 *
 * @param {Map_Show_Neighbour_LinksInputs} inputs
@@ -18170,7 +19920,7 @@ export const member_add_failed: ((inputs?: Member_Add_FailedInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "No members yet." |
+* | "No members" |
 *
 * @param {Member_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -18615,76 +20365,6 @@ export const nav_users: ((inputs?: Nav_UsersInputs, options?: {
 export const nav_webhooks: ((inputs?: Nav_WebhooksInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Nav_WebhooksInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Current" |
-*
-* @param {Plug_CurrentInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const plug_current: ((inputs?: Plug_CurrentInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Plug_CurrentInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Energy" |
-*
-* @param {Plug_EnergyInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const plug_energy: ((inputs?: Plug_EnergyInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Plug_EnergyInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Plug status" |
-*
-* @param {Plug_StatusInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const plug_status: ((inputs?: Plug_StatusInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Plug_StatusInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Toggle plug" |
-*
-* @param {Plug_ToggleInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const plug_toggle: ((inputs?: Plug_ToggleInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Plug_ToggleInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Voltage" |
-*
-* @param {Plug_VoltageInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const plug_voltage: ((inputs?: Plug_VoltageInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Plug_VoltageInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -19741,7 +21421,7 @@ export const room_lights: ((inputs?: Room_LightsInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "No members yet. Add devices or groups to this room." |
+* | "No members" |
 *
 * @param {Room_Members_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -19783,7 +21463,7 @@ export const room_no_match: ((inputs?: Room_No_MatchInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "No rooms yet." |
+* | "No rooms" |
 *
 * @param {Room_NoneInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -19792,20 +21472,6 @@ export const room_no_match: ((inputs?: Room_No_MatchInputs, options?: {
 export const room_none: ((inputs?: Room_NoneInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Room_NoneInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Create a room to organize your devices by location." |
-*
-* @param {Room_None_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const room_none_help: ((inputs?: Room_None_HelpInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Room_None_HelpInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -19937,34 +21603,6 @@ export const scene_create_add_selector: ((inputs?: Scene_Create_Add_SelectorInpu
 /**
 * | output |
 * | --- |
-* | "Adjust the lighting" |
-*
-* @param {Scene_Create_Adjust_LightingInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scene_create_adjust_lighting: ((inputs?: Scene_Create_Adjust_LightingInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Scene_Create_Adjust_LightingInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Back" |
-*
-* @param {Scene_Create_BackInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scene_create_back: ((inputs?: Scene_Create_BackInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Scene_Create_BackInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
 * | "Create" |
 *
 * @param {Scene_Create_BreadcrumbInputs} inputs
@@ -19988,34 +21626,6 @@ export const scene_create_breadcrumb: ((inputs?: Scene_Create_BreadcrumbInputs, 
 export const scene_create_building: ((inputs?: Scene_Create_BuildingInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Scene_Create_BuildingInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Choose where it lives" |
-*
-* @param {Scene_Create_Choose_LocationInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scene_create_choose_location: ((inputs?: Scene_Create_Choose_LocationInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Scene_Create_Choose_LocationInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Choose the look" |
-*
-* @param {Scene_Create_Choose_LookInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scene_create_choose_look: ((inputs?: Scene_Create_Choose_LookInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Scene_Create_Choose_LookInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -20105,20 +21715,6 @@ export const scene_create_name_placeholder: ((inputs?: Scene_Create_Name_Placeho
 /**
 * | output |
 * | --- |
-* | "Name the scene" |
-*
-* @param {Scene_Create_Name_TitleInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scene_create_name_title: ((inputs?: Scene_Create_Name_TitleInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Scene_Create_Name_TitleInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
 * | "No gallery scenes are available." |
 *
 * @param {Scene_Create_No_GalleryInputs} inputs
@@ -20184,20 +21780,6 @@ export const scene_create_photo_privacy: ((inputs?: Scene_Create_Photo_PrivacyIn
 export const scene_create_supporting_description: ((inputs?: Scene_Create_Supporting_DescriptionInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Scene_Create_Supporting_DescriptionInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Create a scene" |
-*
-* @param {Scene_Create_TitleInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scene_create_title: ((inputs?: Scene_Create_TitleInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Scene_Create_TitleInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -21328,7 +22910,7 @@ export const scenes_edit: ((inputs?: Scenes_EditInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "No scenes yet." |
+* | "No scenes" |
 *
 * @param {Scenes_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -21337,20 +22919,6 @@ export const scenes_edit: ((inputs?: Scenes_EditInputs, options?: {
 export const scenes_empty: ((inputs?: Scenes_EmptyInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Scenes_EmptyInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Create a scene to save device state presets and apply them with a single action." |
-*
-* @param {Scenes_Empty_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scenes_empty_help: ((inputs?: Scenes_Empty_HelpInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Scenes_Empty_HelpInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -21477,20 +23045,6 @@ export const scenes_filter_device: ((inputs?: Scenes_Filter_DeviceInputs, option
 export const scenes_filter_empty: ((inputs?: Scenes_Filter_EmptyInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Scenes_Filter_EmptyInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Group" |
-*
-* @param {Scenes_Filter_GroupInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const scenes_filter_group: ((inputs?: Scenes_Filter_GroupInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Scenes_Filter_GroupInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -21689,20 +23243,6 @@ export const scenes_title: ((inputs?: Scenes_TitleInputs, options?: {
 export const sensor_contact: ((inputs?: Sensor_ContactInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Sensor_ContactInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Current readings" |
-*
-* @param {Sensor_Current_ReadingsInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const sensor_current_readings: ((inputs?: Sensor_Current_ReadingsInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Sensor_Current_ReadingsInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -22011,6 +23551,20 @@ export const settings_retention_days: ((inputs?: Settings_Retention_DaysInputs, 
 export const settings_retention_help: ((inputs?: Settings_Retention_HelpInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Settings_Retention_HelpInputs, {
+    locale?: "en" | "sv" | "ru";
+}, {}>;
+/**
+* | output |
+* | --- |
+* | "Enter a number of days greater than zero." |
+*
+* @param {Settings_Retention_InvalidInputs} inputs
+* @param {{ locale?: "en" | "sv" | "ru" }} options
+* @returns {LocalizedString}
+*/
+export const settings_retention_invalid: ((inputs?: Settings_Retention_InvalidInputs, options?: {
+    locale?: "en" | "sv" | "ru";
+}) => LocalizedString) & import("../runtime.js").MessageMetadata<Settings_Retention_InvalidInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -27084,7 +28638,7 @@ export const webhooks_edit_named: ((inputs: Webhooks_Edit_NamedInputs, options?:
 /**
 * | output |
 * | --- |
-* | "No incoming webhooks yet." |
+* | "No webhooks" |
 *
 * @param {Webhooks_EmptyInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -27093,20 +28647,6 @@ export const webhooks_edit_named: ((inputs: Webhooks_Edit_NamedInputs, options?:
 export const webhooks_empty: ((inputs?: Webhooks_EmptyInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Webhooks_EmptyInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Create an endpoint for another system to trigger Hive." |
-*
-* @param {Webhooks_Empty_HelpInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const webhooks_empty_help: ((inputs?: Webhooks_Empty_HelpInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Webhooks_Empty_HelpInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -27266,7 +28806,7 @@ export const webhooks_no_match: ((inputs?: Webhooks_No_MatchInputs, options?: {
 /**
 * | output |
 * | --- |
-* | "No requests received yet." |
+* | "No requests" |
 *
 * @param {Webhooks_No_RequestsInputs} inputs
 * @param {{ locale?: "en" | "sv" | "ru" }} options
@@ -27415,20 +28955,6 @@ export const webhooks_received: ((inputs?: Webhooks_ReceivedInputs, options?: {
 export const webhooks_recent_requests: ((inputs?: Webhooks_Recent_RequestsInputs, options?: {
     locale?: "en" | "sv" | "ru";
 }) => LocalizedString) & import("../runtime.js").MessageMetadata<Webhooks_Recent_RequestsInputs, {
-    locale?: "en" | "sv" | "ru";
-}, {}>;
-/**
-* | output |
-* | --- |
-* | "Could not rename the webhook." |
-*
-* @param {Webhooks_Rename_FailedInputs} inputs
-* @param {{ locale?: "en" | "sv" | "ru" }} options
-* @returns {LocalizedString}
-*/
-export const webhooks_rename_failed: ((inputs?: Webhooks_Rename_FailedInputs, options?: {
-    locale?: "en" | "sv" | "ru";
-}) => LocalizedString) & import("../runtime.js").MessageMetadata<Webhooks_Rename_FailedInputs, {
     locale?: "en" | "sv" | "ru";
 }, {}>;
 /**
@@ -28882,6 +30408,12 @@ export type Activity_Automation_Fired_GenericInputs = {};
 export type Activity_Automation_IdInputs = {
     id: NonNullable<unknown>;
 };
+export type Activity_Command_ConfirmedInputs = {
+    name: NonNullable<unknown>;
+};
+export type Activity_Command_FailedInputs = {
+    name: NonNullable<unknown>;
+};
 export type Activity_Command_SentInputs = {
     name: NonNullable<unknown>;
 };
@@ -28910,10 +30442,12 @@ export type Activity_Device_State_ChangedInputs = {
     name: NonNullable<unknown>;
 };
 export type Activity_EmptyInputs = {};
-export type Activity_Empty_HelpInputs = {};
 export type Activity_Event_Automation_FiredInputs = {};
 export type Activity_Event_AvailabilityInputs = {};
+export type Activity_Event_Command_ConfirmedInputs = {};
+export type Activity_Event_Command_FailedInputs = {};
 export type Activity_Event_Command_SentInputs = {};
+export type Activity_Event_Device_ActionInputs = {};
 export type Activity_Event_Device_AddedInputs = {};
 export type Activity_Event_Device_RemovedInputs = {};
 export type Activity_Event_Node_ActivatedInputs = {};
@@ -28979,6 +30513,14 @@ export type Alarm_Battery_LowInputs = {
     value: NonNullable<unknown>;
 };
 export type Alarm_Broker_DisconnectedInputs = {};
+export type Alarm_Cleaning_DueInputs = {
+    name: NonNullable<unknown>;
+    task: NonNullable<unknown>;
+};
+export type Alarm_Cleaning_SoonInputs = {
+    name: NonNullable<unknown>;
+    task: NonNullable<unknown>;
+};
 export type Alarm_Device_UnavailableInputs = {
     name: NonNullable<unknown>;
 };
@@ -29010,7 +30552,6 @@ export type Alarms_Delete_Many_TitleInputs = {
 };
 export type Alarms_Delete_TitleInputs = {};
 export type Alarms_EmptyInputs = {};
-export type Alarms_Empty_HelpInputs = {};
 export type Alarms_Filter_KindInputs = {};
 export type Alarms_Filter_SeverityInputs = {};
 export type Alarms_Filter_SinceInputs = {};
@@ -29645,7 +31186,6 @@ export type Automations_DisableInputs = {
 };
 export type Automations_EditInputs = {};
 export type Automations_EmptyInputs = {};
-export type Automations_Empty_HelpInputs = {};
 export type Automations_EnableInputs = {
     name: NonNullable<unknown>;
 };
@@ -29691,7 +31231,6 @@ export type Button_Last_SeenInputs = {
     time: NonNullable<unknown>;
 };
 export type Button_No_ActionInputs = {};
-export type Button_StatusInputs = {};
 export type Claude_Choose_ModelInputs = {};
 export type Claude_Connect_ModelInputs = {};
 export type Claude_Connect_SaveInputs = {};
@@ -29703,8 +31242,124 @@ export type Claude_Models_FailedInputs = {};
 export type Claude_TestInputs = {};
 export type Claude_TokenInputs = {};
 export type Claude_Token_KeepInputs = {};
+export type Cleaning_Add_LandmarkInputs = {};
+export type Cleaning_AlignInputs = {};
+export type Cleaning_Align_FirstInputs = {};
+export type Cleaning_Alignment_Load_FailedInputs = {};
+export type Cleaning_Alignment_Save_FailedInputs = {};
+export type Cleaning_Area_CleanedInputs = {};
+export type Cleaning_CleanInputs = {};
+export type Cleaning_Clean_SensorsInputs = {};
+export type Cleaning_ControlInputs = {};
+export type Cleaning_Create_FloorplanInputs = {};
+export type Cleaning_Current_TaskInputs = {};
+export type Cleaning_DiagnosticsInputs = {};
+export type Cleaning_DockInputs = {};
+export type Cleaning_Dreame_RoomsInputs = {};
+export type Cleaning_Due_SoonInputs = {};
+export type Cleaning_ElapsedInputs = {};
+export type Cleaning_Empty_BinInputs = {};
+export type Cleaning_Estimated_ProgressInputs = {};
+export type Cleaning_ExternalInputs = {};
+export type Cleaning_External_OriginInputs = {};
+export type Cleaning_FailedInputs = {};
+export type Cleaning_FilterInputs = {};
+export type Cleaning_HighInputs = {};
+export type Cleaning_HistoryInputs = {};
+export type Cleaning_Hive_RoomsInputs = {};
+export type Cleaning_Landmark_NumberInputs = {
+    number: NonNullable<unknown>;
+};
+export type Cleaning_Landmark_PartnerInputs = {
+    number: NonNullable<unknown>;
+    map: NonNullable<unknown>;
+};
+export type Cleaning_Last_SeenInputs = {
+    time: NonNullable<unknown>;
+};
+export type Cleaning_Link_RoomsInputs = {};
+export type Cleaning_Load_MoreInputs = {};
+export type Cleaning_LocateInputs = {};
+export type Cleaning_LowInputs = {};
+export type Cleaning_Main_BrushInputs = {};
+export type Cleaning_MaintenanceInputs = {};
+export type Cleaning_ManufacturerInputs = {};
+export type Cleaning_MapInputs = {};
+export type Cleaning_Map_DockInputs = {};
+export type Cleaning_Map_NameInputs = {
+    id: NonNullable<unknown>;
+};
+export type Cleaning_Map_RoomInputs = {
+    id: NonNullable<unknown>;
+};
+export type Cleaning_Map_SelectInputs = {};
+export type Cleaning_Map_TitleInputs = {};
+export type Cleaning_Map_Zoom_InInputs = {};
+export type Cleaning_Map_Zoom_OutInputs = {};
+export type Cleaning_Mark_CleanedInputs = {};
+export type Cleaning_Mark_ReplacedInputs = {};
+export type Cleaning_MediumInputs = {};
+export type Cleaning_Missing_RoomInputs = {};
+export type Cleaning_ModelInputs = {};
+export type Cleaning_Model_IdInputs = {};
+export type Cleaning_No_AvailableInputs = {};
+export type Cleaning_No_HistoryInputs = {};
+export type Cleaning_OptionsInputs = {};
+export type Cleaning_OverlayInputs = {};
+export type Cleaning_PauseInputs = {};
+export type Cleaning_Place_LandmarkInputs = {
+    number: NonNullable<unknown>;
+};
+export type Cleaning_Position_UnavailableInputs = {};
+export type Cleaning_ProgressInputs = {};
+export type Cleaning_QuietInputs = {};
+export type Cleaning_RemainingInputs = {};
+export type Cleaning_RepeatsInputs = {};
+export type Cleaning_ReplaceInputs = {};
+export type Cleaning_Replace_FilterInputs = {};
+export type Cleaning_Replace_Main_BrushInputs = {};
+export type Cleaning_Replace_Side_BrushInputs = {};
+export type Cleaning_Replace_TitleInputs = {};
+export type Cleaning_ResumeInputs = {};
+export type Cleaning_RobotInputs = {};
+export type Cleaning_Robot_SettingsInputs = {};
+export type Cleaning_RoomsInputs = {};
+export type Cleaning_Rotate_LeftInputs = {};
+export type Cleaning_Rotate_RightInputs = {};
+export type Cleaning_Select_RobotInputs = {};
+export type Cleaning_Selection_ChangedInputs = {};
+export type Cleaning_SensorsInputs = {};
+export type Cleaning_Shared_RoomsInputs = {};
+export type Cleaning_Show_On_MapInputs = {};
+export type Cleaning_Side_BrushInputs = {};
+export type Cleaning_StandardInputs = {};
+export type Cleaning_StartInputs = {};
+export type Cleaning_Start_NewInputs = {};
+export type Cleaning_Status_AttentionInputs = {};
+export type Cleaning_Status_CancelledInputs = {};
+export type Cleaning_Status_CleaningInputs = {};
+export type Cleaning_Status_CompletedInputs = {};
+export type Cleaning_Status_DockedInputs = {};
+export type Cleaning_Status_EndedInputs = {};
+export type Cleaning_Status_FailedInputs = {};
+export type Cleaning_Status_IdleInputs = {};
+export type Cleaning_Status_OfflineInputs = {};
+export type Cleaning_Status_PausedInputs = {};
+export type Cleaning_Status_ReturningInputs = {};
+export type Cleaning_Status_StartingInputs = {};
+export type Cleaning_Status_StoppingInputs = {};
+export type Cleaning_Status_UnknownInputs = {};
+export type Cleaning_StopInputs = {};
+export type Cleaning_StrongInputs = {};
+export type Cleaning_SuctionInputs = {};
+export type Cleaning_TestInputs = {};
+export type Cleaning_TitleInputs = {};
+export type Cleaning_TurboInputs = {};
+export type Cleaning_WaterInputs = {};
+export type Cleaning_Whole_ApartmentInputs = {};
 export type Color_Picker_AriaInputs = {};
 export type Common_Add_ToInputs = {};
+export type Common_BackInputs = {};
 export type Common_Brand_NameInputs = {};
 export type Common_CancelInputs = {};
 export type Common_ClearInputs = {};
@@ -29729,6 +31384,7 @@ export type Common_LoadingInputs = {};
 export type Common_NoInputs = {};
 export type Common_PasteInputs = {};
 export type Common_RemoveInputs = {};
+export type Common_RenameInputs = {};
 export type Common_SaveInputs = {};
 export type Common_SavingInputs = {};
 export type Common_SearchInputs = {};
@@ -29793,7 +31449,6 @@ export type Data_Viewer_Remove_SourceInputs = {
 export type Data_Viewer_RoomsInputs = {};
 export type Data_Viewer_SourcesInputs = {};
 export type Data_Viewer_TitleInputs = {};
-export type Device_ActionsInputs = {};
 export type Device_Adjust_Climate_NamedInputs = {
     name: NonNullable<unknown>;
 };
@@ -29801,9 +31456,9 @@ export type Device_Adjust_NamedInputs = {
     name: NonNullable<unknown>;
 };
 export type Device_ApplyInputs = {};
-export type Device_ApplyingInputs = {};
 export type Device_Back_To_DevicesInputs = {};
 export type Device_BrightnessInputs = {};
+export type Device_ChargingInputs = {};
 export type Device_ColorInputs = {};
 export type Device_Command_FailedInputs = {
     name: NonNullable<unknown>;
@@ -29826,6 +31481,7 @@ export type Device_Config_Section_OtherInputs = {};
 export type Device_Config_Section_PresenceInputs = {};
 export type Device_Configuration_FailedInputs = {};
 export type Device_Configuration_TimeoutInputs = {};
+export type Device_ControlInputs = {};
 export type Device_Controls_DisabledInputs = {};
 export type Device_Controls_Enable_HelpInputs = {};
 export type Device_Copy_IdInputs = {};
@@ -29837,6 +31493,7 @@ export type Device_Flags_SummaryInputs = {
     count: NonNullable<unknown>;
     total: NonNullable<unknown>;
 };
+export type Device_Fully_ChargedInputs = {};
 export type Device_GenericInputs = {};
 export type Device_HistoryInputs = {};
 export type Device_IdInputs = {};
@@ -29864,6 +31521,7 @@ export type Device_Select_ModeInputs = {};
 export type Device_Select_SpeedInputs = {};
 export type Device_Select_SwingInputs = {};
 export type Device_SettingsInputs = {};
+export type Device_StatusInputs = {};
 export type Device_SwingInputs = {};
 export type Device_TargetInputs = {};
 export type Device_Target_TemperatureInputs = {};
@@ -29882,7 +31540,6 @@ export type Device_Type_SpeakerInputs = {};
 export type Device_Type_SwitchInputs = {};
 export type Device_Type_UnknownInputs = {};
 export type Device_UpdateInputs = {};
-export type Device_WaitingInputs = {};
 export type Device_WhiteInputs = {};
 export type Devices_ActionsInputs = {};
 export type Devices_Add_To_ActionInputs = {};
@@ -29912,7 +31569,6 @@ export type Devices_EnableInputs = {};
 export type Devices_NewInputs = {};
 export type Devices_No_MatchInputs = {};
 export type Devices_NoneInputs = {};
-export type Devices_None_HelpInputs = {};
 export type Devices_OfflineInputs = {};
 export type Devices_OnlineInputs = {};
 export type Devices_RestoreInputs = {};
@@ -29924,6 +31580,22 @@ export type Devices_SearchInputs = {};
 export type Devices_Trigger_EventInputs = {
     name: NonNullable<unknown>;
 };
+export type Dreame_Connect_AccountInputs = {};
+export type Dreame_Connect_RegionInputs = {};
+export type Dreame_Connect_SaveInputs = {};
+export type Dreame_ConnectingInputs = {};
+export type Dreame_EmailInputs = {};
+export type Dreame_EnabledInputs = {};
+export type Dreame_PasswordInputs = {};
+export type Dreame_ReadInputs = {};
+export type Dreame_RegionInputs = {};
+export type Dreame_Region_CnInputs = {};
+export type Dreame_Region_EuInputs = {};
+export type Dreame_Region_InInputs = {};
+export type Dreame_Region_KrInputs = {};
+export type Dreame_Region_RuInputs = {};
+export type Dreame_Region_SgInputs = {};
+export type Dreame_Region_UsInputs = {};
 export type Editor_Changed_ElsewhereInputs = {};
 export type Editor_Reload_SavedInputs = {};
 export type Effect_Action_RunInputs = {};
@@ -30035,7 +31707,6 @@ export type Effects_Delete_Many_TitleInputs = {
 export type Effects_Delete_TitleInputs = {};
 export type Effects_EditInputs = {};
 export type Effects_EmptyInputs = {};
-export type Effects_Empty_HelpInputs = {};
 export type Effects_Error_CreateInputs = {};
 export type Effects_Error_DeleteInputs = {};
 export type Effects_Error_Delete_ManyInputs = {};
@@ -30194,7 +31865,6 @@ export type Group_Members_NoneInputs = {};
 export type Group_NameInputs = {};
 export type Group_No_MatchInputs = {};
 export type Group_NoneInputs = {};
-export type Group_None_HelpInputs = {};
 export type Group_Rename_FailedInputs = {};
 export type Group_Save_FailedInputs = {};
 export type Group_SearchInputs = {};
@@ -30278,6 +31948,7 @@ export type Integrations_DeleteInputs = {};
 export type Integrations_Delete_Keep_DescriptionInputs = {};
 export type Integrations_Delete_Purge_DescriptionInputs = {};
 export type Integrations_Delete_TitleInputs = {};
+export type Integrations_Description_DreameInputs = {};
 export type Integrations_Description_GenericInputs = {};
 export type Integrations_Description_TuyaInputs = {};
 export type Integrations_Description_Zigbee2mqttInputs = {};
@@ -30288,7 +31959,6 @@ export type Integrations_Devices_KeptInputs = {
     count: NonNullable<unknown>;
 };
 export type Integrations_EmptyInputs = {};
-export type Integrations_Empty_HelpInputs = {};
 export type Integrations_No_MatchInputs = {};
 export type Integrations_None_AvailableInputs = {};
 export type Integrations_SearchInputs = {};
@@ -30306,6 +31976,10 @@ export type Maintenance_Battery_DetailInputs = {
     name: NonNullable<unknown>;
     value: NonNullable<unknown>;
 };
+export type Maintenance_Cleaning_DetailInputs = {
+    name: NonNullable<unknown>;
+    value: NonNullable<unknown>;
+};
 export type Maintenance_Correct_PostureInputs = {};
 export type Maintenance_EmptyInputs = {};
 export type Maintenance_Filter_DeviceInputs = {};
@@ -30319,6 +31993,7 @@ export type Maintenance_Firmware_DetailInputs = {
 };
 export type Maintenance_Free_StorageInputs = {};
 export type Maintenance_Group_BatteriesInputs = {};
+export type Maintenance_Group_CleaningInputs = {};
 export type Maintenance_Group_PostureInputs = {};
 export type Maintenance_Group_SystemInputs = {};
 export type Maintenance_Group_UpdatesInputs = {};
@@ -30419,6 +32094,7 @@ export type Map_Furniture_Sofa_SideInputs = {};
 export type Map_Furniture_ToiletInputs = {};
 export type Map_Go_To_DeviceInputs = {};
 export type Map_Go_To_GroupInputs = {};
+export type Map_Hide_Cleaning_TrailsInputs = {};
 export type Map_Hide_Neighbour_LinksInputs = {};
 export type Map_Hide_Provider_MeshInputs = {
     provider: NonNullable<unknown>;
@@ -30469,6 +32145,7 @@ export type Map_RoomsInputs = {};
 export type Map_Select_Walls_To_CopyInputs = {};
 export type Map_Sensor_Conflict_DescriptionInputs = {};
 export type Map_Set_Display_ColorInputs = {};
+export type Map_Show_Cleaning_TrailsInputs = {};
 export type Map_Show_Neighbour_LinksInputs = {};
 export type Map_Show_Provider_MeshInputs = {
     provider: NonNullable<unknown>;
@@ -30542,11 +32219,6 @@ export type Nav_SystemInputs = {};
 export type Nav_ThingsInputs = {};
 export type Nav_UsersInputs = {};
 export type Nav_WebhooksInputs = {};
-export type Plug_CurrentInputs = {};
-export type Plug_EnergyInputs = {};
-export type Plug_StatusInputs = {};
-export type Plug_ToggleInputs = {};
-export type Plug_VoltageInputs = {};
 export type Profile_AccountInputs = {};
 export type Profile_Avatar_Clear_FailedInputs = {};
 export type Profile_Avatar_HelpInputs = {
@@ -30638,7 +32310,6 @@ export type Room_Members_EmptyInputs = {};
 export type Room_NameInputs = {};
 export type Room_No_MatchInputs = {};
 export type Room_NoneInputs = {};
-export type Room_None_HelpInputs = {};
 export type Room_Rename_FailedInputs = {};
 export type Room_Save_FailedInputs = {};
 export type Room_SearchInputs = {};
@@ -30648,25 +32319,19 @@ export type Scene_Add_SourceInputs = {};
 export type Scene_BackInputs = {};
 export type Scene_Choose_IconInputs = {};
 export type Scene_Create_Add_SelectorInputs = {};
-export type Scene_Create_Adjust_LightingInputs = {};
-export type Scene_Create_BackInputs = {};
 export type Scene_Create_BreadcrumbInputs = {};
 export type Scene_Create_BuildingInputs = {};
-export type Scene_Create_Choose_LocationInputs = {};
-export type Scene_Create_Choose_LookInputs = {};
 export type Scene_Create_CreatingInputs = {};
 export type Scene_Create_Error_Choose_VibeInputs = {};
 export type Scene_Create_Error_CreateInputs = {};
 export type Scene_Create_Full_ColorInputs = {};
 export type Scene_Create_Loading_GalleryInputs = {};
 export type Scene_Create_Name_PlaceholderInputs = {};
-export type Scene_Create_Name_TitleInputs = {};
 export type Scene_Create_No_GalleryInputs = {};
 export type Scene_Create_Photo_AtmosphereInputs = {};
 export type Scene_Create_Photo_FormatsInputs = {};
 export type Scene_Create_Photo_PrivacyInputs = {};
 export type Scene_Create_Supporting_DescriptionInputs = {};
-export type Scene_Create_TitleInputs = {};
 export type Scene_Create_Turn_OnInputs = {
     name: NonNullable<unknown>;
 };
@@ -30776,7 +32441,6 @@ export type Scenes_Device_CountInputs = {
 export type Scenes_DevicesInputs = {};
 export type Scenes_EditInputs = {};
 export type Scenes_EmptyInputs = {};
-export type Scenes_Empty_HelpInputs = {};
 export type Scenes_Error_ApplyInputs = {};
 export type Scenes_Error_DeleteInputs = {};
 export type Scenes_Error_Delete_ManyInputs = {};
@@ -30786,7 +32450,6 @@ export type Scenes_Error_StopInputs = {};
 export type Scenes_Error_UpdateInputs = {};
 export type Scenes_Filter_DeviceInputs = {};
 export type Scenes_Filter_EmptyInputs = {};
-export type Scenes_Filter_GroupInputs = {};
 export type Scenes_Filter_RoomInputs = {};
 export type Scenes_Filter_TargetInputs = {};
 export type Scenes_GroupsInputs = {};
@@ -30807,7 +32470,6 @@ export type Scenes_Target_CountInputs = {
 };
 export type Scenes_TitleInputs = {};
 export type Sensor_ContactInputs = {};
-export type Sensor_Current_ReadingsInputs = {};
 export type Sensor_DetailsInputs = {};
 export type Sensor_Device_PostureInputs = {};
 export type Sensor_DoorInputs = {};
@@ -30830,6 +32492,7 @@ export type Settings_Log_WarnInputs = {};
 export type Settings_Retention_AriaInputs = {};
 export type Settings_Retention_DaysInputs = {};
 export type Settings_Retention_HelpInputs = {};
+export type Settings_Retention_InvalidInputs = {};
 export type Settings_Save_FailedInputs = {};
 export type Settings_Time_ZoneInputs = {};
 export type Settings_Time_Zone_BrowserInputs = {
@@ -31271,7 +32934,6 @@ export type Webhooks_Edit_NamedInputs = {
     name: NonNullable<unknown>;
 };
 export type Webhooks_EmptyInputs = {};
-export type Webhooks_Empty_HelpInputs = {};
 export type Webhooks_Enable_NamedInputs = {
     name: NonNullable<unknown>;
 };
@@ -31300,7 +32962,6 @@ export type Webhooks_Outcome_UnknownInputs = {
 export type Webhooks_Query_KeysInputs = {};
 export type Webhooks_ReceivedInputs = {};
 export type Webhooks_Recent_RequestsInputs = {};
-export type Webhooks_Rename_FailedInputs = {};
 export type Webhooks_Request_BodyInputs = {};
 export type Webhooks_Request_IdInputs = {};
 export type Webhooks_RequestsInputs = {};

@@ -16,6 +16,8 @@ func (s *DB) DeleteProviderConfiguration(ctx context.Context, source device.Sour
 				return err
 			}
 			return s.DeleteNetworkTopology(ctx, source)
+		case device.SourceDreame:
+			return s.DeleteDreameConfig(ctx)
 		case device.SourceTuya:
 			if err := s.DeleteTuyaConfig(ctx); err != nil {
 				return err
