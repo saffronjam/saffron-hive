@@ -186,7 +186,7 @@ describe("effect timeline context menus", () => {
     await page.goto(`${getContext().appUrl}/effects`, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Table view", exact: true }).click();
     const row = page.getByRole("row").filter({ hasText: "Timeline menu test" });
-    for (const label of ["Run effect", "Edit effect", "Delete effect"]) {
+    for (const label of ["Run effect", "Actions"]) {
       const action = row.getByLabel(label, { exact: true });
       const background = await action.evaluate(
         (element) => getComputedStyle(element).backgroundColor,
@@ -198,6 +198,12 @@ describe("effect timeline context menus", () => {
         .not.toBe(background);
       await page.mouse.move(0, 0);
     }
+    await row.getByRole("button", { name: "Actions", exact: true }).click();
+    const edit = page.getByRole("menuitem", { name: "Edit effect", exact: true });
+    await edit.waitFor();
+    expect(await edit.getAttribute("href")).toBe(`/effects/${effectId}`);
+    await page.getByRole("menuitem", { name: "Delete effect", exact: true }).waitFor();
+    await page.keyboard.press("Escape");
   });
 
   it("adds tracks, copies and pastes clips at the clicked time, and supports undo and redo", async () => {

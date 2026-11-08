@@ -75,7 +75,7 @@ const sceneIds: string[] = [];
 async function openCreation(): Promise<void> {
   const { appUrl } = getContext();
   await page.goto(`${appUrl}/scenes/new`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("heading", { name: "Create a scene" }).waitFor();
+  await page.getByRole("button", { name: /Gallery/ }).waitFor();
 }
 
 async function addDrawerTarget(name: string): Promise<void> {
@@ -146,14 +146,14 @@ async function selectGuidedRounds(count: 3 | 5): Promise<void> {
     await choices.first().press("Enter");
   }
   if (count === 5) {
-    await page.getByRole("heading", { name: "Choose where it lives" }).waitFor();
+    await page.getByRole("button", { name: "Add target", exact: true }).waitFor();
     return;
   }
   const use = page.getByRole("button", { name: "Use this vibe" });
   await use.waitFor();
   await expect.poll(() => use.isEnabled()).toBe(true);
   await use.click();
-  await page.getByRole("heading", { name: "Choose where it lives" }).waitFor();
+  await page.getByRole("button", { name: "Add target", exact: true }).waitFor();
 }
 
 async function selectGuidedRoundsByClick(count: 3 | 5): Promise<void> {
@@ -163,18 +163,18 @@ async function selectGuidedRoundsByClick(count: 3 | 5): Promise<void> {
     await choices.first().click();
   }
   if (count === 5) {
-    await page.getByRole("heading", { name: "Choose where it lives" }).waitFor();
+    await page.getByRole("button", { name: "Add target", exact: true }).waitFor();
     return;
   }
   const use = page.getByRole("button", { name: "Use this vibe" });
   await use.waitFor();
   await expect.poll(() => use.isEnabled()).toBe(true);
   await use.click();
-  await page.getByRole("heading", { name: "Choose where it lives" }).waitFor();
+  await page.getByRole("button", { name: "Add target", exact: true }).waitFor();
 }
 
 async function setCapabilitySelector(): Promise<void> {
-  await page.getByRole("button", { name: "Add Selector" }).click();
+  await page.getByRole("button", { name: "Add selector" }).click();
   let input = page.getByPlaceholder("Add a rule…");
   await input.fill("Room");
   await input.press("Enter");
@@ -255,25 +255,17 @@ describe("advanced Scene browser journeys", () => {
   it("maps wizard steps onto browser back and forward history", async () => {
     await openCreation();
     await page.getByRole("button", { name: /Gallery/ }).click();
-    expect(
-      await page
-        .locator("main h1")
-        .evaluateAll(
-          (headings) =>
-            headings.filter((heading) =>
-              ["Create a scene", "Choose the look"].includes(heading.textContent?.trim() ?? ""),
-            ).length,
-        ),
-    ).toBe(1);
-    await page.getByRole("heading", { name: "Choose the look" }).waitFor();
+    const preset = page.getByRole("button", { name: new RegExp(presetLabel) });
+    await preset.waitFor();
+    await expect.poll(() => page.getByRole("button", { name: /Gallery/ }).count()).toBe(0);
 
     await page.evaluate(() => history.back());
-    await page.getByRole("heading", { name: "Create a scene" }).waitFor();
+    await page.getByRole("button", { name: /Gallery/ }).waitFor();
     await page.evaluate(() => history.forward());
-    await page.getByRole("heading", { name: "Choose the look" }).waitFor();
+    await preset.waitFor();
 
     await page.getByRole("button", { name: "Back", exact: true }).click();
-    await page.getByRole("heading", { name: "Create a scene" }).waitFor();
+    await page.getByRole("button", { name: /Gallery/ }).waitFor();
   });
 
   it("creates, adjusts, reloads, applies, and stops a Gallery Vibe with a capability Selector", async () => {

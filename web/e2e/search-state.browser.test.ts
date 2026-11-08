@@ -378,7 +378,7 @@ describe("URL-backed search restoration", () => {
     const searchInput = browserPage.locator('main input[type="text"]').first();
     await searchInput.fill(":type");
     await searchInput.press("Enter");
-    await searchInput.press("Enter");
+    await browserPage.getByRole("option", { name: "Light", exact: true }).click();
     await searchInput.fill("Living Room Light");
     await expect
       .poll(() => {
@@ -403,7 +403,7 @@ describe("URL-backed search restoration", () => {
       .locator("main input[type=text]")
       .first()
       .evaluate((input) => input.closest('[role="presentation"]')?.textContent ?? "");
-    expect(searchText).toContain("Type: light");
+    expect(searchText).toContain("Type: Light");
     expect(`${searchText} ${await searchInput.inputValue()}`).toContain("Living Room Light");
     await expect
       .poll(() => browserPage.getByText("Door sensor T1", { exact: true }).count())
