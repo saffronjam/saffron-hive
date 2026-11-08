@@ -559,7 +559,8 @@ describe("Claude assistant journeys with an isolated CLI fixture", () => {
     await form.getByRole("textbox",{name:"Scene name",exact:true}).fill("Unsaved choice");
     await form.getByRole("alert").waitFor();
     await send("Use my submitted controls");
-    await expect.poll(() => page.locator("form").filter({has:page.getByRole("textbox",{name:"Ask Hive…",exact:true})}).getByRole("alert").count()).toBe(1);
+    await page.locator('[data-sonner-toast][data-type="error"]').waitFor();
+    expect(await page.getByRole("textbox",{name:"Ask Hive…",exact:true}).inputValue()).toBe("Use my submitted controls");
     expect((await read()).runs.length).toBe(runs);
     await page.unroute("**/graphql");
     await form.getByRole("textbox",{name:"Scene name",exact:true}).fill("Final chat choice");
